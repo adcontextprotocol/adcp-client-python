@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 try:
     from mcp import ClientSession  # type: ignore[import-not-found]
     from mcp.client.sse import sse_client  # type: ignore[import-not-found]
+    from mcp.client.streamable_http import streamablehttp_client  # type: ignore[import-not-found]
 
     MCP_AVAILABLE = True
 except ImportError:
@@ -62,9 +63,21 @@ class MCPAdapter(ProtocolAdapter):
             last_error = None
             for url in urls_to_try:
                 try:
-                    read, write = await self._exit_stack.enter_async_context(
-                        sse_client(url, headers=headers)
-                    )
+                    # Choose transport based on configuration
+                    if self.agent_config.mcp_transport == "streamable_http":
+                        # Use streamable HTTP transport (newer, bidirectional)
+                        read, write, _get_session_id = await self._exit_stack.enter_async_context(
+                            streamablehttp_client(
+                                url,
+                                headers=headers,
+                                timeout=self.agent_config.timeout
+                            )
+                        )
+                    else:
+                        # Use SSE transport (legacy, but widely supported)
+                        read, write = await self._exit_stack.enter_async_context(
+                            sse_client(url, headers=headers)
+                        )
 
                     self._session = await self._exit_stack.enter_async_context(
                         ClientSession(read, write)
@@ -81,8 +94,8 @@ class MCPAdapter(ProtocolAdapter):
                         continue
                     # If this was the last URL, raise the error
                     raise RuntimeError(
-                        f"Failed to connect to MCP agent. Tried URLs: {', '.join(urls_to_try)}. "
-                        f"Last error: {str(last_error)}"
+                        f"Failed to connect to MCP agent using {self.agent_config.mcp_transport} transport. "
+                        f"Tried URLs: {', '.join(urls_to_try)}. Last error: {str(last_error)}"
                     ) from last_error
 
             # This shouldn't be reached, but just in case

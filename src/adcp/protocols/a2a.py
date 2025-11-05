@@ -149,8 +149,9 @@ class A2AAdapter(ProtocolAdapter):
                 else:
                     headers[self.agent_config.auth_header] = self.agent_config.auth_token
 
-            # Try to fetch agent card (OpenAPI spec)
-            url = f"{self.agent_config.agent_uri}/agent-card"
+            # Try to fetch agent card from standard A2A location
+            # A2A spec uses /.well-known/agent.json for agent card
+            url = f"{self.agent_config.agent_uri}/.well-known/agent.json"
 
             response = await client.get(url, headers=headers, timeout=self.agent_config.timeout)
             response.raise_for_status()
