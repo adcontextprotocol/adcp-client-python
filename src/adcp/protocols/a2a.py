@@ -27,7 +27,11 @@ class A2AAdapter(ProtocolAdapter):
             headers = {"Content-Type": "application/json"}
 
             if self.agent_config.auth_token:
-                headers["Authorization"] = f"Bearer {self.agent_config.auth_token}"
+                # Support custom auth headers and types
+                if self.agent_config.auth_type == "bearer":
+                    headers[self.agent_config.auth_header] = f"Bearer {self.agent_config.auth_token}"
+                else:
+                    headers[self.agent_config.auth_header] = self.agent_config.auth_token
 
             # Construct A2A message
             message = {
@@ -53,7 +57,7 @@ class A2AAdapter(ProtocolAdapter):
                     url,
                     json=request_data,
                     headers=headers,
-                    timeout=30.0,
+                    timeout=self.agent_config.timeout,
                 )
                 response.raise_for_status()
 
@@ -139,21 +143,20 @@ class A2AAdapter(ProtocolAdapter):
             headers = {"Content-Type": "application/json"}
 
             if self.agent_config.auth_token:
-                headers["Authorization"] = f"Bearer {self.agent_config.auth_token}"
+                # Support custom auth headers and types
+                if self.agent_config.auth_type == "bearer":
+                    headers[self.agent_config.auth_header] = f"Bearer {self.agent_config.auth_token}"
+                else:
+                    headers[self.agent_config.auth_header] = self.agent_config.auth_token
 
             # Try to fetch agent card (OpenAPI spec)
             url = f"{self.agent_config.agent_uri}/agent-card"
 
-            try:
-                response = await client.get(url, headers=headers, timeout=10.0)
-                response.raise_for_status()
+            response = await client.get(url, headers=headers, timeout=self.agent_config.timeout)
+            response.raise_for_status()
 
-                data = response.json()
+            data = response.json()
 
-                # Extract skills from agent card
-                skills = data.get("skills", [])
-                return [skill.get("name", "") for skill in skills if skill.get("name")]
-
-            except httpx.HTTPError:
-                # If agent card is not available, return empty list
-                return []
+            # Extract skills from agent card
+            skills = data.get("skills", [])
+            return [skill.get("name", "") for skill in skills if skill.get("name")]

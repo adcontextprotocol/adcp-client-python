@@ -29,7 +29,7 @@ class MCPAdapter(ProtocolAdapter):
         self._exit_stack: Any = None
 
     async def _get_session(self) -> ClientSession:
-        """Get or create MCP client session."""
+        """Get or create MCP client session with URL fallback handling."""
         if self._session is not None:
             return self._session
 
@@ -45,18 +45,48 @@ class MCPAdapter(ProtocolAdapter):
             # Create SSE client with authentication header
             headers = {}
             if self.agent_config.auth_token:
-                headers["x-adcp-auth"] = self.agent_config.auth_token
+                # Support custom auth headers and types
+                if self.agent_config.auth_type == "bearer":
+                    headers[self.agent_config.auth_header] = f"Bearer {self.agent_config.auth_token}"
+                else:
+                    headers[self.agent_config.auth_header] = self.agent_config.auth_token
 
-            read, write = await self._exit_stack.enter_async_context(
-                sse_client(self.agent_config.agent_uri, headers=headers)
-            )
+            # Try the user's exact URL first
+            urls_to_try = [self.agent_config.agent_uri]
 
-            self._session = await self._exit_stack.enter_async_context(ClientSession(read, write))
+            # If URL doesn't end with /mcp, also try with /mcp suffix
+            if not self.agent_config.agent_uri.rstrip("/").endswith("/mcp"):
+                base_uri = self.agent_config.agent_uri.rstrip("/")
+                urls_to_try.append(f"{base_uri}/mcp")
 
-            # Initialize the session
-            await self._session.initialize()
+            last_error = None
+            for url in urls_to_try:
+                try:
+                    read, write = await self._exit_stack.enter_async_context(
+                        sse_client(url, headers=headers)
+                    )
 
-            return self._session
+                    self._session = await self._exit_stack.enter_async_context(
+                        ClientSession(read, write)
+                    )
+
+                    # Initialize the session
+                    await self._session.initialize()
+
+                    return self._session
+                except Exception as e:
+                    last_error = e
+                    # If this isn't the last URL to try, continue
+                    if url != urls_to_try[-1]:
+                        continue
+                    # If this was the last URL, raise the error
+                    raise RuntimeError(
+                        f"Failed to connect to MCP agent. Tried URLs: {', '.join(urls_to_try)}. "
+                        f"Last error: {str(last_error)}"
+                    ) from last_error
+
+            # This shouldn't be reached, but just in case
+            raise RuntimeError(f"Failed to connect to MCP agent at {self.agent_config.agent_uri}")
         else:
             raise ValueError(f"Unsupported transport scheme: {parsed.scheme}")
 
@@ -85,13 +115,9 @@ class MCPAdapter(ProtocolAdapter):
 
     async def list_tools(self) -> list[str]:
         """List available tools from MCP agent."""
-        try:
-            session = await self._get_session()
-            result = await session.list_tools()
-            return [tool.name for tool in result.tools]
-        except Exception:
-            # Return empty list on error
-            return []
+        session = await self._get_session()
+        result = await session.list_tools()
+        return [tool.name for tool in result.tools]
 
     async def close(self) -> None:
         """Close the MCP session."""

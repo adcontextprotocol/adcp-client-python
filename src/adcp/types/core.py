@@ -21,6 +21,9 @@ class AgentConfig(BaseModel):
     protocol: Protocol
     auth_token: str | None = None
     requires_auth: bool = False
+    auth_header: str = "x-adcp-auth"  # Header name for authentication
+    auth_type: str = "token"  # "token" for direct value, "bearer" for "Bearer {token}"
+    timeout: float = 30.0  # Request timeout in seconds
 
 
 class TaskStatus(str, Enum):
