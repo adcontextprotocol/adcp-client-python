@@ -1,0 +1,91 @@
+"""MCP protocol adapter using official Python MCP SDK."""
+
+from typing import Any
+from urllib.parse import urlparse
+
+from mcp import ClientSession
+from mcp.client.sse import sse_client
+
+from adcp.protocols.base import ProtocolAdapter
+from adcp.types.core import TaskResult, TaskStatus
+
+
+class MCPAdapter(ProtocolAdapter):
+    """Adapter for MCP protocol using official Python MCP SDK."""
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self._session: ClientSession | None = None
+        self._exit_stack: Any = None
+
+    async def _get_session(self) -> ClientSession:
+        """Get or create MCP client session."""
+        if self._session is not None:
+            return self._session
+
+        # Parse the agent URI to determine transport type
+        parsed = urlparse(self.agent_config.agent_uri)
+
+        # Use SSE transport for HTTP/HTTPS endpoints
+        if parsed.scheme in ("http", "https"):
+            from contextlib import AsyncExitStack
+
+            self._exit_stack = AsyncExitStack()
+
+            # Create SSE client with authentication header
+            headers = {}
+            if self.agent_config.auth_token:
+                headers["x-adcp-auth"] = self.agent_config.auth_token
+
+            read, write = await self._exit_stack.enter_async_context(
+                sse_client(self.agent_config.agent_uri, headers=headers)
+            )
+
+            self._session = await self._exit_stack.enter_async_context(ClientSession(read, write))
+
+            # Initialize the session
+            await self._session.initialize()
+
+            return self._session
+        else:
+            raise ValueError(f"Unsupported transport scheme: {parsed.scheme}")
+
+    async def call_tool(self, tool_name: str, params: dict[str, Any]) -> TaskResult[Any]:
+        """Call a tool using MCP protocol."""
+        try:
+            session = await self._get_session()
+
+            # Call the tool using MCP client session
+            result = await session.call_tool(tool_name, params)
+
+            # MCP tool results contain a list of content items
+            # For AdCP, we expect the data in the content
+            return TaskResult[Any](
+                status=TaskStatus.COMPLETED,
+                data=result.content,
+                success=True,
+            )
+
+        except Exception as e:
+            return TaskResult[Any](
+                status=TaskStatus.FAILED,
+                error=str(e),
+                success=False,
+            )
+
+    async def list_tools(self) -> list[str]:
+        """List available tools from MCP agent."""
+        try:
+            session = await self._get_session()
+            result = await session.list_tools()
+            return [tool.name for tool in result.tools]
+        except Exception:
+            # Return empty list on error
+            return []
+
+    async def close(self) -> None:
+        """Close the MCP session."""
+        if self._exit_stack is not None:
+            await self._exit_stack.aclose()
+            self._exit_stack = None
+            self._session = None
