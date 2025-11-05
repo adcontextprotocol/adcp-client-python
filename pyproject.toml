@@ -68,6 +68,14 @@ strict = true
 warn_return_any = true
 warn_unused_configs = true
 
+[[tool.mypy.overrides]]
+module = "tests.*"
+disable_error_code = ["import-not-found", "no-untyped-def", "var-annotated", "operator"]
+
+[[tool.mypy.overrides]]
+module = "tests.integration.*"
+ignore_errors = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"

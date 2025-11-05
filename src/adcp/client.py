@@ -2,8 +2,9 @@
 
 import json
 import os
+from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 from uuid import uuid4
 
 from adcp.protocols.a2a import A2AAdapter
@@ -29,9 +30,9 @@ class ADCPClient:
     def __init__(
         self,
         agent_config: AgentConfig,
-        webhook_url_template: Optional[str] = None,
-        webhook_secret: Optional[str] = None,
-        on_activity: Optional[Callable[[Activity], None]] = None,
+        webhook_url_template: str | None = None,
+        webhook_secret: str | None = None,
+        on_activity: Callable[[Activity], None] | None = None,
     ):
         """
         Initialize ADCP client for a single agent.
@@ -49,10 +50,11 @@ class ADCPClient:
         self.on_activity = on_activity
 
         # Initialize protocol adapter
+        self.adapter: ProtocolAdapter
         if agent_config.protocol == Protocol.A2A:
-            self.adapter: ProtocolAdapter = A2AAdapter(agent_config)
+            self.adapter = A2AAdapter(agent_config)
         elif agent_config.protocol == Protocol.MCP:
-            self.adapter: ProtocolAdapter = MCPAdapter(agent_config)
+            self.adapter = MCPAdapter(agent_config)
         else:
             raise ValueError(f"Unsupported protocol: {agent_config.protocol}")
 
@@ -395,7 +397,7 @@ class ADCPClient:
     async def handle_webhook(
         self,
         payload: dict[str, Any],
-        signature: Optional[str] = None,
+        signature: str | None = None,
     ) -> None:
         """
         Handle incoming webhook.
@@ -430,10 +432,10 @@ class ADCPMultiAgentClient:
     def __init__(
         self,
         agents: list[AgentConfig],
-        webhook_url_template: Optional[str] = None,
-        webhook_secret: Optional[str] = None,
-        on_activity: Optional[Callable[[Activity], None]] = None,
-        handlers: Optional[Dict[str, Callable]] = None,
+        webhook_url_template: str | None = None,
+        webhook_secret: str | None = None,
+        on_activity: Callable[[Activity], None] | None = None,
+        handlers: dict[str, Callable[..., Any]] | None = None,
     ):
         """
         Initialize multi-agent client.

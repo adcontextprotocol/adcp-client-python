@@ -4,13 +4,13 @@ from typing import Any
 from urllib.parse import urlparse
 
 try:
-    from mcp import ClientSession
-    from mcp.client.sse import sse_client
+    from mcp import ClientSession  # type: ignore[import-not-found]
+    from mcp.client.sse import sse_client  # type: ignore[import-not-found]
 
     MCP_AVAILABLE = True
 except ImportError:
     MCP_AVAILABLE = False
-    ClientSession = None  # type: ignore
+    ClientSession = None
 
 from adcp.protocols.base import ProtocolAdapter
 from adcp.types.core import TaskResult, TaskStatus
