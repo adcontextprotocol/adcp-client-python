@@ -3,8 +3,14 @@
 from typing import Any
 from urllib.parse import urlparse
 
-from mcp import ClientSession
-from mcp.client.sse import sse_client
+try:
+    from mcp import ClientSession
+    from mcp.client.sse import sse_client
+
+    MCP_AVAILABLE = True
+except ImportError:
+    MCP_AVAILABLE = False
+    ClientSession = None  # type: ignore
 
 from adcp.protocols.base import ProtocolAdapter
 from adcp.types.core import TaskResult, TaskStatus
@@ -15,7 +21,11 @@ class MCPAdapter(ProtocolAdapter):
 
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
-        self._session: ClientSession | None = None
+        if not MCP_AVAILABLE:
+            raise ImportError(
+                "MCP SDK not installed. Install with: pip install mcp (requires Python 3.10+)"
+            )
+        self._session: Any = None
         self._exit_stack: Any = None
 
     async def _get_session(self) -> ClientSession:

@@ -2,9 +2,8 @@
 
 import json
 import os
-from collections.abc import Callable
 from datetime import datetime
-from typing import Any
+from typing import Any, Callable, Dict, List, Optional
 from uuid import uuid4
 
 from adcp.protocols.a2a import A2AAdapter
@@ -30,9 +29,9 @@ class ADCPClient:
     def __init__(
         self,
         agent_config: AgentConfig,
-        webhook_url_template: str | None = None,
-        webhook_secret: str | None = None,
-        on_activity: Callable[[Activity], None] | None = None,
+        webhook_url_template: Optional[str] = None,
+        webhook_secret: Optional[str] = None,
+        on_activity: Optional[Callable[[Activity], None]] = None,
     ):
         """
         Initialize ADCP client for a single agent.
@@ -396,7 +395,7 @@ class ADCPClient:
     async def handle_webhook(
         self,
         payload: dict[str, Any],
-        signature: str | None = None,
+        signature: Optional[str] = None,
     ) -> None:
         """
         Handle incoming webhook.
@@ -431,10 +430,10 @@ class ADCPMultiAgentClient:
     def __init__(
         self,
         agents: list[AgentConfig],
-        webhook_url_template: str | None = None,
-        webhook_secret: str | None = None,
-        on_activity: Callable[[Activity], None] | None = None,
-        handlers: dict[str, Callable] | None = None,
+        webhook_url_template: Optional[str] = None,
+        webhook_secret: Optional[str] = None,
+        on_activity: Optional[Callable[[Activity], None]] = None,
+        handlers: Optional[Dict[str, Callable]] = None,
     ):
         """
         Initialize multi-agent client.

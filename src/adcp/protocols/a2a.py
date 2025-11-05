@@ -40,8 +40,8 @@ class A2AAdapter(ProtocolAdapter):
                 ],
             }
 
-            # A2A uses tasks/send endpoint
-            url = f"{self.agent_config.agent_uri}/tasks/send"
+            # A2A uses message/send endpoint
+            url = f"{self.agent_config.agent_uri}/message/send"
 
             request_data = {
                 "message": message,

@@ -1,7 +1,7 @@
 """Core type definitions."""
 
 from enum import Enum
-from typing import Any, Generic, Literal, TypeVar
+from typing import Any, Dict, Generic, Literal, Optional, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -19,7 +19,7 @@ class AgentConfig(BaseModel):
     id: str
     agent_uri: str
     protocol: Protocol
-    auth_token: str | None = None
+    auth_token: Optional[str] = None
     requires_auth: bool = False
 
 
@@ -47,17 +47,17 @@ class NeedsInputInfo(BaseModel):
     """Information when agent needs clarification."""
 
     message: str
-    field: str | None = None
+    field: Optional[str] = None
 
 
 class TaskResult(BaseModel, Generic[T]):
     """Result from task execution."""
 
     status: TaskStatus
-    data: T | None = None
-    submitted: SubmittedInfo | None = None
-    needs_input: NeedsInputInfo | None = None
-    error: str | None = None
+    data: Optional[T] = None
+    submitted: Optional[SubmittedInfo] = None
+    needs_input: Optional[NeedsInputInfo] = None
+    error: Optional[str] = None
     success: bool = Field(default=True)
 
     class Config:
@@ -81,9 +81,9 @@ class Activity(BaseModel):
     operation_id: str
     agent_id: str
     task_type: str
-    status: TaskStatus | None = None
+    status: Optional[TaskStatus] = None
     timestamp: str
-    metadata: dict[str, Any] | None = None
+    metadata: Optional[Dict[str, Any]] = None
 
 
 class WebhookMetadata(BaseModel):
@@ -93,6 +93,6 @@ class WebhookMetadata(BaseModel):
     agent_id: str
     task_type: str
     status: TaskStatus
-    sequence_number: int | None = None
-    notification_type: Literal["scheduled", "final", "delayed"] | None = None
+    sequence_number: Optional[int] = None
+    notification_type: Optional[Literal["scheduled", "final", "delayed"]] = None
     timestamp: str
