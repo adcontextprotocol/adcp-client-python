@@ -25,8 +25,7 @@ pip install adcp
 ## Quick Start: Distributed Operations
 
 ```python
-from adcp import ADCPMultiAgentClient
-from adcp.types import AgentConfig
+from adcp import ADCPMultiAgentClient, AgentConfig, GetProductsRequest
 
 # Configure agents and handlers
 client = ADCPMultiAgentClient(
@@ -59,7 +58,8 @@ client = ADCPMultiAgentClient(
 
 # Execute operation - library handles operation IDs, webhook URLs, context management
 agent = client.agent("agent_x")
-result = await agent.get_products(brief="Coffee brands")
+request = GetProductsRequest(brief="Coffee brands")
+result = await agent.get_products(request)
 
 # Check result
 if result.status == "completed":
@@ -84,7 +84,7 @@ Full type hints with Pydantic validation and auto-generated types from the AdCP 
 ```python
 from adcp import GetProductsRequest
 
-# Recommended: Use typed requests for full validation and IDE autocomplete
+# All methods require typed request objects
 request = GetProductsRequest(brief="Coffee brands", max_results=10)
 result = await agent.get_products(request)
 # result: TaskResult[GetProductsResponse]
@@ -92,17 +92,17 @@ result = await agent.get_products(request)
 if result.success:
     for product in result.data.products:
         print(product.name, product.pricing_options)  # Full IDE autocomplete!
-
-# Legacy: You can still use kwargs (maintained for backwards compatibility)
-result = await agent.get_products(brief="Coffee brands")
 ```
 
 ### Multi-Agent Operations
 Execute across multiple agents simultaneously:
 
 ```python
+from adcp import GetProductsRequest
+
 # Parallel execution across all agents
-results = await client.get_products(brief="Coffee brands")
+request = GetProductsRequest(brief="Coffee brands")
+results = await client.get_products(request)
 
 for result in results:
     if result.status == "completed":

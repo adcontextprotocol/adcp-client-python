@@ -103,31 +103,19 @@ class ADCPClient:
 
     async def get_products(
         self,
-        request: GetProductsRequest | None = None,
-        *,
-        brief: str | None = None,
-        **kwargs: Any,
+        request: GetProductsRequest,
     ) -> TaskResult[GetProductsResponse]:
         """
         Get advertising products.
 
         Args:
-            request: Typed request object (recommended)
-            brief: Brief description (legacy, use request instead)
-            **kwargs: Additional parameters (legacy, use request instead)
+            request: Request parameters
 
         Returns:
             TaskResult containing GetProductsResponse
         """
         operation_id = create_operation_id()
-
-        # Support both typed and legacy calling styles
-        if request is not None:
-            params = request.model_dump(exclude_none=True)
-        elif brief is not None:
-            params = {"brief": brief, **kwargs}
-        else:
-            params = kwargs
+        params = request.model_dump(exclude_none=True)
 
         self._emit_activity(
             Activity(
@@ -155,102 +143,20 @@ class ADCPClient:
         return result
 
     async def list_creative_formats(
-        self, request: ListCreativeFormatsRequest | None = None, **kwargs: Any
+        self,
+        request: ListCreativeFormatsRequest,
     ) -> TaskResult[ListCreativeFormatsResponse]:
         """
         List supported creative formats.
 
         Args:
-            request: Typed request object (recommended)
-            **kwargs: Additional parameters (legacy, use request instead)
+            request: Request parameters
 
         Returns:
             TaskResult containing ListCreativeFormatsResponse
         """
         operation_id = create_operation_id()
-
-        # Support both typed and legacy calling styles
-        if request is not None:
-            params = request.model_dump(exclude_none=True)
-        else:
-            params = kwargs
-
-        self._emit_activity(
-            Activity(
-                type=ActivityType.PROTOCOL_REQUEST,
-                operation_id=operation_id,
-                agent_id=self.agent_config.id,
-                task_type="list_creative_formats",
-                timestamp=datetime.now(timezone.utc).isoformat(),
-            )
-        )
-
-        result = await self.adapter.call_tool("list_creative_formats", params)
-
-        self._emit_activity(
-            Activity(
-                type=ActivityType.PROTOCOL_RESPONSE,
-                operation_id=operation_id,
-                agent_id=self.agent_config.id,
-                task_type="list_creative_formats",
-                status=result.status,
-                timestamp=datetime.now(timezone.utc).isoformat(),
-            )
-        )
-
-        return result
-
-    async def create_media_buy(
-        self, request: CreateMediaBuyRequest | None = None, **kwargs: Any
-    ) -> TaskResult[CreateMediaBuyResponse]:
-        """
-        Create a new media buy.
-
-        Args:
-            request: Typed request object (recommended)
-            **kwargs: Additional parameters (legacy, use request instead)
-
-        Returns:
-            TaskResult containing CreateMediaBuyResponse
-        """
-        operation_id = create_operation_id()
-
-        # Support both typed and legacy calling styles
-        if request is not None:
-            params = request.model_dump(exclude_none=True)
-        else:
-            params = kwargs
-
-        self._emit_activity(
-            Activity(
-                type=ActivityType.PROTOCOL_REQUEST,
-                operation_id=operation_id,
-                agent_id=self.agent_config.id,
-                task_type="create_media_buy",
-                timestamp=datetime.now(timezone.utc).isoformat(),
-            )
-        )
-
-        result = await self.adapter.call_tool("create_media_buy", params)
-
-        self._emit_activity(
-            Activity(
-                type=ActivityType.PROTOCOL_RESPONSE,
-                operation_id=operation_id,
-                agent_id=self.agent_config.id,
-                task_type="create_media_buy",
-                status=result.status,
-                timestamp=datetime.now(timezone.utc).isoformat(),
-            )
-        )
-
-        return result
-
-    async def update_media_buy(self, request: UpdateMediaBuyRequest | None = None, **kwargs: Any
-    ) -> TaskResult[UpdateMediaBuyResponse]:
-        """Update an existing media buy."""
-        operation_id = create_operation_id()
-        params = request.model_dump(exclude_none=True) if request is not None else kwargs
+        params = request.model_dump(exclude_none=True)
 
         self._emit_activity(
             Activity(
@@ -277,11 +183,21 @@ class ADCPClient:
 
         return result
 
-    async def sync_creatives(self, request: SyncCreativesRequest | None = None, **kwargs: Any
+    async def sync_creatives(
+        self,
+        request: SyncCreativesRequest,
     ) -> TaskResult[SyncCreativesResponse]:
-        """Synchronize creatives with the agent."""
+        """
+        Sync Creatives.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing SyncCreativesResponse
+        """
         operation_id = create_operation_id()
-        params = request.model_dump(exclude_none=True) if request is not None else kwargs
+        params = request.model_dump(exclude_none=True)
 
         self._emit_activity(
             Activity(
@@ -308,11 +224,21 @@ class ADCPClient:
 
         return result
 
-    async def list_creatives(self, request: ListCreativesRequest | None = None, **kwargs: Any
+    async def list_creatives(
+        self,
+        request: ListCreativesRequest,
     ) -> TaskResult[ListCreativesResponse]:
-        """List creatives for a media buy."""
+        """
+        List Creatives.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing ListCreativesResponse
+        """
         operation_id = create_operation_id()
-        params = request.model_dump(exclude_none=True) if request is not None else kwargs
+        params = request.model_dump(exclude_none=True)
 
         self._emit_activity(
             Activity(
@@ -339,11 +265,21 @@ class ADCPClient:
 
         return result
 
-    async def get_media_buy_delivery(self, request: GetMediaBuyDeliveryRequest | None = None, **kwargs: Any
+    async def get_media_buy_delivery(
+        self,
+        request: GetMediaBuyDeliveryRequest,
     ) -> TaskResult[GetMediaBuyDeliveryResponse]:
-        """Get delivery metrics for a media buy."""
+        """
+        Get Media Buy Delivery.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing GetMediaBuyDeliveryResponse
+        """
         operation_id = create_operation_id()
-        params = request.model_dump(exclude_none=True) if request is not None else kwargs
+        params = request.model_dump(exclude_none=True)
 
         self._emit_activity(
             Activity(
@@ -370,11 +306,21 @@ class ADCPClient:
 
         return result
 
-    async def list_authorized_properties(self, request: ListAuthorizedPropertiesRequest | None = None, **kwargs: Any
+    async def list_authorized_properties(
+        self,
+        request: ListAuthorizedPropertiesRequest,
     ) -> TaskResult[ListAuthorizedPropertiesResponse]:
-        """List properties this agent is authorized to sell."""
+        """
+        List Authorized Properties.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing ListAuthorizedPropertiesResponse
+        """
         operation_id = create_operation_id()
-        params = request.model_dump(exclude_none=True) if request is not None else kwargs
+        params = request.model_dump(exclude_none=True)
 
         self._emit_activity(
             Activity(
@@ -401,11 +347,21 @@ class ADCPClient:
 
         return result
 
-    async def get_signals(self, request: GetSignalsRequest | None = None, **kwargs: Any
+    async def get_signals(
+        self,
+        request: GetSignalsRequest,
     ) -> TaskResult[GetSignalsResponse]:
-        """Get available signals for targeting."""
+        """
+        Get Signals.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing GetSignalsResponse
+        """
         operation_id = create_operation_id()
-        params = request.model_dump(exclude_none=True) if request is not None else kwargs
+        params = request.model_dump(exclude_none=True)
 
         self._emit_activity(
             Activity(
@@ -432,11 +388,21 @@ class ADCPClient:
 
         return result
 
-    async def activate_signal(self, request: ActivateSignalRequest | None = None, **kwargs: Any
+    async def activate_signal(
+        self,
+        request: ActivateSignalRequest,
     ) -> TaskResult[ActivateSignalResponse]:
-        """Activate a signal for use in campaigns."""
+        """
+        Activate Signal.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing ActivateSignalResponse
+        """
         operation_id = create_operation_id()
-        params = request.model_dump(exclude_none=True) if request is not None else kwargs
+        params = request.model_dump(exclude_none=True)
 
         self._emit_activity(
             Activity(
@@ -463,11 +429,21 @@ class ADCPClient:
 
         return result
 
-    async def provide_performance_feedback(self, request: ProvidePerformanceFeedbackRequest | None = None, **kwargs: Any
+    async def provide_performance_feedback(
+        self,
+        request: ProvidePerformanceFeedbackRequest,
     ) -> TaskResult[ProvidePerformanceFeedbackResponse]:
-        """Provide performance feedback for a campaign."""
+        """
+        Provide Performance Feedback.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing ProvidePerformanceFeedbackResponse
+        """
         operation_id = create_operation_id()
-        params = request.model_dump(exclude_none=True) if request is not None else kwargs
+        params = request.model_dump(exclude_none=True)
 
         self._emit_activity(
             Activity(
@@ -671,31 +647,20 @@ class ADCPMultiAgentClient:
 
     async def get_products(
         self,
-        request: GetProductsRequest | None = None,
-        *,
-        brief: str | None = None,
-        **kwargs: Any,
+        request: GetProductsRequest,
     ) -> list[TaskResult[GetProductsResponse]]:
         """
         Execute get_products across all agents in parallel.
 
         Args:
-            request: Typed request object (recommended)
-            brief: Brief description (legacy, use request instead)
-            **kwargs: Additional parameters (legacy, use request instead)
+            request: Request parameters
 
         Returns:
             List of TaskResults containing GetProductsResponse for each agent
         """
         import asyncio
 
-        # Forward arguments to each agent client
-        if request is not None:
-            tasks = [agent.get_products(request=request) for agent in self.agents.values()]
-        elif brief is not None:
-            tasks = [agent.get_products(brief=brief, **kwargs) for agent in self.agents.values()]
-        else:
-            tasks = [agent.get_products(**kwargs) for agent in self.agents.values()]
+        tasks = [agent.get_products(request) for agent in self.agents.values()]
         return await asyncio.gather(*tasks)
 
     @classmethod
