@@ -234,16 +234,29 @@ class A2AAdapter(ProtocolAdapter):
             if status_code in (401, 403):
                 logger.error(f"Authentication failed for A2A agent {self.agent_config.id}")
                 raise ADCPAuthenticationError(
-                    f"Authentication failed for agent {self.agent_config.id}: HTTP {status_code}"
+                    f"Authentication failed: HTTP {status_code}",
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
                 ) from e
             else:
                 logger.error(f"HTTP {status_code} error fetching agent card: {e}")
                 raise ADCPConnectionError(
-                    f"Failed to fetch agent card: HTTP {status_code}"
+                    f"Failed to fetch agent card: HTTP {status_code}",
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
                 ) from e
         except httpx.TimeoutException as e:
             logger.error(f"Timeout fetching agent card for {self.agent_config.id}")
-            raise ADCPTimeoutError(f"Timeout fetching agent card: {e}") from e
+            raise ADCPTimeoutError(
+                f"Timeout fetching agent card: {e}",
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
+                timeout=self.agent_config.timeout,
+            ) from e
         except httpx.HTTPError as e:
             logger.error(f"HTTP error fetching agent card: {e}")
-            raise ADCPConnectionError(f"Failed to fetch agent card: {e}") from e
+            raise ADCPConnectionError(
+                f"Failed to fetch agent card: {e}",
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
+            ) from e

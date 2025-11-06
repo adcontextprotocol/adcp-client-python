@@ -149,15 +149,22 @@ class MCPAdapter(ProtocolAdapter):
                     if "401" in error_str or "403" in error_str or "unauthorized" in error_str:
                         from adcp.exceptions import ADCPAuthenticationError
                         raise ADCPAuthenticationError(
-                            f"Authentication failed for agent {self.agent_config.id}: {last_error}"
+                            f"Authentication failed: {last_error}",
+                            agent_id=self.agent_config.id,
+                            agent_uri=self.agent_config.agent_uri,
                         ) from last_error
                     elif "timeout" in error_str:
                         raise ADCPTimeoutError(
-                            f"Connection timeout for agent {self.agent_config.id}: {last_error}"
+                            f"Connection timeout: {last_error}",
+                            agent_id=self.agent_config.id,
+                            agent_uri=self.agent_config.agent_uri,
+                            timeout=self.agent_config.timeout,
                         ) from last_error
                     else:
                         raise ADCPConnectionError(
-                            f"Failed to connect to agent {self.agent_config.id}: {last_error}"
+                            f"Failed to connect: {last_error}",
+                            agent_id=self.agent_config.id,
+                            agent_uri=self.agent_config.agent_uri,
                         ) from last_error
 
             # This shouldn't be reached, but just in case
