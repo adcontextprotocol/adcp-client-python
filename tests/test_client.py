@@ -97,7 +97,8 @@ async def test_get_products():
         request = GetProductsRequest(brief="test campaign")
         result = await client.get_products(request)
 
-        mock_call.assert_called_once()
+        # Verify correct tool name is called
+        mock_call.assert_called_once_with("get_products", {"brief": "test campaign"})
         assert result.success is True
         assert result.status == TaskStatus.COMPLETED
         assert "products" in result.data
@@ -126,11 +127,76 @@ async def test_all_client_methods():
     assert hasattr(client, "provide_performance_feedback")
 
 
+@pytest.mark.parametrize(
+    "method_name,request_class,request_data",
+    [
+        ("get_products", "GetProductsRequest", {}),
+        ("list_creative_formats", "ListCreativeFormatsRequest", {}),
+        ("sync_creatives", "SyncCreativesRequest", {"creatives": []}),
+        ("list_creatives", "ListCreativesRequest", {}),
+        ("get_media_buy_delivery", "GetMediaBuyDeliveryRequest", {}),
+        ("list_authorized_properties", "ListAuthorizedPropertiesRequest", {}),
+        ("get_signals", "GetSignalsRequest", {"signal_spec": "test", "deliver_to": {}}),
+        (
+            "activate_signal",
+            "ActivateSignalRequest",
+            {"signal_agent_segment_id": "test", "platform": "test"},
+        ),
+        (
+            "provide_performance_feedback",
+            "ProvidePerformanceFeedbackRequest",
+            {"media_buy_id": "test", "measurement_period": {}, "performance_index": 0.5},
+        ),
+    ],
+)
+@pytest.mark.asyncio
+async def test_method_calls_correct_tool_name(method_name, request_class, request_data):
+    """Test that each method calls adapter.call_tool with the correct tool name.
+
+    This test prevents copy-paste bugs where method bodies are copied but
+    tool names aren't updated to match the method name.
+    """
+    from unittest.mock import patch
+    from adcp.types.core import TaskResult, TaskStatus
+    import adcp.types.generated as gen
+
+    config = AgentConfig(
+        id="test_agent",
+        agent_uri="https://test.example.com",
+        protocol=Protocol.A2A,
+    )
+
+    client = ADCPClient(config)
+
+    # Create request instance with required fields
+    request_cls = getattr(gen, request_class)
+    request = request_cls(**request_data)
+
+    mock_result = TaskResult(
+        status=TaskStatus.COMPLETED,
+        data={},
+        success=True,
+    )
+
+    with patch.object(client.adapter, "call_tool", return_value=mock_result) as mock_call:
+        method = getattr(client, method_name)
+        await method(request)
+
+        # CRITICAL: Verify the tool name matches the method name
+        mock_call.assert_called_once()
+        actual_tool_name = mock_call.call_args[0][0]
+        assert actual_tool_name == method_name, (
+            f"Method {method_name} called tool '{actual_tool_name}' instead of '{method_name}'. "
+            f"This is likely a copy-paste bug."
+        )
+
+
 @pytest.mark.asyncio
 async def test_multi_agent_parallel_execution():
     """Test parallel execution across multiple agents."""
     from unittest.mock import patch
     from adcp.types.core import TaskResult, TaskStatus
+    from adcp.types.generated import GetProductsRequest
 
     agents = [
         AgentConfig(
@@ -153,11 +219,19 @@ async def test_multi_agent_parallel_execution():
         success=True,
     )
 
-    # Mock both agents' adapters
-    for agent_client in client.agents.values():
-        with patch.object(agent_client.adapter, "call_tool", return_value=mock_result):
-            pass
+    # Mock both agents' adapters - keep context active during execution
+    with patch.object(
+        client.agents["agent1"].adapter, "call_tool", return_value=mock_result
+    ) as mock1, patch.object(
+        client.agents["agent2"].adapter, "call_tool", return_value=mock_result
+    ) as mock2:
+        request = GetProductsRequest(brief="test")
+        results = await client.get_products(request)
 
-    # Test that get_products can be called on multi-agent client
-    # (actual execution would require proper mocking of asyncio.gather)
-    assert callable(client.get_products)
+        # Verify both agents were called with correct tool name
+        mock1.assert_called_once_with("get_products", {"brief": "test"})
+        mock2.assert_called_once_with("get_products", {"brief": "test"})
+
+        # Verify results from both agents
+        assert len(results) == 2
+        assert all(r.success for r in results)
