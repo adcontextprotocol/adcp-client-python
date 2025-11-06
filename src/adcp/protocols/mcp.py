@@ -6,19 +6,21 @@ import asyncio
 import logging
 import time
 from contextlib import AsyncExitStack
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
-try:
+if TYPE_CHECKING:
     from mcp import ClientSession
+
+try:
+    from mcp import ClientSession as _ClientSession
     from mcp.client.sse import sse_client
     from mcp.client.streamable_http import streamablehttp_client
 
     MCP_AVAILABLE = True
 except ImportError:
-    ClientSession = None  # type: ignore[assignment]
     MCP_AVAILABLE = False
 
 from adcp.exceptions import ADCPConnectionError, ADCPTimeoutError
@@ -38,7 +40,7 @@ class MCPAdapter(ProtocolAdapter):
         self._session: Any = None
         self._exit_stack: Any = None
 
-    async def _get_session(self) -> Any:
+    async def _get_session(self) -> ClientSession:  # type: ignore[name-defined]
         """
         Get or create MCP client session with URL fallback handling.
 
@@ -94,7 +96,7 @@ class MCPAdapter(ProtocolAdapter):
                         )
 
                     self._session = await self._exit_stack.enter_async_context(
-                        ClientSession(read, write)
+                        _ClientSession(read, write)
                     )
 
                     # Initialize the session
