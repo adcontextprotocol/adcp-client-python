@@ -34,9 +34,16 @@ class A2AAdapter(ProtocolAdapter):
         self._client: httpx.AsyncClient | None = None
 
     async def _get_client(self) -> httpx.AsyncClient:
-        """Get or create the HTTP client."""
+        """Get or create the HTTP client with connection pooling."""
         if self._client is None:
-            self._client = httpx.AsyncClient()
+            # Configure connection pooling for better performance
+            limits = httpx.Limits(
+                max_keepalive_connections=10,
+                max_connections=20,
+                keepalive_expiry=30.0,
+            )
+            self._client = httpx.AsyncClient(limits=limits)
+            logger.debug(f"Created HTTP client with connection pooling for agent {self.agent_config.id}")
         return self._client
 
     async def close(self) -> None:

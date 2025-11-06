@@ -102,16 +102,46 @@ def get_python_type(schema: dict) -> str:
 
 
 def main():
-    """Generate models for all task request/response schemas."""
+    """Generate models for core types and task request/response schemas."""
     if not SCHEMAS_DIR.exists():
         print("Error: Schemas not found. Run scripts/sync_schemas.py first.", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Generating task models from {SCHEMAS_DIR}...")
+    print(f"Generating models from {SCHEMAS_DIR}...")
 
-    # Find all task schemas (request/response)
+    # Core domain types that are referenced by task schemas
+    core_types = [
+        "product.json",
+        "media-buy.json",
+        "package.json",
+        "creative-asset.json",
+        "creative-manifest.json",
+        "brand-manifest.json",
+        "brand-manifest-ref.json",
+        "format.json",
+        "targeting.json",
+        "frequency-cap.json",
+        "measurement.json",
+        "delivery-metrics.json",
+        "error.json",
+        "property.json",
+        "placement.json",
+        "creative-policy.json",
+        "creative-assignment.json",
+        "performance-feedback.json",
+        "start-timing.json",
+        "sub-asset.json",
+        "webhook-payload.json",
+        "protocol-envelope.json",
+        "response.json",
+        "promoted-products.json",
+    ]
+
+    # Find all schemas
+    core_schemas = [SCHEMAS_DIR / name for name in core_types if (SCHEMAS_DIR / name).exists()]
     task_schemas = sorted(SCHEMAS_DIR.glob("*-request.json")) + sorted(SCHEMAS_DIR.glob("*-response.json"))
 
+    print(f"Found {len(core_schemas)} core schemas")
     print(f"Found {len(task_schemas)} task schemas\n")
 
     # Generate header
@@ -133,15 +163,36 @@ def main():
         "",
         "from pydantic import BaseModel, Field",
         "",
-        "# Import core types from adcp.types.core",
-        "# (Product, MediaBuy, CreativeAsset, etc.)",
         "",
+        "# ============================================================================",
+        "# CORE DOMAIN TYPES",
+        "# ============================================================================",
         "",
     ]
 
-    # Generate each model
+    # Generate core types first
+    for schema_file in core_schemas:
+        print(f"  Generating core type: {schema_file.stem}...")
+        try:
+            model_code = generate_model_for_schema(schema_file)
+            output_lines.append(model_code)
+            output_lines.append("")
+            output_lines.append("")
+        except Exception as e:
+            print(f"    Warning: Could not generate model: {e}")
+
+    # Add separator for task types
+    output_lines.extend([
+        "",
+        "# ============================================================================",
+        "# TASK REQUEST/RESPONSE TYPES",
+        "# ============================================================================",
+        "",
+    ])
+
+    # Generate task models
     for schema_file in task_schemas:
-        print(f"  Generating {schema_file.stem}...")
+        print(f"  Generating task type: {schema_file.stem}...")
         try:
             model_code = generate_model_for_schema(schema_file)
             output_lines.append(model_code)
@@ -151,12 +202,14 @@ def main():
             print(f"    Warning: Could not generate model: {e}")
 
     # Write output
-    output_file = OUTPUT_DIR / "tasks.py"
+    output_file = OUTPUT_DIR / "generated.py"
     output_file.write_text("\n".join(output_lines))
 
-    print(f"\n✓ Successfully generated task models")
+    print(f"\n✓ Successfully generated models")
     print(f"  Output: {output_file}")
-    print(f"  Models: {len(task_schemas)}")
+    print(f"  Core types: {len(core_schemas)}")
+    print(f"  Task types: {len(task_schemas)}")
+    print(f"  Total models: {len(core_schemas) + len(task_schemas)}")
 
 
 if __name__ == "__main__":

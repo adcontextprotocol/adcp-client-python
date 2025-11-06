@@ -38,3 +38,12 @@ class ProtocolAdapter(ABC):
             List of tool names
         """
         pass
+
+    @abstractmethod
+    async def close(self) -> None:
+        """
+        Close the adapter and clean up resources.
+
+        Implementations should close any open connections, clients, or other resources.
+        """
+        pass

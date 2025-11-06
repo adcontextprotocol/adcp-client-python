@@ -25,10 +25,16 @@ def load_config() -> dict[str, Any]:
 
 
 def save_config(config: dict[str, Any]) -> None:
-    """Save configuration file."""
+    """Save configuration file with atomic write."""
     ensure_config_dir()
-    with open(CONFIG_FILE, "w") as f:
+
+    # Write to temporary file first
+    temp_file = CONFIG_FILE.with_suffix(".tmp")
+    with open(temp_file, "w") as f:
         json.dump(config, f, indent=2)
+
+    # Atomic rename
+    temp_file.replace(CONFIG_FILE)
 
 
 def save_agent(alias: str, url: str, protocol: str | None = None, auth_token: str | None = None) -> None:

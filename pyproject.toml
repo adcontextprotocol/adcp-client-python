@@ -33,6 +33,9 @@ dependencies = [
     "mcp>=0.9.0",
 ]
 
+[project.scripts]
+adcp = "adcp.__main__:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
