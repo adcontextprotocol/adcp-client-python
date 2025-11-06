@@ -43,5 +43,5 @@ jobs:
         if: ${{ steps.release.outputs.release_created }}
         env:
           TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+          TWINE_PASSWORD: ${{ secrets.PYPY_API_TOKEN }}
         run: twine upload dist/*
