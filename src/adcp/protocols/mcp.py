@@ -20,6 +20,7 @@ except ImportError:
     MCP_AVAILABLE = False
     ClientSession = None
 
+from adcp.exceptions import ADCPConnectionError, ADCPProtocolError, ADCPTimeoutError
 from adcp.protocols.base import ProtocolAdapter
 from adcp.types.core import TaskResult, TaskStatus
 
@@ -37,9 +38,16 @@ class MCPAdapter(ProtocolAdapter):
         self._exit_stack: Any = None
 
     async def _get_session(self) -> ClientSession:
-        """Get or create MCP client session with URL fallback handling."""
+        """
+        Get or create MCP client session with URL fallback handling.
+
+        Raises:
+            ADCPConnectionError: If connection to agent fails
+        """
         if self._session is not None:
             return self._session
+
+        logger.debug(f"Creating MCP session for agent {self.agent_config.id}")
 
         # Parse the agent URI to determine transport type
         parsed = urlparse(self.agent_config.agent_uri)
@@ -91,6 +99,16 @@ class MCPAdapter(ProtocolAdapter):
                     # Initialize the session
                     await self._session.initialize()
 
+                    logger.info(
+                        f"Connected to MCP agent {self.agent_config.id} at {url} "
+                        f"using {self.agent_config.mcp_transport} transport"
+                    )
+                    if url != self.agent_config.agent_uri:
+                        logger.info(
+                            f"Note: Connected using fallback URL {url} "
+                            f"(configured: {self.agent_config.agent_uri})"
+                        )
+
                     return self._session
                 except Exception as e:
                     last_error = e
@@ -116,13 +134,30 @@ class MCPAdapter(ProtocolAdapter):
 
                     # If this isn't the last URL to try, create a new exit stack and continue
                     if url != urls_to_try[-1]:
+                        logger.debug(f"Retrying with next URL after error: {last_error}")
                         self._exit_stack = AsyncExitStack()
                         continue
                     # If this was the last URL, raise the error
-                    raise RuntimeError(
-                        f"Failed to connect to MCP agent using {self.agent_config.mcp_transport} transport. "
-                        f"Tried URLs: {', '.join(urls_to_try)}. Last error: {str(last_error)}"
-                    ) from last_error
+                    logger.error(
+                        f"Failed to connect to MCP agent {self.agent_config.id} using "
+                        f"{self.agent_config.mcp_transport} transport. Tried URLs: {', '.join(urls_to_try)}"
+                    )
+
+                    # Classify error type for better exception handling
+                    error_str = str(last_error).lower()
+                    if "401" in error_str or "403" in error_str or "unauthorized" in error_str:
+                        from adcp.exceptions import ADCPAuthenticationError
+                        raise ADCPAuthenticationError(
+                            f"Authentication failed for agent {self.agent_config.id}: {last_error}"
+                        ) from last_error
+                    elif "timeout" in error_str:
+                        raise ADCPTimeoutError(
+                            f"Connection timeout for agent {self.agent_config.id}: {last_error}"
+                        ) from last_error
+                    else:
+                        raise ADCPConnectionError(
+                            f"Failed to connect to agent {self.agent_config.id}: {last_error}"
+                        ) from last_error
 
             # This shouldn't be reached, but just in case
             raise RuntimeError(f"Failed to connect to MCP agent at {self.agent_config.agent_uri}")

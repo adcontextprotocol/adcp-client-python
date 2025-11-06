@@ -5,12 +5,14 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import logging
 import os
 from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
+from adcp.exceptions import ADCPWebhookSignatureError
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.base import ProtocolAdapter
 from adcp.protocols.mcp import MCPAdapter
@@ -21,6 +23,8 @@ from adcp.types.core import (
     Protocol,
     TaskResult,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def create_operation_id() -> str:
@@ -448,6 +452,7 @@ class ADCPClient:
     async def close(self) -> None:
         """Close the adapter and clean up resources."""
         if hasattr(self.adapter, "close"):
+            logger.debug(f"Closing adapter for agent {self.agent_config.id}")
             await self.adapter.close()
 
     async def __aenter__(self) -> "ADCPClient":
@@ -492,10 +497,11 @@ class ADCPClient:
             signature: Webhook signature for verification
 
         Raises:
-            ValueError: If signature verification fails
+            ADCPWebhookSignatureError: If signature verification fails
         """
         if signature and not self._verify_webhook_signature(payload, signature):
-            raise ValueError("Invalid webhook signature")
+            logger.warning(f"Webhook signature verification failed for agent {self.agent_config.id}")
+            raise ADCPWebhookSignatureError("Invalid webhook signature")
 
         operation_id = payload.get("operation_id", "unknown")
         task_type = payload.get("task_type", "unknown")

@@ -6,13 +6,22 @@ The official a2a-sdk is primarily for building A2A servers. For client functiona
 we implement the A2A protocol using HTTP requests as per the A2A specification.
 """
 
+import logging
 from typing import Any
 from uuid import uuid4
 
 import httpx
 
+from adcp.exceptions import (
+    ADCPAuthenticationError,
+    ADCPConnectionError,
+    ADCPProtocolError,
+    ADCPTimeoutError,
+)
 from adcp.protocols.base import ProtocolAdapter
 from adcp.types.core import TaskResult, TaskStatus
+
+logger = logging.getLogger(__name__)
 
 
 class A2AAdapter(ProtocolAdapter):
@@ -155,11 +164,36 @@ class A2AAdapter(ProtocolAdapter):
             # A2A spec uses /.well-known/agent.json for agent card
             url = f"{self.agent_config.agent_uri}/.well-known/agent.json"
 
-            response = await client.get(url, headers=headers, timeout=self.agent_config.timeout)
-            response.raise_for_status()
+            logger.debug(f"Fetching A2A agent card for {self.agent_config.id} from {url}")
 
-            data = response.json()
+            try:
+                response = await client.get(url, headers=headers, timeout=self.agent_config.timeout)
+                response.raise_for_status()
 
-            # Extract skills from agent card
-            skills = data.get("skills", [])
-            return [skill.get("name", "") for skill in skills if skill.get("name")]
+                data = response.json()
+
+                # Extract skills from agent card
+                skills = data.get("skills", [])
+                tool_names = [skill.get("name", "") for skill in skills if skill.get("name")]
+
+                logger.info(f"Found {len(tool_names)} tools from A2A agent {self.agent_config.id}")
+                return tool_names
+
+            except httpx.HTTPStatusError as e:
+                status_code = e.response.status_code
+                if status_code in (401, 403):
+                    logger.error(f"Authentication failed for A2A agent {self.agent_config.id}")
+                    raise ADCPAuthenticationError(
+                        f"Authentication failed for agent {self.agent_config.id}: HTTP {status_code}"
+                    ) from e
+                else:
+                    logger.error(f"HTTP {status_code} error fetching agent card: {e}")
+                    raise ADCPConnectionError(
+                        f"Failed to fetch agent card: HTTP {status_code}"
+                    ) from e
+            except httpx.TimeoutException as e:
+                logger.error(f"Timeout fetching agent card for {self.agent_config.id}")
+                raise ADCPTimeoutError(f"Timeout fetching agent card: {e}") from e
+            except httpx.HTTPError as e:
+                logger.error(f"HTTP error fetching agent card: {e}")
+                raise ADCPConnectionError(f"Failed to fetch agent card: {e}") from e
