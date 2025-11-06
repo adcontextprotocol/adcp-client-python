@@ -1,5 +1,6 @@
 """MCP protocol adapter using official Python MCP SDK."""
 
+from contextlib import AsyncExitStack
 from typing import Any
 from urllib.parse import urlparse
 
@@ -39,8 +40,6 @@ class MCPAdapter(ProtocolAdapter):
 
         # Use SSE transport for HTTP/HTTPS endpoints
         if parsed.scheme in ("http", "https"):
-            from contextlib import AsyncExitStack
-
             self._exit_stack = AsyncExitStack()
 
             # Create SSE client with authentication header
@@ -89,8 +88,18 @@ class MCPAdapter(ProtocolAdapter):
                     return self._session
                 except Exception as e:
                     last_error = e
-                    # If this isn't the last URL to try, continue
+                    # Clean up the exit stack on failure to avoid async scope issues
+                    if self._exit_stack is not None:
+                        try:
+                            await self._exit_stack.aclose()
+                        except Exception:
+                            pass  # Ignore cleanup errors
+                        self._exit_stack = None
+                        self._session = None
+
+                    # If this isn't the last URL to try, create a new exit stack and continue
                     if url != urls_to_try[-1]:
+                        self._exit_stack = AsyncExitStack()
                         continue
                     # If this was the last URL, raise the error
                     raise RuntimeError(

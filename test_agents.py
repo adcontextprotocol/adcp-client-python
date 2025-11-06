@@ -110,7 +110,7 @@ async def test_agent_connection(name: str, config: AgentConfig) -> Dict[str, Any
         # Try to list tools
         print_info("Listing available tools...")
         try:
-            tools = await client.adapter.list_tools()
+            tools = await client.list_tools()
             print_info(f"Got response: {len(tools)} tools")
         except Exception as e:
             print_warning(f"Error listing tools: {e}")
@@ -162,7 +162,10 @@ async def test_agent_connection(name: str, config: AgentConfig) -> Dict[str, Any
 
         # Close the adapter
         if hasattr(client.adapter, "close"):
-            await client.adapter.close()
+            try:
+                await client.adapter.close()
+            except Exception:
+                pass  # Ignore errors during cleanup
 
     except Exception as e:
         result["error"] = str(e)

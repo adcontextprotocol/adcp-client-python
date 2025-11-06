@@ -394,6 +394,53 @@ class ADCPClient:
 
         return result
 
+    async def call_tool(self, tool_name: str, params: dict[str, Any]) -> TaskResult[Any]:
+        """
+        Call any tool on the agent.
+
+        Args:
+            tool_name: Name of the tool to call
+            params: Tool parameters
+
+        Returns:
+            TaskResult with the response
+        """
+        operation_id = create_operation_id()
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=tool_name,
+                timestamp=datetime.utcnow().isoformat(),
+            )
+        )
+
+        result = await self.adapter.call_tool(tool_name, params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=tool_name,
+                status=result.status,
+                timestamp=datetime.utcnow().isoformat(),
+            )
+        )
+
+        return result
+
+    async def list_tools(self) -> list[str]:
+        """
+        List available tools from the agent.
+
+        Returns:
+            List of tool names
+        """
+        return await self.adapter.list_tools()
+
     async def handle_webhook(
         self,
         payload: dict[str, Any],
