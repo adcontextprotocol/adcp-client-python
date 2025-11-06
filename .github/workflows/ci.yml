@@ -65,13 +65,29 @@ jobs:
       - name: Generate models
         run: python scripts/generate_models_simple.py
 
+      - name: Validate generated code syntax
+        run: |
+          echo "Validating generated code can be parsed..."
+          python -m py_compile src/adcp/types/generated.py
+          echo "✓ Syntax validation passed"
+
+      - name: Validate generated code imports
+        run: |
+          echo "Validating generated code can be imported..."
+          python -c "from adcp.types import generated; print(f'✓ Successfully imported {len(dir(generated))} symbols')"
+
+      - name: Run code generation tests
+        run: |
+          echo "Running code generation test suite..."
+          pytest tests/test_code_generation.py -v --tb=short
+
       - name: Check for schema drift
         run: |
-          if git diff --exit-code src/adcp/types/tasks.py schemas/cache/; then
+          if git diff --exit-code src/adcp/types/generated.py schemas/cache/; then
             echo "✓ Schemas are up-to-date"
           else
             echo "✗ Schemas are out of date!"
-            echo "Run: python scripts/sync_schemas.py && python scripts/fix_schema_refs.py && python scripts/generate_models_simple.py"
-            git diff src/adcp/types/tasks.py
+            echo "Run: make regenerate-schemas"
+            git diff src/adcp/types/generated.py
             exit 1
           fi

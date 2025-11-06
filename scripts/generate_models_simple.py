@@ -6,7 +6,9 @@ Simplified approach that handles the task schemas we need for type safety.
 Core types are manually maintained in types/core.py.
 """
 
+import ast
 import json
+import keyword
 import re
 import subprocess
 import sys
@@ -15,10 +17,53 @@ from pathlib import Path
 SCHEMAS_DIR = Path(__file__).parent.parent / "schemas" / "cache" / "latest"
 OUTPUT_DIR = Path(__file__).parent.parent / "src" / "adcp" / "types"
 
+# Python keywords and Pydantic reserved names that can't be used as field names
+RESERVED_NAMES = set(keyword.kwlist) | {
+    "model_config",
+    "model_fields",
+    "model_computed_fields",
+    "model_extra",
+    "model_fields_set",
+}
+
 
 def snake_to_pascal(name: str) -> str:
     """Convert snake_case to PascalCase."""
     return "".join(word.capitalize() for word in name.split("-"))
+
+
+def sanitize_field_name(name: str) -> str:
+    """
+    Sanitize field name to avoid Python keyword collisions.
+
+    Returns tuple of (sanitized_name, needs_alias) where needs_alias indicates
+    if the field needs a Field(alias=...) to preserve original JSON name.
+    """
+    if name in RESERVED_NAMES:
+        return f"{name}_", True
+    return name, False
+
+
+def escape_string_for_python(text: str) -> str:
+    """
+    Properly escape a string for use in Python source code.
+
+    Handles:
+    - Backslashes (must be escaped first!)
+    - Double quotes
+    - Newlines and carriage returns
+    - Unicode characters (preserved as-is)
+    """
+    # Order matters: escape backslashes first
+    text = text.replace("\\", "\\\\")
+    text = text.replace('"', '\\"')
+    text = text.replace("\n", " ")
+    text = text.replace("\r", "")
+    # Tab characters should be spaces in descriptions
+    text = text.replace("\t", " ")
+    # Collapse multiple spaces
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
 
 
 def generate_model_for_schema(schema_file: Path) -> str:
@@ -32,39 +77,60 @@ def generate_model_for_schema(schema_file: Path) -> str:
 
     # Add description if available
     if "description" in schema:
-        # Escape triple quotes in description and normalize whitespace
-        desc = schema["description"].replace('"""', '\\"\\"\\"').replace('\n', ' ').replace('\r', '')
+        # Escape description for docstring (triple quotes)
+        desc = schema["description"].replace("\\", "\\\\").replace('"""', '\\"\\"\\"')
+        desc = desc.replace("\n", " ").replace("\r", "")
+        desc = re.sub(r"\s+", " ", desc).strip()
         lines.append(f'    """{desc}"""')
         lines.append("")
 
     # Add properties
-    if "properties" not in schema:
+    if "properties" not in schema or not schema["properties"]:
         lines.append("    pass")
         return "\n".join(lines)
 
     for prop_name, prop_schema in schema["properties"].items():
+        # Sanitize field name to avoid keyword collisions
+        safe_name, needs_alias = sanitize_field_name(prop_name)
+
         # Get type
         prop_type = get_python_type(prop_schema)
 
         # Get description and escape it properly
         desc = prop_schema.get("description", "")
-        # Escape quotes and replace newlines with spaces
         if desc:
-            desc = desc.replace('"', '\\"').replace('\n', ' ').replace('\r', '')
+            desc = escape_string_for_python(desc)
 
         # Check if required
         is_required = prop_name in schema.get("required", [])
 
+        # Build field definition
         if is_required:
-            if desc:
-                lines.append(f'    {prop_name}: {prop_type} = Field(description="{desc}")')
+            if desc and needs_alias:
+                lines.append(
+                    f'    {safe_name}: {prop_type} = Field(alias="{prop_name}", description="{desc}")'
+                )
+            elif desc:
+                lines.append(f'    {safe_name}: {prop_type} = Field(description="{desc}")')
+            elif needs_alias:
+                lines.append(f'    {safe_name}: {prop_type} = Field(alias="{prop_name}")')
             else:
-                lines.append(f"    {prop_name}: {prop_type}")
+                lines.append(f"    {safe_name}: {prop_type}")
         else:
-            if desc:
-                lines.append(f'    {prop_name}: {prop_type} | None = Field(None, description="{desc}")')
+            if desc and needs_alias:
+                lines.append(
+                    f'    {safe_name}: {prop_type} | None = Field(None, alias="{prop_name}", description="{desc}")'
+                )
+            elif desc:
+                lines.append(
+                    f'    {safe_name}: {prop_type} | None = Field(None, description="{desc}")'
+                )
+            elif needs_alias:
+                lines.append(
+                    f'    {safe_name}: {prop_type} | None = Field(None, alias="{prop_name}")'
+                )
             else:
-                lines.append(f"    {prop_name}: {prop_type} | None = None")
+                lines.append(f"    {safe_name}: {prop_type} | None = None")
 
     return "\n".join(lines)
 
@@ -106,6 +172,44 @@ def get_python_type(schema: dict) -> str:
     return "Any"
 
 
+def validate_python_syntax(code: str, filename: str) -> tuple[bool, str]:
+    """
+    Validate that generated code is syntactically valid Python.
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    try:
+        ast.parse(code)
+        return True, ""
+    except SyntaxError as e:
+        return False, f"Syntax error in {filename} at line {e.lineno}: {e.msg}"
+
+
+def validate_imports(output_file: Path) -> tuple[bool, str]:
+    """
+    Validate that the generated module can be imported.
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    try:
+        # Try to compile the module
+        result = subprocess.run(
+            [sys.executable, "-m", "py_compile", str(output_file)],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode != 0:
+            return False, f"Import validation failed:\n{result.stderr}"
+        return True, ""
+    except subprocess.TimeoutExpired:
+        return False, "Import validation timed out"
+    except Exception as e:
+        return False, f"Import validation error: {e}"
+
+
 def main():
     """Generate models for core types and task request/response schemas."""
     if not SCHEMAS_DIR.exists():
@@ -144,7 +248,9 @@ def main():
 
     # Find all schemas
     core_schemas = [SCHEMAS_DIR / name for name in core_types if (SCHEMAS_DIR / name).exists()]
-    task_schemas = sorted(SCHEMAS_DIR.glob("*-request.json")) + sorted(SCHEMAS_DIR.glob("*-response.json"))
+    task_schemas = sorted(SCHEMAS_DIR.glob("*-request.json")) + sorted(
+        SCHEMAS_DIR.glob("*-response.json")
+    )
 
     print(f"Found {len(core_schemas)} core schemas")
     print(f"Found {len(task_schemas)} task schemas\n")
@@ -187,13 +293,15 @@ def main():
             print(f"    Warning: Could not generate model: {e}")
 
     # Add separator for task types
-    output_lines.extend([
-        "",
-        "# ============================================================================",
-        "# TASK REQUEST/RESPONSE TYPES",
-        "# ============================================================================",
-        "",
-    ])
+    output_lines.extend(
+        [
+            "",
+            "# ============================================================================",
+            "# TASK REQUEST/RESPONSE TYPES",
+            "# ============================================================================",
+            "",
+        ]
+    )
 
     # Generate task models
     for schema_file in task_schemas:
@@ -206,11 +314,31 @@ def main():
         except Exception as e:
             print(f"    Warning: Could not generate model: {e}")
 
+    # Join all lines into final code
+    generated_code = "\n".join(output_lines)
+
+    # Validate syntax before writing
+    print("\nValidating generated code...")
+    is_valid, error_msg = validate_python_syntax(generated_code, "generated.py")
+    if not is_valid:
+        print(f"✗ Syntax validation failed:", file=sys.stderr)
+        print(f"  {error_msg}", file=sys.stderr)
+        sys.exit(1)
+    print("  ✓ Syntax validation passed")
+
     # Write output
     output_file = OUTPUT_DIR / "generated.py"
-    output_file.write_text("\n".join(output_lines))
+    output_file.write_text(generated_code)
 
-    print(f"\n✓ Successfully generated models")
+    # Validate imports
+    is_valid, error_msg = validate_imports(output_file)
+    if not is_valid:
+        print(f"✗ Import validation failed:", file=sys.stderr)
+        print(f"  {error_msg}", file=sys.stderr)
+        sys.exit(1)
+    print("  ✓ Import validation passed")
+
+    print(f"\n✓ Successfully generated and validated models")
     print(f"  Output: {output_file}")
     print(f"  Core types: {len(core_schemas)}")
     print(f"  Task types: {len(task_schemas)}")
