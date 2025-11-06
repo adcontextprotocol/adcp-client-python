@@ -32,7 +32,9 @@ def generate_model_for_schema(schema_file: Path) -> str:
 
     # Add description if available
     if "description" in schema:
-        lines.append(f'    """{schema["description"]}"""')
+        # Escape triple quotes in description and normalize whitespace
+        desc = schema["description"].replace('"""', '\\"\\"\\"').replace('\n', ' ').replace('\r', '')
+        lines.append(f'    """{desc}"""')
         lines.append("")
 
     # Add properties
@@ -44,8 +46,11 @@ def generate_model_for_schema(schema_file: Path) -> str:
         # Get type
         prop_type = get_python_type(prop_schema)
 
-        # Get description
+        # Get description and escape it properly
         desc = prop_schema.get("description", "")
+        # Escape quotes and replace newlines with spaces
+        if desc:
+            desc = desc.replace('"', '\\"').replace('\n', ' ').replace('\r', '')
 
         # Check if required
         is_required = prop_name in schema.get("required", [])
