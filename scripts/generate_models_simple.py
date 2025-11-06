@@ -73,6 +73,19 @@ def generate_model_for_schema(schema_file: Path) -> str:
 
     # Start with model name
     model_name = snake_to_pascal(schema_file.stem)
+
+    # Check if this is a simple type alias (enum or primitive type without properties)
+    if "properties" not in schema:
+        # This is a type alias, not a model class
+        python_type = get_python_type(schema)
+        lines = [f"# Type alias for {schema.get('title', model_name)}"]
+        if "description" in schema:
+            desc = escape_string_for_python(schema["description"])
+            lines.append(f'# {desc}')
+        lines.append(f"{model_name} = {python_type}")
+        return "\n".join(lines)
+
+    # Regular BaseModel class
     lines = [f"class {model_name}(BaseModel):"]
 
     # Add description if available
@@ -85,7 +98,7 @@ def generate_model_for_schema(schema_file: Path) -> str:
         lines.append("")
 
     # Add properties
-    if "properties" not in schema or not schema["properties"]:
+    if not schema["properties"]:
         lines.append("    pass")
         return "\n".join(lines)
 
@@ -244,6 +257,17 @@ def main():
         "protocol-envelope.json",
         "response.json",
         "promoted-products.json",
+        # Enum types (need type aliases)
+        "channels.json",
+        "delivery-type.json",
+        "pacing.json",
+        "package-status.json",
+        "media-buy-status.json",
+        "task-type.json",
+        "task-status.json",
+        "pricing-model.json",
+        "pricing-option.json",
+        "standard-format-ids.json",
     ]
 
     # Find all schemas
@@ -273,6 +297,18 @@ def main():
         "from typing import Any, Literal",
         "",
         "from pydantic import BaseModel, Field",
+        "",
+        "",
+        "# ============================================================================",
+        "# MISSING SCHEMA TYPES (referenced but not provided by upstream)",
+        "# ============================================================================",
+        "",
+        "# These types are referenced in schemas but don't have schema files",
+        "# Defining them as type aliases to maintain type safety",
+        "FormatId = str",
+        "PackageRequest = dict[str, Any]",
+        "PushNotificationConfig = dict[str, Any]",
+        "ReportingCapabilities = dict[str, Any]",
         "",
         "",
         "# ============================================================================",

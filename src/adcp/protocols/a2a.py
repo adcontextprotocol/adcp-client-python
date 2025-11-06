@@ -19,7 +19,7 @@ from adcp.exceptions import (
     ADCPTimeoutError,
 )
 from adcp.protocols.base import ProtocolAdapter
-from adcp.types.core import DebugInfo, TaskResult, TaskStatus
+from adcp.types.core import AgentConfig, DebugInfo, TaskResult, TaskStatus
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class A2AAdapter(ProtocolAdapter):
     """Adapter for A2A protocol following the Agent2Agent specification."""
 
-    def __init__(self, agent_config):
+    def __init__(self, agent_config: AgentConfig):
         """Initialize A2A adapter with reusable HTTP client."""
         super().__init__(agent_config)
         self._client: httpx.AsyncClient | None = None

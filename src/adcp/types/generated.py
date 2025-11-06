@@ -17,6 +17,18 @@ from pydantic import BaseModel, Field
 
 
 # ============================================================================
+# MISSING SCHEMA TYPES (referenced but not provided by upstream)
+# ============================================================================
+
+# These types are referenced in schemas but don't have schema files
+# Defining them as type aliases to maintain type safety
+FormatId = str
+PackageRequest = dict[str, Any]
+PushNotificationConfig = dict[str, Any]
+ReportingCapabilities = dict[str, Any]
+
+
+# ============================================================================
 # CORE DOMAIN TYPES
 # ============================================================================
 
@@ -111,10 +123,9 @@ class BrandManifest(BaseModel):
     metadata: dict[str, Any] | None = Field(None, description="Additional brand metadata")
 
 
-class BrandManifestRef(BaseModel):
-    """Brand manifest provided either as an inline object or a URL string pointing to a hosted manifest"""
-
-    pass
+# Type alias for Brand Manifest Reference
+# Brand manifest provided either as an inline object or a URL string pointing to a hosted manifest
+BrandManifestRef = Any
 
 
 class Format(BaseModel):
@@ -240,10 +251,9 @@ class PerformanceFeedback(BaseModel):
     applied_at: str | None = Field(None, description="ISO 8601 timestamp when feedback was applied to optimization algorithms")
 
 
-class StartTiming(BaseModel):
-    """Campaign start timing: 'asap' or ISO 8601 date-time"""
-
-    pass
+# Type alias for Start Timing
+# Campaign start timing: 'asap' or ISO 8601 date-time
+StartTiming = Any
 
 
 class SubAsset(BaseModel):
@@ -298,6 +308,56 @@ class PromotedProducts(BaseModel):
     manifest_tags: list[str] | None = Field(None, description="Select products by tags from the brand manifest product catalog (e.g., 'organic', 'sauces', 'holiday')")
     manifest_category: str | None = Field(None, description="Select products from a specific category in the brand manifest product catalog (e.g., 'beverages/soft-drinks', 'food/sauces')")
     manifest_query: str | None = Field(None, description="Natural language query to select products from the brand manifest (e.g., 'all Kraft Heinz pasta sauces', 'organic products under $20')")
+
+
+# Type alias for Advertising Channels
+# Standard advertising channels supported by AdCP
+Channels = Literal["display", "video", "audio", "native", "dooh", "ctv", "podcast", "retail", "social"]
+
+
+# Type alias for Delivery Type
+# Type of inventory delivery
+DeliveryType = Literal["guaranteed", "non_guaranteed"]
+
+
+# Type alias for Pacing
+# Budget pacing strategy
+Pacing = Literal["even", "asap", "front_loaded"]
+
+
+# Type alias for Package Status
+# Status of a package
+PackageStatus = Literal["draft", "active", "paused", "completed"]
+
+
+# Type alias for Media Buy Status
+# Status of a media buy
+MediaBuyStatus = Literal["pending_activation", "active", "paused", "completed"]
+
+
+# Type alias for Task Type
+# Valid AdCP task types across all domains. These represent the complete set of operations that can be tracked via the task management system.
+TaskType = Literal["create_media_buy", "update_media_buy", "sync_creatives", "activate_signal", "get_signals"]
+
+
+# Type alias for Task Status
+# Standardized task status values based on A2A TaskState enum. Indicates the current state of any AdCP operation.
+TaskStatus = Literal["submitted", "working", "input-required", "completed", "canceled", "failed", "rejected", "auth-required", "unknown"]
+
+
+# Type alias for Pricing Model
+# Supported pricing models for advertising products
+PricingModel = Literal["cpm", "vcpm", "cpc", "cpcv", "cpv", "cpp", "flat_rate"]
+
+
+# Type alias for Pricing Option
+# A pricing model option offered by a publisher for a product. Each pricing model has its own schema with model-specific requirements.
+PricingOption = Any
+
+
+# Type alias for Standard Format IDs
+# Enumeration of all standard creative format identifiers in AdCP
+StandardFormatIds = Literal["display_300x250", "display_728x90", "display_320x50", "display_160x600", "display_970x250", "display_336x280", "display_expandable_300x250", "display_expandable_728x90", "display_interstitial_320x480", "display_interstitial_desktop", "display_dynamic_300x250", "display_responsive", "native_in_feed", "native_content_recommendation", "native_product", "video_skippable_15s", "video_skippable_30s", "video_non_skippable_15s", "video_non_skippable_30s", "video_outstream_autoplay", "video_vertical_story", "video_rewarded_30s", "video_pause_ad", "video_ctv_non_skippable_30s", "audio_standard_15s", "audio_standard_30s", "audio_podcast_host_read", "audio_programmatic", "universal_carousel", "universal_canvas", "universal_takeover", "universal_gallery", "universal_reveal", "dooh_landscape_static", "dooh_portrait_video"]
 
 
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 CONFIG_DIR = Path.home() / ".adcp"
 CONFIG_FILE = CONFIG_DIR / "config.json"
@@ -21,7 +21,7 @@ def load_config() -> dict[str, Any]:
         return {"agents": {}}
 
     with open(CONFIG_FILE) as f:
-        return json.load(f)
+        return cast(dict[str, Any], json.load(f))
 
 
 def save_config(config: dict[str, Any]) -> None:
@@ -60,13 +60,14 @@ def save_agent(
 def get_agent(alias: str) -> dict[str, Any] | None:
     """Get agent configuration by alias."""
     config = load_config()
-    return config.get("agents", {}).get(alias)
+    result = config.get("agents", {}).get(alias)
+    return cast(dict[str, Any], result) if result is not None else None
 
 
 def list_agents() -> dict[str, Any]:
     """List all saved agents."""
     config = load_config()
-    return config.get("agents", {})
+    return cast(dict[str, Any], config.get("agents", {}))
 
 
 def remove_agent(alias: str) -> bool:

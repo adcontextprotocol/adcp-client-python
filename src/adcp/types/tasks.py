@@ -15,8 +15,20 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-# Import core types from adcp.types.core
-# (Product, MediaBuy, CreativeAsset, etc.)
+# Import all types from generated module
+from adcp.types.generated import (
+    BrandManifestRef,
+    Channels,
+    CreativeAsset,
+    CreativeManifest,
+    Error,
+    Format,
+    FormatId,
+    PackageRequest,
+    Product,
+    PushNotificationConfig,
+    StartTiming,
+)
 
 
 class ActivateSignalRequest(BaseModel):

@@ -8,7 +8,7 @@ import asyncio
 import json
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from adcp.client import ADCPClient
 from adcp.config import (
@@ -83,7 +83,7 @@ def load_payload(payload_arg: str | None) -> dict[str, Any]:
         # Try to read from stdin if available and has data
         if not sys.stdin.isatty():
             try:
-                return json.load(sys.stdin)
+                return cast(dict[str, Any], json.load(sys.stdin))
             except (json.JSONDecodeError, ValueError):
                 pass
         return {}
@@ -94,11 +94,11 @@ def load_payload(payload_arg: str | None) -> dict[str, Any]:
         if not file_path.exists():
             print(f"Error: File not found: {file_path}", file=sys.stderr)
             sys.exit(1)
-        return json.loads(file_path.read_text())
+        return cast(dict[str, Any], json.loads(file_path.read_text()))
 
     # Parse as JSON
     try:
-        return json.loads(payload_arg)
+        return cast(dict[str, Any], json.loads(payload_arg))
     except json.JSONDecodeError as e:
         print(f"Error: Invalid JSON payload: {e}", file=sys.stderr)
         sys.exit(1)
@@ -171,7 +171,7 @@ def resolve_agent_config(agent_identifier: str) -> dict[str, Any]:
     # Check if it's a JSON config
     if agent_identifier.startswith("{"):
         try:
-            return json.loads(agent_identifier)
+            return cast(dict[str, Any], json.loads(agent_identifier))
         except json.JSONDecodeError:
             pass
 
