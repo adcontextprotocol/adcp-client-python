@@ -38,7 +38,7 @@ class TestA2AAdapter:
         """Test successful tool call via A2A."""
         adapter = A2AAdapter(a2a_config)
 
-        mock_response = {
+        mock_response_data = {
             "task": {"id": "task_123", "status": "completed"},
             "message": {
                 "role": "assistant",
@@ -46,16 +46,13 @@ class TestA2AAdapter:
             },
         }
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client_class.return_value.__aenter__.return_value = mock_client
+        mock_client = AsyncMock()
+        mock_http_response = MagicMock()
+        mock_http_response.json = MagicMock(return_value=mock_response_data)
+        mock_http_response.raise_for_status = MagicMock()
+        mock_client.post = AsyncMock(return_value=mock_http_response)
 
-            mock_http_response = MagicMock()
-            mock_http_response.json.return_value = mock_response
-            mock_http_response.raise_for_status = MagicMock()
-
-            mock_client.post.return_value = mock_http_response
-
+        with patch.object(adapter, "_get_client", return_value=mock_client):
             result = await adapter.call_tool("get_products", {"brief": "test"})
 
             assert result.success is True
@@ -67,21 +64,18 @@ class TestA2AAdapter:
         """Test failed tool call via A2A."""
         adapter = A2AAdapter(a2a_config)
 
-        mock_response = {
+        mock_response_data = {
             "task": {"id": "task_123", "status": "failed"},
             "message": {"role": "assistant", "parts": [{"type": "text", "text": "Error occurred"}]},
         }
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client_class.return_value.__aenter__.return_value = mock_client
+        mock_client = AsyncMock()
+        mock_http_response = MagicMock()
+        mock_http_response.json = MagicMock(return_value=mock_response_data)
+        mock_http_response.raise_for_status = MagicMock()
+        mock_client.post = AsyncMock(return_value=mock_http_response)
 
-            mock_http_response = MagicMock()
-            mock_http_response.json.return_value = mock_response
-            mock_http_response.raise_for_status = MagicMock()
-
-            mock_client.post.return_value = mock_http_response
-
+        with patch.object(adapter, "_get_client", return_value=mock_client):
             result = await adapter.call_tool("get_products", {"brief": "test"})
 
             assert result.success is False
@@ -100,16 +94,13 @@ class TestA2AAdapter:
             ]
         }
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client_class.return_value.__aenter__.return_value = mock_client
+        mock_client = AsyncMock()
+        mock_http_response = MagicMock()
+        mock_http_response.json = MagicMock(return_value=mock_agent_card)
+        mock_http_response.raise_for_status = MagicMock()
+        mock_client.get = AsyncMock(return_value=mock_http_response)
 
-            mock_http_response = MagicMock()
-            mock_http_response.json.return_value = mock_agent_card
-            mock_http_response.raise_for_status = MagicMock()
-
-            mock_client.get.return_value = mock_http_response
-
+        with patch.object(adapter, "_get_client", return_value=mock_client):
             tools = await adapter.list_tools()
 
             assert len(tools) == 3
