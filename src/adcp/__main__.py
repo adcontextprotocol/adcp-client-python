@@ -74,9 +74,12 @@ async def execute_tool(agent_config: dict[str, Any], tool_name: str, payload: di
 def load_payload(payload_arg: str | None) -> dict[str, Any]:
     """Load payload from argument (JSON, @file, or stdin)."""
     if not payload_arg:
-        # Try to read from stdin if available
+        # Try to read from stdin if available and has data
         if not sys.stdin.isatty():
-            return json.load(sys.stdin)
+            try:
+                return json.load(sys.stdin)
+            except (json.JSONDecodeError, ValueError):
+                pass
         return {}
 
     if payload_arg.startswith("@"):
