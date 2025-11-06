@@ -16,7 +16,6 @@ import httpx
 from adcp.exceptions import (
     ADCPAuthenticationError,
     ADCPConnectionError,
-    ADCPProtocolError,
     ADCPTimeoutError,
 )
 from adcp.protocols.base import ProtocolAdapter
@@ -43,7 +42,9 @@ class A2AAdapter(ProtocolAdapter):
                 keepalive_expiry=30.0,
             )
             self._client = httpx.AsyncClient(limits=limits)
-            logger.debug(f"Created HTTP client with connection pooling for agent {self.agent_config.id}")
+            logger.debug(
+                f"Created HTTP client with connection pooling for agent {self.agent_config.id}"
+            )
         return self._client
 
     async def close(self) -> None:
@@ -96,7 +97,12 @@ class A2AAdapter(ProtocolAdapter):
             debug_request = {
                 "url": url,
                 "method": "POST",
-                "headers": {k: v if k.lower() not in ("authorization", self.agent_config.auth_header.lower()) else "***" for k, v in headers.items()},
+                "headers": {
+                    k: v
+                    if k.lower() not in ("authorization", self.agent_config.auth_header.lower())
+                    else "***"
+                    for k, v in headers.items()
+                },
                 "body": request_data,
             }
 
@@ -137,9 +143,7 @@ class A2AAdapter(ProtocolAdapter):
             elif task_status == "failed":
                 return TaskResult[Any](
                     status=TaskStatus.FAILED,
-                    error=data.get("message", {})
-                    .get("parts", [{}])[0]
-                    .get("text", "Task failed"),
+                    error=data.get("message", {}).get("parts", [{}])[0].get("text", "Task failed"),
                     success=False,
                     debug_info=debug_info,
                 )

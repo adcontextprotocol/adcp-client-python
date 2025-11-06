@@ -21,7 +21,7 @@ except ImportError:
     MCP_AVAILABLE = False
     ClientSession = None
 
-from adcp.exceptions import ADCPConnectionError, ADCPProtocolError, ADCPTimeoutError
+from adcp.exceptions import ADCPConnectionError, ADCPTimeoutError
 from adcp.protocols.base import ProtocolAdapter
 from adcp.types.core import DebugInfo, TaskResult, TaskStatus
 
@@ -62,7 +62,9 @@ class MCPAdapter(ProtocolAdapter):
             if self.agent_config.auth_token:
                 # Support custom auth headers and types
                 if self.agent_config.auth_type == "bearer":
-                    headers[self.agent_config.auth_header] = f"Bearer {self.agent_config.auth_token}"
+                    headers[self.agent_config.auth_header] = (
+                        f"Bearer {self.agent_config.auth_token}"
+                    )
                 else:
                     headers[self.agent_config.auth_header] = self.agent_config.auth_token
 
@@ -82,9 +84,7 @@ class MCPAdapter(ProtocolAdapter):
                         # Use streamable HTTP transport (newer, bidirectional)
                         read, write, _get_session_id = await self._exit_stack.enter_async_context(
                             streamablehttp_client(
-                                url,
-                                headers=headers,
-                                timeout=self.agent_config.timeout
+                                url, headers=headers, timeout=self.agent_config.timeout
                             )
                         )
                     else:
@@ -125,13 +125,23 @@ class MCPAdapter(ProtocolAdapter):
                             pass
                         except RuntimeError as cleanup_error:
                             # Known MCP SDK async cleanup issue
-                            if "async context" in str(cleanup_error).lower() or "cancel scope" in str(cleanup_error).lower():
-                                logger.debug(f"Ignoring MCP SDK async context error during cleanup: {cleanup_error}")
+                            if (
+                                "async context" in str(cleanup_error).lower()
+                                or "cancel scope" in str(cleanup_error).lower()
+                            ):
+                                logger.debug(
+                                    "Ignoring MCP SDK async context error during cleanup: "
+                                    f"{cleanup_error}"
+                                )
                             else:
-                                logger.warning(f"Unexpected RuntimeError during cleanup: {cleanup_error}")
+                                logger.warning(
+                                    f"Unexpected RuntimeError during cleanup: {cleanup_error}"
+                                )
                         except Exception as cleanup_error:
                             # Unexpected cleanup errors should be logged
-                            logger.warning(f"Unexpected error during cleanup: {cleanup_error}", exc_info=True)
+                            logger.warning(
+                                f"Unexpected error during cleanup: {cleanup_error}", exc_info=True
+                            )
 
                     # If this isn't the last URL to try, create a new exit stack and continue
                     if url != urls_to_try[-1]:
@@ -141,13 +151,15 @@ class MCPAdapter(ProtocolAdapter):
                     # If this was the last URL, raise the error
                     logger.error(
                         f"Failed to connect to MCP agent {self.agent_config.id} using "
-                        f"{self.agent_config.mcp_transport} transport. Tried URLs: {', '.join(urls_to_try)}"
+                        f"{self.agent_config.mcp_transport} transport. "
+                        f"Tried URLs: {', '.join(urls_to_try)}"
                     )
 
                     # Classify error type for better exception handling
                     error_str = str(last_error).lower()
                     if "401" in error_str or "403" in error_str or "unauthorized" in error_str:
                         from adcp.exceptions import ADCPAuthenticationError
+
                         raise ADCPAuthenticationError(
                             f"Authentication failed: {last_error}",
                             agent_id=self.agent_config.id,
@@ -195,7 +207,10 @@ class MCPAdapter(ProtocolAdapter):
                 duration_ms = (time.time() - start_time) * 1000
                 debug_info = DebugInfo(
                     request=debug_request,
-                    response={"content": result.content, "is_error": result.isError if hasattr(result, "isError") else False},
+                    response={
+                        "content": result.content,
+                        "is_error": result.isError if hasattr(result, "isError") else False,
+                    },
                     duration_ms=duration_ms,
                 )
 

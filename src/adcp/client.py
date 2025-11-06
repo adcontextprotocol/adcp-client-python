@@ -25,8 +25,6 @@ from adcp.types.core import (
 from adcp.types.generated import (
     ActivateSignalRequest,
     ActivateSignalResponse,
-    CreateMediaBuyRequest,
-    CreateMediaBuyResponse,
     GetMediaBuyDeliveryRequest,
     GetMediaBuyDeliveryResponse,
     GetProductsRequest,
@@ -43,8 +41,6 @@ from adcp.types.generated import (
     ProvidePerformanceFeedbackResponse,
     SyncCreativesRequest,
     SyncCreativesResponse,
-    UpdateMediaBuyRequest,
-    UpdateMediaBuyResponse,
 )
 from adcp.utils.operation_id import create_operation_id
 
@@ -523,7 +519,7 @@ class ADCPClient:
             logger.debug(f"Closing adapter for agent {self.agent_config.id}")
             await self.adapter.close()
 
-    async def __aenter__(self) -> "ADCPClient":
+    async def __aenter__(self) -> ADCPClient:
         """Async context manager entry."""
         return self
 
@@ -568,7 +564,9 @@ class ADCPClient:
             ADCPWebhookSignatureError: If signature verification fails
         """
         if signature and not self._verify_webhook_signature(payload, signature):
-            logger.warning(f"Webhook signature verification failed for agent {self.agent_config.id}")
+            logger.warning(
+                f"Webhook signature verification failed for agent {self.agent_config.id}"
+            )
             raise ADCPWebhookSignatureError("Invalid webhook signature")
 
         operation_id = payload.get("operation_id", "unknown")
@@ -637,7 +635,7 @@ class ADCPMultiAgentClient:
         close_tasks = [client.close() for client in self.agents.values()]
         await asyncio.gather(*close_tasks, return_exceptions=True)
 
-    async def __aenter__(self) -> "ADCPMultiAgentClient":
+    async def __aenter__(self) -> ADCPMultiAgentClient:
         """Async context manager entry."""
         return self
 
@@ -664,7 +662,7 @@ class ADCPMultiAgentClient:
         return await asyncio.gather(*tasks)
 
     @classmethod
-    def from_env(cls) -> "ADCPMultiAgentClient":
+    def from_env(cls) -> ADCPMultiAgentClient:
         """Create client from environment variables."""
         agents_json = os.getenv("ADCP_AGENTS")
         if not agents_json:

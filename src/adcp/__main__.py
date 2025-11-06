@@ -29,18 +29,22 @@ def print_json(data: Any) -> None:
 def print_result(result: Any, json_output: bool = False) -> None:
     """Print result in formatted or JSON mode."""
     if json_output:
-        print_json({
-            "status": result.status.value,
-            "success": result.success,
-            "data": result.data,
-            "error": result.error,
-            "metadata": result.metadata,
-            "debug_info": {
-                "request": result.debug_info.request,
-                "response": result.debug_info.response,
-                "duration_ms": result.debug_info.duration_ms,
-            } if result.debug_info else None,
-        })
+        print_json(
+            {
+                "status": result.status.value,
+                "success": result.success,
+                "data": result.data,
+                "error": result.error,
+                "metadata": result.metadata,
+                "debug_info": {
+                    "request": result.debug_info.request,
+                    "response": result.debug_info.response,
+                    "duration_ms": result.debug_info.duration_ms,
+                }
+                if result.debug_info
+                else None,
+            }
+        )
     else:
         print(f"\nStatus: {result.status.value}")
         if result.success:
@@ -51,7 +55,9 @@ def print_result(result: Any, json_output: bool = False) -> None:
             print(f"Error: {result.error}")
 
 
-async def execute_tool(agent_config: dict[str, Any], tool_name: str, payload: dict[str, Any], json_output: bool = False) -> None:
+async def execute_tool(
+    agent_config: dict[str, Any], tool_name: str, payload: dict[str, Any], json_output: bool = False
+) -> None:
     """Execute a tool on an agent."""
     # Ensure required fields
     if "id" not in agent_config:
@@ -170,9 +176,9 @@ def resolve_agent_config(agent_identifier: str) -> dict[str, Any]:
             pass
 
     print(f"Error: Unknown agent '{agent_identifier}'", file=sys.stderr)
-    print(f"  Not found as saved alias", file=sys.stderr)
-    print(f"  Not a valid URL", file=sys.stderr)
-    print(f"  Not valid JSON config", file=sys.stderr)
+    print("  Not found as saved alias", file=sys.stderr)
+    print("  Not a valid URL", file=sys.stderr)
+    print("  Not valid JSON config", file=sys.stderr)
     sys.exit(1)
 
 
@@ -206,18 +212,23 @@ def main() -> None:
     args, remaining = parser.parse_known_args()
 
     # Handle help
-    if args.help or (not args.agent and not any([
-        args.save_auth,
-        args.list_agents,
-        args.remove_agent,
-        args.show_config,
-    ])):
+    if args.help or (
+        not args.agent
+        and not any(
+            [
+                args.save_auth,
+                args.list_agents,
+                args.remove_agent,
+                args.show_config,
+            ]
+        )
+    ):
         parser.print_help()
         print("\nExamples:")
         print("  adcp --save-auth myagent https://agent.example.com mcp")
         print("  adcp --list-agents")
         print("  adcp myagent list_tools")
-        print("  adcp myagent get_products '{\"brief\":\"TV ads\"}'")
+        print('  adcp myagent get_products \'{"brief":"TV ads"}\'')
         print("  adcp https://agent.example.com list_tools")
         sys.exit(0)
 

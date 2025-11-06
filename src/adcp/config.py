@@ -37,7 +37,9 @@ def save_config(config: dict[str, Any]) -> None:
     temp_file.replace(CONFIG_FILE)
 
 
-def save_agent(alias: str, url: str, protocol: str | None = None, auth_token: str | None = None) -> None:
+def save_agent(
+    alias: str, url: str, protocol: str | None = None, auth_token: str | None = None
+) -> None:
     """Save agent configuration."""
     config = load_config()
 
