@@ -19,17 +19,46 @@ from adcp.exceptions import (
     ADCPWebhookSignatureError,
 )
 from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus, WebhookMetadata
+from adcp.types.generated import (
+    ActivateSignalRequest,
+    ActivateSignalResponse,
+    CreateMediaBuyRequest,
+    CreateMediaBuyResponse,
+    GetMediaBuyDeliveryRequest,
+    GetMediaBuyDeliveryResponse,
+    GetProductsRequest,
+    GetProductsResponse,
+    GetSignalsRequest,
+    GetSignalsResponse,
+    ListAuthorizedPropertiesRequest,
+    ListAuthorizedPropertiesResponse,
+    ListCreativeFormatsRequest,
+    ListCreativeFormatsResponse,
+    ListCreativesRequest,
+    ListCreativesResponse,
+    MediaBuy,
+    Product,
+    ProvidePerformanceFeedbackRequest,
+    ProvidePerformanceFeedbackResponse,
+    SyncCreativesRequest,
+    SyncCreativesResponse,
+    UpdateMediaBuyRequest,
+    UpdateMediaBuyResponse,
+)
 
 __version__ = "0.1.3"
 
 __all__ = [
+    # Client classes
     "ADCPClient",
     "ADCPMultiAgentClient",
+    # Core types
     "AgentConfig",
     "Protocol",
     "TaskResult",
     "TaskStatus",
     "WebhookMetadata",
+    # Exceptions
     "ADCPError",
     "ADCPConnectionError",
     "ADCPAuthenticationError",
@@ -38,4 +67,30 @@ __all__ = [
     "ADCPToolNotFoundError",
     "ADCPWebhookError",
     "ADCPWebhookSignatureError",
+    # Generated request/response types
+    "GetProductsRequest",
+    "GetProductsResponse",
+    "CreateMediaBuyRequest",
+    "CreateMediaBuyResponse",
+    "UpdateMediaBuyRequest",
+    "UpdateMediaBuyResponse",
+    "SyncCreativesRequest",
+    "SyncCreativesResponse",
+    "ListCreativesRequest",
+    "ListCreativesResponse",
+    "ListCreativeFormatsRequest",
+    "ListCreativeFormatsResponse",
+    "GetMediaBuyDeliveryRequest",
+    "GetMediaBuyDeliveryResponse",
+    "ListAuthorizedPropertiesRequest",
+    "ListAuthorizedPropertiesResponse",
+    "GetSignalsRequest",
+    "GetSignalsResponse",
+    "ActivateSignalRequest",
+    "ActivateSignalResponse",
+    "ProvidePerformanceFeedbackRequest",
+    "ProvidePerformanceFeedbackResponse",
+    # Core domain types
+    "Product",
+    "MediaBuy",
 ]

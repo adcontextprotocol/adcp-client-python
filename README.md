@@ -79,15 +79,22 @@ if result.status == "submitted":
 - **Auto-detection**: Automatically detect which protocol an agent uses
 
 ### Type Safety
-Full type hints with Pydantic validation:
+Full type hints with Pydantic validation and auto-generated types from the AdCP spec:
 
 ```python
-result = await agent.get_products(brief="Coffee brands")
+from adcp import GetProductsRequest
+
+# Recommended: Use typed requests for full validation and IDE autocomplete
+request = GetProductsRequest(brief="Coffee brands", max_results=10)
+result = await agent.get_products(request)
 # result: TaskResult[GetProductsResponse]
 
 if result.success:
     for product in result.data.products:
-        print(product.name, product.price)  # Full IDE autocomplete!
+        print(product.name, product.pricing_options)  # Full IDE autocomplete!
+
+# Legacy: You can still use kwargs (maintained for backwards compatibility)
+result = await agent.get_products(brief="Coffee brands")
 ```
 
 ### Multi-Agent Operations
