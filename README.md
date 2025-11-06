@@ -25,8 +25,7 @@ pip install adcp
 ## Quick Start: Distributed Operations
 
 ```python
-from adcp import ADCPMultiAgentClient
-from adcp.types import AgentConfig
+from adcp import ADCPMultiAgentClient, AgentConfig, GetProductsRequest
 
 # Configure agents and handlers
 client = ADCPMultiAgentClient(
@@ -59,7 +58,8 @@ client = ADCPMultiAgentClient(
 
 # Execute operation - library handles operation IDs, webhook URLs, context management
 agent = client.agent("agent_x")
-result = await agent.get_products(brief="Coffee brands")
+request = GetProductsRequest(brief="Coffee brands")
+result = await agent.get_products(request)
 
 # Check result
 if result.status == "completed":
@@ -79,23 +79,30 @@ if result.status == "submitted":
 - **Auto-detection**: Automatically detect which protocol an agent uses
 
 ### Type Safety
-Full type hints with Pydantic validation:
+Full type hints with Pydantic validation and auto-generated types from the AdCP spec:
 
 ```python
-result = await agent.get_products(brief="Coffee brands")
+from adcp import GetProductsRequest
+
+# All methods require typed request objects
+request = GetProductsRequest(brief="Coffee brands", max_results=10)
+result = await agent.get_products(request)
 # result: TaskResult[GetProductsResponse]
 
 if result.success:
     for product in result.data.products:
-        print(product.name, product.price)  # Full IDE autocomplete!
+        print(product.name, product.pricing_options)  # Full IDE autocomplete!
 ```
 
 ### Multi-Agent Operations
 Execute across multiple agents simultaneously:
 
 ```python
+from adcp import GetProductsRequest
+
 # Parallel execution across all agents
-results = await client.get_products(brief="Coffee brands")
+request = GetProductsRequest(brief="Coffee brands")
+results = await client.get_products(request)
 
 for result in results:
     if result.status == "completed":
@@ -138,6 +145,69 @@ client = ADCPMultiAgentClient(
 )
 # Signatures verified automatically on handle_webhook()
 ```
+
+### Debug Mode
+
+Enable debug mode to see full request/response details:
+
+```python
+agent_config = AgentConfig(
+    id="agent_x",
+    agent_uri="https://agent-x.com",
+    protocol="mcp",
+    debug=True  # Enable debug mode
+)
+
+result = await client.agent("agent_x").get_products(brief="Coffee brands")
+
+# Access debug information
+if result.debug_info:
+    print(f"Duration: {result.debug_info.duration_ms}ms")
+    print(f"Request: {result.debug_info.request}")
+    print(f"Response: {result.debug_info.response}")
+```
+
+Or use the CLI:
+
+```bash
+uvx adcp --debug myagent get_products '{"brief":"TV ads"}'
+```
+
+### Error Handling
+
+The library provides a comprehensive exception hierarchy with helpful error messages:
+
+```python
+from adcp.exceptions import (
+    ADCPError,               # Base exception
+    ADCPConnectionError,     # Connection failed
+    ADCPAuthenticationError, # Auth failed (401, 403)
+    ADCPTimeoutError,        # Request timed out
+    ADCPProtocolError,       # Invalid response format
+    ADCPToolNotFoundError,   # Tool not found
+    ADCPWebhookSignatureError  # Invalid webhook signature
+)
+
+try:
+    result = await client.agent("agent_x").get_products(brief="Coffee")
+except ADCPAuthenticationError as e:
+    # Exception includes agent context and helpful suggestions
+    print(f"Auth failed for {e.agent_id}: {e.message}")
+    print(f"Suggestion: {e.suggestion}")
+except ADCPTimeoutError as e:
+    print(f"Request timed out after {e.timeout}s")
+except ADCPConnectionError as e:
+    print(f"Connection failed: {e.message}")
+    print(f"Agent URI: {e.agent_uri}")
+except ADCPError as e:
+    # Catch-all for other AdCP errors
+    print(f"AdCP error: {e.message}")
+```
+
+All exceptions include:
+- **Contextual information**: agent ID, URI, and operation details
+- **Actionable suggestions**: specific steps to fix common issues
+- **Error classification**: proper HTTP status code handling
 
 ## Available Tools
 
@@ -182,6 +252,112 @@ auth = index.get_agent_authorizations("https://agent-x.com")
 
 # Query 3: Find by tags
 premium = index.find_agents_by_property_tags(["premium", "ctv"])
+```
+
+## CLI Tool
+
+The `adcp` command-line tool provides easy interaction with AdCP agents without writing code.
+
+### Installation
+
+```bash
+# Install globally
+pip install adcp
+
+# Or use uvx to run without installing
+uvx adcp --help
+```
+
+### Quick Start
+
+```bash
+# Save agent configuration
+uvx adcp --save-auth myagent https://agent.example.com mcp
+
+# List tools available on agent
+uvx adcp myagent list_tools
+
+# Execute a tool
+uvx adcp myagent get_products '{"brief":"TV ads"}'
+
+# Use from stdin
+echo '{"brief":"TV ads"}' | uvx adcp myagent get_products
+
+# Use from file
+uvx adcp myagent get_products @request.json
+
+# Get JSON output
+uvx adcp --json myagent get_products '{"brief":"TV ads"}'
+
+# Enable debug mode
+uvx adcp --debug myagent get_products '{"brief":"TV ads"}'
+```
+
+### Configuration Management
+
+```bash
+# Save agent with authentication
+uvx adcp --save-auth myagent https://agent.example.com mcp
+# Prompts for optional auth token
+
+# List saved agents
+uvx adcp --list-agents
+
+# Remove saved agent
+uvx adcp --remove-agent myagent
+
+# Show config file location
+uvx adcp --show-config
+```
+
+### Direct URL Access
+
+```bash
+# Use URL directly without saving
+uvx adcp https://agent.example.com/mcp list_tools
+
+# Override protocol
+uvx adcp --protocol a2a https://agent.example.com list_tools
+
+# Pass auth token
+uvx adcp --auth YOUR_TOKEN https://agent.example.com list_tools
+```
+
+### Examples
+
+```bash
+# Get products from saved agent
+uvx adcp myagent get_products '{"brief":"Coffee brands for digital video"}'
+
+# Create media buy
+uvx adcp myagent create_media_buy '{
+  "name": "Q4 Campaign",
+  "budget": 50000,
+  "start_date": "2024-01-01",
+  "end_date": "2024-03-31"
+}'
+
+# List creative formats with JSON output
+uvx adcp --json myagent list_creative_formats | jq '.data'
+
+# Debug connection issues
+uvx adcp --debug myagent list_tools
+```
+
+### Configuration File
+
+Agent configurations are stored in `~/.adcp/config.json`:
+
+```json
+{
+  "agents": {
+    "myagent": {
+      "agent_uri": "https://agent.example.com",
+      "protocol": "mcp",
+      "auth_token": "optional-token"
+    }
+  }
+}
 ```
 
 ## Environment Configuration

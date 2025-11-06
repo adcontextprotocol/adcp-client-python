@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 """Core type definitions."""
 
 from enum import Enum
 from typing import Any, Generic, Literal, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class Protocol(str, Enum):
@@ -21,6 +23,68 @@ class AgentConfig(BaseModel):
     protocol: Protocol
     auth_token: str | None = None
     requires_auth: bool = False
+    auth_header: str = "x-adcp-auth"  # Header name for authentication
+    auth_type: str = "token"  # "token" for direct value, "bearer" for "Bearer {token}"
+    timeout: float = 30.0  # Request timeout in seconds
+    mcp_transport: str = (
+        "streamable_http"  # "streamable_http" (default, modern) or "sse" (legacy fallback)
+    )
+    debug: bool = False  # Enable debug mode to capture request/response details
+
+    @field_validator("agent_uri")
+    @classmethod
+    def validate_agent_uri(cls, v: str) -> str:
+        """Validate agent URI format."""
+        if not v:
+            raise ValueError("agent_uri cannot be empty")
+
+        if not v.startswith(("http://", "https://")):
+            raise ValueError(
+                f"agent_uri must start with http:// or https://, got: {v}\n"
+                "Example: https://agent.example.com"
+            )
+
+        # Remove trailing slash for consistency
+        return v.rstrip("/")
+
+    @field_validator("timeout")
+    @classmethod
+    def validate_timeout(cls, v: float) -> float:
+        """Validate timeout is reasonable."""
+        if v <= 0:
+            raise ValueError(f"timeout must be positive, got: {v}")
+
+        if v > 300:  # 5 minutes
+            raise ValueError(
+                f"timeout is very large ({v}s). Consider a value under 300 seconds.\n"
+                "Large timeouts can cause long hangs if agent is unresponsive."
+            )
+
+        return v
+
+    @field_validator("mcp_transport")
+    @classmethod
+    def validate_mcp_transport(cls, v: str) -> str:
+        """Validate MCP transport type."""
+        valid_transports = ["streamable_http", "sse"]
+        if v not in valid_transports:
+            raise ValueError(
+                f"mcp_transport must be one of {valid_transports}, got: {v}\n"
+                "Use 'streamable_http' for modern agents (recommended)"
+            )
+        return v
+
+    @field_validator("auth_type")
+    @classmethod
+    def validate_auth_type(cls, v: str) -> str:
+        """Validate auth type."""
+        valid_types = ["token", "bearer"]
+        if v not in valid_types:
+            raise ValueError(
+                f"auth_type must be one of {valid_types}, got: {v}\n"
+                "Use 'bearer' for OAuth2/standard Authorization header"
+            )
+        return v
 
 
 class TaskStatus(str, Enum):
@@ -50,6 +114,14 @@ class NeedsInputInfo(BaseModel):
     field: str | None = None
 
 
+class DebugInfo(BaseModel):
+    """Debug information for troubleshooting."""
+
+    request: dict[str, Any]
+    response: dict[str, Any]
+    duration_ms: float | None = None
+
+
 class TaskResult(BaseModel, Generic[T]):
     """Result from task execution."""
 
@@ -60,6 +132,7 @@ class TaskResult(BaseModel, Generic[T]):
     error: str | None = None
     success: bool = Field(default=True)
     metadata: dict[str, Any] | None = None
+    debug_info: DebugInfo | None = None
 
     class Config:
         arbitrary_types_allowed = True
@@ -77,6 +150,8 @@ class ActivityType(str, Enum):
 
 class Activity(BaseModel):
     """Activity event for observability."""
+
+    model_config = {"frozen": True}
 
     type: ActivityType
     operation_id: str

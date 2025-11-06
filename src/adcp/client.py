@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 """Main client classes for AdCP."""
 
+import hashlib
+import hmac
 import json
+import logging
 import os
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
-from uuid import uuid4
 
+from adcp.exceptions import ADCPWebhookSignatureError
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.base import ProtocolAdapter
 from adcp.protocols.mcp import MCPAdapter
@@ -17,11 +22,29 @@ from adcp.types.core import (
     Protocol,
     TaskResult,
 )
+from adcp.types.generated import (
+    ActivateSignalRequest,
+    ActivateSignalResponse,
+    GetMediaBuyDeliveryRequest,
+    GetMediaBuyDeliveryResponse,
+    GetProductsRequest,
+    GetProductsResponse,
+    GetSignalsRequest,
+    GetSignalsResponse,
+    ListAuthorizedPropertiesRequest,
+    ListAuthorizedPropertiesResponse,
+    ListCreativeFormatsRequest,
+    ListCreativeFormatsResponse,
+    ListCreativesRequest,
+    ListCreativesResponse,
+    ProvidePerformanceFeedbackRequest,
+    ProvidePerformanceFeedbackResponse,
+    SyncCreativesRequest,
+    SyncCreativesResponse,
+)
+from adcp.utils.operation_id import create_operation_id
 
-
-def create_operation_id() -> str:
-    """Generate a unique operation ID."""
-    return f"op_{uuid4().hex[:12]}"
+logger = logging.getLogger(__name__)
 
 
 class ADCPClient:
@@ -74,10 +97,21 @@ class ADCPClient:
         if self.on_activity:
             self.on_activity(activity)
 
-    async def get_products(self, brief: str, **kwargs: Any) -> TaskResult[Any]:
-        """Get advertising products."""
+    async def get_products(
+        self,
+        request: GetProductsRequest,
+    ) -> TaskResult[GetProductsResponse]:
+        """
+        Get advertising products.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing GetProductsResponse
+        """
         operation_id = create_operation_id()
-        params = {"brief": brief, **kwargs}
+        params = request.model_dump(exclude_none=True)
 
         self._emit_activity(
             Activity(
@@ -85,7 +119,7 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="get_products",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -98,73 +132,27 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type="get_products",
                 status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
         return result
 
-    async def list_creative_formats(self, **kwargs: Any) -> TaskResult[Any]:
-        """List supported creative formats."""
+    async def list_creative_formats(
+        self,
+        request: ListCreativeFormatsRequest,
+    ) -> TaskResult[ListCreativeFormatsResponse]:
+        """
+        List supported creative formats.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing ListCreativeFormatsResponse
+        """
         operation_id = create_operation_id()
-
-        self._emit_activity(
-            Activity(
-                type=ActivityType.PROTOCOL_REQUEST,
-                operation_id=operation_id,
-                agent_id=self.agent_config.id,
-                task_type="list_creative_formats",
-                timestamp=datetime.utcnow().isoformat(),
-            )
-        )
-
-        result = await self.adapter.call_tool("list_creative_formats", kwargs)
-
-        self._emit_activity(
-            Activity(
-                type=ActivityType.PROTOCOL_RESPONSE,
-                operation_id=operation_id,
-                agent_id=self.agent_config.id,
-                task_type="list_creative_formats",
-                status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
-            )
-        )
-
-        return result
-
-    async def create_media_buy(self, **kwargs: Any) -> TaskResult[Any]:
-        """Create a new media buy."""
-        operation_id = create_operation_id()
-
-        self._emit_activity(
-            Activity(
-                type=ActivityType.PROTOCOL_REQUEST,
-                operation_id=operation_id,
-                agent_id=self.agent_config.id,
-                task_type="create_media_buy",
-                timestamp=datetime.utcnow().isoformat(),
-            )
-        )
-
-        result = await self.adapter.call_tool("create_media_buy", kwargs)
-
-        self._emit_activity(
-            Activity(
-                type=ActivityType.PROTOCOL_RESPONSE,
-                operation_id=operation_id,
-                agent_id=self.agent_config.id,
-                task_type="create_media_buy",
-                status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
-            )
-        )
-
-        return result
-
-    async def update_media_buy(self, **kwargs: Any) -> TaskResult[Any]:
-        """Update an existing media buy."""
-        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
 
         self._emit_activity(
             Activity(
@@ -172,11 +160,11 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="update_media_buy",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        result = await self.adapter.call_tool("update_media_buy", kwargs)
+        result = await self.adapter.call_tool("update_media_buy", params)
 
         self._emit_activity(
             Activity(
@@ -185,15 +173,27 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type="update_media_buy",
                 status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
         return result
 
-    async def sync_creatives(self, **kwargs: Any) -> TaskResult[Any]:
-        """Synchronize creatives with the agent."""
+    async def sync_creatives(
+        self,
+        request: SyncCreativesRequest,
+    ) -> TaskResult[SyncCreativesResponse]:
+        """
+        Sync Creatives.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing SyncCreativesResponse
+        """
         operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
 
         self._emit_activity(
             Activity(
@@ -201,11 +201,11 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="sync_creatives",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        result = await self.adapter.call_tool("sync_creatives", kwargs)
+        result = await self.adapter.call_tool("sync_creatives", params)
 
         self._emit_activity(
             Activity(
@@ -214,15 +214,27 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type="sync_creatives",
                 status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
         return result
 
-    async def list_creatives(self, **kwargs: Any) -> TaskResult[Any]:
-        """List creatives for a media buy."""
+    async def list_creatives(
+        self,
+        request: ListCreativesRequest,
+    ) -> TaskResult[ListCreativesResponse]:
+        """
+        List Creatives.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing ListCreativesResponse
+        """
         operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
 
         self._emit_activity(
             Activity(
@@ -230,11 +242,11 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="list_creatives",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        result = await self.adapter.call_tool("list_creatives", kwargs)
+        result = await self.adapter.call_tool("list_creatives", params)
 
         self._emit_activity(
             Activity(
@@ -243,15 +255,27 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type="list_creatives",
                 status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
         return result
 
-    async def get_media_buy_delivery(self, **kwargs: Any) -> TaskResult[Any]:
-        """Get delivery metrics for a media buy."""
+    async def get_media_buy_delivery(
+        self,
+        request: GetMediaBuyDeliveryRequest,
+    ) -> TaskResult[GetMediaBuyDeliveryResponse]:
+        """
+        Get Media Buy Delivery.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing GetMediaBuyDeliveryResponse
+        """
         operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
 
         self._emit_activity(
             Activity(
@@ -259,11 +283,11 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="get_media_buy_delivery",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        result = await self.adapter.call_tool("get_media_buy_delivery", kwargs)
+        result = await self.adapter.call_tool("get_media_buy_delivery", params)
 
         self._emit_activity(
             Activity(
@@ -272,15 +296,27 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type="get_media_buy_delivery",
                 status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
         return result
 
-    async def list_authorized_properties(self, **kwargs: Any) -> TaskResult[Any]:
-        """List properties this agent is authorized to sell."""
+    async def list_authorized_properties(
+        self,
+        request: ListAuthorizedPropertiesRequest,
+    ) -> TaskResult[ListAuthorizedPropertiesResponse]:
+        """
+        List Authorized Properties.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing ListAuthorizedPropertiesResponse
+        """
         operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
 
         self._emit_activity(
             Activity(
@@ -288,11 +324,11 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="list_authorized_properties",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        result = await self.adapter.call_tool("list_authorized_properties", kwargs)
+        result = await self.adapter.call_tool("list_authorized_properties", params)
 
         self._emit_activity(
             Activity(
@@ -301,15 +337,27 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type="list_authorized_properties",
                 status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
         return result
 
-    async def get_signals(self, **kwargs: Any) -> TaskResult[Any]:
-        """Get available signals for targeting."""
+    async def get_signals(
+        self,
+        request: GetSignalsRequest,
+    ) -> TaskResult[GetSignalsResponse]:
+        """
+        Get Signals.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing GetSignalsResponse
+        """
         operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
 
         self._emit_activity(
             Activity(
@@ -317,11 +365,11 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="get_signals",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        result = await self.adapter.call_tool("get_signals", kwargs)
+        result = await self.adapter.call_tool("get_signals", params)
 
         self._emit_activity(
             Activity(
@@ -330,15 +378,27 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type="get_signals",
                 status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
         return result
 
-    async def activate_signal(self, **kwargs: Any) -> TaskResult[Any]:
-        """Activate a signal for use in campaigns."""
+    async def activate_signal(
+        self,
+        request: ActivateSignalRequest,
+    ) -> TaskResult[ActivateSignalResponse]:
+        """
+        Activate Signal.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing ActivateSignalResponse
+        """
         operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
 
         self._emit_activity(
             Activity(
@@ -346,11 +406,11 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="activate_signal",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        result = await self.adapter.call_tool("activate_signal", kwargs)
+        result = await self.adapter.call_tool("activate_signal", params)
 
         self._emit_activity(
             Activity(
@@ -359,15 +419,27 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type="activate_signal",
                 status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
         return result
 
-    async def provide_performance_feedback(self, **kwargs: Any) -> TaskResult[Any]:
-        """Provide performance feedback for a campaign."""
+    async def provide_performance_feedback(
+        self,
+        request: ProvidePerformanceFeedbackRequest,
+    ) -> TaskResult[ProvidePerformanceFeedbackResponse]:
+        """
+        Provide Performance Feedback.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing ProvidePerformanceFeedbackResponse
+        """
         operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
 
         self._emit_activity(
             Activity(
@@ -375,11 +447,11 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="provide_performance_feedback",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        result = await self.adapter.call_tool("provide_performance_feedback", kwargs)
+        result = await self.adapter.call_tool("provide_performance_feedback", params)
 
         self._emit_activity(
             Activity(
@@ -388,11 +460,93 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type="provide_performance_feedback",
                 status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
         return result
+
+    async def call_tool(self, tool_name: str, params: dict[str, Any]) -> TaskResult[Any]:
+        """
+        Call any tool on the agent.
+
+        Args:
+            tool_name: Name of the tool to call
+            params: Tool parameters
+
+        Returns:
+            TaskResult with the response
+        """
+        operation_id = create_operation_id()
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=tool_name,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        result = await self.adapter.call_tool(tool_name, params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=tool_name,
+                status=result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return result
+
+    async def list_tools(self) -> list[str]:
+        """
+        List available tools from the agent.
+
+        Returns:
+            List of tool names
+        """
+        return await self.adapter.list_tools()
+
+    async def close(self) -> None:
+        """Close the adapter and clean up resources."""
+        if hasattr(self.adapter, "close"):
+            logger.debug(f"Closing adapter for agent {self.agent_config.id}")
+            await self.adapter.close()
+
+    async def __aenter__(self) -> ADCPClient:
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Async context manager exit."""
+        await self.close()
+
+    def _verify_webhook_signature(self, payload: dict[str, Any], signature: str) -> bool:
+        """
+        Verify HMAC-SHA256 signature of webhook payload.
+
+        Args:
+            payload: Webhook payload dict
+            signature: Signature to verify
+
+        Returns:
+            True if signature is valid, False otherwise
+        """
+        if not self.webhook_secret:
+            return True
+
+        payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+        expected_signature = hmac.new(
+            self.webhook_secret.encode("utf-8"), payload_bytes, hashlib.sha256
+        ).hexdigest()
+
+        return hmac.compare_digest(signature, expected_signature)
 
     async def handle_webhook(
         self,
@@ -405,11 +559,15 @@ class ADCPClient:
         Args:
             payload: Webhook payload
             signature: Webhook signature for verification
+
+        Raises:
+            ADCPWebhookSignatureError: If signature verification fails
         """
-        # TODO: Implement signature verification
-        if self.webhook_secret and signature:
-            # Verify signature
-            pass
+        if signature and not self._verify_webhook_signature(payload, signature):
+            logger.warning(
+                f"Webhook signature verification failed for agent {self.agent_config.id}"
+            )
+            raise ADCPWebhookSignatureError("Invalid webhook signature")
 
         operation_id = payload.get("operation_id", "unknown")
         task_type = payload.get("task_type", "unknown")
@@ -420,7 +578,7 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type=task_type,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
                 metadata={"payload": payload},
             )
         )
@@ -469,15 +627,42 @@ class ADCPMultiAgentClient:
         """Get list of agent IDs."""
         return list(self.agents.keys())
 
-    async def get_products(self, brief: str, **kwargs: Any) -> list[TaskResult[Any]]:
-        """Execute get_products across all agents in parallel."""
+    async def close(self) -> None:
+        """Close all agent clients and clean up resources."""
         import asyncio
 
-        tasks = [agent.get_products(brief, **kwargs) for agent in self.agents.values()]
+        logger.debug("Closing all agent clients in multi-agent client")
+        close_tasks = [client.close() for client in self.agents.values()]
+        await asyncio.gather(*close_tasks, return_exceptions=True)
+
+    async def __aenter__(self) -> ADCPMultiAgentClient:
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Async context manager exit."""
+        await self.close()
+
+    async def get_products(
+        self,
+        request: GetProductsRequest,
+    ) -> list[TaskResult[GetProductsResponse]]:
+        """
+        Execute get_products across all agents in parallel.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            List of TaskResults containing GetProductsResponse for each agent
+        """
+        import asyncio
+
+        tasks = [agent.get_products(request) for agent in self.agents.values()]
         return await asyncio.gather(*tasks)
 
     @classmethod
-    def from_env(cls) -> "ADCPMultiAgentClient":
+    def from_env(cls) -> ADCPMultiAgentClient:
         """Create client from environment variables."""
         agents_json = os.getenv("ADCP_AGENTS")
         if not agents_json:

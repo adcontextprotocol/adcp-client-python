@@ -1,20 +1,58 @@
+from __future__ import annotations
+
 """A2A protocol adapter using HTTP client.
 
 The official a2a-sdk is primarily for building A2A servers. For client functionality,
 we implement the A2A protocol using HTTP requests as per the A2A specification.
 """
 
+import logging
+import time
 from typing import Any
 from uuid import uuid4
 
 import httpx
 
+from adcp.exceptions import (
+    ADCPAuthenticationError,
+    ADCPConnectionError,
+    ADCPTimeoutError,
+)
 from adcp.protocols.base import ProtocolAdapter
-from adcp.types.core import TaskResult, TaskStatus
+from adcp.types.core import AgentConfig, DebugInfo, TaskResult, TaskStatus
+
+logger = logging.getLogger(__name__)
 
 
 class A2AAdapter(ProtocolAdapter):
     """Adapter for A2A protocol following the Agent2Agent specification."""
+
+    def __init__(self, agent_config: AgentConfig):
+        """Initialize A2A adapter with reusable HTTP client."""
+        super().__init__(agent_config)
+        self._client: httpx.AsyncClient | None = None
+
+    async def _get_client(self) -> httpx.AsyncClient:
+        """Get or create the HTTP client with connection pooling."""
+        if self._client is None:
+            # Configure connection pooling for better performance
+            limits = httpx.Limits(
+                max_keepalive_connections=10,
+                max_connections=20,
+                keepalive_expiry=30.0,
+            )
+            self._client = httpx.AsyncClient(limits=limits)
+            logger.debug(
+                f"Created HTTP client with connection pooling for agent {self.agent_config.id}"
+            )
+        return self._client
+
+    async def close(self) -> None:
+        """Close the HTTP client and clean up resources."""
+        if self._client is not None:
+            logger.debug(f"Closing A2A adapter client for agent {self.agent_config.id}")
+            await self._client.aclose()
+            self._client = None
 
     async def call_tool(self, tool_name: str, params: dict[str, Any]) -> TaskResult[Any]:
         """
@@ -23,79 +61,116 @@ class A2AAdapter(ProtocolAdapter):
         A2A uses a tasks/send endpoint to initiate tasks. The agent responds with
         task status and may require multiple roundtrips for completion.
         """
-        async with httpx.AsyncClient() as client:
-            headers = {"Content-Type": "application/json"}
+        start_time = time.time() if self.agent_config.debug else None
+        client = await self._get_client()
 
-            if self.agent_config.auth_token:
-                headers["Authorization"] = f"Bearer {self.agent_config.auth_token}"
+        headers = {"Content-Type": "application/json"}
 
-            # Construct A2A message
-            message = {
-                "role": "user",
-                "parts": [
-                    {
-                        "type": "text",
-                        "text": self._format_tool_request(tool_name, params),
-                    }
-                ],
+        if self.agent_config.auth_token:
+            # Support custom auth headers and types
+            if self.agent_config.auth_type == "bearer":
+                headers[self.agent_config.auth_header] = f"Bearer {self.agent_config.auth_token}"
+            else:
+                headers[self.agent_config.auth_header] = self.agent_config.auth_token
+
+        # Construct A2A message
+        message = {
+            "role": "user",
+            "parts": [
+                {
+                    "type": "text",
+                    "text": self._format_tool_request(tool_name, params),
+                }
+            ],
+        }
+
+        # A2A uses message/send endpoint
+        url = f"{self.agent_config.agent_uri}/message/send"
+
+        request_data = {
+            "message": message,
+            "context_id": str(uuid4()),
+        }
+
+        debug_info = None
+        if self.agent_config.debug:
+            debug_request = {
+                "url": url,
+                "method": "POST",
+                "headers": {
+                    k: v
+                    if k.lower() not in ("authorization", self.agent_config.auth_header.lower())
+                    else "***"
+                    for k, v in headers.items()
+                },
+                "body": request_data,
             }
 
-            # A2A uses message/send endpoint
-            url = f"{self.agent_config.agent_uri}/message/send"
+        try:
+            response = await client.post(
+                url,
+                json=request_data,
+                headers=headers,
+                timeout=self.agent_config.timeout,
+            )
+            response.raise_for_status()
 
-            request_data = {
-                "message": message,
-                "context_id": str(uuid4()),
-            }
+            data = response.json()
 
-            try:
-                response = await client.post(
-                    url,
-                    json=request_data,
-                    headers=headers,
-                    timeout=30.0,
+            if self.agent_config.debug and start_time:
+                duration_ms = (time.time() - start_time) * 1000
+                debug_info = DebugInfo(
+                    request=debug_request,
+                    response={"status": response.status_code, "body": data},
+                    duration_ms=duration_ms,
                 )
-                response.raise_for_status()
 
-                data = response.json()
+            # Parse A2A response format
+            # A2A tasks have lifecycle: submitted, working, completed, failed, input-required
+            task_status = data.get("task", {}).get("status")
 
-                # Parse A2A response format
-                # A2A tasks have lifecycle: submitted, working, completed, failed, input-required
-                task_status = data.get("task", {}).get("status")
+            if task_status in ("completed", "working"):
+                # Extract the result from the response message
+                result_data = self._extract_result(data)
 
-                if task_status in ("completed", "working"):
-                    # Extract the result from the response message
-                    result_data = self._extract_result(data)
-
-                    return TaskResult[Any](
-                        status=TaskStatus.COMPLETED,
-                        data=result_data,
-                        success=True,
-                        metadata={"task_id": data.get("task", {}).get("id")},
-                    )
-                elif task_status == "failed":
-                    return TaskResult[Any](
-                        status=TaskStatus.FAILED,
-                        error=data.get("message", {})
-                        .get("parts", [{}])[0]
-                        .get("text", "Task failed"),
-                        success=False,
-                    )
-                else:
-                    # Handle other states (submitted, input-required)
-                    return TaskResult[Any](
-                        status=TaskStatus.SUBMITTED,
-                        data=data,
-                        success=True,
-                        metadata={"task_id": data.get("task", {}).get("id")},
-                    )
-
-            except httpx.HTTPError as e:
+                return TaskResult[Any](
+                    status=TaskStatus.COMPLETED,
+                    data=result_data,
+                    success=True,
+                    metadata={"task_id": data.get("task", {}).get("id")},
+                    debug_info=debug_info,
+                )
+            elif task_status == "failed":
                 return TaskResult[Any](
                     status=TaskStatus.FAILED,
-                    error=str(e),
+                    error=data.get("message", {}).get("parts", [{}])[0].get("text", "Task failed"),
                     success=False,
+                    debug_info=debug_info,
                 )
+            else:
+                # Handle other states (submitted, input-required)
+                return TaskResult[Any](
+                    status=TaskStatus.SUBMITTED,
+                    data=data,
+                    success=True,
+                    metadata={"task_id": data.get("task", {}).get("id")},
+                    debug_info=debug_info,
+                )
+
+        except httpx.HTTPError as e:
+            if self.agent_config.debug and start_time:
+                duration_ms = (time.time() - start_time) * 1000
+                debug_info = DebugInfo(
+                    request=debug_request,
+                    response={"error": str(e)},
+                    duration_ms=duration_ms,
+                )
+            return TaskResult[Any](
+                status=TaskStatus.FAILED,
+                error=str(e),
+                success=False,
+                debug_info=debug_info,
+            )
 
     def _format_tool_request(self, tool_name: str, params: dict[str, Any]) -> str:
         """Format tool request as natural language for A2A."""
@@ -135,25 +210,64 @@ class A2AAdapter(ProtocolAdapter):
         their capabilities through the agent card. For AdCP, we rely on the
         standard AdCP tool set.
         """
-        async with httpx.AsyncClient() as client:
-            headers = {"Content-Type": "application/json"}
+        client = await self._get_client()
 
-            if self.agent_config.auth_token:
-                headers["Authorization"] = f"Bearer {self.agent_config.auth_token}"
+        headers = {"Content-Type": "application/json"}
 
-            # Try to fetch agent card (OpenAPI spec)
-            url = f"{self.agent_config.agent_uri}/agent-card"
+        if self.agent_config.auth_token:
+            # Support custom auth headers and types
+            if self.agent_config.auth_type == "bearer":
+                headers[self.agent_config.auth_header] = f"Bearer {self.agent_config.auth_token}"
+            else:
+                headers[self.agent_config.auth_header] = self.agent_config.auth_token
 
-            try:
-                response = await client.get(url, headers=headers, timeout=10.0)
-                response.raise_for_status()
+        # Try to fetch agent card from standard A2A location
+        # A2A spec uses /.well-known/agent.json for agent card
+        url = f"{self.agent_config.agent_uri}/.well-known/agent.json"
 
-                data = response.json()
+        logger.debug(f"Fetching A2A agent card for {self.agent_config.id} from {url}")
 
-                # Extract skills from agent card
-                skills = data.get("skills", [])
-                return [skill.get("name", "") for skill in skills if skill.get("name")]
+        try:
+            response = await client.get(url, headers=headers, timeout=self.agent_config.timeout)
+            response.raise_for_status()
 
-            except httpx.HTTPError:
-                # If agent card is not available, return empty list
-                return []
+            data = response.json()
+
+            # Extract skills from agent card
+            skills = data.get("skills", [])
+            tool_names = [skill.get("name", "") for skill in skills if skill.get("name")]
+
+            logger.info(f"Found {len(tool_names)} tools from A2A agent {self.agent_config.id}")
+            return tool_names
+
+        except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code
+            if status_code in (401, 403):
+                logger.error(f"Authentication failed for A2A agent {self.agent_config.id}")
+                raise ADCPAuthenticationError(
+                    f"Authentication failed: HTTP {status_code}",
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
+                ) from e
+            else:
+                logger.error(f"HTTP {status_code} error fetching agent card: {e}")
+                raise ADCPConnectionError(
+                    f"Failed to fetch agent card: HTTP {status_code}",
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
+                ) from e
+        except httpx.TimeoutException as e:
+            logger.error(f"Timeout fetching agent card for {self.agent_config.id}")
+            raise ADCPTimeoutError(
+                f"Timeout fetching agent card: {e}",
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
+                timeout=self.agent_config.timeout,
+            ) from e
+        except httpx.HTTPError as e:
+            logger.error(f"HTTP error fetching agent card: {e}")
+            raise ADCPConnectionError(
+                f"Failed to fetch agent card: {e}",
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
+            ) from e

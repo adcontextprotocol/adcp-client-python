@@ -1,0 +1,75 @@
+# Pre-commit hooks for AdCP Python client
+# See https://pre-commit.com for more information
+# Installation: pip install pre-commit && pre-commit install
+
+repos:
+  # Black code formatting
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        language_version: python3.10
+        args: [--line-length=100]
+
+  # Ruff linting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.2
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        exclude: ^src/adcp/types/generated\.py$
+
+  # Mypy type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.14.0
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - pydantic>=2.0.0
+          - types-requests
+        args: [--config-file=pyproject.toml]
+        files: ^src/adcp/
+        exclude: ^src/adcp/types/generated\.py$
+
+  # Basic file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^schemas/
+      - id: end-of-file-fixer
+        exclude: ^schemas/
+      - id: check-yaml
+      - id: check-json
+        exclude: ^schemas/
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: detect-private-key
+
+  # Validate generated code after schema changes
+  - repo: local
+    hooks:
+      - id: validate-generated-code
+        name: Validate generated Pydantic models
+        entry: python -m py_compile
+        language: system
+        files: ^src/adcp/types/generated\.py$
+        pass_filenames: true
+        description: Ensures generated code is syntactically valid Python
+
+      - id: test-code-generation
+        name: Test code generator
+        entry: pytest tests/test_code_generation.py -v --tb=short
+        language: system
+        files: ^scripts/generate_models_simple\.py$
+        pass_filenames: false
+        description: Run code generation tests when generator changes
+
+# Configuration
+default_language_version:
+  python: python3.10
+
+# Run hooks on all files during manual runs
+fail_fast: false

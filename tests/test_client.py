@@ -76,6 +76,7 @@ async def test_get_products():
     """Test get_products method with mock adapter."""
     from unittest.mock import AsyncMock, patch
     from adcp.types.core import TaskResult, TaskStatus
+    from adcp.types.generated import GetProductsRequest
 
     config = AgentConfig(
         id="test_agent",
@@ -93,7 +94,8 @@ async def test_get_products():
     )
 
     with patch.object(client.adapter, "call_tool", return_value=mock_result) as mock_call:
-        result = await client.get_products(brief="test campaign")
+        request = GetProductsRequest(brief="test campaign")
+        result = await client.get_products(request)
 
         mock_call.assert_called_once()
         assert result.success is True
@@ -115,8 +117,6 @@ async def test_all_client_methods():
     # Verify all required methods exist
     assert hasattr(client, "get_products")
     assert hasattr(client, "list_creative_formats")
-    assert hasattr(client, "create_media_buy")
-    assert hasattr(client, "update_media_buy")
     assert hasattr(client, "sync_creatives")
     assert hasattr(client, "list_creatives")
     assert hasattr(client, "get_media_buy_delivery")

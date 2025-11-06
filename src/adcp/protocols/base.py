@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Base protocol adapter interface."""
 
 from abc import ABC, abstractmethod
@@ -34,5 +36,14 @@ class ProtocolAdapter(ABC):
 
         Returns:
             List of tool names
+        """
+        pass
+
+    @abstractmethod
+    async def close(self) -> None:
+        """
+        Close the adapter and clean up resources.
+
+        Implementations should close any open connections, clients, or other resources.
         """
         pass

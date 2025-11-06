@@ -144,3 +144,4 @@ Thumbs.db
 
 # Environment variables
 .env
+uv.lock

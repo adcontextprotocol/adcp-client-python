@@ -1,0 +1,111 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/v1/core/creative-asset.json",
+  "title": "Creative Asset",
+  "description": "Creative asset for upload to library - supports static assets, generative formats, and third-party snippets",
+  "type": "object",
+  "properties": {
+    "creative_id": {
+      "type": "string",
+      "description": "Unique identifier for the creative"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable creative name"
+    },
+    "format_id": {
+      "$ref": "format-id.json",
+      "description": "Format identifier specifying which format this creative conforms to"
+    },
+    "assets": {
+      "type": "object",
+      "description": "Assets required by the format, keyed by asset_role",
+      "patternProperties": {
+        "^[a-zA-Z0-9_-]+$": {
+          "oneOf": [
+            {
+              "$ref": "image-asset.json"
+            },
+            {
+              "$ref": "video-asset.json"
+            },
+            {
+              "$ref": "audio-asset.json"
+            },
+            {
+              "$ref": "text-asset.json"
+            },
+            {
+              "$ref": "html-asset.json"
+            },
+            {
+              "$ref": "css-asset.json"
+            },
+            {
+              "$ref": "javascript-asset.json"
+            },
+            {
+              "$ref": "vast-asset.json"
+            },
+            {
+              "$ref": "daast-asset.json"
+            },
+            {
+              "$ref": "promoted-offerings.json"
+            },
+            {
+              "$ref": "url-asset.json"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "inputs": {
+      "type": "array",
+      "description": "Preview contexts for generative formats - defines what scenarios to generate previews for",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Human-readable name for this preview variant"
+          },
+          "macros": {
+            "type": "object",
+            "description": "Macro values to apply for this preview",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "context_description": {
+            "type": "string",
+            "description": "Natural language description of the context for AI-generated content"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "tags": {
+      "type": "array",
+      "description": "User-defined tags for organization and searchability",
+      "items": {
+        "type": "string"
+      }
+    },
+    "approved": {
+      "type": "boolean",
+      "description": "For generative creatives: set to true to approve and finalize, false to request regeneration with updated assets/message. Omit for non-generative creatives."
+    }
+  },
+  "required": [
+    "creative_id",
+    "name",
+    "format_id",
+    "assets"
+  ],
+  "additionalProperties": false
+}
