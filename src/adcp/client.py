@@ -159,19 +159,19 @@ class ADCPClient:
                 type=ActivityType.PROTOCOL_REQUEST,
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
-                task_type="update_media_buy",
+                task_type="list_creative_formats",
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        result = await self.adapter.call_tool("update_media_buy", params)
+        result = await self.adapter.call_tool("list_creative_formats", params)
 
         self._emit_activity(
             Activity(
                 type=ActivityType.PROTOCOL_RESPONSE,
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
-                task_type="update_media_buy",
+                task_type="list_creative_formats",
                 status=result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )

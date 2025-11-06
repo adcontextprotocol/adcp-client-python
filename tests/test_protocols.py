@@ -55,6 +55,26 @@ class TestA2AAdapter:
         with patch.object(adapter, "_get_client", return_value=mock_client):
             result = await adapter.call_tool("get_products", {"brief": "test"})
 
+            # Verify the adapter logic - check HTTP request details
+            mock_client.post.assert_called_once()
+            call_args = mock_client.post.call_args
+
+            # Verify URL includes /message/send endpoint
+            assert call_args[0][0] == "https://a2a.example.com/message/send"
+
+            # Verify headers include auth token (default auth_type is "token", not "bearer")
+            headers = call_args[1]["headers"]
+            assert "x-adcp-auth" in headers
+            assert headers["x-adcp-auth"] == "test_token"
+
+            # Verify request body structure matches A2A spec
+            json_body = call_args[1]["json"]
+            assert "message" in json_body
+            assert json_body["message"]["role"] == "user"
+            assert "parts" in json_body["message"]
+            assert "context_id" in json_body
+
+            # Verify result parsing
             assert result.success is True
             assert result.status == TaskStatus.COMPLETED
             assert result.data == {"result": "success"}
@@ -78,6 +98,14 @@ class TestA2AAdapter:
         with patch.object(adapter, "_get_client", return_value=mock_client):
             result = await adapter.call_tool("get_products", {"brief": "test"})
 
+            # Verify HTTP request was made with correct parameters
+            mock_client.post.assert_called_once()
+            call_args = mock_client.post.call_args
+            assert call_args[0][0] == "https://a2a.example.com/message/send"
+            assert call_args[1]["headers"]["x-adcp-auth"] == "test_token"
+            assert "message" in call_args[1]["json"]
+
+            # Verify failure handling
             assert result.success is False
             assert result.status == TaskStatus.FAILED
 
@@ -103,9 +131,22 @@ class TestA2AAdapter:
         with patch.object(adapter, "_get_client", return_value=mock_client):
             tools = await adapter.list_tools()
 
+            # Verify agent card URL construction (A2A spec uses agent.json)
+            mock_client.get.assert_called_once()
+            call_args = mock_client.get.call_args
+            expected_url = "https://a2a.example.com/.well-known/agent.json"
+            assert call_args[0][0] == expected_url
+
+            # Verify auth headers are included (default auth_type is "token")
+            headers = call_args[1]["headers"]
+            assert "x-adcp-auth" in headers
+            assert headers["x-adcp-auth"] == "test_token"
+
+            # Verify tool list parsing
             assert len(tools) == 3
             assert "get_products" in tools
             assert "create_media_buy" in tools
+            assert "list_creative_formats" in tools
 
 
 class TestMCPAdapter:
@@ -125,6 +166,15 @@ class TestMCPAdapter:
         with patch.object(adapter, "_get_session", return_value=mock_session):
             result = await adapter.call_tool("get_products", {"brief": "test"})
 
+            # Verify MCP protocol details - tool name and arguments
+            mock_session.call_tool.assert_called_once()
+            call_args = mock_session.call_tool.call_args
+
+            # Verify tool name and params are passed as positional args
+            assert call_args[0][0] == "get_products"
+            assert call_args[0][1] == {"brief": "test"}
+
+            # Verify result parsing
             assert result.success is True
             assert result.status == TaskStatus.COMPLETED
             assert result.data == [{"type": "text", "text": "Success"}]
@@ -140,6 +190,13 @@ class TestMCPAdapter:
         with patch.object(adapter, "_get_session", return_value=mock_session):
             result = await adapter.call_tool("get_products", {"brief": "test"})
 
+            # Verify call_tool was attempted with correct parameters (positional args)
+            mock_session.call_tool.assert_called_once()
+            call_args = mock_session.call_tool.call_args
+            assert call_args[0][0] == "get_products"
+            assert call_args[0][1] == {"brief": "test"}
+
+            # Verify error handling
             assert result.success is False
             assert result.status == TaskStatus.FAILED
             assert "Connection failed" in result.error
@@ -161,6 +218,10 @@ class TestMCPAdapter:
         with patch.object(adapter, "_get_session", return_value=mock_session):
             tools = await adapter.list_tools()
 
+            # Verify list_tools was called on the session
+            mock_session.list_tools.assert_called_once()
+
+            # Verify adapter correctly extracts tool names from MCP response
             assert len(tools) == 2
             assert "get_products" in tools
             assert "create_media_buy" in tools

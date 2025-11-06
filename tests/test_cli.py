@@ -252,34 +252,6 @@ class TestCLIErrorHandling:
 class TestCLIIntegration:
     """Integration tests for CLI (with mocked network calls)."""
 
-    @pytest.mark.asyncio
-    async def test_tool_execution_flow(self, tmp_path, monkeypatch):
-        """Test complete tool execution flow (mocked)."""
-        # Setup config
-        config_file = tmp_path / "config.json"
-        config_data = {
-            "agents": {
-                "test": {
-                    "id": "test",
-                    "agent_uri": "https://test.com",
-                    "protocol": "mcp",
-                }
-            }
-        }
-        config_file.write_text(json.dumps(config_data))
-
-        import adcp.config
-        monkeypatch.setattr(adcp.config, "CONFIG_FILE", config_file)
-
-        # This is an integration test concept - would need actual mocking
-        # of ADCPClient to fully test. Showing the pattern here.
-        # In practice, you'd mock the client's call_tool method.
-
-    def test_json_output_format(self):
-        """Test that --json flag produces valid JSON output."""
-        # Would require mocking the actual tool call
-        # Conceptual test showing what we'd verify
-        pass
 
 
 class TestSpecialCharactersInPayload:
