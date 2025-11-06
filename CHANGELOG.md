@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.0.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v0.1.2...v1.0.0) (2025-11-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* All client methods now require typed request objects. The legacy kwargs API has been removed for a cleaner, more type-safe interface.
+* All client methods now require typed request objects. The legacy kwargs API has been removed for a cleaner, more type-safe interface.
+* All client methods now require typed request objects. The legacy kwargs API has been removed for a cleaner, more type-safe interface.
+
+### Features
+
+* complete Python AdCP SDK with typed API and auto-generated types ([#5](https://github.com/adcontextprotocol/adcp-client-python/issues/5)) ([bc8ebc9](https://github.com/adcontextprotocol/adcp-client-python/commit/bc8ebc957349550887b0d329fba02d5222a311ef))
+
+
+### Bug Fixes
+
+* correct PyPI API token secret name ([#6](https://github.com/adcontextprotocol/adcp-client-python/issues/6)) ([eae30ce](https://github.com/adcontextprotocol/adcp-client-python/commit/eae30ceb9538a4ff2baf0a0a9a944b9e5ae0c5a0))
+
+
+### Reverts
+
+* restore correct PYPY_API_TOKEN secret name ([#7](https://github.com/adcontextprotocol/adcp-client-python/issues/7)) ([330f484](https://github.com/adcontextprotocol/adcp-client-python/commit/330f48449dce18356e94bf1f95c8e4e4d4c59178))
+
+
+### Documentation
+
+* update PyPI setup guide with correct secret name and current status ([085b961](https://github.com/adcontextprotocol/adcp-client-python/commit/085b961ef6d49050a9dc4bcdd956ff29d2955aed))
+
 ## [0.1.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v0.1.1...v0.1.2) (2025-11-05)
 
 
