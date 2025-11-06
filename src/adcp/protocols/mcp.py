@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from contextlib import AsyncExitStack
 from typing import Any
 from urllib.parse import urlparse
@@ -22,7 +23,7 @@ except ImportError:
 
 from adcp.exceptions import ADCPConnectionError, ADCPProtocolError, ADCPTimeoutError
 from adcp.protocols.base import ProtocolAdapter
-from adcp.types.core import TaskResult, TaskStatus
+from adcp.types.core import DebugInfo, TaskResult, TaskStatus
 
 
 class MCPAdapter(ProtocolAdapter):
@@ -166,11 +167,30 @@ class MCPAdapter(ProtocolAdapter):
 
     async def call_tool(self, tool_name: str, params: dict[str, Any]) -> TaskResult[Any]:
         """Call a tool using MCP protocol."""
+        start_time = time.time() if self.agent_config.debug else None
+        debug_info = None
+
         try:
             session = await self._get_session()
 
+            if self.agent_config.debug:
+                debug_request = {
+                    "protocol": "MCP",
+                    "tool": tool_name,
+                    "params": params,
+                    "transport": self.agent_config.mcp_transport,
+                }
+
             # Call the tool using MCP client session
             result = await session.call_tool(tool_name, params)
+
+            if self.agent_config.debug and start_time:
+                duration_ms = (time.time() - start_time) * 1000
+                debug_info = DebugInfo(
+                    request=debug_request,
+                    response={"content": result.content, "is_error": result.isError if hasattr(result, "isError") else False},
+                    duration_ms=duration_ms,
+                )
 
             # MCP tool results contain a list of content items
             # For AdCP, we expect the data in the content
@@ -178,13 +198,22 @@ class MCPAdapter(ProtocolAdapter):
                 status=TaskStatus.COMPLETED,
                 data=result.content,
                 success=True,
+                debug_info=debug_info,
             )
 
         except Exception as e:
+            if self.agent_config.debug and start_time:
+                duration_ms = (time.time() - start_time) * 1000
+                debug_info = DebugInfo(
+                    request=debug_request if self.agent_config.debug else {},
+                    response={"error": str(e)},
+                    duration_ms=duration_ms,
+                )
             return TaskResult[Any](
                 status=TaskStatus.FAILED,
                 error=str(e),
                 success=False,
+                debug_info=debug_info,
             )
 
     async def list_tools(self) -> list[str]:

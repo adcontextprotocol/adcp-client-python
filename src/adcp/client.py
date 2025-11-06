@@ -10,7 +10,6 @@ import os
 from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
-from uuid import uuid4
 
 from adcp.exceptions import ADCPWebhookSignatureError
 from adcp.protocols.a2a import A2AAdapter
@@ -23,13 +22,9 @@ from adcp.types.core import (
     Protocol,
     TaskResult,
 )
+from adcp.utils.operation_id import create_operation_id
 
 logger = logging.getLogger(__name__)
-
-
-def create_operation_id() -> str:
-    """Generate a unique operation ID."""
-    return f"op_{uuid4().hex[:12]}"
 
 
 class ADCPClient:
@@ -560,6 +555,22 @@ class ADCPMultiAgentClient:
     def agent_ids(self) -> list[str]:
         """Get list of agent IDs."""
         return list(self.agents.keys())
+
+    async def close(self) -> None:
+        """Close all agent clients and clean up resources."""
+        import asyncio
+
+        logger.debug("Closing all agent clients in multi-agent client")
+        close_tasks = [client.close() for client in self.agents.values()]
+        await asyncio.gather(*close_tasks, return_exceptions=True)
+
+    async def __aenter__(self) -> "ADCPMultiAgentClient":
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Async context manager exit."""
+        await self.close()
 
     async def get_products(self, brief: str, **kwargs: Any) -> list[TaskResult[Any]]:
         """Execute get_products across all agents in parallel."""

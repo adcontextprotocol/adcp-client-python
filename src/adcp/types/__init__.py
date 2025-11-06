@@ -6,6 +6,7 @@ from adcp.types.core import (
     Activity,
     ActivityType,
     AgentConfig,
+    DebugInfo,
     Protocol,
     TaskResult,
     TaskStatus,
@@ -20,4 +21,5 @@ __all__ = [
     "WebhookMetadata",
     "Activity",
     "ActivityType",
+    "DebugInfo",
 ]

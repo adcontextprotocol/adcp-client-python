@@ -27,6 +27,7 @@ class AgentConfig(BaseModel):
     auth_type: str = "token"  # "token" for direct value, "bearer" for "Bearer {token}"
     timeout: float = 30.0  # Request timeout in seconds
     mcp_transport: str = "streamable_http"  # "streamable_http" (default, modern) or "sse" (legacy fallback)
+    debug: bool = False  # Enable debug mode to capture request/response details
 
 
 class TaskStatus(str, Enum):
@@ -56,6 +57,14 @@ class NeedsInputInfo(BaseModel):
     field: str | None = None
 
 
+class DebugInfo(BaseModel):
+    """Debug information for troubleshooting."""
+
+    request: dict[str, Any]
+    response: dict[str, Any]
+    duration_ms: float | None = None
+
+
 class TaskResult(BaseModel, Generic[T]):
     """Result from task execution."""
 
@@ -66,6 +75,7 @@ class TaskResult(BaseModel, Generic[T]):
     error: str | None = None
     success: bool = Field(default=True)
     metadata: dict[str, Any] | None = None
+    debug_info: DebugInfo | None = None
 
     class Config:
         arbitrary_types_allowed = True
@@ -83,6 +93,8 @@ class ActivityType(str, Enum):
 
 class Activity(BaseModel):
     """Activity event for observability."""
+
+    model_config = {"frozen": True}
 
     type: ActivityType
     operation_id: str
