@@ -48,7 +48,7 @@ class MCPAdapter(ProtocolAdapter):
             ADCPConnectionError: If connection to agent fails
         """
         if self._session is not None:
-            return self._session  # type: ignore[return-value]
+            return self._session  # type: ignore[no-any-return]
 
         logger.debug(f"Creating MCP session for agent {self.agent_config.id}")
 
@@ -112,7 +112,7 @@ class MCPAdapter(ProtocolAdapter):
                             f"(configured: {self.agent_config.agent_uri})"
                         )
 
-                    return self._session  # type: ignore[return-value]
+                    return self._session  # type: ignore[no-any-return]
                 except Exception as e:
                     last_error = e
                     # Clean up the exit stack on failure to avoid async scope issues
