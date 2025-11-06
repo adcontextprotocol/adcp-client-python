@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 """Main client classes for AdCP."""
 
+import hashlib
+import hmac
 import json
 import os
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -85,7 +89,7 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="get_products",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -98,7 +102,7 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type="get_products",
                 status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -114,7 +118,7 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="list_creative_formats",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -127,7 +131,7 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type="list_creative_formats",
                 status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -143,7 +147,7 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="create_media_buy",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -156,7 +160,7 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type="create_media_buy",
                 status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -172,7 +176,7 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="update_media_buy",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -185,7 +189,7 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type="update_media_buy",
                 status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -201,7 +205,7 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="sync_creatives",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -214,7 +218,7 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type="sync_creatives",
                 status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -230,7 +234,7 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="list_creatives",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -243,7 +247,7 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type="list_creatives",
                 status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -259,7 +263,7 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="get_media_buy_delivery",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -272,7 +276,7 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type="get_media_buy_delivery",
                 status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -288,7 +292,7 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="list_authorized_properties",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -301,7 +305,7 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type="list_authorized_properties",
                 status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -317,7 +321,7 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="get_signals",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -330,7 +334,7 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type="get_signals",
                 status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -346,7 +350,7 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="activate_signal",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -359,7 +363,7 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type="activate_signal",
                 status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -375,7 +379,7 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="provide_performance_feedback",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -388,7 +392,7 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type="provide_performance_feedback",
                 status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -413,7 +417,7 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type=tool_name,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -426,7 +430,7 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type=tool_name,
                 status=result.status,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
@@ -441,6 +445,40 @@ class ADCPClient:
         """
         return await self.adapter.list_tools()
 
+    async def close(self) -> None:
+        """Close the adapter and clean up resources."""
+        if hasattr(self.adapter, "close"):
+            await self.adapter.close()
+
+    async def __aenter__(self) -> "ADCPClient":
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Async context manager exit."""
+        await self.close()
+
+    def _verify_webhook_signature(self, payload: dict[str, Any], signature: str) -> bool:
+        """
+        Verify HMAC-SHA256 signature of webhook payload.
+
+        Args:
+            payload: Webhook payload dict
+            signature: Signature to verify
+
+        Returns:
+            True if signature is valid, False otherwise
+        """
+        if not self.webhook_secret:
+            return True
+
+        payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+        expected_signature = hmac.new(
+            self.webhook_secret.encode("utf-8"), payload_bytes, hashlib.sha256
+        ).hexdigest()
+
+        return hmac.compare_digest(signature, expected_signature)
+
     async def handle_webhook(
         self,
         payload: dict[str, Any],
@@ -452,11 +490,12 @@ class ADCPClient:
         Args:
             payload: Webhook payload
             signature: Webhook signature for verification
+
+        Raises:
+            ValueError: If signature verification fails
         """
-        # TODO: Implement signature verification
-        if self.webhook_secret and signature:
-            # Verify signature
-            pass
+        if signature and not self._verify_webhook_signature(payload, signature):
+            raise ValueError("Invalid webhook signature")
 
         operation_id = payload.get("operation_id", "unknown")
         task_type = payload.get("task_type", "unknown")
@@ -467,7 +506,7 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type=task_type,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
                 metadata={"payload": payload},
             )
         )

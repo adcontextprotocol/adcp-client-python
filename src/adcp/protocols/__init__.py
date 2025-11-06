@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Protocol adapters for AdCP."""
 
 from adcp.protocols.a2a import A2AAdapter

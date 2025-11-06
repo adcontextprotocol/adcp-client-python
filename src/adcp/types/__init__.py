@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Type definitions for AdCP client."""
 
 from adcp.types.core import (

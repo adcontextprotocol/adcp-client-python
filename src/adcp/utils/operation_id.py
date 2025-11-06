@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Operation ID generation utilities."""
 
 from uuid import uuid4

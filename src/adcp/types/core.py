@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Core type definitions."""
 
 from enum import Enum

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """A2A protocol adapter using HTTP client.
 
 The official a2a-sdk is primarily for building A2A servers. For client functionality,

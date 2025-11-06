@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 AdCP Python Client Library
 

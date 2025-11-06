@@ -1,8 +1,14 @@
+from __future__ import annotations
+
 """MCP protocol adapter using official Python MCP SDK."""
 
+import asyncio
+import logging
 from contextlib import AsyncExitStack
 from typing import Any
 from urllib.parse import urlparse
+
+logger = logging.getLogger(__name__)
 
 try:
     from mcp import ClientSession  # type: ignore[import-not-found]
@@ -90,12 +96,23 @@ class MCPAdapter(ProtocolAdapter):
                     last_error = e
                     # Clean up the exit stack on failure to avoid async scope issues
                     if self._exit_stack is not None:
-                        try:
-                            await self._exit_stack.aclose()
-                        except Exception:
-                            pass  # Ignore cleanup errors
-                        self._exit_stack = None
+                        old_stack = self._exit_stack
+                        self._exit_stack = None  # Clear immediately to prevent reuse
                         self._session = None
+                        try:
+                            await old_stack.aclose()
+                        except asyncio.CancelledError:
+                            # Expected during shutdown
+                            pass
+                        except RuntimeError as cleanup_error:
+                            # Known MCP SDK async cleanup issue
+                            if "async context" in str(cleanup_error).lower() or "cancel scope" in str(cleanup_error).lower():
+                                logger.debug(f"Ignoring MCP SDK async context error during cleanup: {cleanup_error}")
+                            else:
+                                logger.warning(f"Unexpected RuntimeError during cleanup: {cleanup_error}")
+                        except Exception as cleanup_error:
+                            # Unexpected cleanup errors should be logged
+                            logger.warning(f"Unexpected error during cleanup: {cleanup_error}", exc_info=True)
 
                     # If this isn't the last URL to try, create a new exit stack and continue
                     if url != urls_to_try[-1]:
@@ -144,6 +161,13 @@ class MCPAdapter(ProtocolAdapter):
     async def close(self) -> None:
         """Close the MCP session."""
         if self._exit_stack is not None:
-            await self._exit_stack.aclose()
+            old_stack = self._exit_stack
             self._exit_stack = None
             self._session = None
+            try:
+                await old_stack.aclose()
+            except (asyncio.CancelledError, RuntimeError):
+                # Cleanup errors during shutdown are expected
+                pass
+            except Exception as e:
+                logger.debug(f"Error during MCP session cleanup: {e}")

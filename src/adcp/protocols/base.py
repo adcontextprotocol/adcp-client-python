@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Base protocol adapter interface."""
 
 from abc import ABC, abstractmethod
