@@ -24,7 +24,7 @@ class AgentConfig(BaseModel):
     auth_header: str = "x-adcp-auth"  # Header name for authentication
     auth_type: str = "token"  # "token" for direct value, "bearer" for "Bearer {token}"
     timeout: float = 30.0  # Request timeout in seconds
-    mcp_transport: str = "sse"  # "sse" or "streamable_http" for MCP connections
+    mcp_transport: str = "sse"  # "sse" (default, widely supported) or "streamable_http" (modern, if server supports)
 
 
 class TaskStatus(str, Enum):
