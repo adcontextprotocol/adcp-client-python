@@ -40,7 +40,7 @@ class MCPAdapter(ProtocolAdapter):
         self._session: Any = None
         self._exit_stack: Any = None
 
-    async def _get_session(self) -> ClientSession:  # type: ignore[name-defined]
+    async def _get_session(self) -> ClientSession:
         """
         Get or create MCP client session with URL fallback handling.
 
@@ -48,7 +48,7 @@ class MCPAdapter(ProtocolAdapter):
             ADCPConnectionError: If connection to agent fails
         """
         if self._session is not None:
-            return self._session
+            return self._session  # type: ignore[return-value]
 
         logger.debug(f"Creating MCP session for agent {self.agent_config.id}")
 
@@ -112,7 +112,7 @@ class MCPAdapter(ProtocolAdapter):
                             f"(configured: {self.agent_config.agent_uri})"
                         )
 
-                    return self._session
+                    return self._session  # type: ignore[return-value]
                 except Exception as e:
                     last_error = e
                     # Clean up the exit stack on failure to avoid async scope issues
