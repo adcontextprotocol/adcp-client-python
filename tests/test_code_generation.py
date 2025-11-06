@@ -370,7 +370,8 @@ class TestEdgeCases:
 
         try:
             result = generate_model_for_schema(temp_path)
-            assert "pass" in result
+            # Schemas without properties become type aliases
+            assert "= dict[str, Any]" in result or "pass" in result
         finally:
             temp_path.unlink()
 

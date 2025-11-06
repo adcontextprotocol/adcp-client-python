@@ -12,14 +12,14 @@ from urllib.parse import urlparse
 logger = logging.getLogger(__name__)
 
 try:
-    from mcp import ClientSession  # type: ignore[import-not-found]
-    from mcp.client.sse import sse_client  # type: ignore[import-not-found]
-    from mcp.client.streamable_http import streamablehttp_client  # type: ignore[import-not-found]
+    from mcp import ClientSession
+    from mcp.client.sse import sse_client
+    from mcp.client.streamable_http import streamablehttp_client
 
     MCP_AVAILABLE = True
 except ImportError:
+    ClientSession = None  # type: ignore[assignment]
     MCP_AVAILABLE = False
-    ClientSession = None
 
 from adcp.exceptions import ADCPConnectionError, ADCPTimeoutError
 from adcp.protocols.base import ProtocolAdapter
@@ -38,7 +38,7 @@ class MCPAdapter(ProtocolAdapter):
         self._session: Any = None
         self._exit_stack: Any = None
 
-    async def _get_session(self) -> ClientSession:
+    async def _get_session(self) -> Any:
         """
         Get or create MCP client session with URL fallback handling.
 
