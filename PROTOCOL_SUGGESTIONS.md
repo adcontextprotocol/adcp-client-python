@@ -2,7 +2,25 @@
 
 This document tracks suggestions for improvements to the ADCP specification based on real-world implementation experience with the Python client.
 
+## Status Update
+
+**✅ PR #183 - Batch Preview & HTML Output** - Currently open at https://github.com/adcontextprotocol/adcp/pull/183
+
+This PR implements both suggestions below (batch API + HTML output format) with comprehensive documentation. Once merged and schemas published, we'll update this Python client to support the new features.
+
+### Integration Timeline
+
+1. **PR Merge** - Waiting for PR #183 to merge
+2. **Schema Publication** - adcontextprotocol.org schemas updated
+3. **Client Update** - Regenerate Pydantic models and implement batch support
+4. **Testing** - Validate against reference creative agent
+5. **Release** - Publish new Python client version with batch support
+
+---
+
 ## 1. Batch Preview Generation (`preview_creatives`)
+
+**✅ IMPLEMENTED IN PR #183** - See https://github.com/adcontextprotocol/adcp/pull/183
 
 ### Problem
 
@@ -129,7 +147,37 @@ This follows established patterns in other protocols:
 - REST: Batch endpoints (e.g., `/batch`)
 - MCP: Multiple tool calls in one request
 
-## 2. Structured Format Listing via MCP
+## 2. HTML Output Format for Direct Embedding
+
+**✅ IMPLEMENTED IN PR #183** - See https://github.com/adcontextprotocol/adcp/pull/183
+
+PR #183 adds an `output_format` parameter to `preview_creative`:
+- `output_format: "url"` (default) - Returns preview URLs for iframe embedding
+- `output_format: "html"` - Returns raw HTML for direct embedding
+
+This eliminates 50+ iframe HTTP requests in preview grids!
+
+### Python Client Usage (once PR #183 merges):
+
+```python
+# Get HTML output for direct embedding
+result = await client.list_creative_formats(
+    request,
+    fetch_previews=True,
+    preview_output_format="html"  # ← New parameter!
+)
+
+formats_with_previews = result.metadata["formats_with_previews"]
+for fmt in formats_with_previews:
+    preview_html = fmt["preview_data"]["preview_html"]
+    # Embed directly - no iframe HTTP request needed!
+```
+
+**Security Note:** HTML output should only be used with trusted creative agents since it bypasses iframe sandboxing.
+
+---
+
+## 3. Structured Format Listing via MCP
 
 ### Problem
 
@@ -160,6 +208,123 @@ TextContent(text='{"formats": [...], "errors": null}')
 ```
 
 This aligns with how A2A returns data and allows proper parsing.
+
+---
+
+## Python Client Implementation Plan for PR #183
+
+Once PR #183 merges and schemas are published, here's what we'll implement:
+
+### Phase 1: Schema & Types (Day 1)
+
+1. **Sync schemas**: Run `python scripts/sync_schemas.py` to get updated schemas
+2. **Regenerate models**: Run `python scripts/generate_models_simple.py`
+3. **Verify types**: Check that `PreviewCreativeRequest` supports both single and batch modes
+4. **Update imports**: Add new types to `src/adcp/types/tasks.py`
+
+### Phase 2: Batch Mode Support (Days 2-3)
+
+1. **Update `PreviewURLGenerator`**:
+   ```python
+   async def get_preview_data_batch(
+       self,
+       requests: list[tuple[FormatId, CreativeManifest]]
+   ) -> list[dict[str, Any] | None]:
+       """Generate preview data for multiple manifests in one API call."""
+       # Build batch request
+       batch_request = PreviewCreativeRequest(
+           requests=[
+               {"format_id": fid, "creative_manifest": manifest}
+               for fid, manifest in requests
+           ]
+       )
+       result = await self.creative_agent_client.preview_creative(batch_request)
+       # Parse batch response
+       return [item.response if item.success else None for item in result.data.results]
+   ```
+
+2. **Update `add_preview_urls_to_formats`**:
+   ```python
+   async def add_preview_urls_to_formats(
+       formats: list[Format], creative_agent_client: ADCPClient, use_batch: bool = True
+   ) -> list[dict[str, Any]]:
+       generator = PreviewURLGenerator(creative_agent_client)
+
+       if use_batch and len(formats) > 1:
+           # Use batch API (5-10x faster!)
+           manifests = [_create_sample_manifest_for_format(f) for f in formats]
+           preview_data_list = await generator.get_preview_data_batch(
+               [(f.format_id, m) for f, m in zip(formats, manifests) if m]
+           )
+           # Process results...
+       else:
+           # Fall back to individual requests
+           # (existing code)
+   ```
+
+3. **Add batch size limits**: Respect 50-item limit from spec
+
+### Phase 3: HTML Output Format (Days 4-5)
+
+1. **Add `output_format` parameter**:
+   ```python
+   async def get_products(
+       self,
+       request: GetProductsRequest,
+       fetch_previews: bool = False,
+       preview_output_format: Literal["url", "html"] = "url",  # ← New!
+       creative_agent_client: ADCPClient | None = None,
+   ) -> TaskResult[GetProductsResponse]:
+   ```
+
+2. **Pass through to preview generator**:
+   ```python
+   preview_data = await generator.get_preview_data_for_manifest(
+       format_id,
+       manifest,
+       output_format=preview_output_format  # ← Pass through
+   )
+   ```
+
+3. **Update response handling**:
+   ```python
+   if output_format == "html":
+       preview_data["preview_html"] = render.preview_html
+   else:
+       preview_data["preview_url"] = render.preview_url
+   ```
+
+### Phase 4: Testing (Days 6-7)
+
+1. **Unit tests**:
+   - Test batch mode with 1, 10, 50 items
+   - Test batch mode with partial failures
+   - Test HTML vs URL output
+   - Test array ordering guarantee
+
+2. **Integration tests**:
+   - Test against reference creative agent
+   - Verify batch performance improvements
+   - Validate HTML embedding safety
+
+3. **Examples**:
+   - Update `examples/fetch_preview_urls.py` to use batch mode
+   - Add `examples/html_embedding_demo.html` showing direct embedding
+   - Add performance comparison examples
+
+### Phase 5: Documentation (Day 8)
+
+1. **Update README.md**: Document batch mode and HTML output
+2. **Update CHANGELOG.md**: Note breaking changes (if any)
+3. **Migration guide**: Show before/after for existing users
+4. **Security guide**: Document HTML embedding risks
+
+### Expected Performance Improvements
+
+- **Format catalog (50 formats)**: 10.5s → 1.2s (8.75x faster)
+- **Product grid (20 products × 3 formats)**: 12s → 1.5s (8x faster)
+- **With HTML output**: Additional 2-3x improvement (no iframe requests)
+- **Combined**: Up to 25x performance improvement!
 
 ---
 
