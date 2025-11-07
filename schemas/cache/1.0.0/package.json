@@ -23,7 +23,7 @@
       "minimum": 0
     },
     "pacing": {
-      "$ref": "pacing.json"
+      "$ref": "/schemas/v1/enums/pacing.json"
     },
     "pricing_option_id": {
       "type": "string",
@@ -40,24 +40,24 @@
       "minimum": 0
     },
     "targeting_overlay": {
-      "$ref": "targeting.json"
+      "$ref": "/schemas/v1/core/targeting.json"
     },
     "creative_assignments": {
       "type": "array",
       "description": "Creative assets assigned to this package",
       "items": {
-        "$ref": "creative-assignment.json"
+        "$ref": "/schemas/v1/core/creative-assignment.json"
       }
     },
     "format_ids_to_provide": {
       "type": "array",
       "description": "Format IDs that creative assets will be provided for this package",
       "items": {
-        "$ref": "format-id.json"
+        "$ref": "/schemas/v1/core/format-id.json"
       }
     },
     "status": {
-      "$ref": "package-status.json"
+      "$ref": "/schemas/v1/enums/package-status.json"
     }
   },
   "required": [

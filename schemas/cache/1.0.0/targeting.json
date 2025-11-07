@@ -35,7 +35,7 @@
       }
     },
     "frequency_cap": {
-      "$ref": "frequency-cap.json"
+      "$ref": "/schemas/v1/core/frequency-cap.json"
     }
   },
   "additionalProperties": false

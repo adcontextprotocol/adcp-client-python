@@ -103,6 +103,7 @@ class ADCPClient:
         self,
         request: GetProductsRequest,
         fetch_previews: bool = False,
+        preview_output_format: str = "url",
         creative_agent_client: ADCPClient | None = None,
     ) -> TaskResult[GetProductsResponse]:
         """
@@ -110,7 +111,8 @@ class ADCPClient:
 
         Args:
             request: Request parameters
-            fetch_previews: If True, generate preview URLs for each product's formats
+            fetch_previews: If True, generate preview URLs for each product's formats (uses batch API)
+            preview_output_format: "url" for iframe URLs (default), "html" for direct embedding
             creative_agent_client: Client for creative agent (required if fetch_previews=True)
 
         Returns:
@@ -154,7 +156,10 @@ class ADCPClient:
             from adcp.utils.preview_cache import add_preview_urls_to_products
 
             products_with_previews = await add_preview_urls_to_products(
-                result.data.products, creative_agent_client
+                result.data.products,
+                creative_agent_client,
+                use_batch=True,
+                output_format=preview_output_format,
             )
             result.metadata = result.metadata or {}
             result.metadata["products_with_previews"] = products_with_previews
@@ -165,13 +170,15 @@ class ADCPClient:
         self,
         request: ListCreativeFormatsRequest,
         fetch_previews: bool = False,
+        preview_output_format: str = "url",
     ) -> TaskResult[ListCreativeFormatsResponse]:
         """
         List supported creative formats.
 
         Args:
             request: Request parameters
-            fetch_previews: If True, generate preview URLs for each format using sample manifests
+            fetch_previews: If True, generate preview URLs for each format using sample manifests (uses batch API)
+            preview_output_format: "url" for iframe URLs (default), "html" for direct embedding
 
         Returns:
             TaskResult containing ListCreativeFormatsResponse with optional preview URLs in metadata
@@ -207,7 +214,12 @@ class ADCPClient:
         if fetch_previews and result.success and result.data:
             from adcp.utils.preview_cache import add_preview_urls_to_formats
 
-            formats_with_previews = await add_preview_urls_to_formats(result.data.formats, self)
+            formats_with_previews = await add_preview_urls_to_formats(
+                result.data.formats,
+                self,
+                use_batch=True,
+                output_format=preview_output_format,
+            )
             result.metadata = result.metadata or {}
             result.metadata["formats_with_previews"] = formats_with_previews
 

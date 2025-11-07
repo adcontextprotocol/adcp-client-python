@@ -58,25 +58,25 @@
       "type": "array",
       "description": "Array of supported creative format IDs - structured format_id objects with agent_url and id",
       "items": {
-        "$ref": "format-id.json"
+        "$ref": "/schemas/v1/core/format-id.json"
       }
     },
     "placements": {
       "type": "array",
       "description": "Optional array of specific placements within this product. When provided, buyers can target specific placements when assigning creatives.",
       "items": {
-        "$ref": "placement.json"
+        "$ref": "/schemas/v1/core/placement.json"
       },
       "minItems": 1
     },
     "delivery_type": {
-      "$ref": "delivery-type.json"
+      "$ref": "/schemas/v1/enums/delivery-type.json"
     },
     "pricing_options": {
       "type": "array",
       "description": "Available pricing models for this product",
       "items": {
-        "$ref": "pricing-option.json"
+        "$ref": "/schemas/v1/core/pricing-option.json"
       },
       "minItems": 1
     },
@@ -86,7 +86,7 @@
       "minimum": 0
     },
     "measurement": {
-      "$ref": "measurement.json"
+      "$ref": "/schemas/v1/core/measurement.json"
     },
     "delivery_measurement": {
       "type": "object",
@@ -106,10 +106,10 @@
       ]
     },
     "reporting_capabilities": {
-      "$ref": "reporting-capabilities.json"
+      "$ref": "/schemas/v1/core/reporting-capabilities.json"
     },
     "creative_policy": {
-      "$ref": "creative-policy.json"
+      "$ref": "/schemas/v1/core/creative-policy.json"
     },
     "is_custom": {
       "type": "boolean",
@@ -123,6 +123,46 @@
       "type": "string",
       "format": "date-time",
       "description": "Expiration timestamp for custom products"
+    },
+    "product_card": {
+      "type": "object",
+      "description": "Optional standard visual card (300x400px) for displaying this product in user interfaces. Can be rendered via preview_creative or pre-generated.",
+      "properties": {
+        "format_id": {
+          "$ref": "/schemas/v1/core/format-id.json",
+          "description": "Creative format defining the card layout (typically product_card_standard)"
+        },
+        "manifest": {
+          "type": "object",
+          "description": "Asset manifest for rendering the card, structure defined by the format",
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "format_id",
+        "manifest"
+      ],
+      "additionalProperties": false
+    },
+    "product_card_detailed": {
+      "type": "object",
+      "description": "Optional detailed card with carousel and full specifications. Provides rich product presentation similar to media kit pages.",
+      "properties": {
+        "format_id": {
+          "$ref": "/schemas/v1/core/format-id.json",
+          "description": "Creative format defining the detailed card layout (typically product_card_detailed)"
+        },
+        "manifest": {
+          "type": "object",
+          "description": "Asset manifest for rendering the detailed card, structure defined by the format",
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "format_id",
+        "manifest"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [

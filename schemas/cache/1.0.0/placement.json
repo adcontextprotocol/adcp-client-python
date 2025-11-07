@@ -21,7 +21,7 @@
       "type": "array",
       "description": "Format IDs supported by this specific placement (subset of product's formats)",
       "items": {
-        "$ref": "format-id.json"
+        "$ref": "/schemas/v1/core/format-id.json"
       },
       "minItems": 1
     }

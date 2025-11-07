@@ -9,7 +9,7 @@
       "type": "array",
       "description": "Full format definitions for all formats this agent supports. Each format's authoritative source is indicated by its agent_url field.",
       "items": {
-        "$ref": "format.json"
+        "$ref": "/schemas/v1/core/format.json"
       }
     },
     "creative_agents": {
@@ -50,7 +50,7 @@
       "type": "array",
       "description": "Task-specific errors and warnings",
       "items": {
-        "$ref": "error.json"
+        "$ref": "/schemas/v1/core/error.json"
       }
     }
   },

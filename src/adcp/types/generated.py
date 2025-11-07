@@ -470,12 +470,19 @@ class ListCreativesRequest(BaseModel):
 
 
 class PreviewCreativeRequest(BaseModel):
-    """Request to generate a preview of a creative manifest in a specific format. The creative_manifest should include all assets required by the format (e.g., promoted_offerings for generative formats)."""
+    """Request to generate a preview of a creative manifest. Supports single or batch mode."""
 
-    format_id: FormatId = Field(description="Format identifier for rendering the preview")
-    creative_manifest: CreativeManifest = Field(description="Complete creative manifest with all required assets (including promoted_offerings if required by the format)")
-    inputs: list[dict[str, Any]] | None = Field(None, description="Array of input sets for generating multiple preview variants. Each input set defines macros and context values for one preview rendering. If not provided, creative agent will generate default previews.")
+    # Single mode fields
+    format_id: FormatId | None = Field(None, description="Format identifier for rendering the preview (single mode)")
+    creative_manifest: CreativeManifest | None = Field(None, description="Complete creative manifest with all required assets (single mode)")
+    inputs: list[dict[str, Any]] | None = Field(None, description="Array of input sets for generating multiple preview variants")
     template_id: str | None = Field(None, description="Specific template ID for custom format rendering")
+
+    # Batch mode field
+    requests: list[dict[str, Any]] | None = Field(None, description="Array of preview requests for batch processing (1-50 items)")
+
+    # Output format (applies to both modes)
+    output_format: Literal["url", "html"] | None = Field("url", description="Output format: 'url' for iframe URLs, 'html' for direct embedding")
 
 
 class ProvidePerformanceFeedbackRequest(BaseModel):
@@ -600,11 +607,15 @@ class ListCreativesResponse(BaseModel):
 
 
 class PreviewCreativeResponse(BaseModel):
-    """Response containing preview links for a creative. Each preview URL returns an HTML page that can be embedded in an iframe to display the rendered creative."""
+    """Response containing preview links. Format matches request: single response for single requests, batch results for batch requests."""
 
-    previews: list[dict[str, Any]] = Field(description="Array of preview variants. Each preview corresponds to an input set from the request. If no inputs were provided, returns a single default preview.")
-    interactive_url: str | None = Field(None, description="Optional URL to an interactive testing page that shows all preview variants with controls to switch between them, modify macro values, and test different scenarios.")
-    expires_at: str = Field(description="ISO 8601 timestamp when preview links expire")
+    # Single mode fields
+    previews: list[dict[str, Any]] | None = Field(None, description="Array of preview variants (single mode)")
+    interactive_url: str | None = Field(None, description="Optional URL to interactive testing page")
+    expires_at: str | None = Field(None, description="ISO 8601 timestamp when preview links expire (single mode)")
+
+    # Batch mode field
+    results: list[dict[str, Any]] | None = Field(None, description="Array of results for batch requests. Order matches request order.")
 
 
 class ProvidePerformanceFeedbackResponse(BaseModel):
