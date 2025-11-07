@@ -1,6 +1,7 @@
 """Tests for ADCPClient."""
 
 import pytest
+
 from adcp import ADCPClient, ADCPMultiAgentClient
 from adcp.types import AgentConfig, Protocol
 
@@ -74,7 +75,8 @@ def test_webhook_url_generation():
 @pytest.mark.asyncio
 async def test_get_products():
     """Test get_products method with mock adapter."""
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import patch
+
     from adcp.types.core import TaskResult, TaskStatus
     from adcp.types.generated import GetProductsRequest, GetProductsResponse
 
@@ -99,8 +101,12 @@ async def test_get_products():
         success=True,
     )
 
-    with patch.object(client.adapter, "get_products", return_value=mock_raw_result) as mock_get, \
-         patch.object(client.adapter, "_parse_response", return_value=mock_parsed_result) as mock_parse:
+    with (
+        patch.object(client.adapter, "get_products", return_value=mock_raw_result) as mock_get,
+        patch.object(
+            client.adapter, "_parse_response", return_value=mock_parsed_result
+        ) as mock_parse,
+    ):
         request = GetProductsRequest(brief="test campaign")
         result = await client.get_products(request)
 
@@ -167,8 +173,9 @@ async def test_method_calls_correct_tool_name(method_name, request_class, reques
     (e.g., client.get_products calls adapter.get_products).
     """
     from unittest.mock import patch
-    from adcp.types.core import TaskResult, TaskStatus
+
     import adcp.types.generated as gen
+    from adcp.types.core import TaskResult, TaskStatus
 
     config = AgentConfig(
         id="test_agent",
@@ -201,6 +208,7 @@ async def test_method_calls_correct_tool_name(method_name, request_class, reques
 async def test_multi_agent_parallel_execution():
     """Test parallel execution across multiple agents."""
     from unittest.mock import patch
+
     from adcp.types.core import TaskResult, TaskStatus
     from adcp.types.generated import GetProductsRequest
 
@@ -226,11 +234,14 @@ async def test_multi_agent_parallel_execution():
     )
 
     # Mock both agents' adapters - keep context active during execution
-    with patch.object(
-        client.agents["agent1"].adapter, "get_products", return_value=mock_result
-    ) as mock1, patch.object(
-        client.agents["agent2"].adapter, "get_products", return_value=mock_result
-    ) as mock2:
+    with (
+        patch.object(
+            client.agents["agent1"].adapter, "get_products", return_value=mock_result
+        ) as mock1,
+        patch.object(
+            client.agents["agent2"].adapter, "get_products", return_value=mock_result
+        ) as mock2,
+    ):
         request = GetProductsRequest(brief="test")
         results = await client.get_products(request)
 
@@ -248,6 +259,7 @@ async def test_list_creative_formats_parses_mcp_response():
     """Test that list_creative_formats parses MCP content array into structured response."""
     import json
     from unittest.mock import patch
+
     from adcp.types.core import TaskResult, TaskStatus
     from adcp.types.generated import ListCreativeFormatsRequest, ListCreativeFormatsResponse
 
@@ -263,18 +275,12 @@ async def test_list_creative_formats_parses_mcp_response():
     formats_data = {
         "formats": [
             {
-                "format_id": {
-                    "agent_url": "https://creative.example.com",
-                    "id": "banner_300x250"
-                },
+                "format_id": {"agent_url": "https://creative.example.com", "id": "banner_300x250"},
                 "name": "Medium Rectangle",
                 "type": "display",
             },
             {
-                "format_id": {
-                    "agent_url": "https://creative.example.com",
-                    "id": "video_16x9"
-                },
+                "format_id": {"agent_url": "https://creative.example.com", "id": "video_16x9"},
                 "name": "Video 16:9",
                 "type": "video",
             },
@@ -303,6 +309,7 @@ async def test_list_creative_formats_parses_mcp_response():
 async def test_list_creative_formats_parses_a2a_response():
     """Test that list_creative_formats parses A2A dict response into structured response."""
     from unittest.mock import patch
+
     from adcp.types.core import TaskResult, TaskStatus
     from adcp.types.generated import ListCreativeFormatsRequest, ListCreativeFormatsResponse
 
@@ -318,10 +325,7 @@ async def test_list_creative_formats_parses_a2a_response():
     formats_data = {
         "formats": [
             {
-                "format_id": {
-                    "agent_url": "https://creative.example.com",
-                    "id": "native_feed"
-                },
+                "format_id": {"agent_url": "https://creative.example.com", "id": "native_feed"},
                 "name": "Native Feed Ad",
                 "type": "native",
             }
@@ -349,6 +353,7 @@ async def test_list_creative_formats_parses_a2a_response():
 async def test_list_creative_formats_handles_invalid_response():
     """Test that list_creative_formats handles invalid response gracefully."""
     from unittest.mock import patch
+
     from adcp.types.core import TaskResult, TaskStatus
     from adcp.types.generated import ListCreativeFormatsRequest
 

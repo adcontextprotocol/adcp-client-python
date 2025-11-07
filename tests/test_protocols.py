@@ -1,7 +1,8 @@
 """Tests for protocol adapters."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.mcp import MCPAdapter

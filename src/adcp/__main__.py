@@ -36,13 +36,15 @@ def print_result(result: Any, json_output: bool = False) -> None:
                 "data": result.data,
                 "error": result.error,
                 "metadata": result.metadata,
-                "debug_info": {
-                    "request": result.debug_info.request,
-                    "response": result.debug_info.response,
-                    "duration_ms": result.debug_info.duration_ms,
-                }
-                if result.debug_info
-                else None,
+                "debug_info": (
+                    {
+                        "request": result.debug_info.request,
+                        "response": result.debug_info.response,
+                        "duration_ms": result.debug_info.duration_ms,
+                    }
+                    if result.debug_info
+                    else None
+                ),
             }
         )
     else:
@@ -73,8 +75,49 @@ async def execute_tool(
     config = AgentConfig(**agent_config)
 
     async with ADCPClient(config) as client:
-        result = await client.call_tool(tool_name, payload)
+        # Dispatch to specific method based on tool name
+        result = await _dispatch_tool(client, tool_name, payload)
         print_result(result, json_output)
+
+
+async def _dispatch_tool(client: ADCPClient, tool_name: str, payload: dict[str, Any]) -> Any:
+    """Dispatch tool call to appropriate client method."""
+    from adcp.types import generated as gen
+    from adcp.types.core import TaskResult, TaskStatus
+
+    # Dispatch to specific method based on tool name
+    if tool_name == "get_products":
+        return await client.get_products(gen.GetProductsRequest(**payload))
+    elif tool_name == "list_creative_formats":
+        return await client.list_creative_formats(gen.ListCreativeFormatsRequest(**payload))
+    elif tool_name == "sync_creatives":
+        return await client.sync_creatives(gen.SyncCreativesRequest(**payload))
+    elif tool_name == "list_creatives":
+        return await client.list_creatives(gen.ListCreativesRequest(**payload))
+    elif tool_name == "get_media_buy_delivery":
+        return await client.get_media_buy_delivery(gen.GetMediaBuyDeliveryRequest(**payload))
+    elif tool_name == "list_authorized_properties":
+        return await client.list_authorized_properties(
+            gen.ListAuthorizedPropertiesRequest(**payload)
+        )
+    elif tool_name == "get_signals":
+        return await client.get_signals(gen.GetSignalsRequest(**payload))
+    elif tool_name == "activate_signal":
+        return await client.activate_signal(gen.ActivateSignalRequest(**payload))
+    elif tool_name == "provide_performance_feedback":
+        return await client.provide_performance_feedback(
+            gen.ProvidePerformanceFeedbackRequest(**payload)
+        )
+    else:
+        available_tools = [
+            "get_products", "list_creative_formats", "sync_creatives", "list_creatives",
+            "get_media_buy_delivery", "list_authorized_properties", "get_signals",
+            "activate_signal", "provide_performance_feedback"
+        ]
+        return TaskResult(
+            status=TaskStatus.FAILED,
+            error=f"Unknown tool: {tool_name}. Available tools: {', '.join(available_tools)}"
+        )
 
 
 def load_payload(payload_arg: str | None) -> dict[str, Any]:

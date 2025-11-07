@@ -81,7 +81,7 @@ def generate_model_for_schema(schema_file: Path) -> str:
         lines = [f"# Type alias for {schema.get('title', model_name)}"]
         if "description" in schema:
             desc = escape_string_for_python(schema["description"])
-            lines.append(f'# {desc}')
+            lines.append(f"# {desc}")
         lines.append(f"{model_name} = {python_type}")
         return "\n".join(lines)
 
@@ -234,7 +234,7 @@ def add_format_id_validation(code: str) -> str:
     # Look for the pattern: class FormatId(...): ... id: str = Field(...)
     # Then add the validator after the last field
 
-    lines = code.split('\n')
+    lines = code.split("\n")
     result_lines = []
     in_format_id = False
     found_id_field = False
@@ -244,37 +244,47 @@ def add_format_id_validation(code: str) -> str:
         result_lines.append(line)
 
         # Detect start of FormatId class
-        if 'class FormatId(BaseModel):' in line:
+        if "class FormatId(BaseModel):" in line:
             in_format_id = True
             # Detect indent level (usually 4 spaces)
             if i + 1 < len(lines):
                 next_line = lines[i + 1]
-                indent = next_line[:len(next_line) - len(next_line.lstrip())]
+                indent = next_line[: len(next_line) - len(next_line.lstrip())]
 
         # Detect the id field in FormatId class
-        if in_format_id and line.strip().startswith('id: str'):
+        if in_format_id and line.strip().startswith("id: str"):
             found_id_field = True
 
         # After the id field, add the validator
-        if in_format_id and found_id_field and (line.strip() == '' or (i + 1 < len(lines) and not lines[i + 1].strip().startswith(('agent_url:', 'id:')))):
+        if (
+            in_format_id
+            and found_id_field
+            and (
+                line.strip() == ""
+                or (
+                    i + 1 < len(lines)
+                    and not lines[i + 1].strip().startswith(("agent_url:", "id:"))
+                )
+            )
+        ):
             # Add validator here
             validator_lines = [
-                '',
+                "",
                 f'{indent}@field_validator("id")',
-                f'{indent}@classmethod',
-                f'{indent}def validate_id_pattern(cls, v: str) -> str:',
+                f"{indent}@classmethod",
+                f"{indent}def validate_id_pattern(cls, v: str) -> str:",
                 f'{indent}    """Validate format ID contains only alphanumeric characters, hyphens, and underscores."""',
                 f'{indent}    if not re.match(r"^[a-zA-Z0-9_-]+$", v):',
-                f'{indent}        raise ValueError(',
+                f"{indent}        raise ValueError(",
                 f'{indent}            f"Invalid format ID: {{v!r}}. Must contain only alphanumeric characters, hyphens, and underscores"',
-                f'{indent}        )',
-                f'{indent}    return v',
+                f"{indent}        )",
+                f"{indent}    return v",
             ]
             result_lines.extend(validator_lines)
             in_format_id = False
             found_id_field = False
 
-    return '\n'.join(result_lines)
+    return "\n".join(result_lines)
 
 
 def main():

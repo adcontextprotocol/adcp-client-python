@@ -54,9 +54,7 @@ def parse_mcp_content(content: list[dict[str, Any]], response_type: type[T]) -> 
                 logger.warning(
                     f"MCP content doesn't match expected schema {response_type.__name__}: {e}"
                 )
-                raise ValueError(
-                    f"MCP response doesn't match expected schema: {e}"
-                ) from e
+                raise ValueError(f"MCP response doesn't match expected schema: {e}") from e
         elif item.get("type") == "resource":
             # Resource content might have structured data
             try:

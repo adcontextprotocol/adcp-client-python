@@ -30,9 +30,7 @@ class ProtocolAdapter(ABC):
     # Helper methods for response parsing
     # ========================================================================
 
-    def _parse_response(
-        self, raw_result: TaskResult[Any], response_type: type[T]
-    ) -> TaskResult[T]:
+    def _parse_response(self, raw_result: TaskResult[Any], response_type: type[T]) -> TaskResult[T]:
         """
         Parse raw TaskResult into typed TaskResult.
 
@@ -46,7 +44,7 @@ class ProtocolAdapter(ABC):
             Typed TaskResult
         """
         if not raw_result.success or raw_result.data is None:
-            return raw_result  # type: ignore[return-value]
+            return raw_result
 
         try:
             # Handle MCP content arrays
@@ -79,65 +77,47 @@ class ProtocolAdapter(ABC):
     # ========================================================================
 
     @abstractmethod
-    async def get_products(
-        self, params: dict[str, Any]
-    ) -> TaskResult[Any]:
+    async def get_products(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Get advertising products."""
         pass
 
     @abstractmethod
-    async def list_creative_formats(
-        self, params: dict[str, Any]
-    ) -> TaskResult[Any]:
+    async def list_creative_formats(self, params: dict[str, Any]) -> TaskResult[Any]:
         """List supported creative formats."""
         pass
 
     @abstractmethod
-    async def sync_creatives(
-        self, params: dict[str, Any]
-    ) -> TaskResult[Any]:
+    async def sync_creatives(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Sync creatives."""
         pass
 
     @abstractmethod
-    async def list_creatives(
-        self, params: dict[str, Any]
-    ) -> TaskResult[Any]:
+    async def list_creatives(self, params: dict[str, Any]) -> TaskResult[Any]:
         """List creatives."""
         pass
 
     @abstractmethod
-    async def get_media_buy_delivery(
-        self, params: dict[str, Any]
-    ) -> TaskResult[Any]:
+    async def get_media_buy_delivery(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Get media buy delivery."""
         pass
 
     @abstractmethod
-    async def list_authorized_properties(
-        self, params: dict[str, Any]
-    ) -> TaskResult[Any]:
+    async def list_authorized_properties(self, params: dict[str, Any]) -> TaskResult[Any]:
         """List authorized properties."""
         pass
 
     @abstractmethod
-    async def get_signals(
-        self, params: dict[str, Any]
-    ) -> TaskResult[Any]:
+    async def get_signals(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Get signals."""
         pass
 
     @abstractmethod
-    async def activate_signal(
-        self, params: dict[str, Any]
-    ) -> TaskResult[Any]:
+    async def activate_signal(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Activate signal."""
         pass
 
     @abstractmethod
-    async def provide_performance_feedback(
-        self, params: dict[str, Any]
-    ) -> TaskResult[Any]:
+    async def provide_performance_feedback(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Provide performance feedback."""
         pass
 

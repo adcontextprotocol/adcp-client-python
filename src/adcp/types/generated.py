@@ -32,11 +32,16 @@ ReportingCapabilities = dict[str, Any]
 # CORE DOMAIN TYPES
 # ============================================================================
 
+
 class FormatId(BaseModel):
     """Structured format identifier with agent URL and format name"""
 
-    agent_url: str = Field(description="URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)")
-    id: str = Field(description="Format identifier within the agent's namespace (e.g., 'display_300x250', 'video_standard_30s')")
+    agent_url: str = Field(
+        description="URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)"
+    )
+    id: str = Field(
+        description="Format identifier within the agent's namespace (e.g., 'display_300x250', 'video_standard_30s')"
+    )
 
     @field_validator("id")
     @classmethod
@@ -55,18 +60,34 @@ class Product(BaseModel):
     product_id: str = Field(description="Unique identifier for the product")
     name: str = Field(description="Human-readable product name")
     description: str = Field(description="Detailed description of the product and its inventory")
-    publisher_properties: list[dict[str, Any]] = Field(description="Publisher properties covered by this product. Buyers fetch actual property definitions from each publisher's adagents.json and validate agent authorization.")
-    format_ids: list[FormatId] = Field(description="Array of supported creative format IDs - structured format_id objects with agent_url and id")
-    placements: list[Placement] | None = Field(None, description="Optional array of specific placements within this product. When provided, buyers can target specific placements when assigning creatives.")
+    publisher_properties: list[dict[str, Any]] = Field(
+        description="Publisher properties covered by this product. Buyers fetch actual property definitions from each publisher's adagents.json and validate agent authorization."
+    )
+    format_ids: list[FormatId] = Field(
+        description="Array of supported creative format IDs - structured format_id objects with agent_url and id"
+    )
+    placements: list[Placement] | None = Field(
+        None,
+        description="Optional array of specific placements within this product. When provided, buyers can target specific placements when assigning creatives.",
+    )
     delivery_type: DeliveryType
-    pricing_options: list[PricingOption] = Field(description="Available pricing models for this product")
-    estimated_exposures: int | None = Field(None, description="Estimated exposures/impressions for guaranteed products")
+    pricing_options: list[PricingOption] = Field(
+        description="Available pricing models for this product"
+    )
+    estimated_exposures: int | None = Field(
+        None, description="Estimated exposures/impressions for guaranteed products"
+    )
     measurement: Measurement | None = None
-    delivery_measurement: dict[str, Any] = Field(description="Measurement provider and methodology for delivery metrics. The buyer accepts the declared provider as the source of truth for the buy. REQUIRED for all products.")
+    delivery_measurement: dict[str, Any] = Field(
+        description="Measurement provider and methodology for delivery metrics. The buyer accepts the declared provider as the source of truth for the buy. REQUIRED for all products."
+    )
     reporting_capabilities: ReportingCapabilities | None = None
     creative_policy: CreativePolicy | None = None
     is_custom: bool | None = Field(None, description="Whether this is a custom product")
-    brief_relevance: str | None = Field(None, description="Explanation of why this product matches the brief (only included when brief is provided)")
+    brief_relevance: str | None = Field(
+        None,
+        description="Explanation of why this product matches the brief (only included when brief is provided)",
+    )
     expires_at: str | None = Field(None, description="Expiration timestamp for custom products")
 
 
@@ -74,12 +95,18 @@ class MediaBuy(BaseModel):
     """Represents a purchased advertising campaign"""
 
     media_buy_id: str = Field(description="Publisher's unique identifier for the media buy")
-    buyer_ref: str | None = Field(None, description="Buyer's reference identifier for this media buy")
+    buyer_ref: str | None = Field(
+        None, description="Buyer's reference identifier for this media buy"
+    )
     status: MediaBuyStatus
-    promoted_offering: str = Field(description="Description of advertiser and what is being promoted")
+    promoted_offering: str = Field(
+        description="Description of advertiser and what is being promoted"
+    )
     total_budget: float = Field(description="Total budget amount")
     packages: list[Package] = Field(description="Array of packages within this media buy")
-    creative_deadline: str | None = Field(None, description="ISO 8601 timestamp for creative upload deadline")
+    creative_deadline: str | None = Field(
+        None, description="ISO 8601 timestamp for creative upload deadline"
+    )
     created_at: str | None = Field(None, description="Creation timestamp")
     updated_at: str | None = Field(None, description="Last update timestamp")
 
@@ -90,14 +117,27 @@ class Package(BaseModel):
     package_id: str = Field(description="Publisher's unique identifier for the package")
     buyer_ref: str | None = Field(None, description="Buyer's reference identifier for this package")
     product_id: str | None = Field(None, description="ID of the product this package is based on")
-    budget: float | None = Field(None, description="Budget allocation for this package in the currency specified by the pricing option")
+    budget: float | None = Field(
+        None,
+        description="Budget allocation for this package in the currency specified by the pricing option",
+    )
     pacing: Pacing | None = None
-    pricing_option_id: str | None = Field(None, description="ID of the selected pricing option from the product's pricing_options array")
-    bid_price: float | None = Field(None, description="Bid price for auction-based CPM pricing (present if using cpm-auction-option)")
+    pricing_option_id: str | None = Field(
+        None,
+        description="ID of the selected pricing option from the product's pricing_options array",
+    )
+    bid_price: float | None = Field(
+        None,
+        description="Bid price for auction-based CPM pricing (present if using cpm-auction-option)",
+    )
     impressions: float | None = Field(None, description="Impression goal for this package")
     targeting_overlay: Targeting | None = None
-    creative_assignments: list[CreativeAssignment] | None = Field(None, description="Creative assets assigned to this package")
-    format_ids_to_provide: list[FormatId] | None = Field(None, description="Format IDs that creative assets will be provided for this package")
+    creative_assignments: list[CreativeAssignment] | None = Field(
+        None, description="Creative assets assigned to this package"
+    )
+    format_ids_to_provide: list[FormatId] | None = Field(
+        None, description="Format IDs that creative assets will be provided for this package"
+    )
     status: PackageStatus
 
 
@@ -106,35 +146,69 @@ class CreativeAsset(BaseModel):
 
     creative_id: str = Field(description="Unique identifier for the creative")
     name: str = Field(description="Human-readable creative name")
-    format_id: FormatId = Field(description="Format identifier specifying which format this creative conforms to")
+    format_id: FormatId = Field(
+        description="Format identifier specifying which format this creative conforms to"
+    )
     assets: dict[str, Any] = Field(description="Assets required by the format, keyed by asset_role")
-    inputs: list[dict[str, Any]] | None = Field(None, description="Preview contexts for generative formats - defines what scenarios to generate previews for")
-    tags: list[str] | None = Field(None, description="User-defined tags for organization and searchability")
-    approved: bool | None = Field(None, description="For generative creatives: set to true to approve and finalize, false to request regeneration with updated assets/message. Omit for non-generative creatives.")
+    inputs: list[dict[str, Any]] | None = Field(
+        None,
+        description="Preview contexts for generative formats - defines what scenarios to generate previews for",
+    )
+    tags: list[str] | None = Field(
+        None, description="User-defined tags for organization and searchability"
+    )
+    approved: bool | None = Field(
+        None,
+        description="For generative creatives: set to true to approve and finalize, false to request regeneration with updated assets/message. Omit for non-generative creatives.",
+    )
 
 
 class CreativeManifest(BaseModel):
     """Complete specification of a creative with all assets needed for rendering in a specific format. Each asset is typed according to its asset_role from the format specification and contains the actual content/URL that fulfills the format requirements."""
 
     format_id: FormatId = Field(description="Format identifier this manifest is for")
-    promoted_offering: str | None = Field(None, description="Product name or offering being advertised. Maps to promoted_offerings in create_media_buy request to associate creative with the product being promoted.")
-    assets: dict[str, Any] = Field(description="Map of asset IDs to actual asset content. Each key MUST match an asset_id from the format's assets_required array (e.g., 'banner_image', 'clickthrough_url', 'video_file', 'vast_tag'). The asset_id is the technical identifier used to match assets to format requirements. IMPORTANT: Creative manifest validation MUST be performed in the context of the format specification. The format defines what type each asset_id should be, which eliminates any validation ambiguity.")
+    promoted_offering: str | None = Field(
+        None,
+        description="Product name or offering being advertised. Maps to promoted_offerings in create_media_buy request to associate creative with the product being promoted.",
+    )
+    assets: dict[str, Any] = Field(
+        description="Map of asset IDs to actual asset content. Each key MUST match an asset_id from the format's assets_required array (e.g., 'banner_image', 'clickthrough_url', 'video_file', 'vast_tag'). The asset_id is the technical identifier used to match assets to format requirements. IMPORTANT: Creative manifest validation MUST be performed in the context of the format specification. The format defines what type each asset_id should be, which eliminates any validation ambiguity."
+    )
 
 
 class BrandManifest(BaseModel):
     """Standardized brand information manifest for creative generation and media buying. Enables low-friction creative workflows by providing brand context that can be easily cached and shared across requests."""
 
-    url: str | None = Field(None, description="Primary brand URL for context and asset discovery. Creative agents can infer brand information from this URL.")
+    url: str | None = Field(
+        None,
+        description="Primary brand URL for context and asset discovery. Creative agents can infer brand information from this URL.",
+    )
     name: str | None = Field(None, description="Brand or business name")
-    logos: list[dict[str, Any]] | None = Field(None, description="Brand logo assets with semantic tags for different use cases")
+    logos: list[dict[str, Any]] | None = Field(
+        None, description="Brand logo assets with semantic tags for different use cases"
+    )
     colors: dict[str, Any] | None = Field(None, description="Brand color palette")
     fonts: dict[str, Any] | None = Field(None, description="Brand typography guidelines")
-    tone: str | None = Field(None, description="Brand voice and messaging tone (e.g., 'professional', 'casual', 'humorous', 'trustworthy', 'innovative')")
+    tone: str | None = Field(
+        None,
+        description="Brand voice and messaging tone (e.g., 'professional', 'casual', 'humorous', 'trustworthy', 'innovative')",
+    )
     tagline: str | None = Field(None, description="Brand tagline or slogan")
-    assets: list[dict[str, Any]] | None = Field(None, description="Brand asset library with explicit assets and tags. Assets are referenced inline with URLs pointing to CDN-hosted files.")
-    product_catalog: dict[str, Any] | None = Field(None, description="Product catalog information for e-commerce advertisers. Enables SKU-level creative generation and product selection.")
-    disclaimers: list[dict[str, Any]] | None = Field(None, description="Legal disclaimers or required text that must appear in creatives")
-    industry: str | None = Field(None, description="Industry or vertical (e.g., 'retail', 'automotive', 'finance', 'healthcare')")
+    assets: list[dict[str, Any]] | None = Field(
+        None,
+        description="Brand asset library with explicit assets and tags. Assets are referenced inline with URLs pointing to CDN-hosted files.",
+    )
+    product_catalog: dict[str, Any] | None = Field(
+        None,
+        description="Product catalog information for e-commerce advertisers. Enables SKU-level creative generation and product selection.",
+    )
+    disclaimers: list[dict[str, Any]] | None = Field(
+        None, description="Legal disclaimers or required text that must appear in creatives"
+    )
+    industry: str | None = Field(
+        None,
+        description="Industry or vertical (e.g., 'retail', 'automotive', 'finance', 'healthcare')",
+    )
     target_audience: str | None = Field(None, description="Primary target audience description")
     contact: dict[str, Any] | None = Field(None, description="Brand contact information")
     metadata: dict[str, Any] | None = Field(None, description="Additional brand metadata")
@@ -148,26 +222,65 @@ BrandManifestRef = Any
 class Format(BaseModel):
     """Represents a creative format with its requirements"""
 
-    format_id: FormatId = Field(description="Structured format identifier with agent URL and format name")
+    format_id: FormatId = Field(
+        description="Structured format identifier with agent URL and format name"
+    )
     name: str = Field(description="Human-readable format name")
-    description: str | None = Field(None, description="Plain text explanation of what this format does and what assets it requires")
-    preview_image: str | None = Field(None, description="Optional preview image URL for format browsing/discovery UI. Should be 400x300px (4:3 aspect ratio) PNG or JPG. Used as thumbnail/card image in format browsers.")
-    example_url: str | None = Field(None, description="Optional URL to showcase page with examples and interactive demos of this format")
-    type: Literal["audio", "video", "display", "native", "dooh", "rich_media", "universal"] = Field(description="Media type of this format - determines rendering method and asset requirements")
-    renders: list[dict[str, Any]] | None = Field(None, description="Specification of rendered pieces for this format. Most formats produce a single render. Companion ad formats (video + banner), adaptive formats, and multi-placement formats produce multiple renders. Each render specifies its role and dimensions.")
-    assets_required: list[Any] | None = Field(None, description="Array of required assets or asset groups for this format. Each asset is identified by its asset_id, which must be used as the key in creative manifests. Can contain individual assets or repeatable asset sequences (e.g., carousel products, slideshow frames).")
-    delivery: dict[str, Any] | None = Field(None, description="Delivery method specifications (e.g., hosted, VAST, third-party tags)")
-    supported_macros: list[str] | None = Field(None, description="List of universal macros supported by this format (e.g., MEDIA_BUY_ID, CACHEBUSTER, DEVICE_ID). Used for validation and developer tooling.")
-    output_format_ids: list[FormatId] | None = Field(None, description="For generative formats: array of format IDs that this format can generate. When a format accepts inputs like brand_manifest and message, this specifies what concrete output formats can be produced (e.g., a generative banner format might output standard image banner formats).")
+    description: str | None = Field(
+        None,
+        description="Plain text explanation of what this format does and what assets it requires",
+    )
+    preview_image: str | None = Field(
+        None,
+        description="Optional preview image URL for format browsing/discovery UI. Should be 400x300px (4:3 aspect ratio) PNG or JPG. Used as thumbnail/card image in format browsers.",
+    )
+    example_url: str | None = Field(
+        None,
+        description="Optional URL to showcase page with examples and interactive demos of this format",
+    )
+    type: Literal["audio", "video", "display", "native", "dooh", "rich_media", "universal"] = Field(
+        description="Media type of this format - determines rendering method and asset requirements"
+    )
+    renders: list[dict[str, Any]] | None = Field(
+        None,
+        description="Specification of rendered pieces for this format. Most formats produce a single render. Companion ad formats (video + banner), adaptive formats, and multi-placement formats produce multiple renders. Each render specifies its role and dimensions.",
+    )
+    assets_required: list[Any] | None = Field(
+        None,
+        description="Array of required assets or asset groups for this format. Each asset is identified by its asset_id, which must be used as the key in creative manifests. Can contain individual assets or repeatable asset sequences (e.g., carousel products, slideshow frames).",
+    )
+    delivery: dict[str, Any] | None = Field(
+        None, description="Delivery method specifications (e.g., hosted, VAST, third-party tags)"
+    )
+    supported_macros: list[str] | None = Field(
+        None,
+        description="List of universal macros supported by this format (e.g., MEDIA_BUY_ID, CACHEBUSTER, DEVICE_ID). Used for validation and developer tooling.",
+    )
+    output_format_ids: list[FormatId] | None = Field(
+        None,
+        description="For generative formats: array of format IDs that this format can generate. When a format accepts inputs like brand_manifest and message, this specifies what concrete output formats can be produced (e.g., a generative banner format might output standard image banner formats).",
+    )
 
 
 class Targeting(BaseModel):
     """Optional geographic refinements for media buys. Most targeting should be expressed in the brief and handled by the publisher. These fields are primarily for geographic restrictions (RCT testing, regulatory compliance)."""
 
-    geo_country_any_of: list[str] | None = Field(None, description="Restrict delivery to specific countries (ISO codes). Use for regulatory compliance or RCT testing.")
-    geo_region_any_of: list[str] | None = Field(None, description="Restrict delivery to specific regions/states. Use for regulatory compliance or RCT testing.")
-    geo_metro_any_of: list[str] | None = Field(None, description="Restrict delivery to specific metro areas (DMA codes). Use for regulatory compliance or RCT testing.")
-    geo_postal_code_any_of: list[str] | None = Field(None, description="Restrict delivery to specific postal/ZIP codes. Use for regulatory compliance or RCT testing.")
+    geo_country_any_of: list[str] | None = Field(
+        None,
+        description="Restrict delivery to specific countries (ISO codes). Use for regulatory compliance or RCT testing.",
+    )
+    geo_region_any_of: list[str] | None = Field(
+        None,
+        description="Restrict delivery to specific regions/states. Use for regulatory compliance or RCT testing.",
+    )
+    geo_metro_any_of: list[str] | None = Field(
+        None,
+        description="Restrict delivery to specific metro areas (DMA codes). Use for regulatory compliance or RCT testing.",
+    )
+    geo_postal_code_any_of: list[str] | None = Field(
+        None,
+        description="Restrict delivery to specific postal/ZIP codes. Use for regulatory compliance or RCT testing.",
+    )
     frequency_cap: FrequencyCap | None = None
 
 
@@ -195,14 +308,28 @@ class DeliveryMetrics(BaseModel):
     ctr: float | None = Field(None, description="Click-through rate (clicks/impressions)")
     views: float | None = Field(None, description="Views at threshold (for CPV)")
     completed_views: float | None = Field(None, description="100% completions (for CPCV)")
-    completion_rate: float | None = Field(None, description="Completion rate (completed_views/impressions)")
-    conversions: float | None = Field(None, description="Conversions (reserved for future CPA pricing support)")
-    leads: float | None = Field(None, description="Leads generated (reserved for future CPL pricing support)")
+    completion_rate: float | None = Field(
+        None, description="Completion rate (completed_views/impressions)"
+    )
+    conversions: float | None = Field(
+        None, description="Conversions (reserved for future CPA pricing support)"
+    )
+    leads: float | None = Field(
+        None, description="Leads generated (reserved for future CPL pricing support)"
+    )
     grps: float | None = Field(None, description="Gross Rating Points delivered (for CPP)")
-    reach: float | None = Field(None, description="Unique reach - units depend on measurement provider (e.g., individuals, households, devices, cookies). See delivery_measurement.provider for methodology.")
-    frequency: float | None = Field(None, description="Average frequency per individual (typically measured over campaign duration, but can vary by measurement provider)")
+    reach: float | None = Field(
+        None,
+        description="Unique reach - units depend on measurement provider (e.g., individuals, households, devices, cookies). See delivery_measurement.provider for methodology.",
+    )
+    frequency: float | None = Field(
+        None,
+        description="Average frequency per individual (typically measured over campaign duration, but can vary by measurement provider)",
+    )
     quartile_data: dict[str, Any] | None = Field(None, description="Video quartile completion data")
-    dooh_metrics: dict[str, Any] | None = Field(None, description="DOOH-specific metrics (only included for DOOH campaigns)")
+    dooh_metrics: dict[str, Any] | None = Field(
+        None, description="DOOH-specific metrics (only included for DOOH campaigns)"
+    )
 
 
 class Error(BaseModel):
@@ -210,37 +337,63 @@ class Error(BaseModel):
 
     code: str = Field(description="Error code for programmatic handling")
     message: str = Field(description="Human-readable error message")
-    field: str | None = Field(None, description="Field path associated with the error (e.g., 'packages[0].targeting')")
+    field: str | None = Field(
+        None, description="Field path associated with the error (e.g., 'packages[0].targeting')"
+    )
     suggestion: str | None = Field(None, description="Suggested fix for the error")
-    retry_after: float | None = Field(None, description="Seconds to wait before retrying the operation")
+    retry_after: float | None = Field(
+        None, description="Seconds to wait before retrying the operation"
+    )
     details: Any | None = Field(None, description="Additional task-specific error details")
 
 
 class Property(BaseModel):
     """An advertising property that can be validated via adagents.json"""
 
-    property_id: str | None = Field(None, description="Unique identifier for this property (optional). Enables referencing properties by ID instead of repeating full objects. Recommended format: lowercase with underscores (e.g., 'cnn_ctv_app', 'instagram_mobile')")
-    property_type: Literal["website", "mobile_app", "ctv_app", "dooh", "podcast", "radio", "streaming_audio"] = Field(description="Type of advertising property")
+    property_id: str | None = Field(
+        None,
+        description="Unique identifier for this property (optional). Enables referencing properties by ID instead of repeating full objects. Recommended format: lowercase with underscores (e.g., 'cnn_ctv_app', 'instagram_mobile')",
+    )
+    property_type: Literal[
+        "website", "mobile_app", "ctv_app", "dooh", "podcast", "radio", "streaming_audio"
+    ] = Field(description="Type of advertising property")
     name: str = Field(description="Human-readable property name")
     identifiers: list[dict[str, Any]] = Field(description="Array of identifiers for this property")
-    tags: list[str] | None = Field(None, description="Tags for categorization and grouping (e.g., network membership, content categories)")
-    publisher_domain: str | None = Field(None, description="Domain where adagents.json should be checked for authorization validation. Required for list_authorized_properties response. Optional in adagents.json (file location implies domain).")
+    tags: list[str] | None = Field(
+        None,
+        description="Tags for categorization and grouping (e.g., network membership, content categories)",
+    )
+    publisher_domain: str | None = Field(
+        None,
+        description="Domain where adagents.json should be checked for authorization validation. Required for list_authorized_properties response. Optional in adagents.json (file location implies domain).",
+    )
 
 
 class Placement(BaseModel):
     """Represents a specific ad placement within a product's inventory"""
 
     placement_id: str = Field(description="Unique identifier for the placement within the product")
-    name: str = Field(description="Human-readable name for the placement (e.g., 'Homepage Banner', 'Article Sidebar')")
-    description: str | None = Field(None, description="Detailed description of where and how the placement appears")
-    format_ids: list[FormatId] | None = Field(None, description="Format IDs supported by this specific placement (subset of product's formats)")
+    name: str = Field(
+        description="Human-readable name for the placement (e.g., 'Homepage Banner', 'Article Sidebar')"
+    )
+    description: str | None = Field(
+        None, description="Detailed description of where and how the placement appears"
+    )
+    format_ids: list[FormatId] | None = Field(
+        None,
+        description="Format IDs supported by this specific placement (subset of product's formats)",
+    )
 
 
 class CreativePolicy(BaseModel):
     """Creative requirements and restrictions for a product"""
 
-    co_branding: Literal["required", "optional", "none"] = Field(description="Co-branding requirement")
-    landing_page: Literal["any", "retailer_site_only", "must_include_retailer"] = Field(description="Landing page requirements")
+    co_branding: Literal["required", "optional", "none"] = Field(
+        description="Co-branding requirement"
+    )
+    landing_page: Literal["any", "retailer_site_only", "must_include_retailer"] = Field(
+        description="Landing page requirements"
+    )
     templates_available: bool = Field(description="Whether creative templates are provided")
 
 
@@ -249,23 +402,51 @@ class CreativeAssignment(BaseModel):
 
     creative_id: str = Field(description="Unique identifier for the creative")
     weight: float | None = Field(None, description="Delivery weight for this creative")
-    placement_ids: list[str] | None = Field(None, description="Optional array of placement IDs where this creative should run. When omitted, the creative runs on all placements in the package. References placement_id values from the product's placements array.")
+    placement_ids: list[str] | None = Field(
+        None,
+        description="Optional array of placement IDs where this creative should run. When omitted, the creative runs on all placements in the package. References placement_id values from the product's placements array.",
+    )
 
 
 class PerformanceFeedback(BaseModel):
     """Represents performance feedback data for a media buy or package"""
 
-    feedback_id: str = Field(description="Unique identifier for this performance feedback submission")
+    feedback_id: str = Field(
+        description="Unique identifier for this performance feedback submission"
+    )
     media_buy_id: str = Field(description="Publisher's media buy identifier")
-    package_id: str | None = Field(None, description="Specific package within the media buy (if feedback is package-specific)")
-    creative_id: str | None = Field(None, description="Specific creative asset (if feedback is creative-specific)")
-    measurement_period: dict[str, Any] = Field(description="Time period for performance measurement")
-    performance_index: float = Field(description="Normalized performance score (0.0 = no value, 1.0 = expected, >1.0 = above expected)")
-    metric_type: Literal["overall_performance", "conversion_rate", "brand_lift", "click_through_rate", "completion_rate", "viewability", "brand_safety", "cost_efficiency"] = Field(description="The business metric being measured")
-    feedback_source: Literal["buyer_attribution", "third_party_measurement", "platform_analytics", "verification_partner"] = Field(description="Source of the performance data")
-    status: Literal["accepted", "queued", "applied", "rejected"] = Field(description="Processing status of the performance feedback")
+    package_id: str | None = Field(
+        None, description="Specific package within the media buy (if feedback is package-specific)"
+    )
+    creative_id: str | None = Field(
+        None, description="Specific creative asset (if feedback is creative-specific)"
+    )
+    measurement_period: dict[str, Any] = Field(
+        description="Time period for performance measurement"
+    )
+    performance_index: float = Field(
+        description="Normalized performance score (0.0 = no value, 1.0 = expected, >1.0 = above expected)"
+    )
+    metric_type: Literal[
+        "overall_performance",
+        "conversion_rate",
+        "brand_lift",
+        "click_through_rate",
+        "completion_rate",
+        "viewability",
+        "brand_safety",
+        "cost_efficiency",
+    ] = Field(description="The business metric being measured")
+    feedback_source: Literal[
+        "buyer_attribution", "third_party_measurement", "platform_analytics", "verification_partner"
+    ] = Field(description="Source of the performance data")
+    status: Literal["accepted", "queued", "applied", "rejected"] = Field(
+        description="Processing status of the performance feedback"
+    )
     submitted_at: str = Field(description="ISO 8601 timestamp when feedback was submitted")
-    applied_at: str | None = Field(None, description="ISO 8601 timestamp when feedback was applied to optimization algorithms")
+    applied_at: str | None = Field(
+        None, description="ISO 8601 timestamp when feedback was applied to optimization algorithms"
+    )
 
 
 # Type alias for Start Timing
@@ -276,38 +457,91 @@ StartTiming = Any
 class SubAsset(BaseModel):
     """Sub-asset for multi-asset creative formats, including carousel images and native ad template variables"""
 
-    asset_type: str | None = Field(None, description="Type of asset. Common types: headline, body_text, thumbnail_image, product_image, featured_image, logo, cta_text, price_text, sponsor_name, author_name, click_url")
-    asset_id: str | None = Field(None, description="Unique identifier for the asset within the creative")
+    asset_type: str | None = Field(
+        None,
+        description="Type of asset. Common types: headline, body_text, thumbnail_image, product_image, featured_image, logo, cta_text, price_text, sponsor_name, author_name, click_url",
+    )
+    asset_id: str | None = Field(
+        None, description="Unique identifier for the asset within the creative"
+    )
     content_uri: str | None = Field(None, description="URL for media assets (images, videos, etc.)")
-    content: Any | None = Field(None, description="Text content for text-based assets like headlines, body text, CTA text, etc.")
+    content: Any | None = Field(
+        None,
+        description="Text content for text-based assets like headlines, body text, CTA text, etc.",
+    )
 
 
 class WebhookPayload(BaseModel):
     """Payload structure sent to webhook endpoints when async task status changes. Protocol-level fields are at the top level and the task-specific payload is nested under the 'result' field. This schema represents what your webhook handler will receive when a task transitions from 'submitted' to a terminal or intermediate state."""
 
-    operation_id: str | None = Field(None, description="Publisher-defined operation identifier correlating a sequence of task updates across webhooks.")
-    task_id: str = Field(description="Unique identifier for this task. Use this to correlate webhook notifications with the original task submission.")
-    task_type: TaskType = Field(description="Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic.")
-    domain: Literal["media-buy", "signals"] | None = Field(None, description="AdCP domain this task belongs to. Helps classify the operation type at a high level.")
-    status: TaskStatus = Field(description="Current task status. Webhooks are only triggered for status changes after initial submission (e.g., submitted → input-required, submitted → completed, submitted → failed).")
+    operation_id: str | None = Field(
+        None,
+        description="Publisher-defined operation identifier correlating a sequence of task updates across webhooks.",
+    )
+    task_id: str = Field(
+        description="Unique identifier for this task. Use this to correlate webhook notifications with the original task submission."
+    )
+    task_type: TaskType = Field(
+        description="Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic."
+    )
+    domain: Literal["media-buy", "signals"] | None = Field(
+        None,
+        description="AdCP domain this task belongs to. Helps classify the operation type at a high level.",
+    )
+    status: TaskStatus = Field(
+        description="Current task status. Webhooks are only triggered for status changes after initial submission (e.g., submitted → input-required, submitted → completed, submitted → failed)."
+    )
     timestamp: str = Field(description="ISO 8601 timestamp when this webhook was generated.")
-    message: str | None = Field(None, description="Human-readable summary of the current task state. Provides context about what happened and what action may be needed.")
-    context_id: str | None = Field(None, description="Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters.")
-    progress: dict[str, Any] | None = Field(None, description="Progress information for tasks still in 'working' state. Rarely seen in webhooks since 'working' tasks typically complete synchronously, but may appear if a task transitions from 'submitted' to 'working'.")
-    result: Any | None = Field(None, description="Task-specific payload for this status update. For 'completed', contains the final result. For 'input-required', may contain approval or clarification context. Optional for non-terminal updates.")
-    error: Any | None = Field(None, description="Error message for failed tasks. Only present when status is 'failed'.")
+    message: str | None = Field(
+        None,
+        description="Human-readable summary of the current task state. Provides context about what happened and what action may be needed.",
+    )
+    context_id: str | None = Field(
+        None,
+        description="Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters.",
+    )
+    progress: dict[str, Any] | None = Field(
+        None,
+        description="Progress information for tasks still in 'working' state. Rarely seen in webhooks since 'working' tasks typically complete synchronously, but may appear if a task transitions from 'submitted' to 'working'.",
+    )
+    result: Any | None = Field(
+        None,
+        description="Task-specific payload for this status update. For 'completed', contains the final result. For 'input-required', may contain approval or clarification context. Optional for non-terminal updates.",
+    )
+    error: Any | None = Field(
+        None, description="Error message for failed tasks. Only present when status is 'failed'."
+    )
 
 
 class ProtocolEnvelope(BaseModel):
     """Standard envelope structure for AdCP task responses. This envelope is added by the protocol layer (MCP, A2A, REST) and wraps the task-specific response payload. Task response schemas should NOT include these fields - they are protocol-level concerns."""
 
-    context_id: str | None = Field(None, description="Session/conversation identifier for tracking related operations across multiple task invocations. Managed by the protocol layer to maintain conversational context.")
-    task_id: str | None = Field(None, description="Unique identifier for tracking asynchronous operations. Present when a task requires extended processing time. Used to query task status and retrieve results when complete.")
-    status: TaskStatus = Field(description="Current task execution state. Indicates whether the task is completed, in progress (working), submitted for async processing, failed, or requires user input. Managed by the protocol layer.")
-    message: str | None = Field(None, description="Human-readable summary of the task result. Provides natural language explanation of what happened, suitable for display to end users or for AI agent comprehension. Generated by the protocol layer based on the task response.")
-    timestamp: str | None = Field(None, description="ISO 8601 timestamp when the response was generated. Useful for debugging, logging, cache validation, and tracking async operation progress.")
-    push_notification_config: PushNotificationConfig | None = Field(None, description="Push notification configuration for async task updates (A2A and REST protocols). Echoed from the request to confirm webhook settings. Specifies URL, authentication scheme (Bearer or HMAC-SHA256), and credentials. MCP uses progress notifications instead of webhooks.")
-    payload: dict[str, Any] = Field(description="The actual task-specific response data. This is the content defined in individual task response schemas (e.g., get-products-response.json, create-media-buy-response.json). Contains only domain-specific data without protocol-level fields.")
+    context_id: str | None = Field(
+        None,
+        description="Session/conversation identifier for tracking related operations across multiple task invocations. Managed by the protocol layer to maintain conversational context.",
+    )
+    task_id: str | None = Field(
+        None,
+        description="Unique identifier for tracking asynchronous operations. Present when a task requires extended processing time. Used to query task status and retrieve results when complete.",
+    )
+    status: TaskStatus = Field(
+        description="Current task execution state. Indicates whether the task is completed, in progress (working), submitted for async processing, failed, or requires user input. Managed by the protocol layer."
+    )
+    message: str | None = Field(
+        None,
+        description="Human-readable summary of the task result. Provides natural language explanation of what happened, suitable for display to end users or for AI agent comprehension. Generated by the protocol layer based on the task response.",
+    )
+    timestamp: str | None = Field(
+        None,
+        description="ISO 8601 timestamp when the response was generated. Useful for debugging, logging, cache validation, and tracking async operation progress.",
+    )
+    push_notification_config: PushNotificationConfig | None = Field(
+        None,
+        description="Push notification configuration for async task updates (A2A and REST protocols). Echoed from the request to confirm webhook settings. Specifies URL, authentication scheme (Bearer or HMAC-SHA256), and credentials. MCP uses progress notifications instead of webhooks.",
+    )
+    payload: dict[str, Any] = Field(
+        description="The actual task-specific response data. This is the content defined in individual task response schemas (e.g., get-products-response.json, create-media-buy-response.json). Contains only domain-specific data without protocol-level fields."
+    )
 
 
 class Response(BaseModel):
@@ -315,21 +549,36 @@ class Response(BaseModel):
 
     message: str = Field(description="Human-readable summary")
     context_id: str | None = Field(None, description="Session continuity identifier")
-    data: Any | None = Field(None, description="AdCP task-specific response data (see individual task response schemas)")
+    data: Any | None = Field(
+        None, description="AdCP task-specific response data (see individual task response schemas)"
+    )
 
 
 class PromotedProducts(BaseModel):
     """Specification of products or offerings being promoted in a campaign. Supports multiple selection methods from the brand manifest that can be combined using UNION (OR) logic. When multiple selection methods are provided, products matching ANY of the criteria are selected (logical OR, not AND)."""
 
-    manifest_skus: list[str] | None = Field(None, description="Direct product SKU references from the brand manifest product catalog")
-    manifest_tags: list[str] | None = Field(None, description="Select products by tags from the brand manifest product catalog (e.g., 'organic', 'sauces', 'holiday')")
-    manifest_category: str | None = Field(None, description="Select products from a specific category in the brand manifest product catalog (e.g., 'beverages/soft-drinks', 'food/sauces')")
-    manifest_query: str | None = Field(None, description="Natural language query to select products from the brand manifest (e.g., 'all Kraft Heinz pasta sauces', 'organic products under $20')")
+    manifest_skus: list[str] | None = Field(
+        None, description="Direct product SKU references from the brand manifest product catalog"
+    )
+    manifest_tags: list[str] | None = Field(
+        None,
+        description="Select products by tags from the brand manifest product catalog (e.g., 'organic', 'sauces', 'holiday')",
+    )
+    manifest_category: str | None = Field(
+        None,
+        description="Select products from a specific category in the brand manifest product catalog (e.g., 'beverages/soft-drinks', 'food/sauces')",
+    )
+    manifest_query: str | None = Field(
+        None,
+        description="Natural language query to select products from the brand manifest (e.g., 'all Kraft Heinz pasta sauces', 'organic products under $20')",
+    )
 
 
 # Type alias for Advertising Channels
 # Standard advertising channels supported by AdCP
-Channels = Literal["display", "video", "audio", "native", "dooh", "ctv", "podcast", "retail", "social"]
+Channels = Literal[
+    "display", "video", "audio", "native", "dooh", "ctv", "podcast", "retail", "social"
+]
 
 
 # Type alias for Delivery Type
@@ -354,12 +603,24 @@ MediaBuyStatus = Literal["pending_activation", "active", "paused", "completed"]
 
 # Type alias for Task Type
 # Valid AdCP task types across all domains. These represent the complete set of operations that can be tracked via the task management system.
-TaskType = Literal["create_media_buy", "update_media_buy", "sync_creatives", "activate_signal", "get_signals"]
+TaskType = Literal[
+    "create_media_buy", "update_media_buy", "sync_creatives", "activate_signal", "get_signals"
+]
 
 
 # Type alias for Task Status
 # Standardized task status values based on A2A TaskState enum. Indicates the current state of any AdCP operation.
-TaskStatus = Literal["submitted", "working", "input-required", "completed", "canceled", "failed", "rejected", "auth-required", "unknown"]
+TaskStatus = Literal[
+    "submitted",
+    "working",
+    "input-required",
+    "completed",
+    "canceled",
+    "failed",
+    "rejected",
+    "auth-required",
+    "unknown",
+]
 
 
 # Type alias for Pricing Model
@@ -374,28 +635,76 @@ PricingOption = Any
 
 # Type alias for Standard Format IDs
 # Enumeration of all standard creative format identifiers in AdCP
-StandardFormatIds = Literal["display_300x250", "display_728x90", "display_320x50", "display_160x600", "display_970x250", "display_336x280", "display_expandable_300x250", "display_expandable_728x90", "display_interstitial_320x480", "display_interstitial_desktop", "display_dynamic_300x250", "display_responsive", "native_in_feed", "native_content_recommendation", "native_product", "video_skippable_15s", "video_skippable_30s", "video_non_skippable_15s", "video_non_skippable_30s", "video_outstream_autoplay", "video_vertical_story", "video_rewarded_30s", "video_pause_ad", "video_ctv_non_skippable_30s", "audio_standard_15s", "audio_standard_30s", "audio_podcast_host_read", "audio_programmatic", "universal_carousel", "universal_canvas", "universal_takeover", "universal_gallery", "universal_reveal", "dooh_landscape_static", "dooh_portrait_video"]
-
+StandardFormatIds = Literal[
+    "display_300x250",
+    "display_728x90",
+    "display_320x50",
+    "display_160x600",
+    "display_970x250",
+    "display_336x280",
+    "display_expandable_300x250",
+    "display_expandable_728x90",
+    "display_interstitial_320x480",
+    "display_interstitial_desktop",
+    "display_dynamic_300x250",
+    "display_responsive",
+    "native_in_feed",
+    "native_content_recommendation",
+    "native_product",
+    "video_skippable_15s",
+    "video_skippable_30s",
+    "video_non_skippable_15s",
+    "video_non_skippable_30s",
+    "video_outstream_autoplay",
+    "video_vertical_story",
+    "video_rewarded_30s",
+    "video_pause_ad",
+    "video_ctv_non_skippable_30s",
+    "audio_standard_15s",
+    "audio_standard_30s",
+    "audio_podcast_host_read",
+    "audio_programmatic",
+    "universal_carousel",
+    "universal_canvas",
+    "universal_takeover",
+    "universal_gallery",
+    "universal_reveal",
+    "dooh_landscape_static",
+    "dooh_portrait_video",
+]
 
 
 # ============================================================================
 # TASK REQUEST/RESPONSE TYPES
 # ============================================================================
 
+
 class ActivateSignalRequest(BaseModel):
     """Request parameters for activating a signal on a specific platform/account"""
 
-    signal_agent_segment_id: str = Field(description="The universal identifier for the signal to activate")
+    signal_agent_segment_id: str = Field(
+        description="The universal identifier for the signal to activate"
+    )
     platform: str = Field(description="The target platform for activation")
-    account: str | None = Field(None, description="Account identifier (required for account-specific activation)")
+    account: str | None = Field(
+        None, description="Account identifier (required for account-specific activation)"
+    )
 
 
 class BuildCreativeRequest(BaseModel):
     """Request to transform or generate a creative manifest. Takes a source manifest (which may be minimal for pure generation) and produces a target manifest in the specified format. The source manifest should include all assets required by the target format (e.g., promoted_offerings for generative formats)."""
 
-    message: str | None = Field(None, description="Natural language instructions for the transformation or generation. For pure generation, this is the creative brief. For transformation, this provides guidance on how to adapt the creative.")
-    creative_manifest: CreativeManifest | None = Field(None, description="Creative manifest to transform or generate from. For pure generation, this should include the target format_id and any required input assets (e.g., promoted_offerings for generative formats). For transformation (e.g., resizing, reformatting), this is the complete creative to adapt.")
-    target_format_id: FormatId = Field(description="Format ID to generate. The format definition specifies required input assets and output structure.")
+    message: str | None = Field(
+        None,
+        description="Natural language instructions for the transformation or generation. For pure generation, this is the creative brief. For transformation, this provides guidance on how to adapt the creative.",
+    )
+    creative_manifest: CreativeManifest | None = Field(
+        None,
+        description="Creative manifest to transform or generate from. For pure generation, this should include the target format_id and any required input assets (e.g., promoted_offerings for generative formats). For transformation (e.g., resizing, reformatting), this is the complete creative to adapt.",
+    )
+    target_format_id: FormatId = Field(
+        description="Format ID to generate. The format definition specifies required input assets and output structure."
+    )
 
 
 class CreateMediaBuyRequest(BaseModel):
@@ -403,7 +712,9 @@ class CreateMediaBuyRequest(BaseModel):
 
     buyer_ref: str = Field(description="Buyer's reference identifier for this media buy")
     packages: list[PackageRequest] = Field(description="Array of package configurations")
-    brand_manifest: BrandManifestRef = Field(description="Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests.")
+    brand_manifest: BrandManifestRef = Field(
+        description="Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests."
+    )
     po_number: str | None = Field(None, description="Purchase order number for tracking")
     start_time: StartTiming
     end_time: str = Field(description="Campaign end date/time in ISO 8601 format")
@@ -413,9 +724,15 @@ class CreateMediaBuyRequest(BaseModel):
 class GetMediaBuyDeliveryRequest(BaseModel):
     """Request parameters for retrieving comprehensive delivery metrics"""
 
-    media_buy_ids: list[str] | None = Field(None, description="Array of publisher media buy IDs to get delivery data for")
-    buyer_refs: list[str] | None = Field(None, description="Array of buyer reference IDs to get delivery data for")
-    status_filter: Any | None = Field(None, description="Filter by status. Can be a single status or array of statuses")
+    media_buy_ids: list[str] | None = Field(
+        None, description="Array of publisher media buy IDs to get delivery data for"
+    )
+    buyer_refs: list[str] | None = Field(
+        None, description="Array of buyer reference IDs to get delivery data for"
+    )
+    status_filter: Any | None = Field(
+        None, description="Filter by status. Can be a single status or array of statuses"
+    )
     start_date: str | None = Field(None, description="Start date for reporting period (YYYY-MM-DD)")
     end_date: str | None = Field(None, description="End date for reporting period (YYYY-MM-DD)")
 
@@ -423,9 +740,16 @@ class GetMediaBuyDeliveryRequest(BaseModel):
 class GetProductsRequest(BaseModel):
     """Request parameters for discovering available advertising products"""
 
-    brief: str | None = Field(None, description="Natural language description of campaign requirements")
-    brand_manifest: BrandManifestRef | None = Field(None, description="Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest.")
-    filters: dict[str, Any] | None = Field(None, description="Structured filters for product discovery")
+    brief: str | None = Field(
+        None, description="Natural language description of campaign requirements"
+    )
+    brand_manifest: BrandManifestRef | None = Field(
+        None,
+        description="Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest.",
+    )
+    filters: dict[str, Any] | None = Field(
+        None, description="Structured filters for product discovery"
+    )
 
 
 class GetSignalsRequest(BaseModel):
@@ -440,66 +764,173 @@ class GetSignalsRequest(BaseModel):
 class ListAuthorizedPropertiesRequest(BaseModel):
     """Request parameters for discovering which publishers this agent is authorized to represent"""
 
-    publisher_domains: list[str] | None = Field(None, description="Filter to specific publisher domains (optional). If omitted, returns all publishers this agent represents.")
+    publisher_domains: list[str] | None = Field(
+        None,
+        description="Filter to specific publisher domains (optional). If omitted, returns all publishers this agent represents.",
+    )
 
 
 class ListCreativeFormatsRequest(BaseModel):
     """Request parameters for discovering creative formats provided by this creative agent"""
 
-    format_ids: list[FormatId] | None = Field(None, description="Return only these specific format IDs")
-    type: Literal["audio", "video", "display", "dooh"] | None = Field(None, description="Filter by format type (technical categories with distinct requirements)")
-    asset_types: list[Literal["image", "video", "audio", "text", "html", "javascript", "url"]] | None = Field(None, description="Filter to formats that include these asset types. For third-party tags, search for 'html' or 'javascript'. E.g., ['image', 'text'] returns formats with images and text, ['javascript'] returns formats accepting JavaScript tags.")
-    max_width: int | None = Field(None, description="Maximum width in pixels (inclusive). Returns formats with width <= this value. Omit for responsive/fluid formats.")
-    max_height: int | None = Field(None, description="Maximum height in pixels (inclusive). Returns formats with height <= this value. Omit for responsive/fluid formats.")
-    min_width: int | None = Field(None, description="Minimum width in pixels (inclusive). Returns formats with width >= this value.")
-    min_height: int | None = Field(None, description="Minimum height in pixels (inclusive). Returns formats with height >= this value.")
-    is_responsive: bool | None = Field(None, description="Filter for responsive formats that adapt to container size. When true, returns formats without fixed dimensions.")
-    name_search: str | None = Field(None, description="Search for formats by name (case-insensitive partial match)")
+    format_ids: list[FormatId] | None = Field(
+        None, description="Return only these specific format IDs"
+    )
+    type: Literal["audio", "video", "display", "dooh"] | None = Field(
+        None, description="Filter by format type (technical categories with distinct requirements)"
+    )
+    asset_types: (
+        list[Literal["image", "video", "audio", "text", "html", "javascript", "url"]] | None
+    ) = Field(
+        None,
+        description="Filter to formats that include these asset types. For third-party tags, search for 'html' or 'javascript'. E.g., ['image', 'text'] returns formats with images and text, ['javascript'] returns formats accepting JavaScript tags.",
+    )
+    max_width: int | None = Field(
+        None,
+        description="Maximum width in pixels (inclusive). Returns formats with width <= this value. Omit for responsive/fluid formats.",
+    )
+    max_height: int | None = Field(
+        None,
+        description="Maximum height in pixels (inclusive). Returns formats with height <= this value. Omit for responsive/fluid formats.",
+    )
+    min_width: int | None = Field(
+        None,
+        description="Minimum width in pixels (inclusive). Returns formats with width >= this value.",
+    )
+    min_height: int | None = Field(
+        None,
+        description="Minimum height in pixels (inclusive). Returns formats with height >= this value.",
+    )
+    is_responsive: bool | None = Field(
+        None,
+        description="Filter for responsive formats that adapt to container size. When true, returns formats without fixed dimensions.",
+    )
+    name_search: str | None = Field(
+        None, description="Search for formats by name (case-insensitive partial match)"
+    )
 
 
 class ListCreativesRequest(BaseModel):
     """Request parameters for querying creative assets from the centralized library with filtering, sorting, and pagination"""
 
-    filters: dict[str, Any] | None = Field(None, description="Filter criteria for querying creatives")
+    filters: dict[str, Any] | None = Field(
+        None, description="Filter criteria for querying creatives"
+    )
     sort: dict[str, Any] | None = Field(None, description="Sorting parameters")
     pagination: dict[str, Any] | None = Field(None, description="Pagination parameters")
-    include_assignments: bool | None = Field(None, description="Include package assignment information in response")
-    include_performance: bool | None = Field(None, description="Include aggregated performance metrics in response")
-    include_sub_assets: bool | None = Field(None, description="Include sub-assets (for carousel/native formats) in response")
-    fields: list[Literal["creative_id", "name", "format", "status", "created_date", "updated_date", "tags", "assignments", "performance", "sub_assets"]] | None = Field(None, description="Specific fields to include in response (omit for all fields)")
+    include_assignments: bool | None = Field(
+        None, description="Include package assignment information in response"
+    )
+    include_performance: bool | None = Field(
+        None, description="Include aggregated performance metrics in response"
+    )
+    include_sub_assets: bool | None = Field(
+        None, description="Include sub-assets (for carousel/native formats) in response"
+    )
+    fields: (
+        list[
+            Literal[
+                "creative_id",
+                "name",
+                "format",
+                "status",
+                "created_date",
+                "updated_date",
+                "tags",
+                "assignments",
+                "performance",
+                "sub_assets",
+            ]
+        ]
+        | None
+    ) = Field(None, description="Specific fields to include in response (omit for all fields)")
 
 
 class PreviewCreativeRequest(BaseModel):
     """Request to generate a preview of a creative manifest in a specific format. The creative_manifest should include all assets required by the format (e.g., promoted_offerings for generative formats)."""
 
     format_id: FormatId = Field(description="Format identifier for rendering the preview")
-    creative_manifest: CreativeManifest = Field(description="Complete creative manifest with all required assets (including promoted_offerings if required by the format)")
-    inputs: list[dict[str, Any]] | None = Field(None, description="Array of input sets for generating multiple preview variants. Each input set defines macros and context values for one preview rendering. If not provided, creative agent will generate default previews.")
-    template_id: str | None = Field(None, description="Specific template ID for custom format rendering")
+    creative_manifest: CreativeManifest = Field(
+        description="Complete creative manifest with all required assets (including promoted_offerings if required by the format)"
+    )
+    inputs: list[dict[str, Any]] | None = Field(
+        None,
+        description="Array of input sets for generating multiple preview variants. Each input set defines macros and context values for one preview rendering. If not provided, creative agent will generate default previews.",
+    )
+    template_id: str | None = Field(
+        None, description="Specific template ID for custom format rendering"
+    )
 
 
 class ProvidePerformanceFeedbackRequest(BaseModel):
     """Request payload for provide_performance_feedback task"""
 
     media_buy_id: str = Field(description="Publisher's media buy identifier")
-    measurement_period: dict[str, Any] = Field(description="Time period for performance measurement")
-    performance_index: float = Field(description="Normalized performance score (0.0 = no value, 1.0 = expected, >1.0 = above expected)")
-    package_id: str | None = Field(None, description="Specific package within the media buy (if feedback is package-specific)")
-    creative_id: str | None = Field(None, description="Specific creative asset (if feedback is creative-specific)")
-    metric_type: Literal["overall_performance", "conversion_rate", "brand_lift", "click_through_rate", "completion_rate", "viewability", "brand_safety", "cost_efficiency"] | None = Field(None, description="The business metric being measured")
-    feedback_source: Literal["buyer_attribution", "third_party_measurement", "platform_analytics", "verification_partner"] | None = Field(None, description="Source of the performance data")
+    measurement_period: dict[str, Any] = Field(
+        description="Time period for performance measurement"
+    )
+    performance_index: float = Field(
+        description="Normalized performance score (0.0 = no value, 1.0 = expected, >1.0 = above expected)"
+    )
+    package_id: str | None = Field(
+        None, description="Specific package within the media buy (if feedback is package-specific)"
+    )
+    creative_id: str | None = Field(
+        None, description="Specific creative asset (if feedback is creative-specific)"
+    )
+    metric_type: (
+        Literal[
+            "overall_performance",
+            "conversion_rate",
+            "brand_lift",
+            "click_through_rate",
+            "completion_rate",
+            "viewability",
+            "brand_safety",
+            "cost_efficiency",
+        ]
+        | None
+    ) = Field(None, description="The business metric being measured")
+    feedback_source: (
+        Literal[
+            "buyer_attribution",
+            "third_party_measurement",
+            "platform_analytics",
+            "verification_partner",
+        ]
+        | None
+    ) = Field(None, description="Source of the performance data")
 
 
 class SyncCreativesRequest(BaseModel):
     """Request parameters for syncing creative assets with upsert semantics - supports bulk operations, patch updates, and assignment management"""
 
-    creatives: list[CreativeAsset] = Field(description="Array of creative assets to sync (create or update)")
-    patch: bool | None = Field(None, description="When true, only provided fields are updated (partial update). When false, entire creative is replaced (full upsert).")
-    assignments: dict[str, Any] | None = Field(None, description="Optional bulk assignment of creatives to packages")
-    delete_missing: bool | None = Field(None, description="When true, creatives not included in this sync will be archived. Use with caution for full library replacement.")
-    dry_run: bool | None = Field(None, description="When true, preview changes without applying them. Returns what would be created/updated/deleted.")
-    validation_mode: Literal["strict", "lenient"] | None = Field(None, description="Validation strictness. 'strict' fails entire sync on any validation error. 'lenient' processes valid creatives and reports errors.")
-    push_notification_config: PushNotificationConfig | None = Field(None, description="Optional webhook configuration for async sync notifications. Publisher will send webhook when sync completes if operation takes longer than immediate response time (typically for large bulk operations or manual approval/HITL).")
+    creatives: list[CreativeAsset] = Field(
+        description="Array of creative assets to sync (create or update)"
+    )
+    patch: bool | None = Field(
+        None,
+        description="When true, only provided fields are updated (partial update). When false, entire creative is replaced (full upsert).",
+    )
+    assignments: dict[str, Any] | None = Field(
+        None, description="Optional bulk assignment of creatives to packages"
+    )
+    delete_missing: bool | None = Field(
+        None,
+        description="When true, creatives not included in this sync will be archived. Use with caution for full library replacement.",
+    )
+    dry_run: bool | None = Field(
+        None,
+        description="When true, preview changes without applying them. Returns what would be created/updated/deleted.",
+    )
+    validation_mode: Literal["strict", "lenient"] | None = Field(
+        None,
+        description="Validation strictness. 'strict' fails entire sync on any validation error. 'lenient' processes valid creatives and reports errors.",
+    )
+    push_notification_config: PushNotificationConfig | None = Field(
+        None,
+        description="Optional webhook configuration for async sync notifications. Publisher will send webhook when sync completes if operation takes longer than immediate response time (typically for large bulk operations or manual approval/HITL).",
+    )
 
 
 class UpdateMediaBuyRequest(BaseModel):
@@ -511,81 +942,156 @@ class UpdateMediaBuyRequest(BaseModel):
     start_time: StartTiming | None = None
     end_time: str | None = Field(None, description="New end date/time in ISO 8601 format")
     packages: list[dict[str, Any]] | None = Field(None, description="Package-specific updates")
-    push_notification_config: PushNotificationConfig | None = Field(None, description="Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time.")
+    push_notification_config: PushNotificationConfig | None = Field(
+        None,
+        description="Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time.",
+    )
 
 
 class ActivateSignalResponse(BaseModel):
     """Response payload for activate_signal task"""
 
-    decisioning_platform_segment_id: str | None = Field(None, description="The platform-specific ID to use once activated")
-    estimated_activation_duration_minutes: float | None = Field(None, description="Estimated time to complete (optional)")
-    deployed_at: str | None = Field(None, description="Timestamp when activation completed (optional)")
-    errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., activation failures, platform issues)")
+    decisioning_platform_segment_id: str | None = Field(
+        None, description="The platform-specific ID to use once activated"
+    )
+    estimated_activation_duration_minutes: float | None = Field(
+        None, description="Estimated time to complete (optional)"
+    )
+    deployed_at: str | None = Field(
+        None, description="Timestamp when activation completed (optional)"
+    )
+    errors: list[Error] | None = Field(
+        None,
+        description="Task-specific errors and warnings (e.g., activation failures, platform issues)",
+    )
 
 
 class BuildCreativeResponse(BaseModel):
     """Response containing the transformed or generated creative manifest, ready for use with preview_creative or sync_creatives"""
 
-    creative_manifest: CreativeManifest = Field(description="The generated or transformed creative manifest")
+    creative_manifest: CreativeManifest = Field(
+        description="The generated or transformed creative manifest"
+    )
     errors: list[Error] | None = Field(None, description="Task-specific errors and warnings")
 
 
 class CreateMediaBuyResponse(BaseModel):
     """Response payload for create_media_buy task"""
 
-    media_buy_id: str | None = Field(None, description="Publisher's unique identifier for the created media buy")
+    media_buy_id: str | None = Field(
+        None, description="Publisher's unique identifier for the created media buy"
+    )
     buyer_ref: str = Field(description="Buyer's reference identifier for this media buy")
-    creative_deadline: str | None = Field(None, description="ISO 8601 timestamp for creative upload deadline")
+    creative_deadline: str | None = Field(
+        None, description="ISO 8601 timestamp for creative upload deadline"
+    )
     packages: list[dict[str, Any]] | None = Field(None, description="Array of created packages")
-    errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., partial package creation failures)")
+    errors: list[Error] | None = Field(
+        None,
+        description="Task-specific errors and warnings (e.g., partial package creation failures)",
+    )
 
 
 class GetMediaBuyDeliveryResponse(BaseModel):
     """Response payload for get_media_buy_delivery task"""
 
-    notification_type: Literal["scheduled", "final", "delayed", "adjusted"] | None = Field(None, description="Type of webhook notification (only present in webhook deliveries): scheduled = regular periodic update, final = campaign completed, delayed = data not yet available, adjusted = resending period with updated data")
-    partial_data: bool | None = Field(None, description="Indicates if any media buys in this webhook have missing/delayed data (only present in webhook deliveries)")
-    unavailable_count: int | None = Field(None, description="Number of media buys with reporting_delayed or failed status (only present in webhook deliveries when partial_data is true)")
-    sequence_number: int | None = Field(None, description="Sequential notification number (only present in webhook deliveries, starts at 1)")
-    next_expected_at: str | None = Field(None, description="ISO 8601 timestamp for next expected notification (only present in webhook deliveries when notification_type is not 'final')")
-    reporting_period: dict[str, Any] = Field(description="Date range for the report. All periods use UTC timezone.")
+    notification_type: Literal["scheduled", "final", "delayed", "adjusted"] | None = Field(
+        None,
+        description="Type of webhook notification (only present in webhook deliveries): scheduled = regular periodic update, final = campaign completed, delayed = data not yet available, adjusted = resending period with updated data",
+    )
+    partial_data: bool | None = Field(
+        None,
+        description="Indicates if any media buys in this webhook have missing/delayed data (only present in webhook deliveries)",
+    )
+    unavailable_count: int | None = Field(
+        None,
+        description="Number of media buys with reporting_delayed or failed status (only present in webhook deliveries when partial_data is true)",
+    )
+    sequence_number: int | None = Field(
+        None,
+        description="Sequential notification number (only present in webhook deliveries, starts at 1)",
+    )
+    next_expected_at: str | None = Field(
+        None,
+        description="ISO 8601 timestamp for next expected notification (only present in webhook deliveries when notification_type is not 'final')",
+    )
+    reporting_period: dict[str, Any] = Field(
+        description="Date range for the report. All periods use UTC timezone."
+    )
     currency: str = Field(description="ISO 4217 currency code")
-    aggregated_totals: dict[str, Any] | None = Field(None, description="Combined metrics across all returned media buys. Only included in API responses (get_media_buy_delivery), not in webhook notifications.")
-    media_buy_deliveries: list[dict[str, Any]] = Field(description="Array of delivery data for media buys. When used in webhook notifications, may contain multiple media buys aggregated by publisher. When used in get_media_buy_delivery API responses, typically contains requested media buys.")
-    errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)")
+    aggregated_totals: dict[str, Any] | None = Field(
+        None,
+        description="Combined metrics across all returned media buys. Only included in API responses (get_media_buy_delivery), not in webhook notifications.",
+    )
+    media_buy_deliveries: list[dict[str, Any]] = Field(
+        description="Array of delivery data for media buys. When used in webhook notifications, may contain multiple media buys aggregated by publisher. When used in get_media_buy_delivery API responses, typically contains requested media buys."
+    )
+    errors: list[Error] | None = Field(
+        None,
+        description="Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)",
+    )
 
 
 class GetProductsResponse(BaseModel):
     """Response payload for get_products task"""
 
     products: list[Product] = Field(description="Array of matching products")
-    errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., product filtering issues)")
+    errors: list[Error] | None = Field(
+        None, description="Task-specific errors and warnings (e.g., product filtering issues)"
+    )
 
 
 class GetSignalsResponse(BaseModel):
     """Response payload for get_signals task"""
 
     signals: list[dict[str, Any]] = Field(description="Array of matching signals")
-    errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., signal discovery or pricing issues)")
+    errors: list[Error] | None = Field(
+        None,
+        description="Task-specific errors and warnings (e.g., signal discovery or pricing issues)",
+    )
 
 
 class ListAuthorizedPropertiesResponse(BaseModel):
     """Response payload for list_authorized_properties task. Lists publisher domains and authorization scope (property_ids or property_tags). Buyers fetch actual property definitions from each publisher's canonical adagents.json file."""
 
-    publisher_domains: list[str] = Field(description="Publisher domains this agent is authorized to represent. Buyers should fetch each publisher's adagents.json to see property definitions and verify this agent is in their authorized_agents list with authorization scope.")
-    primary_channels: list[Channels] | None = Field(None, description="Primary advertising channels represented in this property portfolio. Helps buying agents quickly filter relevance.")
-    primary_countries: list[str] | None = Field(None, description="Primary countries (ISO 3166-1 alpha-2 codes) where properties are concentrated. Helps buying agents quickly filter relevance.")
-    portfolio_description: str | None = Field(None, description="Markdown-formatted description of the property portfolio, including inventory types, audience characteristics, and special features.")
-    advertising_policies: str | None = Field(None, description="Publisher's advertising content policies, restrictions, and guidelines in natural language. May include prohibited categories, blocked advertisers, restricted tactics, brand safety requirements, or links to full policy documentation.")
-    last_updated: str | None = Field(None, description="ISO 8601 timestamp of when the agent's publisher authorization list was last updated. Buyers can use this to determine if their cached publisher adagents.json files might be stale.")
-    errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., property availability issues)")
+    publisher_domains: list[str] = Field(
+        description="Publisher domains this agent is authorized to represent. Buyers should fetch each publisher's adagents.json to see property definitions and verify this agent is in their authorized_agents list with authorization scope."
+    )
+    primary_channels: list[Channels] | None = Field(
+        None,
+        description="Primary advertising channels represented in this property portfolio. Helps buying agents quickly filter relevance.",
+    )
+    primary_countries: list[str] | None = Field(
+        None,
+        description="Primary countries (ISO 3166-1 alpha-2 codes) where properties are concentrated. Helps buying agents quickly filter relevance.",
+    )
+    portfolio_description: str | None = Field(
+        None,
+        description="Markdown-formatted description of the property portfolio, including inventory types, audience characteristics, and special features.",
+    )
+    advertising_policies: str | None = Field(
+        None,
+        description="Publisher's advertising content policies, restrictions, and guidelines in natural language. May include prohibited categories, blocked advertisers, restricted tactics, brand safety requirements, or links to full policy documentation.",
+    )
+    last_updated: str | None = Field(
+        None,
+        description="ISO 8601 timestamp of when the agent's publisher authorization list was last updated. Buyers can use this to determine if their cached publisher adagents.json files might be stale.",
+    )
+    errors: list[Error] | None = Field(
+        None, description="Task-specific errors and warnings (e.g., property availability issues)"
+    )
 
 
 class ListCreativeFormatsResponse(BaseModel):
     """Response payload for list_creative_formats task from creative agent - returns full format definitions"""
 
-    formats: list[Format] = Field(description="Full format definitions for all formats this agent supports. Each format's authoritative source is indicated by its agent_url field.")
-    creative_agents: list[dict[str, Any]] | None = Field(None, description="Optional: Creative agents that provide additional formats. Buyers can recursively query these agents to discover more formats. No authentication required for list_creative_formats.")
+    formats: list[Format] = Field(
+        description="Full format definitions for all formats this agent supports. Each format's authoritative source is indicated by its agent_url field."
+    )
+    creative_agents: list[dict[str, Any]] | None = Field(
+        None,
+        description="Optional: Creative agents that provide additional formats. Buyers can recursively query these agents to discover more formats. No authentication required for list_creative_formats.",
+    )
     errors: list[Error] | None = Field(None, description="Task-specific errors and warnings")
 
 
@@ -594,16 +1100,27 @@ class ListCreativesResponse(BaseModel):
 
     query_summary: dict[str, Any] = Field(description="Summary of the query that was executed")
     pagination: dict[str, Any] = Field(description="Pagination information for navigating results")
-    creatives: list[dict[str, Any]] = Field(description="Array of creative assets matching the query")
-    format_summary: dict[str, Any] | None = Field(None, description="Breakdown of creatives by format type")
-    status_summary: dict[str, Any] | None = Field(None, description="Breakdown of creatives by status")
+    creatives: list[dict[str, Any]] = Field(
+        description="Array of creative assets matching the query"
+    )
+    format_summary: dict[str, Any] | None = Field(
+        None, description="Breakdown of creatives by format type"
+    )
+    status_summary: dict[str, Any] | None = Field(
+        None, description="Breakdown of creatives by status"
+    )
 
 
 class PreviewCreativeResponse(BaseModel):
     """Response containing preview links for a creative. Each preview URL returns an HTML page that can be embedded in an iframe to display the rendered creative."""
 
-    previews: list[dict[str, Any]] = Field(description="Array of preview variants. Each preview corresponds to an input set from the request. If no inputs were provided, returns a single default preview.")
-    interactive_url: str | None = Field(None, description="Optional URL to an interactive testing page that shows all preview variants with controls to switch between them, modify macro values, and test different scenarios.")
+    previews: list[dict[str, Any]] = Field(
+        description="Array of preview variants. Each preview corresponds to an input set from the request. If no inputs were provided, returns a single default preview."
+    )
+    interactive_url: str | None = Field(
+        None,
+        description="Optional URL to an interactive testing page that shows all preview variants with controls to switch between them, modify macro values, and test different scenarios.",
+    )
     expires_at: str = Field(description="ISO 8601 timestamp when preview links expire")
 
 
@@ -611,13 +1128,18 @@ class ProvidePerformanceFeedbackResponse(BaseModel):
     """Response payload for provide_performance_feedback task"""
 
     success: bool = Field(description="Whether the performance feedback was successfully received")
-    errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., invalid measurement period, missing campaign data)")
+    errors: list[Error] | None = Field(
+        None,
+        description="Task-specific errors and warnings (e.g., invalid measurement period, missing campaign data)",
+    )
 
 
 class SyncCreativesResponse(BaseModel):
     """Response from creative sync operation with results for each creative"""
 
-    dry_run: bool | None = Field(None, description="Whether this was a dry run (no actual changes made)")
+    dry_run: bool | None = Field(
+        None, description="Whether this was a dry run (no actual changes made)"
+    )
     creatives: list[dict[str, Any]] = Field(description="Results for each creative processed")
 
 
@@ -626,7 +1148,12 @@ class UpdateMediaBuyResponse(BaseModel):
 
     media_buy_id: str = Field(description="Publisher's identifier for the media buy")
     buyer_ref: str = Field(description="Buyer's reference identifier for the media buy")
-    implementation_date: Any | None = Field(None, description="ISO 8601 timestamp when changes take effect (null if pending approval)")
-    affected_packages: list[dict[str, Any]] | None = Field(None, description="Array of packages that were modified")
-    errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., partial update failures)")
-
+    implementation_date: Any | None = Field(
+        None, description="ISO 8601 timestamp when changes take effect (null if pending approval)"
+    )
+    affected_packages: list[dict[str, Any]] | None = Field(
+        None, description="Array of packages that were modified"
+    )
+    errors: list[Error] | None = Field(
+        None, description="Task-specific errors and warnings (e.g., partial update failures)"
+    )

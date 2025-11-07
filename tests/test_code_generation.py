@@ -47,7 +47,7 @@ class TestStringEscaping:
 
     def test_escape_backslash_before_quote(self):
         """Test the critical case: backslash before quote."""
-        text = r'Path with quote: \"test'
+        text = r"Path with quote: \"test"
         result = escape_string_for_python(text)
         # Should escape backslash first, then quote
         assert '\\\\"' in result
@@ -129,12 +129,8 @@ class TestModelGeneration:
 
     def test_empty_schema(self):
         """Test generation with minimal schema."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
-            json.dump(
-                {"type": "object", "properties": {}}, f
-            )
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump({"type": "object", "properties": {}}, f)
             temp_path = Path(f.name)
 
         try:
@@ -167,9 +163,7 @@ class TestModelGeneration:
             "required": ["path"],
         }
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(schema, f)
             temp_path = Path(f.name)
 
@@ -178,8 +172,7 @@ class TestModelGeneration:
 
             # Validate syntax with proper imports
             full_code = (
-                "from pydantic import BaseModel, Field\n"
-                "from typing import Any\n" + result
+                "from pydantic import BaseModel, Field\n" "from typing import Any\n" + result
             )
             is_valid, error_msg = validate_python_syntax(full_code, "test")
             assert is_valid, f"Generated code has syntax errors: {error_msg}"
@@ -204,9 +197,7 @@ class TestModelGeneration:
             "required": ["class"],
         }
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(schema, f)
             temp_path = Path(f.name)
 
@@ -223,8 +214,7 @@ class TestModelGeneration:
 
             # Validate syntax
             full_code = (
-                "from pydantic import BaseModel, Field\n"
-                "from typing import Any\n" + result
+                "from pydantic import BaseModel, Field\n" "from typing import Any\n" + result
             )
             is_valid, error_msg = validate_python_syntax(full_code, "test")
             assert is_valid, f"Generated code has syntax errors: {error_msg}"
@@ -252,9 +242,7 @@ class TestModelGeneration:
             },
         }
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(schema, f)
             temp_path = Path(f.name)
 
@@ -289,9 +277,7 @@ class TestModelGeneration:
             "required": ["id"],
         }
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(schema, f)
             temp_path = Path(f.name)
 
@@ -300,8 +286,7 @@ class TestModelGeneration:
 
             # Should be parseable as Python
             full_code = (
-                "from pydantic import BaseModel, Field\n"
-                "from typing import Any\n" + result
+                "from pydantic import BaseModel, Field\n" "from typing import Any\n" + result
             )
             ast.parse(full_code)  # Will raise SyntaxError if invalid
         finally:
@@ -334,10 +319,10 @@ class TestModel(BaseModel)
 
     def test_validate_unclosed_string(self):
         """Test that unclosed strings are caught."""
-        code = '''
+        code = """
 class TestModel(BaseModel):
     name: str = Field(description="unclosed string)
-'''
+"""
         is_valid, error = validate_python_syntax(code, "test.py")
         assert not is_valid
 
@@ -345,10 +330,10 @@ class TestModel(BaseModel):
         """Test that unescaped backslashes in strings are caught."""
         # This is actually valid Python with a raw string, but let's test
         # that our escaping prevents issues
-        code = r'''
+        code = r"""
 class TestModel(BaseModel):
     path: str = Field(description="C:\Users\test")
-'''
+"""
         # This should actually fail without proper escaping
         # because \U and \t are escape sequences
         is_valid, error = validate_python_syntax(code, "test.py")
@@ -362,9 +347,7 @@ class TestEdgeCases:
         """Test schema without properties key."""
         schema = {"type": "object", "description": "Empty model"}
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(schema, f)
             temp_path = Path(f.name)
 
@@ -382,9 +365,7 @@ class TestEdgeCases:
             "properties": {"field1": {"type": "string"}},
         }
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(schema, f)
             temp_path = Path(f.name)
 
@@ -405,9 +386,7 @@ class TestEdgeCases:
             "required": ["required_field"],
         }
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(schema, f)
             temp_path = Path(f.name)
 

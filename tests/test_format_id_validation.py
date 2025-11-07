@@ -100,10 +100,7 @@ class TestFormatIdValidation:
 
     def test_format_id_dict_validation(self):
         """Test that FormatId can be validated from dict (e.g., API responses)."""
-        data = {
-            "agent_url": "https://creative.example.com",
-            "id": "banner_300x250"
-        }
+        data = {"agent_url": "https://creative.example.com", "id": "banner_300x250"}
 
         fid = FormatId.model_validate(data)
         assert fid.agent_url == "https://creative.example.com"
@@ -111,10 +108,7 @@ class TestFormatIdValidation:
 
     def test_format_id_invalid_dict_validation(self):
         """Test that invalid format IDs in dicts are rejected."""
-        data = {
-            "agent_url": "https://creative.example.com",
-            "id": "invalid format with spaces"
-        }
+        data = {"agent_url": "https://creative.example.com", "id": "invalid format with spaces"}
 
         with pytest.raises(ValidationError) as exc_info:
             FormatId.model_validate(data)

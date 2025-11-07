@@ -98,9 +98,11 @@ class A2AAdapter(ProtocolAdapter):
                 "url": url,
                 "method": "POST",
                 "headers": {
-                    k: v
-                    if k.lower() not in ("authorization", self.agent_config.auth_header.lower())
-                    else "***"
+                    k: (
+                        v
+                        if k.lower() not in ("authorization", self.agent_config.auth_header.lower())
+                        else "***"
+                    )
                     for k, v in headers.items()
                 },
                 "body": request_data,
