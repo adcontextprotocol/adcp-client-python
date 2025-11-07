@@ -18,6 +18,13 @@ class SampleResponse(BaseModel):
     items: list[str] = Field(default_factory=list)
 
 
+class MockTextContent(BaseModel):
+    """Mock MCP TextContent object for testing."""
+
+    type: str = "text"
+    text: str
+
+
 class TestParseMCPContent:
     """Tests for parse_mcp_content function."""
 
@@ -91,6 +98,50 @@ class TestParseMCPContent:
 
         result = parse_mcp_content(content, SampleResponse)
         assert result.message == "Found"
+
+    def test_parse_pydantic_text_content(self):
+        """Test parsing MCP Pydantic TextContent objects."""
+        content = [
+            MockTextContent(
+                type="text",
+                text=json.dumps({"message": "Pydantic", "count": 99, "items": ["x", "y"]}),
+            )
+        ]
+
+        result = parse_mcp_content(content, SampleResponse)
+
+        assert isinstance(result, SampleResponse)
+        assert result.message == "Pydantic"
+        assert result.count == 99
+        assert result.items == ["x", "y"]
+
+    def test_parse_mixed_dict_and_pydantic_content(self):
+        """Test parsing MCP content with both dicts and Pydantic objects."""
+        content = [
+            {"type": "text", "text": "Not JSON"},
+            MockTextContent(
+                type="text",
+                text=json.dumps({"message": "Mixed", "count": 15}),
+            ),
+        ]
+
+        result = parse_mcp_content(content, SampleResponse)
+
+        assert result.message == "Mixed"
+        assert result.count == 15
+
+    def test_parse_pydantic_empty_text_skipped(self):
+        """Test that empty Pydantic text content is skipped."""
+        content = [
+            MockTextContent(type="text", text=""),
+            MockTextContent(
+                type="text",
+                text=json.dumps({"message": "Skip", "count": 7}),
+            ),
+        ]
+
+        result = parse_mcp_content(content, SampleResponse)
+        assert result.message == "Skip"
 
 
 class TestParseJSONOrText:
