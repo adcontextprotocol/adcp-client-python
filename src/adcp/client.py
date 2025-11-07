@@ -44,7 +44,6 @@ from adcp.types.generated import (
     SyncCreativesResponse,
 )
 from adcp.utils.operation_id import create_operation_id
-from adcp.utils.response_parser import parse_json_or_text, parse_mcp_content
 
 logger = logging.getLogger(__name__)
 
@@ -166,7 +165,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.call_tool("list_creative_formats", params)
+        raw_result = await self.adapter.list_creative_formats(params)
 
         self._emit_activity(
             Activity(
@@ -174,40 +173,13 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="list_creative_formats",
-                status=result.status,
+                status=raw_result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        # Parse response data into structured type
-        if result.success and result.data is not None:
-            try:
-                # Handle MCP content arrays
-                if isinstance(result.data, list):
-                    parsed_data = parse_mcp_content(result.data, ListCreativeFormatsResponse)
-                else:
-                    # Handle A2A or direct responses
-                    parsed_data = parse_json_or_text(result.data, ListCreativeFormatsResponse)
-
-                return TaskResult[ListCreativeFormatsResponse](
-                    status=result.status,
-                    data=parsed_data,
-                    success=result.success,
-                    error=result.error,
-                    metadata=result.metadata,
-                    debug_info=result.debug_info,
-                )
-            except ValueError as e:
-                # Parsing failed - return error result
-                logger.error(f"Failed to parse list_creative_formats response: {e}")
-                return TaskResult[ListCreativeFormatsResponse](
-                    status=TaskStatus.FAILED,
-                    error=f"Failed to parse response: {e}",
-                    success=False,
-                    debug_info=result.debug_info,
-                )
-
-        return result  # type: ignore[return-value]
+        # Parse response using adapter's helper
+        return self.adapter._parse_response(raw_result, ListCreativeFormatsResponse)
 
     async def sync_creatives(
         self,
