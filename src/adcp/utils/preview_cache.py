@@ -80,14 +80,17 @@ class PreviewURLGenerator:
 
             if result.success and result.data and result.data.previews:
                 preview = result.data.previews[0]
+                renders = preview.get("renders", [])
+                first_render = renders[0] if renders else {}
+
                 preview_data = {
-                    "preview_url": preview.get("preview_url"),
+                    "preview_id": preview.get("preview_id"),
+                    "preview_url": first_render.get("preview_url"),
+                    "preview_html": first_render.get("preview_html"),
+                    "render_id": first_render.get("render_id"),
                     "input": preview.get("input", {}),
                     "expires_at": result.data.expires_at,
                 }
-
-                if preview.get("renders"):
-                    preview_data["renders"] = preview["renders"]
 
                 self._preview_cache[cache_key] = preview_data
                 return preview_data
@@ -174,19 +177,13 @@ class PreviewURLGenerator:
                             response = batch_result["response"]
                             if response.get("previews"):
                                 preview = response["previews"][0]
-                                renders = preview.get("renders", [{}])
+                                renders = preview.get("renders", [])
                                 first_render = renders[0] if renders else {}
                                 preview_data = {
-                                    "preview_url": (
-                                        first_render.get("preview_url")
-                                        if preview.get("renders")
-                                        else None
-                                    ),
-                                    "preview_html": (
-                                        first_render.get("preview_html")
-                                        if preview.get("renders")
-                                        else None
-                                    ),
+                                    "preview_id": preview.get("preview_id"),
+                                    "preview_url": first_render.get("preview_url"),
+                                    "preview_html": first_render.get("preview_html"),
+                                    "render_id": first_render.get("render_id"),
                                     "input": preview.get("input", {}),
                                     "expires_at": response.get("expires_at"),
                                 }

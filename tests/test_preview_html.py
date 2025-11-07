@@ -105,7 +105,17 @@ async def test_get_preview_data_for_manifest():
     # Parsed result from _parse_response
     mock_preview_response = PreviewCreativeResponse(
         previews=[
-            {"preview_url": "https://preview.example.com/abc123", "input": {"name": "Desktop"}}
+            {
+                "preview_id": "preview-1",
+                "renders": [
+                    {
+                        "render_id": "render-1",
+                        "preview_url": "https://preview.example.com/abc123",
+                        "preview_html": None,
+                    }
+                ],
+                "input": {"name": "Desktop"},
+            }
         ],
         expires_at="2025-12-01T00:00:00Z",
     )
