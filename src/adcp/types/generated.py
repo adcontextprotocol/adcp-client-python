@@ -32,23 +32,6 @@ ReportingCapabilities = dict[str, Any]
 # CORE DOMAIN TYPES
 # ============================================================================
 
-class FormatId(BaseModel):
-    """Structured format identifier with agent URL and format name"""
-
-    agent_url: str = Field(description="URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)")
-    id: str = Field(description="Format identifier within the agent's namespace (e.g., 'display_300x250', 'video_standard_30s')")
-
-    @field_validator("id")
-    @classmethod
-    def validate_id_pattern(cls, v: str) -> str:
-        """Validate format ID contains only alphanumeric characters, hyphens, and underscores."""
-        if not re.match(r"^[a-zA-Z0-9_-]+$", v):
-            raise ValueError(
-                f"Invalid format ID: {v!r}. Must contain only alphanumeric characters, hyphens, and underscores"
-            )
-        return v
-
-
 class Product(BaseModel):
     """Represents available advertising inventory"""
 
@@ -68,6 +51,8 @@ class Product(BaseModel):
     is_custom: bool | None = Field(None, description="Whether this is a custom product")
     brief_relevance: str | None = Field(None, description="Explanation of why this product matches the brief (only included when brief is provided)")
     expires_at: str | None = Field(None, description="Expiration timestamp for custom products")
+    product_card: dict[str, Any] | None = Field(None, description="Optional standard visual card (300x400px) for displaying this product in user interfaces. Can be rendered via preview_creative or pre-generated.")
+    product_card_detailed: dict[str, Any] | None = Field(None, description="Optional detailed card with carousel and full specifications. Provides rich product presentation similar to media kit pages.")
 
 
 class MediaBuy(BaseModel):
@@ -151,7 +136,7 @@ class Format(BaseModel):
     format_id: FormatId = Field(description="Structured format identifier with agent URL and format name")
     name: str = Field(description="Human-readable format name")
     description: str | None = Field(None, description="Plain text explanation of what this format does and what assets it requires")
-    preview_image: str | None = Field(None, description="Optional preview image URL for format browsing/discovery UI. Should be 400x300px (4:3 aspect ratio) PNG or JPG. Used as thumbnail/card image in format browsers.")
+    preview_image: str | None = Field(None, description="DEPRECATED: Use format_card instead. Optional preview image URL for format browsing/discovery UI. Should be 400x300px (4:3 aspect ratio) PNG or JPG. Used as thumbnail/card image in format browsers. This field is maintained for backward compatibility but format_card provides a more flexible, structured approach.")
     example_url: str | None = Field(None, description="Optional URL to showcase page with examples and interactive demos of this format")
     type: Literal["audio", "video", "display", "native", "dooh", "rich_media", "universal"] = Field(description="Media type of this format - determines rendering method and asset requirements")
     renders: list[dict[str, Any]] | None = Field(None, description="Specification of rendered pieces for this format. Most formats produce a single render. Companion ad formats (video + banner), adaptive formats, and multi-placement formats produce multiple renders. Each render specifies its role and dimensions.")
@@ -159,6 +144,8 @@ class Format(BaseModel):
     delivery: dict[str, Any] | None = Field(None, description="Delivery method specifications (e.g., hosted, VAST, third-party tags)")
     supported_macros: list[str] | None = Field(None, description="List of universal macros supported by this format (e.g., MEDIA_BUY_ID, CACHEBUSTER, DEVICE_ID). Used for validation and developer tooling.")
     output_format_ids: list[FormatId] | None = Field(None, description="For generative formats: array of format IDs that this format can generate. When a format accepts inputs like brand_manifest and message, this specifies what concrete output formats can be produced (e.g., a generative banner format might output standard image banner formats).")
+    format_card: dict[str, Any] | None = Field(None, description="Optional standard visual card (300x400px) for displaying this format in user interfaces. Can be rendered via preview_creative or pre-generated.")
+    format_card_detailed: dict[str, Any] | None = Field(None, description="Optional detailed card with carousel and full specifications. Provides rich format documentation similar to ad spec pages.")
 
 
 class Targeting(BaseModel):
@@ -469,15 +456,6 @@ class ListCreativesRequest(BaseModel):
     fields: list[Literal["creative_id", "name", "format", "status", "created_date", "updated_date", "tags", "assignments", "performance", "sub_assets"]] | None = Field(None, description="Specific fields to include in response (omit for all fields)")
 
 
-class PreviewCreativeRequest(BaseModel):
-    """Request to generate a preview of a creative manifest in a specific format. The creative_manifest should include all assets required by the format (e.g., promoted_offerings for generative formats)."""
-
-    format_id: FormatId = Field(description="Format identifier for rendering the preview")
-    creative_manifest: CreativeManifest = Field(description="Complete creative manifest with all required assets (including promoted_offerings if required by the format)")
-    inputs: list[dict[str, Any]] | None = Field(None, description="Array of input sets for generating multiple preview variants. Each input set defines macros and context values for one preview rendering. If not provided, creative agent will generate default previews.")
-    template_id: str | None = Field(None, description="Specific template ID for custom format rendering")
-
-
 class ProvidePerformanceFeedbackRequest(BaseModel):
     """Request payload for provide_performance_feedback task"""
 
@@ -599,14 +577,6 @@ class ListCreativesResponse(BaseModel):
     status_summary: dict[str, Any] | None = Field(None, description="Breakdown of creatives by status")
 
 
-class PreviewCreativeResponse(BaseModel):
-    """Response containing preview links for a creative. Each preview URL returns an HTML page that can be embedded in an iframe to display the rendered creative."""
-
-    previews: list[dict[str, Any]] = Field(description="Array of preview variants. Each preview corresponds to an input set from the request. If no inputs were provided, returns a single default preview.")
-    interactive_url: str | None = Field(None, description="Optional URL to an interactive testing page that shows all preview variants with controls to switch between them, modify macro values, and test different scenarios.")
-    expires_at: str = Field(description="ISO 8601 timestamp when preview links expire")
-
-
 class ProvidePerformanceFeedbackResponse(BaseModel):
     """Response payload for provide_performance_feedback task"""
 
@@ -630,3 +600,56 @@ class UpdateMediaBuyResponse(BaseModel):
     affected_packages: list[dict[str, Any]] | None = Field(None, description="Array of packages that were modified")
     errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., partial update failures)")
 
+
+
+# ============================================================================
+# CUSTOM IMPLEMENTATIONS (override type aliases from generator)
+# ============================================================================
+# The simple code generator produces type aliases (e.g., PreviewCreativeRequest = Any)
+# for complex schemas that use oneOf. We override them here with proper Pydantic classes
+# to maintain type safety and enable batch API support.
+
+
+class FormatId(BaseModel):
+    """Structured format identifier with agent URL and format name"""
+
+    agent_url: str = Field(description="URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)")
+    id: str = Field(description="Format identifier within the agent's namespace (e.g., 'display_300x250', 'video_standard_30s')")
+
+    @field_validator("id")
+    @classmethod
+    def validate_id_pattern(cls, v: str) -> str:
+        """Validate format ID contains only alphanumeric characters, hyphens, and underscores."""
+        if not re.match(r"^[a-zA-Z0-9_-]+$", v):
+            raise ValueError(
+                f"Invalid format ID: {v!r}. Must contain only alphanumeric characters, hyphens, and underscores"
+            )
+        return v
+
+
+class PreviewCreativeRequest(BaseModel):
+    """Request to generate a preview of a creative manifest. Supports single or batch mode."""
+
+    # Single mode fields
+    format_id: FormatId | None = Field(default=None, description="Format identifier for rendering the preview (single mode)")
+    creative_manifest: CreativeManifest | None = Field(default=None, description="Complete creative manifest with all required assets (single mode)")
+    inputs: list[dict[str, Any]] | None = Field(default=None, description="Array of input sets for generating multiple preview variants")
+    template_id: str | None = Field(default=None, description="Specific template ID for custom format rendering")
+
+    # Batch mode field
+    requests: list[dict[str, Any]] | None = Field(default=None, description="Array of preview requests for batch processing (1-50 items)")
+
+    # Output format (applies to both modes)
+    output_format: Literal["url", "html"] | None = Field(default="url", description="Output format: 'url' for iframe URLs, 'html' for direct embedding")
+
+
+class PreviewCreativeResponse(BaseModel):
+    """Response containing preview links for one or more creatives. Format matches the request: single preview response for single requests, batch results for batch requests."""
+
+    # Single mode fields
+    previews: list[dict[str, Any]] | None = Field(default=None, description="Array of preview variants (single mode)")
+    interactive_url: str | None = Field(default=None, description="Optional URL to interactive testing page (single mode)")
+    expires_at: str | None = Field(default=None, description="ISO 8601 timestamp when preview links expire (single mode)")
+
+    # Batch mode field
+    results: list[dict[str, Any]] | None = Field(default=None, description="Array of preview results for batch processing")

@@ -37,6 +37,8 @@ from adcp.types.generated import (
     ListCreativeFormatsResponse,
     ListCreativesRequest,
     ListCreativesResponse,
+    PreviewCreativeRequest,
+    PreviewCreativeResponse,
     ProvidePerformanceFeedbackRequest,
     ProvidePerformanceFeedbackResponse,
     SyncCreativesRequest,
@@ -101,16 +103,31 @@ class ADCPClient:
     async def get_products(
         self,
         request: GetProductsRequest,
+        fetch_previews: bool = False,
+        preview_output_format: str = "url",
+        creative_agent_client: ADCPClient | None = None,
     ) -> TaskResult[GetProductsResponse]:
         """
         Get advertising products.
 
         Args:
             request: Request parameters
+            fetch_previews: If True, generate preview URLs for each product's formats
+                (uses batch API for 5-10x performance improvement)
+            preview_output_format: "url" for iframe URLs (default), "html" for direct
+                embedding (2-3x faster, no iframe overhead)
+            creative_agent_client: Client for creative agent (required if
+                fetch_previews=True)
 
         Returns:
-            TaskResult containing GetProductsResponse
+            TaskResult containing GetProductsResponse with optional preview URLs in metadata
+
+        Raises:
+            ValueError: If fetch_previews=True but creative_agent_client is not provided
         """
+        if fetch_previews and not creative_agent_client:
+            raise ValueError("creative_agent_client is required when fetch_previews=True")
+
         operation_id = create_operation_id()
         params = request.model_dump(exclude_none=True)
 
@@ -137,20 +154,40 @@ class ADCPClient:
             )
         )
 
-        return self.adapter._parse_response(raw_result, GetProductsResponse)
+        result = self.adapter._parse_response(raw_result, GetProductsResponse)
+
+        if fetch_previews and result.success and result.data and creative_agent_client:
+            from adcp.utils.preview_cache import add_preview_urls_to_products
+
+            products_with_previews = await add_preview_urls_to_products(
+                result.data.products,
+                creative_agent_client,
+                use_batch=True,
+                output_format=preview_output_format,
+            )
+            result.metadata = result.metadata or {}
+            result.metadata["products_with_previews"] = products_with_previews
+
+        return result
 
     async def list_creative_formats(
         self,
         request: ListCreativeFormatsRequest,
+        fetch_previews: bool = False,
+        preview_output_format: str = "url",
     ) -> TaskResult[ListCreativeFormatsResponse]:
         """
         List supported creative formats.
 
         Args:
             request: Request parameters
+            fetch_previews: If True, generate preview URLs for each format using
+                sample manifests (uses batch API for 5-10x performance improvement)
+            preview_output_format: "url" for iframe URLs (default), "html" for direct
+                embedding (2-3x faster, no iframe overhead)
 
         Returns:
-            TaskResult containing ListCreativeFormatsResponse
+            TaskResult containing ListCreativeFormatsResponse with optional preview URLs in metadata
         """
         operation_id = create_operation_id()
         params = request.model_dump(exclude_none=True)
@@ -178,8 +215,62 @@ class ADCPClient:
             )
         )
 
-        # Parse response using adapter's helper
-        return self.adapter._parse_response(raw_result, ListCreativeFormatsResponse)
+        result = self.adapter._parse_response(raw_result, ListCreativeFormatsResponse)
+
+        if fetch_previews and result.success and result.data:
+            from adcp.utils.preview_cache import add_preview_urls_to_formats
+
+            formats_with_previews = await add_preview_urls_to_formats(
+                result.data.formats,
+                self,
+                use_batch=True,
+                output_format=preview_output_format,
+            )
+            result.metadata = result.metadata or {}
+            result.metadata["formats_with_previews"] = formats_with_previews
+
+        return result
+
+    async def preview_creative(
+        self,
+        request: PreviewCreativeRequest,
+    ) -> TaskResult[PreviewCreativeResponse]:
+        """
+        Generate preview of a creative manifest.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing PreviewCreativeResponse with preview URLs
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="preview_creative",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.preview_creative(params)  # type: ignore[attr-defined]
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="preview_creative",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, PreviewCreativeResponse)
 
     async def sync_creatives(
         self,
