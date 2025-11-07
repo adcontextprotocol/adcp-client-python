@@ -126,9 +126,9 @@ class PreviewURLGenerator:
         ]
 
         # Separate cached vs uncached requests
-        uncached_indices = []
-        uncached_requests = []
-        results = [None] * len(requests)
+        uncached_indices: list[int] = []
+        uncached_requests: list[dict[str, Any]] = []
+        results: list[dict[str, Any] | None] = [None] * len(requests)
 
         for idx, (cache_key, (format_id, manifest)) in enumerate(zip(cache_keys, requests)):
             if cache_key in self._preview_cache:
@@ -160,7 +160,7 @@ class PreviewURLGenerator:
 
                 batch_request = PreviewCreativeRequest(
                     requests=chunk_requests,
-                    output_format=output_format,
+                    output_format=output_format,  # type: ignore[arg-type]
                 )
                 result = await self.creative_agent_client.preview_creative(batch_request)
 

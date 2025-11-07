@@ -257,7 +257,7 @@ class ADCPClient:
             )
         )
 
-        raw_result = await self.adapter.preview_creative(params)
+        raw_result = await self.adapter.preview_creative(params)  # type: ignore[attr-defined]
 
         self._emit_activity(
             Activity(

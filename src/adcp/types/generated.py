@@ -456,11 +456,6 @@ class ListCreativesRequest(BaseModel):
     fields: list[Literal["creative_id", "name", "format", "status", "created_date", "updated_date", "tags", "assignments", "performance", "sub_assets"]] | None = Field(None, description="Specific fields to include in response (omit for all fields)")
 
 
-# Type alias for Preview Creative Request
-# Request to generate previews of one or more creative manifests. Accepts either a single creative request or an array of requests for batch processing.
-PreviewCreativeRequest = Any
-
-
 class ProvidePerformanceFeedbackRequest(BaseModel):
     """Request payload for provide_performance_feedback task"""
 
@@ -582,11 +577,6 @@ class ListCreativesResponse(BaseModel):
     status_summary: dict[str, Any] | None = Field(None, description="Breakdown of creatives by status")
 
 
-# Type alias for Preview Creative Response
-# Response containing preview links for one or more creatives. Format matches the request: single preview response for single requests, batch results for batch requests.
-PreviewCreativeResponse = Any
-
-
 class ProvidePerformanceFeedbackResponse(BaseModel):
     """Response payload for provide_performance_feedback task"""
 
@@ -641,25 +631,25 @@ class PreviewCreativeRequest(BaseModel):
     """Request to generate a preview of a creative manifest. Supports single or batch mode."""
 
     # Single mode fields
-    format_id: FormatId | None = Field(None, description="Format identifier for rendering the preview (single mode)")
-    creative_manifest: CreativeManifest | None = Field(None, description="Complete creative manifest with all required assets (single mode)")
-    inputs: list[dict[str, Any]] | None = Field(None, description="Array of input sets for generating multiple preview variants")
-    template_id: str | None = Field(None, description="Specific template ID for custom format rendering")
+    format_id: FormatId | None = Field(default=None, description="Format identifier for rendering the preview (single mode)")
+    creative_manifest: CreativeManifest | None = Field(default=None, description="Complete creative manifest with all required assets (single mode)")
+    inputs: list[dict[str, Any]] | None = Field(default=None, description="Array of input sets for generating multiple preview variants")
+    template_id: str | None = Field(default=None, description="Specific template ID for custom format rendering")
 
     # Batch mode field
-    requests: list[dict[str, Any]] | None = Field(None, description="Array of preview requests for batch processing (1-50 items)")
+    requests: list[dict[str, Any]] | None = Field(default=None, description="Array of preview requests for batch processing (1-50 items)")
 
     # Output format (applies to both modes)
-    output_format: Literal["url", "html"] | None = Field("url", description="Output format: 'url' for iframe URLs, 'html' for direct embedding")
+    output_format: Literal["url", "html"] | None = Field(default="url", description="Output format: 'url' for iframe URLs, 'html' for direct embedding")
 
 
 class PreviewCreativeResponse(BaseModel):
     """Response containing preview links for one or more creatives. Format matches the request: single preview response for single requests, batch results for batch requests."""
 
     # Single mode fields
-    previews: list[dict[str, Any]] | None = Field(None, description="Array of preview variants (single mode)")
-    interactive_url: str | None = Field(None, description="Optional URL to interactive testing page (single mode)")
-    expires_at: str | None = Field(None, description="ISO 8601 timestamp when preview links expire (single mode)")
+    previews: list[dict[str, Any]] | None = Field(default=None, description="Array of preview variants (single mode)")
+    interactive_url: str | None = Field(default=None, description="Optional URL to interactive testing page (single mode)")
+    expires_at: str | None = Field(default=None, description="ISO 8601 timestamp when preview links expire (single mode)")
 
     # Batch mode field
-    results: list[dict[str, Any]] | None = Field(None, description="Array of preview results for batch processing")
+    results: list[dict[str, Any]] | None = Field(default=None, description="Array of preview results for batch processing")
