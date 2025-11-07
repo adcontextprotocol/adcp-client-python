@@ -380,3 +380,110 @@ async def test_list_creative_formats_handles_invalid_response():
         assert result.success is False
         assert result.status == TaskStatus.FAILED
         assert "Failed to parse response" in result.error
+
+
+@pytest.mark.asyncio
+async def test_client_context_manager():
+    """Test that ADCPClient works as an async context manager."""
+    from unittest.mock import AsyncMock, patch
+
+    config = AgentConfig(
+        id="test_agent",
+        agent_uri="https://test.example.com",
+        protocol=Protocol.MCP,
+    )
+
+    # Mock the close method to verify it gets called
+    with patch.object(ADCPClient, "close", new_callable=AsyncMock) as mock_close:
+        async with ADCPClient(config) as client:
+            assert client.agent_config == config
+
+        # Verify close was called on context exit
+        mock_close.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_multi_agent_context_manager():
+    """Test that ADCPMultiAgentClient works as an async context manager."""
+    from unittest.mock import AsyncMock, patch
+
+    agents = [
+        AgentConfig(
+            id="agent1",
+            agent_uri="https://agent1.example.com",
+            protocol=Protocol.A2A,
+        ),
+        AgentConfig(
+            id="agent2",
+            agent_uri="https://agent2.example.com",
+            protocol=Protocol.MCP,
+        ),
+    ]
+
+    # Mock the close method to verify it gets called
+    with patch.object(ADCPMultiAgentClient, "close", new_callable=AsyncMock) as mock_close:
+        async with ADCPMultiAgentClient(agents) as client:
+            assert len(client.agents) == 2
+
+        # Verify close was called on context exit
+        mock_close.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_client_context_manager_with_exception():
+    """Test that ADCPClient properly closes even when an exception occurs."""
+    from unittest.mock import AsyncMock, patch
+
+    config = AgentConfig(
+        id="test_agent",
+        agent_uri="https://test.example.com",
+        protocol=Protocol.MCP,
+    )
+
+    # Mock the close method to verify it gets called
+    with patch.object(ADCPClient, "close", new_callable=AsyncMock) as mock_close:
+        try:
+            async with ADCPClient(config) as client:
+                assert client.agent_config == config
+                raise ValueError("Test exception")
+        except ValueError:
+            pass  # Expected
+
+        # Verify close was called even after exception
+        mock_close.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_multi_agent_close_handles_adapter_failures():
+    """Test that multi-agent close handles individual adapter failures gracefully."""
+    from unittest.mock import AsyncMock, patch
+
+    agents = [
+        AgentConfig(
+            id="agent1",
+            agent_uri="https://agent1.example.com",
+            protocol=Protocol.A2A,
+        ),
+        AgentConfig(
+            id="agent2",
+            agent_uri="https://agent2.example.com",
+            protocol=Protocol.MCP,
+        ),
+    ]
+
+    client = ADCPMultiAgentClient(agents)
+
+    # Mock one adapter to fail during close
+    mock_close_success = AsyncMock()
+    mock_close_failure = AsyncMock(side_effect=RuntimeError("Cleanup error"))
+
+    with (
+        patch.object(client.agents["agent1"].adapter, "close", mock_close_success),
+        patch.object(client.agents["agent2"].adapter, "close", mock_close_failure),
+    ):
+        # Should not raise despite one adapter failing
+        await client.close()
+
+        # Verify both adapters had close called
+        mock_close_success.assert_called_once()
+        mock_close_failure.assert_called_once()

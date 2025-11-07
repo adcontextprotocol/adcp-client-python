@@ -40,6 +40,37 @@ class MCPAdapter(ProtocolAdapter):
         self._session: Any = None
         self._exit_stack: Any = None
 
+    async def _cleanup_failed_connection(self, context: str) -> None:
+        """
+        Clean up resources after a failed connection attempt.
+
+        This method handles cleanup without raising exceptions to avoid
+        masking the original connection error.
+
+        Args:
+            context: Description of the context for logging (e.g., "during connection attempt")
+        """
+        if self._exit_stack is not None:
+            old_stack = self._exit_stack
+            self._exit_stack = None
+            self._session = None
+            try:
+                await old_stack.aclose()
+            except asyncio.CancelledError:
+                logger.debug(f"MCP session cleanup cancelled {context}")
+            except RuntimeError as cleanup_error:
+                # Known anyio task group cleanup issue
+                error_msg = str(cleanup_error).lower()
+                if "cancel scope" in error_msg or "async context" in error_msg:
+                    logger.debug(f"Ignoring anyio cleanup error {context}: {cleanup_error}")
+                else:
+                    logger.warning(f"Unexpected RuntimeError during cleanup {context}: {cleanup_error}")
+            except Exception as cleanup_error:
+                # Log unexpected cleanup errors but don't raise to preserve original error
+                logger.warning(
+                    f"Unexpected error during cleanup {context}: {cleanup_error}", exc_info=True
+                )
+
     async def _get_session(self) -> ClientSession:
         """
         Get or create MCP client session with URL fallback handling.
@@ -115,35 +146,8 @@ class MCPAdapter(ProtocolAdapter):
                     return self._session  # type: ignore[no-any-return]
                 except Exception as e:
                     last_error = e
-                    # Clean up the exit stack on failure to avoid async scope issues
-                    if self._exit_stack is not None:
-                        old_stack = self._exit_stack
-                        self._exit_stack = None  # Clear immediately to prevent reuse
-                        self._session = None
-                        try:
-                            await old_stack.aclose()
-                        except asyncio.CancelledError:
-                            # Expected during shutdown
-                            pass
-                        except RuntimeError as cleanup_error:
-                            # Known MCP SDK async cleanup issue
-                            if (
-                                "async context" in str(cleanup_error).lower()
-                                or "cancel scope" in str(cleanup_error).lower()
-                            ):
-                                logger.debug(
-                                    "Ignoring MCP SDK async context error during cleanup: "
-                                    f"{cleanup_error}"
-                                )
-                            else:
-                                logger.warning(
-                                    f"Unexpected RuntimeError during cleanup: {cleanup_error}"
-                                )
-                        except Exception as cleanup_error:
-                            # Unexpected cleanup errors should be logged
-                            logger.warning(
-                                f"Unexpected error during cleanup: {cleanup_error}", exc_info=True
-                            )
+                    # Clean up the exit stack on failure to avoid resource leaks
+                    await self._cleanup_failed_connection("during connection attempt")
 
                     # If this isn't the last URL to try, create a new exit stack and continue
                     if url != urls_to_try[-1]:
@@ -348,15 +352,5 @@ class MCPAdapter(ProtocolAdapter):
         return [tool.name for tool in result.tools]
 
     async def close(self) -> None:
-        """Close the MCP session."""
-        if self._exit_stack is not None:
-            old_stack = self._exit_stack
-            self._exit_stack = None
-            self._session = None
-            try:
-                await old_stack.aclose()
-            except (asyncio.CancelledError, RuntimeError):
-                # Cleanup errors during shutdown are expected
-                pass
-            except Exception as e:
-                logger.debug(f"Error during MCP session cleanup: {e}")
+        """Close the MCP session and clean up resources."""
+        await self._cleanup_failed_connection("during close")

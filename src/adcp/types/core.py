@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Generic, Literal, TypeVar
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class Protocol(str, Enum):
@@ -125,6 +125,8 @@ class DebugInfo(BaseModel):
 class TaskResult(BaseModel, Generic[T]):
     """Result from task execution."""
 
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     status: TaskStatus
     data: T | None = None
     message: str | None = None  # Human-readable message from agent (e.g., MCP content text)
@@ -134,9 +136,6 @@ class TaskResult(BaseModel, Generic[T]):
     success: bool = Field(default=True)
     metadata: dict[str, Any] | None = None
     debug_info: DebugInfo | None = None
-
-    class Config:
-        arbitrary_types_allowed = True
 
 
 class ActivityType(str, Enum):

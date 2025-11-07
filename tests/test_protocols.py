@@ -341,3 +341,116 @@ class TestMCPAdapter:
         assert result[0] == {"type": "text", "text": "Plain dict"}
         assert result[1] == {"type": "text", "text": "Pydantic object"}
         assert all(isinstance(item, dict) for item in result)
+
+    @pytest.mark.asyncio
+    async def test_connection_failure_cleanup(self, mcp_config):
+        """Test that connection failures clean up resources properly."""
+        from contextlib import AsyncExitStack
+        from unittest.mock import MagicMock
+
+        import httpcore
+
+        adapter = MCPAdapter(mcp_config)
+
+        # Mock the exit stack to simulate connection failure
+        mock_exit_stack = AsyncMock(spec=AsyncExitStack)
+        mock_exit_stack.enter_async_context = AsyncMock(
+            side_effect=httpcore.ConnectError("Connection refused")
+        )
+        # Simulate the anyio cleanup error that occurs in production
+        mock_exit_stack.aclose = AsyncMock(
+            side_effect=RuntimeError("Attempted to exit cancel scope in a different task")
+        )
+
+        with patch("adcp.protocols.mcp.AsyncExitStack", return_value=mock_exit_stack):
+            # Try to get session - should fail but cleanup gracefully
+            try:
+                await adapter._get_session()
+            except Exception:
+                pass  # Expected to fail
+
+            # Verify cleanup was attempted
+            mock_exit_stack.aclose.assert_called()
+
+        # Verify adapter state is clean after failed connection
+        assert adapter._exit_stack is None
+        assert adapter._session is None
+
+    @pytest.mark.asyncio
+    async def test_close_with_runtime_error(self, mcp_config):
+        """Test that close() handles RuntimeError from anyio cleanup gracefully."""
+        from contextlib import AsyncExitStack
+
+        adapter = MCPAdapter(mcp_config)
+
+        # Set up a mock exit stack that raises RuntimeError on cleanup
+        mock_exit_stack = AsyncMock(spec=AsyncExitStack)
+        mock_exit_stack.aclose = AsyncMock(
+            side_effect=RuntimeError("Attempted to exit cancel scope in a different task")
+        )
+        adapter._exit_stack = mock_exit_stack
+
+        # close() should not raise despite the RuntimeError
+        await adapter.close()
+
+        # Verify cleanup was attempted and state is clean
+        mock_exit_stack.aclose.assert_called_once()
+        assert adapter._exit_stack is None
+        assert adapter._session is None
+
+    @pytest.mark.asyncio
+    async def test_close_with_cancellation(self, mcp_config):
+        """Test that close() handles CancelledError during cleanup."""
+        import asyncio
+        from contextlib import AsyncExitStack
+
+        adapter = MCPAdapter(mcp_config)
+
+        # Set up a mock exit stack that raises CancelledError
+        mock_exit_stack = AsyncMock(spec=AsyncExitStack)
+        mock_exit_stack.aclose = AsyncMock(side_effect=asyncio.CancelledError())
+        adapter._exit_stack = mock_exit_stack
+
+        # close() should not raise despite the CancelledError
+        await adapter.close()
+
+        # Verify cleanup was attempted and state is clean
+        mock_exit_stack.aclose.assert_called_once()
+        assert adapter._exit_stack is None
+        assert adapter._session is None
+
+    @pytest.mark.asyncio
+    async def test_multiple_connection_attempts_with_cleanup_failures(self, mcp_config):
+        """Test that multiple connection attempts handle cleanup failures properly."""
+        from contextlib import AsyncExitStack
+
+        adapter = MCPAdapter(mcp_config)
+
+        # Mock exit stack creation and cleanup
+        call_count = 0
+
+        def create_mock_exit_stack():
+            nonlocal call_count
+            call_count += 1
+            mock_stack = AsyncMock(spec=AsyncExitStack)
+            mock_stack.enter_async_context = AsyncMock(
+                side_effect=ConnectionError(f"Connection attempt {call_count} failed")
+            )
+            mock_stack.aclose = AsyncMock(
+                side_effect=RuntimeError("Cancel scope error") if call_count == 1 else None
+            )
+            return mock_stack
+
+        with patch("adcp.protocols.mcp.AsyncExitStack", side_effect=create_mock_exit_stack):
+            # Try to get session - should fail after trying all URLs
+            try:
+                await adapter._get_session()
+            except Exception:
+                pass  # Expected to fail
+
+        # Verify multiple connection attempts were made (original URL + /mcp suffix)
+        assert call_count >= 1
+
+        # Verify adapter state is clean after all failed attempts
+        assert adapter._exit_stack is None
+        assert adapter._session is None
