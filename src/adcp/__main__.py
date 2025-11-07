@@ -80,49 +80,99 @@ async def execute_tool(
         print_result(result, json_output)
 
 
+# Tool dispatch mapping - single source of truth for ADCP methods
+# Types are filled at runtime to avoid circular imports
+TOOL_DISPATCH: dict[str, tuple[str, type | None]] = {
+    "get_products": ("get_products", None),
+    "list_creative_formats": ("list_creative_formats", None),
+    "sync_creatives": ("sync_creatives", None),
+    "list_creatives": ("list_creatives", None),
+    "get_media_buy_delivery": ("get_media_buy_delivery", None),
+    "list_authorized_properties": ("list_authorized_properties", None),
+    "get_signals": ("get_signals", None),
+    "activate_signal": ("activate_signal", None),
+    "provide_performance_feedback": ("provide_performance_feedback", None),
+}
+
+
 async def _dispatch_tool(client: ADCPClient, tool_name: str, payload: dict[str, Any]) -> Any:
-    """Dispatch tool call to appropriate client method."""
+    """Dispatch tool call to appropriate client method.
+
+    Args:
+        client: ADCP client instance
+        tool_name: Name of the tool to invoke
+        payload: Request payload as dict
+
+    Returns:
+        TaskResult with typed response or error
+
+    Raises:
+        ValidationError: If payload doesn't match request schema (caught and returned as TaskResult)
+    """
+    from pydantic import ValidationError
+
     from adcp.types import generated as gen
     from adcp.types.core import TaskResult, TaskStatus
 
-    # Dispatch to specific method based on tool name
-    if tool_name == "get_products":
-        return await client.get_products(gen.GetProductsRequest(**payload))
-    elif tool_name == "list_creative_formats":
-        return await client.list_creative_formats(gen.ListCreativeFormatsRequest(**payload))
-    elif tool_name == "sync_creatives":
-        return await client.sync_creatives(gen.SyncCreativesRequest(**payload))
-    elif tool_name == "list_creatives":
-        return await client.list_creatives(gen.ListCreativesRequest(**payload))
-    elif tool_name == "get_media_buy_delivery":
-        return await client.get_media_buy_delivery(gen.GetMediaBuyDeliveryRequest(**payload))
-    elif tool_name == "list_authorized_properties":
-        return await client.list_authorized_properties(
-            gen.ListAuthorizedPropertiesRequest(**payload)
-        )
-    elif tool_name == "get_signals":
-        return await client.get_signals(gen.GetSignalsRequest(**payload))
-    elif tool_name == "activate_signal":
-        return await client.activate_signal(gen.ActivateSignalRequest(**payload))
-    elif tool_name == "provide_performance_feedback":
-        return await client.provide_performance_feedback(
-            gen.ProvidePerformanceFeedbackRequest(**payload)
-        )
-    else:
-        available_tools = [
-            "get_products",
+    # Lazy initialization of request types (avoid circular imports)
+    if TOOL_DISPATCH["get_products"][1] is None:
+        TOOL_DISPATCH["get_products"] = ("get_products", gen.GetProductsRequest)
+        TOOL_DISPATCH["list_creative_formats"] = (
             "list_creative_formats",
-            "sync_creatives",
-            "list_creatives",
+            gen.ListCreativeFormatsRequest,
+        )
+        TOOL_DISPATCH["sync_creatives"] = ("sync_creatives", gen.SyncCreativesRequest)
+        TOOL_DISPATCH["list_creatives"] = ("list_creatives", gen.ListCreativesRequest)
+        TOOL_DISPATCH["get_media_buy_delivery"] = (
             "get_media_buy_delivery",
+            gen.GetMediaBuyDeliveryRequest,
+        )
+        TOOL_DISPATCH["list_authorized_properties"] = (
             "list_authorized_properties",
-            "get_signals",
-            "activate_signal",
+            gen.ListAuthorizedPropertiesRequest,
+        )
+        TOOL_DISPATCH["get_signals"] = ("get_signals", gen.GetSignalsRequest)
+        TOOL_DISPATCH["activate_signal"] = ("activate_signal", gen.ActivateSignalRequest)
+        TOOL_DISPATCH["provide_performance_feedback"] = (
             "provide_performance_feedback",
-        ]
+            gen.ProvidePerformanceFeedbackRequest,
+        )
+
+    # Check if tool exists
+    if tool_name not in TOOL_DISPATCH:
+        available = ", ".join(sorted(TOOL_DISPATCH.keys()))
         return TaskResult(
             status=TaskStatus.FAILED,
-            error=f"Unknown tool: {tool_name}. Available tools: {', '.join(available_tools)}",
+            error=f"Unknown tool: {tool_name}. Available tools: {available}",
+        )
+
+    # Get method and request type
+    method_name, request_type = TOOL_DISPATCH[tool_name]
+
+    # Type guard - request_type should be initialized by this point
+    if request_type is None:
+        return TaskResult(
+            status=TaskStatus.FAILED,
+            error=f"Internal error: {tool_name} request type not initialized",
+        )
+
+    method = getattr(client, method_name)
+
+    # Validate and invoke
+    try:
+        request = request_type(**payload)
+        return await method(request)
+    except ValidationError as e:
+        # User-friendly error for invalid payloads
+        error_details = []
+        for error in e.errors():
+            field = ".".join(str(loc) for loc in error["loc"])
+            msg = error["msg"]
+            error_details.append(f"  - {field}: {msg}")
+
+        return TaskResult(
+            status=TaskStatus.FAILED,
+            error=f"Invalid request payload for {tool_name}:\n" + "\n".join(error_details),
         )
 
 

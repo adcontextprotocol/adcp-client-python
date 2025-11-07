@@ -43,8 +43,17 @@ class ProtocolAdapter(ABC):
         Returns:
             Typed TaskResult
         """
+        # Handle failed results or missing data
         if not raw_result.success or raw_result.data is None:
-            return raw_result
+            # Explicitly construct typed result to satisfy type checker
+            return TaskResult[T](
+                status=raw_result.status,
+                data=None,
+                success=False,
+                error=raw_result.error or "No data returned from adapter",
+                metadata=raw_result.metadata,
+                debug_info=raw_result.debug_info,
+            )
 
         try:
             # Handle MCP content arrays

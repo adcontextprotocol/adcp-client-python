@@ -64,9 +64,15 @@ def parse_mcp_content(content: list[dict[str, Any]], response_type: type[T]) -> 
                 continue
 
     # If we get here, no content item could be parsed
+    # Include content preview for debugging (first 2 items, max 500 chars each)
+    content_preview = json.dumps(content[:2], indent=2, default=str)
+    if len(content_preview) > 500:
+        content_preview = content_preview[:500] + "..."
+
     raise ValueError(
         f"No valid {response_type.__name__} data found in MCP content. "
-        f"Content types: {[item.get('type') for item in content]}"
+        f"Content types: {[item.get('type') for item in content]}. "
+        f"Content preview:\n{content_preview}"
     )
 
 
