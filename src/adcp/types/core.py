@@ -127,6 +127,7 @@ class TaskResult(BaseModel, Generic[T]):
 
     status: TaskStatus
     data: T | None = None
+    message: str | None = None  # Human-readable message from agent (e.g., MCP content text)
     submitted: SubmittedInfo | None = None
     needs_input: NeedsInputInfo | None = None
     error: str | None = None

@@ -155,13 +155,15 @@ class TestMCPAdapter:
 
     @pytest.mark.asyncio
     async def test_call_tool_success(self, mcp_config):
-        """Test successful tool call via MCP."""
+        """Test successful tool call via MCP with proper structuredContent."""
         adapter = MCPAdapter(mcp_config)
 
         # Mock MCP session
         mock_session = AsyncMock()
         mock_result = MagicMock()
+        # Mock MCP result with structuredContent (required for AdCP)
         mock_result.content = [{"type": "text", "text": "Success"}]
+        mock_result.structuredContent = {"products": [{"id": "prod1"}]}
         mock_session.call_tool.return_value = mock_result
 
         with patch.object(adapter, "_get_session", return_value=mock_session):
@@ -175,10 +177,53 @@ class TestMCPAdapter:
             assert call_args[0][0] == "get_products"
             assert call_args[0][1] == {"brief": "test"}
 
-            # Verify result parsing
+            # Verify result uses structuredContent
             assert result.success is True
             assert result.status == TaskStatus.COMPLETED
-            assert result.data == [{"type": "text", "text": "Success"}]
+            assert result.data == {"products": [{"id": "prod1"}]}
+
+    @pytest.mark.asyncio
+    async def test_call_tool_with_structured_content(self, mcp_config):
+        """Test successful tool call via MCP with structuredContent field."""
+        adapter = MCPAdapter(mcp_config)
+
+        # Mock MCP session
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        # Mock MCP result with structuredContent (preferred over content)
+        mock_result.content = [{"type": "text", "text": "Found 42 creative formats"}]
+        mock_result.structuredContent = {"formats": [{"id": "format1"}, {"id": "format2"}]}
+        mock_session.call_tool.return_value = mock_result
+
+        with patch.object(adapter, "_get_session", return_value=mock_session):
+            result = await adapter._call_mcp_tool("list_creative_formats", {})
+
+            # Verify result uses structuredContent, not content array
+            assert result.success is True
+            assert result.status == TaskStatus.COMPLETED
+            assert result.data == {"formats": [{"id": "format1"}, {"id": "format2"}]}
+            # Verify message extraction from content array
+            assert result.message == "Found 42 creative formats"
+
+    @pytest.mark.asyncio
+    async def test_call_tool_missing_structured_content(self, mcp_config):
+        """Test tool call fails when structuredContent is missing."""
+        adapter = MCPAdapter(mcp_config)
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        # Mock MCP result WITHOUT structuredContent (invalid for AdCP)
+        mock_result.content = [{"type": "text", "text": "Success"}]
+        mock_result.structuredContent = None
+        mock_session.call_tool.return_value = mock_result
+
+        with patch.object(adapter, "_get_session", return_value=mock_session):
+            result = await adapter._call_mcp_tool("get_products", {"brief": "test"})
+
+            # Verify error handling for missing structuredContent
+            assert result.success is False
+            assert result.status == TaskStatus.FAILED
+            assert "did not return structuredContent" in result.error
 
     @pytest.mark.asyncio
     async def test_call_tool_error(self, mcp_config):

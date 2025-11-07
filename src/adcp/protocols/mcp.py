@@ -239,25 +239,48 @@ class MCPAdapter(ProtocolAdapter):
             # Call the tool using MCP client session
             result = await session.call_tool(tool_name, params)
 
-            # Serialize MCP SDK types to plain dicts at protocol boundary
-            serialized_content = self._serialize_mcp_content(result.content)
+            # This SDK requires MCP tools to return structuredContent
+            # The content field may contain human-readable messages but the actual
+            # response data must be in structuredContent
+            if not hasattr(result, "structuredContent") or result.structuredContent is None:
+                raise ValueError(
+                    f"MCP tool {tool_name} did not return structuredContent. "
+                    f"This SDK requires MCP tools to provide structured responses. "
+                    f"Got content: {result.content if hasattr(result, 'content') else 'none'}"
+                )
+
+            # Extract the structured data (required)
+            data_to_return = result.structuredContent
+
+            # Extract human-readable message from content (optional)
+            # This is typically a status message like "Found 42 creative formats"
+            message_text = None
+            if hasattr(result, "content") and result.content:
+                # Serialize content using the same method used for backward compatibility
+                serialized_content = self._serialize_mcp_content(result.content)
+                if isinstance(serialized_content, list):
+                    for item in serialized_content:
+                        if isinstance(item, dict) and item.get("type") == "text" and item.get("text"):
+                            message_text = item["text"]
+                            break
 
             if self.agent_config.debug and start_time:
                 duration_ms = (time.time() - start_time) * 1000
                 debug_info = DebugInfo(
                     request=debug_request,
                     response={
-                        "content": serialized_content,
+                        "data": data_to_return,
+                        "message": message_text,
                         "is_error": result.isError if hasattr(result, "isError") else False,
                     },
                     duration_ms=duration_ms,
                 )
 
-            # MCP tool results contain a list of content items
-            # For AdCP, we expect the data in the content
+            # Return both the structured data and the human-readable message
             return TaskResult[Any](
                 status=TaskStatus.COMPLETED,
-                data=serialized_content,
+                data=data_to_return,
+                message=message_text,
                 success=True,
                 debug_info=debug_info,
             )

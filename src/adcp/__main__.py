@@ -23,37 +23,38 @@ from adcp.types.core import AgentConfig, Protocol
 
 def print_json(data: Any) -> None:
     """Print data as JSON."""
-    print(json.dumps(data, indent=2, default=str))
+    from pydantic import BaseModel
+
+    # Handle Pydantic models
+    if isinstance(data, BaseModel):
+        print(data.model_dump_json(indent=2, exclude_none=True))
+    else:
+        print(json.dumps(data, indent=2, default=str))
 
 
 def print_result(result: Any, json_output: bool = False) -> None:
     """Print result in formatted or JSON mode."""
     if json_output:
-        print_json(
-            {
-                "status": result.status.value,
-                "success": result.success,
-                "data": result.data,
-                "error": result.error,
-                "metadata": result.metadata,
-                "debug_info": (
-                    {
-                        "request": result.debug_info.request,
-                        "response": result.debug_info.response,
-                        "duration_ms": result.debug_info.duration_ms,
-                    }
-                    if result.debug_info
-                    else None
-                ),
-            }
-        )
+        # Match JavaScript client: output just the data for scripting
+        if result.success and result.data:
+            print_json(result.data)
+        else:
+            # On error, output error info
+            print_json({"error": result.error, "success": False})
     else:
-        print(f"\nStatus: {result.status.value}")
+        # Pretty output with message and data (like JavaScript client)
         if result.success:
+            print("\nSUCCESS\n")
+            # Show protocol message if available
+            if hasattr(result, "message") and result.message:
+                print("Protocol Message:")
+                print(result.message)
+                print()
             if result.data:
-                print("\nResult:")
+                print("Response:")
                 print_json(result.data)
         else:
+            print("\nFAILED\n")
             print(f"Error: {result.error}")
 
 

@@ -49,6 +49,7 @@ class ProtocolAdapter(ABC):
             return TaskResult[T](
                 status=raw_result.status,
                 data=None,
+                message=raw_result.message,
                 success=False,
                 error=raw_result.error or "No data returned from adapter",
                 metadata=raw_result.metadata,
@@ -66,6 +67,7 @@ class ProtocolAdapter(ABC):
             return TaskResult[T](
                 status=raw_result.status,
                 data=parsed_data,
+                message=raw_result.message,  # Preserve human-readable message from protocol
                 success=raw_result.success,
                 error=raw_result.error,
                 metadata=raw_result.metadata,
@@ -76,6 +78,7 @@ class ProtocolAdapter(ABC):
             return TaskResult[T](
                 status=TaskStatus.FAILED,
                 error=f"Failed to parse response: {e}",
+                message=raw_result.message,
                 success=False,
                 debug_info=raw_result.debug_info,
             )
