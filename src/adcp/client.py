@@ -37,6 +37,7 @@ from adcp.types.generated import (
     ListCreativeFormatsResponse,
     ListCreativesRequest,
     ListCreativesResponse,
+    PreviewCreativeRequest,
     PreviewCreativeResponse,
     ProvidePerformanceFeedbackRequest,
     ProvidePerformanceFeedbackResponse,
@@ -111,9 +112,12 @@ class ADCPClient:
 
         Args:
             request: Request parameters
-            fetch_previews: If True, generate preview URLs for each product's formats (uses batch API)
-            preview_output_format: "url" for iframe URLs (default), "html" for direct embedding
-            creative_agent_client: Client for creative agent (required if fetch_previews=True)
+            fetch_previews: If True, generate preview URLs for each product's formats
+                (uses batch API for 5-10x performance improvement)
+            preview_output_format: "url" for iframe URLs (default), "html" for direct
+                embedding (2-3x faster, no iframe overhead)
+            creative_agent_client: Client for creative agent (required if
+                fetch_previews=True)
 
         Returns:
             TaskResult containing GetProductsResponse with optional preview URLs in metadata
@@ -177,8 +181,10 @@ class ADCPClient:
 
         Args:
             request: Request parameters
-            fetch_previews: If True, generate preview URLs for each format using sample manifests (uses batch API)
-            preview_output_format: "url" for iframe URLs (default), "html" for direct embedding
+            fetch_previews: If True, generate preview URLs for each format using
+                sample manifests (uses batch API for 5-10x performance improvement)
+            preview_output_format: "url" for iframe URLs (default), "html" for direct
+                embedding (2-3x faster, no iframe overhead)
 
         Returns:
             TaskResult containing ListCreativeFormatsResponse with optional preview URLs in metadata

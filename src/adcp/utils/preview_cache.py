@@ -135,8 +135,13 @@ class PreviewURLGenerator:
                 results[idx] = self._preview_cache[cache_key]
             else:
                 uncached_indices.append(idx)
+                fid_dict = (
+                    format_id.model_dump()
+                    if hasattr(format_id, "model_dump")
+                    else format_id
+                )
                 uncached_requests.append({
-                    "format_id": format_id.model_dump() if hasattr(format_id, "model_dump") else format_id,
+                    "format_id": fid_dict,
                     "creative_manifest": manifest.model_dump(exclude_none=True),
                 })
 
@@ -147,9 +152,9 @@ class PreviewURLGenerator:
         # Make batch API call for uncached items
         try:
             # Batch requests in chunks of 50 (API limit)
-            BATCH_SIZE = 50
-            for chunk_start in range(0, len(uncached_requests), BATCH_SIZE):
-                chunk_end = min(chunk_start + BATCH_SIZE, len(uncached_requests))
+            batch_size = 50
+            for chunk_start in range(0, len(uncached_requests), batch_size):
+                chunk_end = min(chunk_start + batch_size, len(uncached_requests))
                 chunk_requests = uncached_requests[chunk_start:chunk_end]
                 chunk_indices = uncached_indices[chunk_start:chunk_end]
 
@@ -169,9 +174,19 @@ class PreviewURLGenerator:
                             response = batch_result["response"]
                             if response.get("previews"):
                                 preview = response["previews"][0]
+                                renders = preview.get("renders", [{}])
+                                first_render = renders[0] if renders else {}
                                 preview_data = {
-                                    "preview_url": preview.get("renders", [{}])[0].get("preview_url") if preview.get("renders") else None,
-                                    "preview_html": preview.get("renders", [{}])[0].get("preview_html") if preview.get("renders") else None,
+                                    "preview_url": (
+                                        first_render.get("preview_url")
+                                        if preview.get("renders")
+                                        else None
+                                    ),
+                                    "preview_html": (
+                                        first_render.get("preview_html")
+                                        if preview.get("renders")
+                                        else None
+                                    ),
                                     "input": preview.get("input", {}),
                                     "expires_at": response.get("expires_at"),
                                 }
@@ -357,8 +372,11 @@ async def add_preview_urls_to_products(
                     )
                 return (format_id.id, None)
 
-            format_results = await asyncio.gather(*[process_format(fid) for fid in product.format_ids])
-            format_previews = {fid: data for fid, data in format_results if data is not None}
+            format_tasks = [process_format(fid) for fid in product.format_ids]
+            format_results = await asyncio.gather(*format_tasks)
+            format_previews = {
+                fid: data for fid, data in format_results if data is not None
+            }
 
             if format_previews:
                 product_dict["format_previews"] = format_previews
