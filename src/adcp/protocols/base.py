@@ -75,78 +75,70 @@ class ProtocolAdapter(ABC):
 
     # ========================================================================
     # ADCP Protocol Methods - Type-safe, spec-aligned interface
+    # Each adapter MUST implement these methods explicitly.
     # ========================================================================
 
+    @abstractmethod
     async def get_products(
         self, params: dict[str, Any]
     ) -> TaskResult[Any]:
         """Get advertising products."""
-        return await self.call_tool("get_products", params)
+        pass
 
+    @abstractmethod
     async def list_creative_formats(
         self, params: dict[str, Any]
     ) -> TaskResult[Any]:
         """List supported creative formats."""
-        return await self.call_tool("list_creative_formats", params)
+        pass
 
+    @abstractmethod
     async def sync_creatives(
         self, params: dict[str, Any]
     ) -> TaskResult[Any]:
         """Sync creatives."""
-        return await self.call_tool("sync_creatives", params)
+        pass
 
+    @abstractmethod
     async def list_creatives(
         self, params: dict[str, Any]
     ) -> TaskResult[Any]:
         """List creatives."""
-        return await self.call_tool("list_creatives", params)
+        pass
 
+    @abstractmethod
     async def get_media_buy_delivery(
         self, params: dict[str, Any]
     ) -> TaskResult[Any]:
         """Get media buy delivery."""
-        return await self.call_tool("get_media_buy_delivery", params)
+        pass
 
+    @abstractmethod
     async def list_authorized_properties(
         self, params: dict[str, Any]
     ) -> TaskResult[Any]:
         """List authorized properties."""
-        return await self.call_tool("list_authorized_properties", params)
+        pass
 
+    @abstractmethod
     async def get_signals(
         self, params: dict[str, Any]
     ) -> TaskResult[Any]:
         """Get signals."""
-        return await self.call_tool("get_signals", params)
+        pass
 
+    @abstractmethod
     async def activate_signal(
         self, params: dict[str, Any]
     ) -> TaskResult[Any]:
         """Activate signal."""
-        return await self.call_tool("activate_signal", params)
+        pass
 
+    @abstractmethod
     async def provide_performance_feedback(
         self, params: dict[str, Any]
     ) -> TaskResult[Any]:
         """Provide performance feedback."""
-        return await self.call_tool("provide_performance_feedback", params)
-
-    # ========================================================================
-    # Generic call_tool for custom/future tools
-    # ========================================================================
-
-    @abstractmethod
-    async def call_tool(self, tool_name: str, params: dict[str, Any]) -> TaskResult[Any]:
-        """
-        Call a generic tool on the agent (for custom tools not in ADCP spec).
-
-        Args:
-            tool_name: Name of the tool to call
-            params: Tool parameters
-
-        Returns:
-            TaskResult with the response
-        """
         pass
 
     @abstractmethod

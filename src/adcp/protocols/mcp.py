@@ -187,7 +187,7 @@ class MCPAdapter(ProtocolAdapter):
         else:
             raise ValueError(f"Unsupported transport scheme: {parsed.scheme}")
 
-    async def call_tool(self, tool_name: str, params: dict[str, Any]) -> TaskResult[Any]:
+    async def _call_mcp_tool(self, tool_name: str, params: dict[str, Any]) -> TaskResult[Any]:
         """Call a tool using MCP protocol."""
         start_time = time.time() if self.agent_config.debug else None
         debug_info = None
@@ -240,6 +240,46 @@ class MCPAdapter(ProtocolAdapter):
                 success=False,
                 debug_info=debug_info,
             )
+
+    # ========================================================================
+    # ADCP Protocol Methods
+    # ========================================================================
+
+    async def get_products(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Get advertising products."""
+        return await self._call_mcp_tool("get_products", params)
+
+    async def list_creative_formats(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """List supported creative formats."""
+        return await self._call_mcp_tool("list_creative_formats", params)
+
+    async def sync_creatives(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Sync creatives."""
+        return await self._call_mcp_tool("sync_creatives", params)
+
+    async def list_creatives(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """List creatives."""
+        return await self._call_mcp_tool("list_creatives", params)
+
+    async def get_media_buy_delivery(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Get media buy delivery."""
+        return await self._call_mcp_tool("get_media_buy_delivery", params)
+
+    async def list_authorized_properties(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """List authorized properties."""
+        return await self._call_mcp_tool("list_authorized_properties", params)
+
+    async def get_signals(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Get signals."""
+        return await self._call_mcp_tool("get_signals", params)
+
+    async def activate_signal(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Activate signal."""
+        return await self._call_mcp_tool("activate_signal", params)
+
+    async def provide_performance_feedback(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Provide performance feedback."""
+        return await self._call_mcp_tool("provide_performance_feedback", params)
 
     async def list_tools(self) -> list[str]:
         """List available tools from MCP agent."""

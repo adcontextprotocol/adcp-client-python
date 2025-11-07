@@ -86,19 +86,19 @@ async def test_get_products():
 
     client = ADCPClient(config)
 
-    # Mock the adapter's call_tool method
+    # Mock the adapter's get_products method
     mock_result = TaskResult(
         status=TaskStatus.COMPLETED,
         data={"products": [{"id": "prod_1", "name": "Test Product"}]},
         success=True,
     )
 
-    with patch.object(client.adapter, "call_tool", return_value=mock_result) as mock_call:
+    with patch.object(client.adapter, "get_products", return_value=mock_result) as mock_call:
         request = GetProductsRequest(brief="test campaign")
         result = await client.get_products(request)
 
-        # Verify correct tool name is called
-        mock_call.assert_called_once_with("get_products", {"brief": "test campaign"})
+        # Verify method is called with correct params
+        mock_call.assert_called_once_with({"brief": "test campaign"})
         assert result.success is True
         assert result.status == TaskStatus.COMPLETED
         assert "products" in result.data
@@ -151,10 +151,10 @@ async def test_all_client_methods():
 )
 @pytest.mark.asyncio
 async def test_method_calls_correct_tool_name(method_name, request_class, request_data):
-    """Test that each method calls adapter.call_tool with the correct tool name.
+    """Test that each method calls the correct adapter method.
 
-    This test prevents copy-paste bugs where method bodies are copied but
-    tool names aren't updated to match the method name.
+    This test ensures client methods call the matching adapter method
+    (e.g., client.get_products calls adapter.get_products).
     """
     from unittest.mock import patch
     from adcp.types.core import TaskResult, TaskStatus
@@ -178,17 +178,13 @@ async def test_method_calls_correct_tool_name(method_name, request_class, reques
         success=True,
     )
 
-    with patch.object(client.adapter, "call_tool", return_value=mock_result) as mock_call:
+    # Mock the specific adapter method (not call_tool)
+    with patch.object(client.adapter, method_name, return_value=mock_result) as mock_method:
         method = getattr(client, method_name)
         await method(request)
 
-        # CRITICAL: Verify the tool name matches the method name
-        mock_call.assert_called_once()
-        actual_tool_name = mock_call.call_args[0][0]
-        assert actual_tool_name == method_name, (
-            f"Method {method_name} called tool '{actual_tool_name}' instead of '{method_name}'. "
-            f"This is likely a copy-paste bug."
-        )
+        # Verify adapter method was called
+        mock_method.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -221,16 +217,16 @@ async def test_multi_agent_parallel_execution():
 
     # Mock both agents' adapters - keep context active during execution
     with patch.object(
-        client.agents["agent1"].adapter, "call_tool", return_value=mock_result
+        client.agents["agent1"].adapter, "get_products", return_value=mock_result
     ) as mock1, patch.object(
-        client.agents["agent2"].adapter, "call_tool", return_value=mock_result
+        client.agents["agent2"].adapter, "get_products", return_value=mock_result
     ) as mock2:
         request = GetProductsRequest(brief="test")
         results = await client.get_products(request)
 
-        # Verify both agents were called with correct tool name
-        mock1.assert_called_once_with("get_products", {"brief": "test"})
-        mock2.assert_called_once_with("get_products", {"brief": "test"})
+        # Verify both agents' get_products method was called
+        mock1.assert_called_once_with({"brief": "test"})
+        mock2.assert_called_once_with({"brief": "test"})
 
         # Verify results from both agents
         assert len(results) == 2
@@ -281,7 +277,7 @@ async def test_list_creative_formats_parses_mcp_response():
         success=True,
     )
 
-    with patch.object(client.adapter, "call_tool", return_value=mock_result):
+    with patch.object(client.adapter, "list_creative_formats", return_value=mock_result):
         request = ListCreativeFormatsRequest()
         result = await client.list_creative_formats(request)
 
@@ -328,7 +324,7 @@ async def test_list_creative_formats_parses_a2a_response():
         success=True,
     )
 
-    with patch.object(client.adapter, "call_tool", return_value=mock_result):
+    with patch.object(client.adapter, "list_creative_formats", return_value=mock_result):
         request = ListCreativeFormatsRequest()
         result = await client.list_creative_formats(request)
 
@@ -361,7 +357,7 @@ async def test_list_creative_formats_handles_invalid_response():
         success=True,
     )
 
-    with patch.object(client.adapter, "call_tool", return_value=mock_result):
+    with patch.object(client.adapter, "list_creative_formats", return_value=mock_result):
         request = ListCreativeFormatsRequest()
         result = await client.list_creative_formats(request)
 

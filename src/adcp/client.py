@@ -124,7 +124,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.call_tool("get_products", params)
+        result = await self.adapter.get_products(params)
 
         self._emit_activity(
             Activity(
@@ -207,7 +207,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.call_tool("sync_creatives", params)
+        result = await self.adapter.sync_creatives(params)
 
         self._emit_activity(
             Activity(
@@ -248,7 +248,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.call_tool("list_creatives", params)
+        result = await self.adapter.list_creatives(params)
 
         self._emit_activity(
             Activity(
@@ -289,7 +289,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.call_tool("get_media_buy_delivery", params)
+        result = await self.adapter.get_media_buy_delivery(params)
 
         self._emit_activity(
             Activity(
@@ -330,7 +330,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.call_tool("list_authorized_properties", params)
+        result = await self.adapter.list_authorized_properties(params)
 
         self._emit_activity(
             Activity(
@@ -371,7 +371,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.call_tool("get_signals", params)
+        result = await self.adapter.get_signals(params)
 
         self._emit_activity(
             Activity(
@@ -412,7 +412,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.call_tool("activate_signal", params)
+        result = await self.adapter.activate_signal(params)
 
         self._emit_activity(
             Activity(
@@ -453,7 +453,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.call_tool("provide_performance_feedback", params)
+        result = await self.adapter.provide_performance_feedback(params)
 
         self._emit_activity(
             Activity(
@@ -461,44 +461,6 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="provide_performance_feedback",
-                status=result.status,
-                timestamp=datetime.now(timezone.utc).isoformat(),
-            )
-        )
-
-        return result
-
-    async def call_tool(self, tool_name: str, params: dict[str, Any]) -> TaskResult[Any]:
-        """
-        Call any tool on the agent.
-
-        Args:
-            tool_name: Name of the tool to call
-            params: Tool parameters
-
-        Returns:
-            TaskResult with the response
-        """
-        operation_id = create_operation_id()
-
-        self._emit_activity(
-            Activity(
-                type=ActivityType.PROTOCOL_REQUEST,
-                operation_id=operation_id,
-                agent_id=self.agent_config.id,
-                task_type=tool_name,
-                timestamp=datetime.now(timezone.utc).isoformat(),
-            )
-        )
-
-        result = await self.adapter.call_tool(tool_name, params)
-
-        self._emit_activity(
-            Activity(
-                type=ActivityType.PROTOCOL_RESPONSE,
-                operation_id=operation_id,
-                agent_id=self.agent_config.id,
-                task_type=tool_name,
                 status=result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
