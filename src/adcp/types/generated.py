@@ -11,9 +11,10 @@ To regenerate:
 
 from __future__ import annotations
 
+import re
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ============================================================================
@@ -42,9 +43,18 @@ class FormatId(BaseModel):
         description="URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)"
     )
     id: str = Field(
-        pattern="^[a-zA-Z0-9_-]+$",
         description="Format identifier within the agent's namespace (e.g., 'display_300x250', 'video_standard_30s')"
     )
+
+    @field_validator('id')
+    @classmethod
+    def validate_id_pattern(cls, v: str) -> str:
+        """Validate format ID contains only alphanumeric characters, hyphens, and underscores."""
+        if not re.match(r'^[a-zA-Z0-9_-]+$', v):
+            raise ValueError(
+                f'Invalid format ID: {v!r}. Must contain only alphanumeric characters, hyphens, and underscores'
+            )
+        return v
 
 
 # ============================================================================

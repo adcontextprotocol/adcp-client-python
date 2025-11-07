@@ -124,7 +124,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.get_products(params)
+        raw_result = await self.adapter.get_products(params)
 
         self._emit_activity(
             Activity(
@@ -132,12 +132,12 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="get_products",
-                status=result.status,
+                status=raw_result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        return result
+        return self.adapter._parse_response(raw_result, GetProductsResponse)
 
     async def list_creative_formats(
         self,
@@ -207,7 +207,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.sync_creatives(params)
+        raw_result = await self.adapter.sync_creatives(params)
 
         self._emit_activity(
             Activity(
@@ -215,12 +215,12 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="sync_creatives",
-                status=result.status,
+                status=raw_result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        return result
+        return self.adapter._parse_response(raw_result, SyncCreativesResponse)
 
     async def list_creatives(
         self,
@@ -248,7 +248,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.list_creatives(params)
+        raw_result = await self.adapter.list_creatives(params)
 
         self._emit_activity(
             Activity(
@@ -256,12 +256,12 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="list_creatives",
-                status=result.status,
+                status=raw_result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        return result
+        return self.adapter._parse_response(raw_result, ListCreativesResponse)
 
     async def get_media_buy_delivery(
         self,
@@ -289,7 +289,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.get_media_buy_delivery(params)
+        raw_result = await self.adapter.get_media_buy_delivery(params)
 
         self._emit_activity(
             Activity(
@@ -297,12 +297,12 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="get_media_buy_delivery",
-                status=result.status,
+                status=raw_result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        return result
+        return self.adapter._parse_response(raw_result, GetMediaBuyDeliveryResponse)
 
     async def list_authorized_properties(
         self,
@@ -330,7 +330,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.list_authorized_properties(params)
+        raw_result = await self.adapter.list_authorized_properties(params)
 
         self._emit_activity(
             Activity(
@@ -338,12 +338,12 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="list_authorized_properties",
-                status=result.status,
+                status=raw_result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        return result
+        return self.adapter._parse_response(raw_result, ListAuthorizedPropertiesResponse)
 
     async def get_signals(
         self,
@@ -371,7 +371,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.get_signals(params)
+        raw_result = await self.adapter.get_signals(params)
 
         self._emit_activity(
             Activity(
@@ -379,12 +379,12 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="get_signals",
-                status=result.status,
+                status=raw_result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        return result
+        return self.adapter._parse_response(raw_result, GetSignalsResponse)
 
     async def activate_signal(
         self,
@@ -412,7 +412,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.activate_signal(params)
+        raw_result = await self.adapter.activate_signal(params)
 
         self._emit_activity(
             Activity(
@@ -420,12 +420,12 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="activate_signal",
-                status=result.status,
+                status=raw_result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        return result
+        return self.adapter._parse_response(raw_result, ActivateSignalResponse)
 
     async def provide_performance_feedback(
         self,
@@ -453,7 +453,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.provide_performance_feedback(params)
+        raw_result = await self.adapter.provide_performance_feedback(params)
 
         self._emit_activity(
             Activity(
@@ -461,12 +461,12 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="provide_performance_feedback",
-                status=result.status,
+                status=raw_result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        return result
+        return self.adapter._parse_response(raw_result, ProvidePerformanceFeedbackResponse)
 
     async def list_tools(self) -> list[str]:
         """

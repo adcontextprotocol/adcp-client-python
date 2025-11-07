@@ -74,9 +74,9 @@ def test_webhook_url_generation():
 @pytest.mark.asyncio
 async def test_get_products():
     """Test get_products method with mock adapter."""
-    from unittest.mock import AsyncMock, patch
+    from unittest.mock import MagicMock, patch
     from adcp.types.core import TaskResult, TaskStatus
-    from adcp.types.generated import GetProductsRequest
+    from adcp.types.generated import GetProductsRequest, GetProductsResponse
 
     config = AgentConfig(
         id="test_agent",
@@ -86,22 +86,32 @@ async def test_get_products():
 
     client = ADCPClient(config)
 
-    # Mock the adapter's get_products method
-    mock_result = TaskResult(
+    # Mock both the adapter method and parsing
+    mock_raw_result = TaskResult(
         status=TaskStatus.COMPLETED,
-        data={"products": [{"id": "prod_1", "name": "Test Product"}]},
+        data={"products": []},  # Simple data for adapter
         success=True,
     )
 
-    with patch.object(client.adapter, "get_products", return_value=mock_result) as mock_call:
+    mock_parsed_result = TaskResult[GetProductsResponse](
+        status=TaskStatus.COMPLETED,
+        data=GetProductsResponse(products=[]),  # Properly typed result
+        success=True,
+    )
+
+    with patch.object(client.adapter, "get_products", return_value=mock_raw_result) as mock_get, \
+         patch.object(client.adapter, "_parse_response", return_value=mock_parsed_result) as mock_parse:
         request = GetProductsRequest(brief="test campaign")
         result = await client.get_products(request)
 
-        # Verify method is called with correct params
-        mock_call.assert_called_once_with({"brief": "test campaign"})
+        # Verify adapter method was called
+        mock_get.assert_called_once_with({"brief": "test campaign"})
+        # Verify parsing was called with correct type
+        mock_parse.assert_called_once_with(mock_raw_result, GetProductsResponse)
+        # Verify final result
         assert result.success is True
         assert result.status == TaskStatus.COMPLETED
-        assert "products" in result.data
+        assert isinstance(result.data, GetProductsResponse)
 
 
 @pytest.mark.asyncio
