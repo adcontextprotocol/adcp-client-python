@@ -235,3 +235,128 @@ async def test_multi_agent_parallel_execution():
         # Verify results from both agents
         assert len(results) == 2
         assert all(r.success for r in results)
+
+
+@pytest.mark.asyncio
+async def test_list_creative_formats_parses_mcp_response():
+    """Test that list_creative_formats parses MCP content array into structured response."""
+    import json
+    from unittest.mock import patch
+    from adcp.types.core import TaskResult, TaskStatus
+    from adcp.types.generated import ListCreativeFormatsRequest, ListCreativeFormatsResponse
+
+    config = AgentConfig(
+        id="creative_agent",
+        agent_uri="https://creative.example.com",
+        protocol=Protocol.MCP,
+    )
+
+    client = ADCPClient(config)
+
+    # Mock MCP response with content array containing JSON
+    formats_data = {
+        "formats": [
+            {
+                "format_id": "https://creative.example.com#banner_300x250",
+                "name": "Medium Rectangle",
+                "type": "display",
+            },
+            {
+                "format_id": "https://creative.example.com#video_16x9",
+                "name": "Video 16:9",
+                "type": "video",
+            },
+        ]
+    }
+
+    mock_result = TaskResult(
+        status=TaskStatus.COMPLETED,
+        data=[{"type": "text", "text": json.dumps(formats_data)}],  # MCP content array
+        success=True,
+    )
+
+    with patch.object(client.adapter, "call_tool", return_value=mock_result):
+        request = ListCreativeFormatsRequest()
+        result = await client.list_creative_formats(request)
+
+        # Verify response is parsed into structured type
+        assert result.success is True
+        assert isinstance(result.data, ListCreativeFormatsResponse)
+        assert len(result.data.formats) == 2
+        assert result.data.formats[0].name == "Medium Rectangle"
+        assert result.data.formats[1].name == "Video 16:9"
+
+
+@pytest.mark.asyncio
+async def test_list_creative_formats_parses_a2a_response():
+    """Test that list_creative_formats parses A2A dict response into structured response."""
+    from unittest.mock import patch
+    from adcp.types.core import TaskResult, TaskStatus
+    from adcp.types.generated import ListCreativeFormatsRequest, ListCreativeFormatsResponse
+
+    config = AgentConfig(
+        id="creative_agent",
+        agent_uri="https://creative.example.com",
+        protocol=Protocol.A2A,
+    )
+
+    client = ADCPClient(config)
+
+    # Mock A2A response with direct dict data
+    formats_data = {
+        "formats": [
+            {
+                "format_id": "https://creative.example.com#native_feed",
+                "name": "Native Feed Ad",
+                "type": "native",
+            }
+        ]
+    }
+
+    mock_result = TaskResult(
+        status=TaskStatus.COMPLETED,
+        data=formats_data,  # Direct dict from A2A
+        success=True,
+    )
+
+    with patch.object(client.adapter, "call_tool", return_value=mock_result):
+        request = ListCreativeFormatsRequest()
+        result = await client.list_creative_formats(request)
+
+        # Verify response is parsed into structured type
+        assert result.success is True
+        assert isinstance(result.data, ListCreativeFormatsResponse)
+        assert len(result.data.formats) == 1
+        assert result.data.formats[0].name == "Native Feed Ad"
+
+
+@pytest.mark.asyncio
+async def test_list_creative_formats_handles_invalid_response():
+    """Test that list_creative_formats handles invalid response gracefully."""
+    from unittest.mock import patch
+    from adcp.types.core import TaskResult, TaskStatus
+    from adcp.types.generated import ListCreativeFormatsRequest
+
+    config = AgentConfig(
+        id="creative_agent",
+        agent_uri="https://creative.example.com",
+        protocol=Protocol.MCP,
+    )
+
+    client = ADCPClient(config)
+
+    # Mock invalid response (text instead of structured data)
+    mock_result = TaskResult(
+        status=TaskStatus.COMPLETED,
+        data=[{"type": "text", "text": "Found 42 creative formats"}],  # Invalid: not JSON
+        success=True,
+    )
+
+    with patch.object(client.adapter, "call_tool", return_value=mock_result):
+        request = ListCreativeFormatsRequest()
+        result = await client.list_creative_formats(request)
+
+        # Verify error is returned
+        assert result.success is False
+        assert result.status == TaskStatus.FAILED
+        assert "Failed to parse response" in result.error

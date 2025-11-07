@@ -26,6 +26,7 @@ except ImportError:
 from adcp.exceptions import ADCPConnectionError, ADCPTimeoutError
 from adcp.protocols.base import ProtocolAdapter
 from adcp.types.core import DebugInfo, TaskResult, TaskStatus
+from adcp.utils.response_parser import parse_mcp_content
 
 
 class MCPAdapter(ProtocolAdapter):
