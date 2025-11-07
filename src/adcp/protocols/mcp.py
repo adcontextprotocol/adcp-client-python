@@ -260,7 +260,8 @@ class MCPAdapter(ProtocolAdapter):
                 serialized_content = self._serialize_mcp_content(result.content)
                 if isinstance(serialized_content, list):
                     for item in serialized_content:
-                        if isinstance(item, dict) and item.get("type") == "text" and item.get("text"):
+                        is_text = isinstance(item, dict) and item.get("type") == "text"
+                        if is_text and item.get("text"):
                             message_text = item["text"]
                             break
 
