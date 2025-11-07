@@ -64,7 +64,9 @@ class MCPAdapter(ProtocolAdapter):
                 if "cancel scope" in error_msg or "async context" in error_msg:
                     logger.debug(f"Ignoring anyio cleanup error {context}: {cleanup_error}")
                 else:
-                    logger.warning(f"Unexpected RuntimeError during cleanup {context}: {cleanup_error}")
+                    logger.warning(
+                        f"Unexpected RuntimeError during cleanup {context}: {cleanup_error}"
+                    )
             except Exception as cleanup_error:
                 # Log unexpected cleanup errors but don't raise to preserve original error
                 logger.warning(
