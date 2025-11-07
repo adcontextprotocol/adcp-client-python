@@ -23,32 +23,33 @@ async def main():
         auth_token="your-token-here",  # Optional
     )
 
-    # Create client
-    client = ADCPClient(
+    # Use context manager for automatic resource cleanup
+    async with ADCPClient(
         config,
         webhook_url_template="https://myapp.com/webhook/{task_type}/{agent_id}/{operation_id}",
         on_activity=lambda activity: print(f"[{activity.type}] {activity.task_type}"),
-    )
+    ) as client:
+        # Call get_products
+        print("Fetching products...")
+        result = await client.get_products(brief="Coffee brands targeting millennials")
 
-    # Call get_products
-    print("Fetching products...")
-    result = await client.get_products(brief="Coffee brands targeting millennials")
+        # Handle result
+        if result.status == "completed":
+            print(f"✅ Sync completion: Got {len(result.data.get('products', []))} products")
+            for product in result.data.get("products", []):
+                print(f"  - {product.get('name')}: {product.get('description')}")
 
-    # Handle result
-    if result.status == "completed":
-        print(f"✅ Sync completion: Got {len(result.data.get('products', []))} products")
-        for product in result.data.get("products", []):
-            print(f"  - {product.get('name')}: {product.get('description')}")
+        elif result.status == "submitted":
+            print(f"⏳ Async: Webhook will be sent to {result.submitted.webhook_url}")
+            print(f"   Operation ID: {result.submitted.operation_id}")
 
-    elif result.status == "submitted":
-        print(f"⏳ Async: Webhook will be sent to {result.submitted.webhook_url}")
-        print(f"   Operation ID: {result.submitted.operation_id}")
+        elif result.status == "needs_input":
+            print(f"❓ Agent needs clarification: {result.needs_input.message}")
 
-    elif result.status == "needs_input":
-        print(f"❓ Agent needs clarification: {result.needs_input.message}")
+        elif result.status == "failed":
+            print(f"❌ Error: {result.error}")
 
-    elif result.status == "failed":
-        print(f"❌ Error: {result.error}")
+    # Connection automatically closed here
 
 
 if __name__ == "__main__":

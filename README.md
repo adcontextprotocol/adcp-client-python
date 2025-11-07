@@ -175,29 +175,48 @@ uvx adcp --debug myagent get_products '{"brief":"TV ads"}'
 
 ### Resource Management
 
-Use async context managers to ensure proper cleanup of connections:
+**Why use async context managers?**
+- Ensures HTTP connections are properly closed, preventing resource leaks
+- Handles cleanup even when exceptions occur
+- Required for production applications with connection pooling
+- Prevents issues with async task group cleanup in MCP protocol
+
+The recommended pattern uses async context managers:
 
 ```python
+from adcp import ADCPClient, AgentConfig, GetProductsRequest
+
 # Recommended: Automatic cleanup with context manager
-async with ADCPClient(agent_config) as client:
+config = AgentConfig(id="agent_x", agent_uri="https://...", protocol="a2a")
+async with ADCPClient(config) as client:
+    request = GetProductsRequest(brief="Coffee brands")
     result = await client.get_products(request)
     # Connection automatically closed on exit
 
 # Multi-agent client also supports context managers
 async with ADCPMultiAgentClient(agents) as client:
+    # Execute across all agents in parallel
     results = await client.get_products(request)
-    # All agent connections closed automatically
+    # All agent connections closed automatically (even if some failed)
 ```
 
-Manual cleanup is also available if needed:
+Manual cleanup is available for special cases (e.g., managing client lifecycle manually):
 
 ```python
-client = ADCPClient(agent_config)
+# Use manual cleanup when you need fine-grained control over lifecycle
+client = ADCPClient(config)
 try:
     result = await client.get_products(request)
 finally:
     await client.close()  # Explicit cleanup
 ```
+
+**When to use manual cleanup:**
+- Managing client lifecycle across multiple functions
+- Testing scenarios requiring explicit control
+- Integration with frameworks that manage resources differently
+
+In most cases, prefer the context manager pattern.
 
 ### Error Handling
 
