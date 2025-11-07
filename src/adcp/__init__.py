@@ -46,7 +46,7 @@ from adcp.types.generated import (
     UpdateMediaBuyResponse,
 )
 
-__version__ = "1.0.5"
+__version__ = "1.1.0"
 
 __all__ = [
     # Client classes
