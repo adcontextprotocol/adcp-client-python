@@ -37,7 +37,7 @@ def make_format_id(id_str: str) -> FormatId:
 @pytest.mark.asyncio
 async def test_preview_creative():
     """Test preview_creative method."""
-    from adcp.types.tasks import PreviewCreativeRequest
+    from adcp.types.generated import PreviewCreativeRequest
 
     config = AgentConfig(
         id="creative_agent",
