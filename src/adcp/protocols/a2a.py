@@ -244,6 +244,10 @@ class A2AAdapter(ProtocolAdapter):
         """Provide performance feedback."""
         return await self._call_a2a_tool("provide_performance_feedback", params)
 
+    async def preview_creative(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Generate preview URLs for a creative manifest."""
+        return await self._call_a2a_tool("preview_creative", params)
+
     async def list_tools(self) -> list[str]:
         """
         List available tools from A2A agent.

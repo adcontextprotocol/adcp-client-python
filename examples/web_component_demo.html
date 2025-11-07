@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADCP Python Client - Preview URL Demo</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 40px;
+        }
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 4px;
+        }
+        .info-box h3 {
+            margin-top: 0;
+            color: #1976D2;
+        }
+        .info-box code {
+            background: #fff;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+        .grid-item {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .grid-item:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .grid-item-header {
+            background: #f5f5f5;
+            padding: 12px 16px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .grid-item-header h4 {
+            margin: 0;
+            font-size: 14px;
+            color: #333;
+        }
+        .grid-item-header p {
+            margin: 4px 0 0 0;
+            font-size: 12px;
+            color: #666;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+        }
+        rendered-creative {
+            width: 100%;
+            height: 400px;
+            display: block;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .error {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            color: #c62828;
+        }
+        .code-example {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+        .code-example pre {
+            margin: 0;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <h1>ADCP Python Client - Preview URL Demo</h1>
+    <p class="subtitle">Creative format previews using the <code>&lt;rendered-creative&gt;</code> web component</p>
+
+    <div class="info-box">
+        <h3>How This Works</h3>
+        <p>This demo shows creative format previews fetched using the ADCP Python client:</p>
+        <ol>
+            <li>The <code>fetch_preview_urls.py</code> script connects to the creative agent</li>
+            <li>It calls <code>list_creative_formats(fetch_preview_urls=True)</code></li>
+            <li>The Python client generates preview URLs for each format</li>
+            <li>This page loads those URLs using the <code>&lt;rendered-creative&gt;</code> web component</li>
+        </ol>
+        <p><strong>Note:</strong> Run <code>python examples/fetch_preview_urls.py</code> first to generate preview URLs.</p>
+    </div>
+
+    <div id="status" class="loading">Loading preview URLs...</div>
+    <div id="grid" class="grid"></div>
+
+    <h2>Python Code</h2>
+    <div class="code-example">
+        <pre>from adcp import ADCPClient
+from adcp.types import AgentConfig, Protocol
+from adcp.types.generated import ListCreativeFormatsRequest
+
+creative_agent = ADCPClient(
+    AgentConfig(
+        id="creative_agent",
+        agent_uri="https://creative.adcontextprotocol.org",
+        protocol=Protocol.MCP,
+    )
+)
+
+# Fetch formats with preview URLs
+result = await creative_agent.list_creative_formats(
+    ListCreativeFormatsRequest(),
+    fetch_preview_urls=True
+)
+
+# Access preview data from metadata
+formats_with_previews = result.metadata["formats_with_previews"]
+for fmt in formats_with_previews:
+    preview_url = fmt["preview_data"]["preview_url"]
+    print(f"Preview: {preview_url}")</pre>
+    </div>
+
+    <h2>HTML Code</h2>
+    <div class="code-example">
+        <pre>&lt;!-- Include the web component --&gt;
+&lt;script src="https://creative.adcontextprotocol.org/static/rendered-creative.js"&gt;&lt;/script&gt;
+
+&lt;!-- Render in a grid --&gt;
+&lt;div class="grid"&gt;
+    &lt;rendered-creative
+        src="{{preview_url}}"
+        width="300"
+        height="400"
+        lazy="true"&gt;
+    &lt;/rendered-creative&gt;
+&lt;/div&gt;</pre>
+    </div>
+
+    <!-- Load the web component -->
+    <script src="https://creative.adcontextprotocol.org/static/rendered-creative.js"></script>
+
+    <!-- Load and display preview URLs -->
+    <script>
+        async function loadPreviews() {
+            const statusDiv = document.getElementById('status');
+            const gridDiv = document.getElementById('grid');
+
+            try {
+                // Load preview URLs from JSON file
+                const response = await fetch('preview_urls.json');
+                if (!response.ok) {
+                    throw new Error('Preview URLs file not found. Run fetch_preview_urls.py first!');
+                }
+
+                const previews = await response.json();
+
+                if (previews.length === 0) {
+                    statusDiv.className = 'error';
+                    statusDiv.innerHTML = '❌ No preview URLs found. Run <code>python examples/fetch_preview_urls.py</code> to generate them.';
+                    return;
+                }
+
+                // Remove loading message
+                statusDiv.style.display = 'none';
+
+                // Create grid items
+                previews.forEach(preview => {
+                    const gridItem = document.createElement('div');
+                    gridItem.className = 'grid-item';
+
+                    const header = document.createElement('div');
+                    header.className = 'grid-item-header';
+
+                    const title = document.createElement('h4');
+                    title.textContent = preview.name;
+
+                    const formatId = document.createElement('p');
+                    formatId.textContent = preview.format_id;
+
+                    header.appendChild(title);
+                    header.appendChild(formatId);
+
+                    const creative = document.createElement('rendered-creative');
+                    creative.setAttribute('src', preview.preview_url);
+                    creative.setAttribute('width', preview.width || 300);
+                    creative.setAttribute('height', preview.height || 400);
+                    creative.setAttribute('lazy', 'true');
+
+                    gridItem.appendChild(header);
+                    gridItem.appendChild(creative);
+                    gridDiv.appendChild(gridItem);
+                });
+
+                console.log(`✅ Loaded ${previews.length} preview URLs`);
+
+            } catch (error) {
+                statusDiv.className = 'error';
+                statusDiv.innerHTML = `
+                    <strong>Error loading previews:</strong> ${error.message}
+                    <br><br>
+                    <strong>To fix:</strong>
+                    <ol>
+                        <li>Run: <code>python examples/fetch_preview_urls.py</code></li>
+                        <li>Start a local web server: <code>python -m http.server 8000</code></li>
+                        <li>Open: <code>http://localhost:8000/examples/web_component_demo.html</code></li>
+                    </ol>
+                `;
+            }
+        }
+
+        // Load previews when page loads
+        loadPreviews();
+    </script>
+</body>
+</html>
