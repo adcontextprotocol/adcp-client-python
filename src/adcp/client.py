@@ -41,6 +41,7 @@ from adcp.types.generated import (
     ProvidePerformanceFeedbackResponse,
     SyncCreativesRequest,
     SyncCreativesResponse,
+    WebhookPayload,
 )
 from adcp.utils.operation_id import create_operation_id
 
@@ -123,7 +124,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.call_tool("get_products", params)
+        raw_result = await self.adapter.get_products(params)
 
         self._emit_activity(
             Activity(
@@ -131,12 +132,12 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="get_products",
-                status=result.status,
+                status=raw_result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        return result
+        return self.adapter._parse_response(raw_result, GetProductsResponse)
 
     async def list_creative_formats(
         self,
@@ -164,7 +165,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.call_tool("list_creative_formats", params)
+        raw_result = await self.adapter.list_creative_formats(params)
 
         self._emit_activity(
             Activity(
@@ -172,12 +173,13 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="list_creative_formats",
-                status=result.status,
+                status=raw_result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        return result
+        # Parse response using adapter's helper
+        return self.adapter._parse_response(raw_result, ListCreativeFormatsResponse)
 
     async def sync_creatives(
         self,
@@ -205,7 +207,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.call_tool("sync_creatives", params)
+        raw_result = await self.adapter.sync_creatives(params)
 
         self._emit_activity(
             Activity(
@@ -213,12 +215,12 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="sync_creatives",
-                status=result.status,
+                status=raw_result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        return result
+        return self.adapter._parse_response(raw_result, SyncCreativesResponse)
 
     async def list_creatives(
         self,
@@ -246,7 +248,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.call_tool("list_creatives", params)
+        raw_result = await self.adapter.list_creatives(params)
 
         self._emit_activity(
             Activity(
@@ -254,12 +256,12 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="list_creatives",
-                status=result.status,
+                status=raw_result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        return result
+        return self.adapter._parse_response(raw_result, ListCreativesResponse)
 
     async def get_media_buy_delivery(
         self,
@@ -287,7 +289,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.call_tool("get_media_buy_delivery", params)
+        raw_result = await self.adapter.get_media_buy_delivery(params)
 
         self._emit_activity(
             Activity(
@@ -295,12 +297,12 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="get_media_buy_delivery",
-                status=result.status,
+                status=raw_result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        return result
+        return self.adapter._parse_response(raw_result, GetMediaBuyDeliveryResponse)
 
     async def list_authorized_properties(
         self,
@@ -328,7 +330,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.call_tool("list_authorized_properties", params)
+        raw_result = await self.adapter.list_authorized_properties(params)
 
         self._emit_activity(
             Activity(
@@ -336,12 +338,12 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="list_authorized_properties",
-                status=result.status,
+                status=raw_result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        return result
+        return self.adapter._parse_response(raw_result, ListAuthorizedPropertiesResponse)
 
     async def get_signals(
         self,
@@ -369,7 +371,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.call_tool("get_signals", params)
+        raw_result = await self.adapter.get_signals(params)
 
         self._emit_activity(
             Activity(
@@ -377,12 +379,12 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="get_signals",
-                status=result.status,
+                status=raw_result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        return result
+        return self.adapter._parse_response(raw_result, GetSignalsResponse)
 
     async def activate_signal(
         self,
@@ -410,7 +412,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.call_tool("activate_signal", params)
+        raw_result = await self.adapter.activate_signal(params)
 
         self._emit_activity(
             Activity(
@@ -418,12 +420,12 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="activate_signal",
-                status=result.status,
+                status=raw_result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        return result
+        return self.adapter._parse_response(raw_result, ActivateSignalResponse)
 
     async def provide_performance_feedback(
         self,
@@ -451,7 +453,7 @@ class ADCPClient:
             )
         )
 
-        result = await self.adapter.call_tool("provide_performance_feedback", params)
+        raw_result = await self.adapter.provide_performance_feedback(params)
 
         self._emit_activity(
             Activity(
@@ -459,50 +461,12 @@ class ADCPClient:
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
                 task_type="provide_performance_feedback",
-                status=result.status,
+                status=raw_result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        return result
-
-    async def call_tool(self, tool_name: str, params: dict[str, Any]) -> TaskResult[Any]:
-        """
-        Call any tool on the agent.
-
-        Args:
-            tool_name: Name of the tool to call
-            params: Tool parameters
-
-        Returns:
-            TaskResult with the response
-        """
-        operation_id = create_operation_id()
-
-        self._emit_activity(
-            Activity(
-                type=ActivityType.PROTOCOL_REQUEST,
-                operation_id=operation_id,
-                agent_id=self.agent_config.id,
-                task_type=tool_name,
-                timestamp=datetime.now(timezone.utc).isoformat(),
-            )
-        )
-
-        result = await self.adapter.call_tool(tool_name, params)
-
-        self._emit_activity(
-            Activity(
-                type=ActivityType.PROTOCOL_RESPONSE,
-                operation_id=operation_id,
-                agent_id=self.agent_config.id,
-                task_type=tool_name,
-                status=result.status,
-                timestamp=datetime.now(timezone.utc).isoformat(),
-            )
-        )
-
-        return result
+        return self.adapter._parse_response(raw_result, ProvidePerformanceFeedbackResponse)
 
     async def list_tools(self) -> list[str]:
         """
@@ -548,40 +512,131 @@ class ADCPClient:
 
         return hmac.compare_digest(signature, expected_signature)
 
+    def _parse_webhook_result(self, webhook: WebhookPayload) -> TaskResult[Any]:
+        """
+        Parse webhook payload into typed TaskResult based on task_type.
+
+        Args:
+            webhook: Validated webhook payload
+
+        Returns:
+            TaskResult with task-specific typed response data
+        """
+        from adcp.types.core import TaskStatus
+        from adcp.utils.response_parser import parse_json_or_text
+
+        # Map task types to their response types (using string literals, not enum)
+        response_type_map: dict[str, type] = {
+            "get_products": GetProductsResponse,
+            "list_creative_formats": ListCreativeFormatsResponse,
+            "sync_creatives": SyncCreativesResponse,
+            "list_creatives": ListCreativesResponse,
+            "get_media_buy_delivery": GetMediaBuyDeliveryResponse,
+            "list_authorized_properties": ListAuthorizedPropertiesResponse,
+            "get_signals": GetSignalsResponse,
+            "activate_signal": ActivateSignalResponse,
+            "provide_performance_feedback": ProvidePerformanceFeedbackResponse,
+        }
+
+        # Handle completed tasks with result parsing
+
+        if webhook.status == "completed" and webhook.result is not None:
+            response_type = response_type_map.get(webhook.task_type)
+            if response_type:
+                try:
+                    parsed_result: Any = parse_json_or_text(webhook.result, response_type)
+                    return TaskResult[Any](
+                        status=TaskStatus.COMPLETED,
+                        data=parsed_result,
+                        success=True,
+                        metadata={
+                            "task_id": webhook.task_id,
+                            "operation_id": webhook.operation_id,
+                            "timestamp": webhook.timestamp,
+                            "message": webhook.message,
+                        },
+                    )
+                except ValueError as e:
+                    logger.warning(f"Failed to parse webhook result: {e}")
+                    # Fall through to untyped result
+
+        # Handle failed, input-required, or unparseable results
+        # Convert webhook status string to TaskStatus enum
+        try:
+            task_status = TaskStatus(webhook.status)
+        except ValueError:
+            # Fallback to FAILED for unknown statuses
+            task_status = TaskStatus.FAILED
+
+        return TaskResult[Any](
+            status=task_status,
+            data=webhook.result,
+            success=webhook.status == "completed",
+            error=webhook.error if isinstance(webhook.error, str) else None,
+            metadata={
+                "task_id": webhook.task_id,
+                "operation_id": webhook.operation_id,
+                "timestamp": webhook.timestamp,
+                "message": webhook.message,
+                "context_id": webhook.context_id,
+                "progress": webhook.progress,
+            },
+        )
+
     async def handle_webhook(
         self,
         payload: dict[str, Any],
         signature: str | None = None,
-    ) -> None:
+    ) -> TaskResult[Any]:
         """
-        Handle incoming webhook.
+        Handle incoming webhook and return typed result.
+
+        This method:
+        1. Verifies webhook signature (if provided)
+        2. Validates payload against WebhookPayload schema
+        3. Parses task-specific result data into typed response
+        4. Emits activity for monitoring
 
         Args:
-            payload: Webhook payload
-            signature: Webhook signature for verification
+            payload: Webhook payload dict
+            signature: Optional HMAC-SHA256 signature for verification
+
+        Returns:
+            TaskResult with parsed task-specific response data
 
         Raises:
             ADCPWebhookSignatureError: If signature verification fails
+            ValidationError: If payload doesn't match WebhookPayload schema
+
+        Example:
+            >>> result = await client.handle_webhook(payload, signature)
+            >>> if result.success and isinstance(result.data, GetProductsResponse):
+            >>>     print(f"Found {len(result.data.products)} products")
         """
+        # Verify signature before processing
         if signature and not self._verify_webhook_signature(payload, signature):
             logger.warning(
                 f"Webhook signature verification failed for agent {self.agent_config.id}"
             )
             raise ADCPWebhookSignatureError("Invalid webhook signature")
 
-        operation_id = payload.get("operation_id", "unknown")
-        task_type = payload.get("task_type", "unknown")
+        # Validate and parse webhook payload
+        webhook = WebhookPayload.model_validate(payload)
 
+        # Emit activity for monitoring
         self._emit_activity(
             Activity(
                 type=ActivityType.WEBHOOK_RECEIVED,
-                operation_id=operation_id,
+                operation_id=webhook.operation_id or "unknown",
                 agent_id=self.agent_config.id,
-                task_type=task_type,
+                task_type=webhook.task_type,
                 timestamp=datetime.now(timezone.utc).isoformat(),
                 metadata={"payload": payload},
             )
         )
+
+        # Parse and return typed result
+        return self._parse_webhook_result(webhook)
 
 
 class ADCPMultiAgentClient:

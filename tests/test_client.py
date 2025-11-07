@@ -1,6 +1,7 @@
 """Tests for ADCPClient."""
 
 import pytest
+
 from adcp import ADCPClient, ADCPMultiAgentClient
 from adcp.types import AgentConfig, Protocol
 
@@ -74,9 +75,10 @@ def test_webhook_url_generation():
 @pytest.mark.asyncio
 async def test_get_products():
     """Test get_products method with mock adapter."""
-    from unittest.mock import AsyncMock, patch
+    from unittest.mock import patch
+
     from adcp.types.core import TaskResult, TaskStatus
-    from adcp.types.generated import GetProductsRequest
+    from adcp.types.generated import GetProductsRequest, GetProductsResponse
 
     config = AgentConfig(
         id="test_agent",
@@ -86,22 +88,36 @@ async def test_get_products():
 
     client = ADCPClient(config)
 
-    # Mock the adapter's call_tool method
-    mock_result = TaskResult(
+    # Mock both the adapter method and parsing
+    mock_raw_result = TaskResult(
         status=TaskStatus.COMPLETED,
-        data={"products": [{"id": "prod_1", "name": "Test Product"}]},
+        data={"products": []},  # Simple data for adapter
         success=True,
     )
 
-    with patch.object(client.adapter, "call_tool", return_value=mock_result) as mock_call:
+    mock_parsed_result = TaskResult[GetProductsResponse](
+        status=TaskStatus.COMPLETED,
+        data=GetProductsResponse(products=[]),  # Properly typed result
+        success=True,
+    )
+
+    with (
+        patch.object(client.adapter, "get_products", return_value=mock_raw_result) as mock_get,
+        patch.object(
+            client.adapter, "_parse_response", return_value=mock_parsed_result
+        ) as mock_parse,
+    ):
         request = GetProductsRequest(brief="test campaign")
         result = await client.get_products(request)
 
-        # Verify correct tool name is called
-        mock_call.assert_called_once_with("get_products", {"brief": "test campaign"})
+        # Verify adapter method was called
+        mock_get.assert_called_once_with({"brief": "test campaign"})
+        # Verify parsing was called with correct type
+        mock_parse.assert_called_once_with(mock_raw_result, GetProductsResponse)
+        # Verify final result
         assert result.success is True
         assert result.status == TaskStatus.COMPLETED
-        assert "products" in result.data
+        assert isinstance(result.data, GetProductsResponse)
 
 
 @pytest.mark.asyncio
@@ -151,14 +167,15 @@ async def test_all_client_methods():
 )
 @pytest.mark.asyncio
 async def test_method_calls_correct_tool_name(method_name, request_class, request_data):
-    """Test that each method calls adapter.call_tool with the correct tool name.
+    """Test that each method calls the correct adapter method.
 
-    This test prevents copy-paste bugs where method bodies are copied but
-    tool names aren't updated to match the method name.
+    This test ensures client methods call the matching adapter method
+    (e.g., client.get_products calls adapter.get_products).
     """
     from unittest.mock import patch
-    from adcp.types.core import TaskResult, TaskStatus
+
     import adcp.types.generated as gen
+    from adcp.types.core import TaskResult, TaskStatus
 
     config = AgentConfig(
         id="test_agent",
@@ -178,23 +195,20 @@ async def test_method_calls_correct_tool_name(method_name, request_class, reques
         success=True,
     )
 
-    with patch.object(client.adapter, "call_tool", return_value=mock_result) as mock_call:
+    # Mock the specific adapter method (not call_tool)
+    with patch.object(client.adapter, method_name, return_value=mock_result) as mock_method:
         method = getattr(client, method_name)
         await method(request)
 
-        # CRITICAL: Verify the tool name matches the method name
-        mock_call.assert_called_once()
-        actual_tool_name = mock_call.call_args[0][0]
-        assert actual_tool_name == method_name, (
-            f"Method {method_name} called tool '{actual_tool_name}' instead of '{method_name}'. "
-            f"This is likely a copy-paste bug."
-        )
+        # Verify adapter method was called
+        mock_method.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_multi_agent_parallel_execution():
     """Test parallel execution across multiple agents."""
     from unittest.mock import patch
+
     from adcp.types.core import TaskResult, TaskStatus
     from adcp.types.generated import GetProductsRequest
 
@@ -220,18 +234,149 @@ async def test_multi_agent_parallel_execution():
     )
 
     # Mock both agents' adapters - keep context active during execution
-    with patch.object(
-        client.agents["agent1"].adapter, "call_tool", return_value=mock_result
-    ) as mock1, patch.object(
-        client.agents["agent2"].adapter, "call_tool", return_value=mock_result
-    ) as mock2:
+    with (
+        patch.object(
+            client.agents["agent1"].adapter, "get_products", return_value=mock_result
+        ) as mock1,
+        patch.object(
+            client.agents["agent2"].adapter, "get_products", return_value=mock_result
+        ) as mock2,
+    ):
         request = GetProductsRequest(brief="test")
         results = await client.get_products(request)
 
-        # Verify both agents were called with correct tool name
-        mock1.assert_called_once_with("get_products", {"brief": "test"})
-        mock2.assert_called_once_with("get_products", {"brief": "test"})
+        # Verify both agents' get_products method was called
+        mock1.assert_called_once_with({"brief": "test"})
+        mock2.assert_called_once_with({"brief": "test"})
 
         # Verify results from both agents
         assert len(results) == 2
         assert all(r.success for r in results)
+
+
+@pytest.mark.asyncio
+async def test_list_creative_formats_parses_mcp_response():
+    """Test that list_creative_formats parses MCP content array into structured response."""
+    import json
+    from unittest.mock import patch
+
+    from adcp.types.core import TaskResult, TaskStatus
+    from adcp.types.generated import ListCreativeFormatsRequest, ListCreativeFormatsResponse
+
+    config = AgentConfig(
+        id="creative_agent",
+        agent_uri="https://creative.example.com",
+        protocol=Protocol.MCP,
+    )
+
+    client = ADCPClient(config)
+
+    # Mock MCP response with content array containing JSON
+    formats_data = {
+        "formats": [
+            {
+                "format_id": {"agent_url": "https://creative.example.com", "id": "banner_300x250"},
+                "name": "Medium Rectangle",
+                "type": "display",
+            },
+            {
+                "format_id": {"agent_url": "https://creative.example.com", "id": "video_16x9"},
+                "name": "Video 16:9",
+                "type": "video",
+            },
+        ]
+    }
+
+    mock_result = TaskResult(
+        status=TaskStatus.COMPLETED,
+        data=[{"type": "text", "text": json.dumps(formats_data)}],  # MCP content array
+        success=True,
+    )
+
+    with patch.object(client.adapter, "list_creative_formats", return_value=mock_result):
+        request = ListCreativeFormatsRequest()
+        result = await client.list_creative_formats(request)
+
+        # Verify response is parsed into structured type
+        assert result.success is True
+        assert isinstance(result.data, ListCreativeFormatsResponse)
+        assert len(result.data.formats) == 2
+        assert result.data.formats[0].name == "Medium Rectangle"
+        assert result.data.formats[1].name == "Video 16:9"
+
+
+@pytest.mark.asyncio
+async def test_list_creative_formats_parses_a2a_response():
+    """Test that list_creative_formats parses A2A dict response into structured response."""
+    from unittest.mock import patch
+
+    from adcp.types.core import TaskResult, TaskStatus
+    from adcp.types.generated import ListCreativeFormatsRequest, ListCreativeFormatsResponse
+
+    config = AgentConfig(
+        id="creative_agent",
+        agent_uri="https://creative.example.com",
+        protocol=Protocol.A2A,
+    )
+
+    client = ADCPClient(config)
+
+    # Mock A2A response with direct dict data
+    formats_data = {
+        "formats": [
+            {
+                "format_id": {"agent_url": "https://creative.example.com", "id": "native_feed"},
+                "name": "Native Feed Ad",
+                "type": "native",
+            }
+        ]
+    }
+
+    mock_result = TaskResult(
+        status=TaskStatus.COMPLETED,
+        data=formats_data,  # Direct dict from A2A
+        success=True,
+    )
+
+    with patch.object(client.adapter, "list_creative_formats", return_value=mock_result):
+        request = ListCreativeFormatsRequest()
+        result = await client.list_creative_formats(request)
+
+        # Verify response is parsed into structured type
+        assert result.success is True
+        assert isinstance(result.data, ListCreativeFormatsResponse)
+        assert len(result.data.formats) == 1
+        assert result.data.formats[0].name == "Native Feed Ad"
+
+
+@pytest.mark.asyncio
+async def test_list_creative_formats_handles_invalid_response():
+    """Test that list_creative_formats handles invalid response gracefully."""
+    from unittest.mock import patch
+
+    from adcp.types.core import TaskResult, TaskStatus
+    from adcp.types.generated import ListCreativeFormatsRequest
+
+    config = AgentConfig(
+        id="creative_agent",
+        agent_uri="https://creative.example.com",
+        protocol=Protocol.MCP,
+    )
+
+    client = ADCPClient(config)
+
+    # Mock invalid response (text instead of structured data)
+    mock_result = TaskResult(
+        status=TaskStatus.COMPLETED,
+        data=[{"type": "text", "text": "Found 42 creative formats"}],  # Invalid: not JSON
+        success=True,
+    )
+
+    with patch.object(client.adapter, "list_creative_formats", return_value=mock_result):
+        request = ListCreativeFormatsRequest()
+        result = await client.list_creative_formats(request)
+
+        # Verify error is returned
+        assert result.success is False
+        assert result.status == TaskStatus.FAILED
+        assert "Failed to parse response" in result.error

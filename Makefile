@@ -17,9 +17,9 @@ help: ## Show this help message
 install-dev: ## Install package in development mode with dev dependencies
 	$(PIP) install -e ".[dev]"
 
-format: ## Format code with black
+format: ## Format code with black (excludes generated files)
 	$(BLACK) src/ tests/ scripts/
-	@echo "✓ Code formatted successfully"
+	@echo "✓ Code formatted successfully (generated.py excluded via pyproject.toml)"
 
 lint: ## Run linter (ruff) on source code
 	$(RUFF) check src/ tests/

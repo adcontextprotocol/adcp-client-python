@@ -1,7 +1,8 @@
 """Tests for protocol adapters."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.mcp import MCPAdapter
@@ -53,7 +54,7 @@ class TestA2AAdapter:
         mock_client.post = AsyncMock(return_value=mock_http_response)
 
         with patch.object(adapter, "_get_client", return_value=mock_client):
-            result = await adapter.call_tool("get_products", {"brief": "test"})
+            result = await adapter._call_a2a_tool("get_products", {"brief": "test"})
 
             # Verify the adapter logic - check HTTP request details
             mock_client.post.assert_called_once()
@@ -96,7 +97,7 @@ class TestA2AAdapter:
         mock_client.post = AsyncMock(return_value=mock_http_response)
 
         with patch.object(adapter, "_get_client", return_value=mock_client):
-            result = await adapter.call_tool("get_products", {"brief": "test"})
+            result = await adapter._call_a2a_tool("get_products", {"brief": "test"})
 
             # Verify HTTP request was made with correct parameters
             mock_client.post.assert_called_once()
@@ -164,7 +165,7 @@ class TestMCPAdapter:
         mock_session.call_tool.return_value = mock_result
 
         with patch.object(adapter, "_get_session", return_value=mock_session):
-            result = await adapter.call_tool("get_products", {"brief": "test"})
+            result = await adapter._call_mcp_tool("get_products", {"brief": "test"})
 
             # Verify MCP protocol details - tool name and arguments
             mock_session.call_tool.assert_called_once()
@@ -188,7 +189,7 @@ class TestMCPAdapter:
         mock_session.call_tool.side_effect = Exception("Connection failed")
 
         with patch.object(adapter, "_get_session", return_value=mock_session):
-            result = await adapter.call_tool("get_products", {"brief": "test"})
+            result = await adapter._call_mcp_tool("get_products", {"brief": "test"})
 
             # Verify call_tool was attempted with correct parameters (positional args)
             mock_session.call_tool.assert_called_once()

@@ -54,9 +54,7 @@ class TestPayloadLoading:
 
     def test_load_payload_from_file(self):
         """Test loading payload from file."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump({"test": "data"}, f)
             temp_path = Path(f.name)
 
@@ -85,11 +83,13 @@ class TestPayloadLoading:
 
     def test_load_payload_complex_structure(self):
         """Test loading complex nested structure."""
-        payload = json.dumps({
-            "brief": "Test campaign",
-            "nested": {"key": "value"},
-            "array": [1, 2, 3],
-        })
+        payload = json.dumps(
+            {
+                "brief": "Test campaign",
+                "nested": {"key": "value"},
+                "array": [1, 2, 3],
+            }
+        )
         result = load_payload(payload)
         assert result["brief"] == "Test campaign"
         assert result["nested"]["key"] == "value"
@@ -107,11 +107,13 @@ class TestAgentResolution:
 
     def test_resolve_json_config(self):
         """Test resolving agent from JSON string."""
-        json_config = json.dumps({
-            "id": "test",
-            "agent_uri": "https://test.com",
-            "protocol": "a2a",
-        })
+        json_config = json.dumps(
+            {
+                "id": "test",
+                "agent_uri": "https://test.com",
+                "protocol": "a2a",
+            }
+        )
         config = resolve_agent_config(json_config)
         assert config["id"] == "test"
         assert config["protocol"] == "a2a"
@@ -133,6 +135,7 @@ class TestAgentResolution:
 
         # Monkey-patch CONFIG_FILE
         import adcp.config
+
         monkeypatch.setattr(adcp.config, "CONFIG_FILE", config_file)
 
         config = resolve_agent_config("myagent")
@@ -153,6 +156,7 @@ class TestConfigurationManagement:
         config_file.write_text(json.dumps({"agents": {}}))
 
         import adcp.config
+
         monkeypatch.setattr(adcp.config, "CONFIG_FILE", config_file)
 
         # Save agent
@@ -185,6 +189,7 @@ class TestConfigurationManagement:
         config_file.write_text(json.dumps(config_data))
 
         import adcp.config
+
         monkeypatch.setattr(adcp.config, "CONFIG_FILE", config_file)
 
         # Set environment variable to override config file location for subprocess
@@ -251,7 +256,6 @@ class TestCLIErrorHandling:
 
 class TestCLIIntegration:
     """Integration tests for CLI (with mocked network calls)."""
-
 
 
 class TestSpecialCharactersInPayload:

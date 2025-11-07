@@ -95,6 +95,50 @@ async def _get_client(self) -> httpx.AsyncClient:
     return self._client
 ```
 
+**Format Definition Caching (Production Consideration)**
+
+Creative formats rarely change, so production implementations should cache format definitions to avoid redundant `list_creative_formats` calls:
+
+```python
+from functools import lru_cache
+
+# Option 1: Simple LRU cache for format lookups
+@lru_cache(maxsize=100)
+async def get_format_definition(agent_url: str, format_id: str) -> Format:
+    """Cached format definition lookup."""
+    agent = get_agent_for_url(agent_url)
+    result = await agent.list_creative_formats()
+    for fmt in result.data.formats:
+        if fmt.format_id.id == format_id:
+            return fmt
+    raise ValueError(f"Format not found: {format_id}")
+
+# Option 2: TTL-based cache with periodic refresh
+class FormatCache:
+    def __init__(self, ttl_seconds: int = 3600):
+        self._cache: dict[tuple[str, str], tuple[Format, float]] = {}
+        self._ttl = ttl_seconds
+
+    async def get_format(self, agent_url: str, format_id: str) -> Format:
+        """Get format with TTL-based caching."""
+        key = (agent_url, format_id)
+        if key in self._cache:
+            fmt, timestamp = self._cache[key]
+            if time.time() - timestamp < self._ttl:
+                return fmt
+
+        # Cache miss or expired - fetch fresh
+        fmt = await self._fetch_format(agent_url, format_id)
+        self._cache[key] = (fmt, time.time())
+        return fmt
+```
+
+**Cache Invalidation Strategies:**
+1. **TTL-based** (recommended): Formats rarely change, 1-hour TTL is reasonable
+2. **Version-based**: Use format version in ID (e.g., `banner_300x250_v2`)
+3. **ETags**: Check `Last-Modified` headers if agents support it
+4. **Explicit invalidation**: Clear cache when format changes detected
+
 ## Common Pitfalls to Avoid
 
 **String Escaping in Code Generation**
