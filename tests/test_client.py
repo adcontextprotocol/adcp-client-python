@@ -257,12 +257,18 @@ async def test_list_creative_formats_parses_mcp_response():
     formats_data = {
         "formats": [
             {
-                "format_id": "https://creative.example.com#banner_300x250",
+                "format_id": {
+                    "agent_url": "https://creative.example.com",
+                    "id": "banner_300x250"
+                },
                 "name": "Medium Rectangle",
                 "type": "display",
             },
             {
-                "format_id": "https://creative.example.com#video_16x9",
+                "format_id": {
+                    "agent_url": "https://creative.example.com",
+                    "id": "video_16x9"
+                },
                 "name": "Video 16:9",
                 "type": "video",
             },
@@ -306,7 +312,10 @@ async def test_list_creative_formats_parses_a2a_response():
     formats_data = {
         "formats": [
             {
-                "format_id": "https://creative.example.com#native_feed",
+                "format_id": {
+                    "agent_url": "https://creative.example.com",
+                    "id": "native_feed"
+                },
                 "name": "Native Feed Ad",
                 "type": "native",
             }

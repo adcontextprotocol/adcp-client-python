@@ -22,10 +22,29 @@ from pydantic import BaseModel, Field
 
 # These types are referenced in schemas but don't have schema files
 # Defining them as type aliases to maintain type safety
-FormatId = str
 PackageRequest = dict[str, Any]
 PushNotificationConfig = dict[str, Any]
 ReportingCapabilities = dict[str, Any]
+
+
+# ============================================================================
+# FORMAT ID TYPE (manually defined from spec)
+# ============================================================================
+
+class FormatId(BaseModel):
+    """
+    Structured format identifier with agent URL and format name.
+
+    Based on https://adcontextprotocol.org/schemas/v1/core/format-id.json
+    """
+
+    agent_url: str = Field(
+        description="URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)"
+    )
+    id: str = Field(
+        pattern="^[a-zA-Z0-9_-]+$",
+        description="Format identifier within the agent's namespace (e.g., 'display_300x250', 'video_standard_30s')"
+    )
 
 
 # ============================================================================
