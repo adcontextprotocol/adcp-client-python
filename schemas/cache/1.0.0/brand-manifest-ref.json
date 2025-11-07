@@ -5,7 +5,7 @@
   "description": "Brand manifest provided either as an inline object or a URL string pointing to a hosted manifest",
   "oneOf": [
     {
-      "$ref": "/schemas/v1/core/brand-manifest.json",
+      "$ref": "brand-manifest.json",
       "description": "Inline brand manifest object"
     },
     {

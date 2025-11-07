@@ -14,7 +14,7 @@
       "description": "Unique identifier for tracking asynchronous operations. Present when a task requires extended processing time. Used to query task status and retrieve results when complete."
     },
     "status": {
-      "$ref": "/schemas/v1/enums/task-status.json",
+      "$ref": "task-status.json",
       "description": "Current task execution state. Indicates whether the task is completed, in progress (working), submitted for async processing, failed, or requires user input. Managed by the protocol layer."
     },
     "message": {
@@ -27,7 +27,7 @@
       "description": "ISO 8601 timestamp when the response was generated. Useful for debugging, logging, cache validation, and tracking async operation progress."
     },
     "push_notification_config": {
-      "$ref": "/schemas/v1/core/push-notification-config.json",
+      "$ref": "push-notification-config.json",
       "description": "Push notification configuration for async task updates (A2A and REST protocols). Echoed from the request to confirm webhook settings. Specifies URL, authentication scheme (Bearer or HMAC-SHA256), and credentials. MCP uses progress notifications instead of webhooks."
     },
     "payload": {

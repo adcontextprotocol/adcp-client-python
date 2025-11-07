@@ -9,11 +9,11 @@
       "description": "Single creative preview request",
       "properties": {
         "format_id": {
-          "$ref": "/schemas/v1/core/format-id.json",
+          "$ref": "format-id.json",
           "description": "Format identifier for rendering the preview"
         },
         "creative_manifest": {
-          "$ref": "/schemas/v1/core/creative-manifest.json",
+          "$ref": "creative-manifest.json",
           "description": "Complete creative manifest with all required assets (including promoted_offerings if required by the format)"
         },
         "inputs": {
@@ -75,11 +75,11 @@
             "type": "object",
             "properties": {
               "format_id": {
-                "$ref": "/schemas/v1/core/format-id.json",
+                "$ref": "format-id.json",
                 "description": "Format identifier for rendering the preview"
               },
               "creative_manifest": {
-                "$ref": "/schemas/v1/core/creative-manifest.json",
+                "$ref": "creative-manifest.json",
                 "description": "Complete creative manifest with all required assets"
               },
               "inputs": {

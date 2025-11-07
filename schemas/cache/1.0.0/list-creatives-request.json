@@ -21,14 +21,14 @@
           }
         },
         "status": {
-          "$ref": "/schemas/v1/enums/creative-status.json",
+          "$ref": "creative-status.json",
           "description": "Filter by creative approval status"
         },
         "statuses": {
           "type": "array",
           "description": "Filter by multiple creative statuses",
           "items": {
-            "$ref": "/schemas/v1/enums/creative-status.json"
+            "$ref": "creative-status.json"
           }
         },
         "tags": {

@@ -421,12 +421,17 @@ def main():
     # Add custom validation for FormatId
     generated_code = add_format_id_validation(generated_code)
 
+    # DEBUG: Save generated code before validation
+    Path("/tmp/generated_debug.py").write_text(generated_code)
+    print("DEBUG: Generated code saved to /tmp/generated_debug.py")
+
     # Validate syntax before writing
     print("\nValidating generated code...")
     is_valid, error_msg = validate_python_syntax(generated_code, "generated.py")
     if not is_valid:
         print(f"✗ Syntax validation failed:", file=sys.stderr)
         print(f"  {error_msg}", file=sys.stderr)
+        print(f"DEBUG: Check /tmp/generated_debug.py for problematic code", file=sys.stderr)
         sys.exit(1)
     print("  ✓ Syntax validation passed")
 

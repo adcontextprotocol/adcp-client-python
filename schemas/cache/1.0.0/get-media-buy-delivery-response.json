@@ -133,13 +133,13 @@
             "description": "Indicates this delivery contains updated data for a previously reported period. Buyer should replace previous period data with these totals."
           },
           "pricing_model": {
-            "$ref": "/schemas/v1/enums/pricing-model.json",
+            "$ref": "pricing-model.json",
             "description": "Pricing model used for this media buy"
           },
           "totals": {
             "allOf": [
               {
-                "$ref": "/schemas/v1/core/delivery-metrics.json"
+                "$ref": "delivery-metrics.json"
               },
               {
                 "type": "object",
@@ -163,7 +163,7 @@
             "items": {
               "allOf": [
                 {
-                  "$ref": "/schemas/v1/core/delivery-metrics.json"
+                  "$ref": "delivery-metrics.json"
                 },
                 {
                   "type": "object",
@@ -234,7 +234,7 @@
       "type": "array",
       "description": "Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)",
       "items": {
-        "$ref": "/schemas/v1/core/error.json"
+        "$ref": "error.json"
       }
     }
   },
