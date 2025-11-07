@@ -41,6 +41,7 @@ from adcp.types.generated import (
     ProvidePerformanceFeedbackResponse,
     SyncCreativesRequest,
     SyncCreativesResponse,
+    WebhookPayload,
 )
 from adcp.utils.operation_id import create_operation_id
 
@@ -511,40 +512,131 @@ class ADCPClient:
 
         return hmac.compare_digest(signature, expected_signature)
 
+    def _parse_webhook_result(self, webhook: WebhookPayload) -> TaskResult[Any]:
+        """
+        Parse webhook payload into typed TaskResult based on task_type.
+
+        Args:
+            webhook: Validated webhook payload
+
+        Returns:
+            TaskResult with task-specific typed response data
+        """
+        from adcp.types.core import TaskStatus
+        from adcp.utils.response_parser import parse_json_or_text
+
+        # Map task types to their response types (using string literals, not enum)
+        response_type_map: dict[str, type] = {
+            "get_products": GetProductsResponse,
+            "list_creative_formats": ListCreativeFormatsResponse,
+            "sync_creatives": SyncCreativesResponse,
+            "list_creatives": ListCreativesResponse,
+            "get_media_buy_delivery": GetMediaBuyDeliveryResponse,
+            "list_authorized_properties": ListAuthorizedPropertiesResponse,
+            "get_signals": GetSignalsResponse,
+            "activate_signal": ActivateSignalResponse,
+            "provide_performance_feedback": ProvidePerformanceFeedbackResponse,
+        }
+
+        # Handle completed tasks with result parsing
+
+        if webhook.status == "completed" and webhook.result is not None:
+            response_type = response_type_map.get(webhook.task_type)
+            if response_type:
+                try:
+                    parsed_result: Any = parse_json_or_text(webhook.result, response_type)
+                    return TaskResult[Any](
+                        status=TaskStatus.COMPLETED,
+                        data=parsed_result,
+                        success=True,
+                        metadata={
+                            "task_id": webhook.task_id,
+                            "operation_id": webhook.operation_id,
+                            "timestamp": webhook.timestamp,
+                            "message": webhook.message,
+                        },
+                    )
+                except ValueError as e:
+                    logger.warning(f"Failed to parse webhook result: {e}")
+                    # Fall through to untyped result
+
+        # Handle failed, input-required, or unparseable results
+        # Convert webhook status string to TaskStatus enum
+        try:
+            task_status = TaskStatus(webhook.status)
+        except ValueError:
+            # Fallback to FAILED for unknown statuses
+            task_status = TaskStatus.FAILED
+
+        return TaskResult[Any](
+            status=task_status,
+            data=webhook.result,
+            success=webhook.status == "completed",
+            error=webhook.error if isinstance(webhook.error, str) else None,
+            metadata={
+                "task_id": webhook.task_id,
+                "operation_id": webhook.operation_id,
+                "timestamp": webhook.timestamp,
+                "message": webhook.message,
+                "context_id": webhook.context_id,
+                "progress": webhook.progress,
+            },
+        )
+
     async def handle_webhook(
         self,
         payload: dict[str, Any],
         signature: str | None = None,
-    ) -> None:
+    ) -> TaskResult[Any]:
         """
-        Handle incoming webhook.
+        Handle incoming webhook and return typed result.
+
+        This method:
+        1. Verifies webhook signature (if provided)
+        2. Validates payload against WebhookPayload schema
+        3. Parses task-specific result data into typed response
+        4. Emits activity for monitoring
 
         Args:
-            payload: Webhook payload
-            signature: Webhook signature for verification
+            payload: Webhook payload dict
+            signature: Optional HMAC-SHA256 signature for verification
+
+        Returns:
+            TaskResult with parsed task-specific response data
 
         Raises:
             ADCPWebhookSignatureError: If signature verification fails
+            ValidationError: If payload doesn't match WebhookPayload schema
+
+        Example:
+            >>> result = await client.handle_webhook(payload, signature)
+            >>> if result.success and isinstance(result.data, GetProductsResponse):
+            >>>     print(f"Found {len(result.data.products)} products")
         """
+        # Verify signature before processing
         if signature and not self._verify_webhook_signature(payload, signature):
             logger.warning(
                 f"Webhook signature verification failed for agent {self.agent_config.id}"
             )
             raise ADCPWebhookSignatureError("Invalid webhook signature")
 
-        operation_id = payload.get("operation_id", "unknown")
-        task_type = payload.get("task_type", "unknown")
+        # Validate and parse webhook payload
+        webhook = WebhookPayload.model_validate(payload)
 
+        # Emit activity for monitoring
         self._emit_activity(
             Activity(
                 type=ActivityType.WEBHOOK_RECEIVED,
-                operation_id=operation_id,
+                operation_id=webhook.operation_id or "unknown",
                 agent_id=self.agent_config.id,
-                task_type=task_type,
+                task_type=webhook.task_type,
                 timestamp=datetime.now(timezone.utc).isoformat(),
                 metadata={"payload": payload},
             )
         )
+
+        # Parse and return typed result
+        return self._parse_webhook_result(webhook)
 
 
 class ADCPMultiAgentClient:
