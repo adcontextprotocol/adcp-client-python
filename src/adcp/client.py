@@ -21,7 +21,6 @@ from adcp.types.core import (
     AgentConfig,
     Protocol,
     TaskResult,
-    TaskStatus,
 )
 from adcp.types.generated import (
     ActivateSignalRequest,
