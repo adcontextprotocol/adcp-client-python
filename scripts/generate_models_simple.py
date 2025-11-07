@@ -223,6 +223,60 @@ def validate_imports(output_file: Path) -> tuple[bool, str]:
         return False, f"Import validation error: {e}"
 
 
+def add_format_id_validation(code: str) -> str:
+    """
+    Add field validator to FormatId class for pattern enforcement.
+
+    The format-id.json schema specifies a pattern, but Pydantic v2 requires
+    explicit field_validator to enforce it.
+    """
+    # Find the FormatId class - match the class and find where to insert
+    # Look for the pattern: class FormatId(...): ... id: str = Field(...)
+    # Then add the validator after the last field
+
+    lines = code.split('\n')
+    result_lines = []
+    in_format_id = False
+    found_id_field = False
+    indent = ""
+
+    for i, line in enumerate(lines):
+        result_lines.append(line)
+
+        # Detect start of FormatId class
+        if 'class FormatId(BaseModel):' in line:
+            in_format_id = True
+            # Detect indent level (usually 4 spaces)
+            if i + 1 < len(lines):
+                next_line = lines[i + 1]
+                indent = next_line[:len(next_line) - len(next_line.lstrip())]
+
+        # Detect the id field in FormatId class
+        if in_format_id and line.strip().startswith('id: str'):
+            found_id_field = True
+
+        # After the id field, add the validator
+        if in_format_id and found_id_field and (line.strip() == '' or (i + 1 < len(lines) and not lines[i + 1].strip().startswith(('agent_url:', 'id:')))):
+            # Add validator here
+            validator_lines = [
+                '',
+                f'{indent}@field_validator("id")',
+                f'{indent}@classmethod',
+                f'{indent}def validate_id_pattern(cls, v: str) -> str:',
+                f'{indent}    """Validate format ID contains only alphanumeric characters, hyphens, and underscores."""',
+                f'{indent}    if not re.match(r"^[a-zA-Z0-9_-]+$", v):',
+                f'{indent}        raise ValueError(',
+                f'{indent}            f"Invalid format ID: {{v!r}}. Must contain only alphanumeric characters, hyphens, and underscores"',
+                f'{indent}        )',
+                f'{indent}    return v',
+            ]
+            result_lines.extend(validator_lines)
+            in_format_id = False
+            found_id_field = False
+
+    return '\n'.join(result_lines)
+
+
 def main():
     """Generate models for core types and task request/response schemas."""
     if not SCHEMAS_DIR.exists():
@@ -233,6 +287,7 @@ def main():
 
     # Core domain types that are referenced by task schemas
     core_types = [
+        "format-id.json",  # Must come before format.json (which references it)
         "product.json",
         "media-buy.json",
         "package.json",
@@ -294,9 +349,10 @@ def main():
         "",
         "from __future__ import annotations",
         "",
+        "import re",
         "from typing import Any, Literal",
         "",
-        "from pydantic import BaseModel, Field",
+        "from pydantic import BaseModel, Field, field_validator",
         "",
         "",
         "# ============================================================================",
@@ -305,7 +361,6 @@ def main():
         "",
         "# These types are referenced in schemas but don't have schema files",
         "# Defining them as type aliases to maintain type safety",
-        "FormatId = str",
         "PackageRequest = dict[str, Any]",
         "PushNotificationConfig = dict[str, Any]",
         "ReportingCapabilities = dict[str, Any]",
@@ -352,6 +407,9 @@ def main():
 
     # Join all lines into final code
     generated_code = "\n".join(output_lines)
+
+    # Add custom validation for FormatId
+    generated_code = add_format_id_validation(generated_code)
 
     # Validate syntax before writing
     print("\nValidating generated code...")

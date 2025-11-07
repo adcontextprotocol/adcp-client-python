@@ -29,37 +29,25 @@ ReportingCapabilities = dict[str, Any]
 
 
 # ============================================================================
-# FORMAT ID TYPE (manually defined from spec)
+# CORE DOMAIN TYPES
 # ============================================================================
 
 class FormatId(BaseModel):
-    """
-    Structured format identifier with agent URL and format name.
+    """Structured format identifier with agent URL and format name"""
 
-    Based on https://adcontextprotocol.org/schemas/v1/core/format-id.json
-    """
+    agent_url: str = Field(description="URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)")
+    id: str = Field(description="Format identifier within the agent's namespace (e.g., 'display_300x250', 'video_standard_30s')")
 
-    agent_url: str = Field(
-        description="URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)"
-    )
-    id: str = Field(
-        description="Format identifier within the agent's namespace (e.g., 'display_300x250', 'video_standard_30s')"
-    )
-
-    @field_validator('id')
+    @field_validator("id")
     @classmethod
     def validate_id_pattern(cls, v: str) -> str:
         """Validate format ID contains only alphanumeric characters, hyphens, and underscores."""
-        if not re.match(r'^[a-zA-Z0-9_-]+$', v):
+        if not re.match(r"^[a-zA-Z0-9_-]+$", v):
             raise ValueError(
-                f'Invalid format ID: {v!r}. Must contain only alphanumeric characters, hyphens, and underscores'
+                f"Invalid format ID: {v!r}. Must contain only alphanumeric characters, hyphens, and underscores"
             )
         return v
 
-
-# ============================================================================
-# CORE DOMAIN TYPES
-# ============================================================================
 
 class Product(BaseModel):
     """Represents available advertising inventory"""
