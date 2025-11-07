@@ -186,6 +186,40 @@ class MCPAdapter(ProtocolAdapter):
         else:
             raise ValueError(f"Unsupported transport scheme: {parsed.scheme}")
 
+    def _serialize_mcp_content(self, content: list[Any]) -> list[dict[str, Any]]:
+        """
+        Convert MCP SDK content objects to plain dicts.
+
+        The MCP SDK returns Pydantic objects (TextContent, ImageContent, etc.)
+        but the rest of the ADCP client expects protocol-agnostic dicts.
+        This method handles the translation at the protocol boundary.
+
+        Args:
+            content: List of MCP content items (may be dicts or Pydantic objects)
+
+        Returns:
+            List of plain dicts representing the content
+        """
+        result = []
+        for item in content:
+            # Already a dict, pass through
+            if isinstance(item, dict):
+                result.append(item)
+            # Pydantic v2 model with model_dump()
+            elif hasattr(item, "model_dump"):
+                result.append(item.model_dump())
+            # Pydantic v1 model with dict()
+            elif hasattr(item, "dict") and callable(item.dict):
+                result.append(item.dict())  # type: ignore[attr-defined]
+            # Fallback: try to access __dict__
+            elif hasattr(item, "__dict__"):
+                result.append(dict(item.__dict__))
+            # Last resort: serialize as unknown type
+            else:
+                logger.warning(f"Unknown MCP content type: {type(item)}, serializing as string")
+                result.append({"type": "unknown", "data": str(item)})
+        return result
+
     async def _call_mcp_tool(self, tool_name: str, params: dict[str, Any]) -> TaskResult[Any]:
         """Call a tool using MCP protocol."""
         start_time = time.time() if self.agent_config.debug else None
@@ -205,12 +239,15 @@ class MCPAdapter(ProtocolAdapter):
             # Call the tool using MCP client session
             result = await session.call_tool(tool_name, params)
 
+            # Serialize MCP SDK types to plain dicts at protocol boundary
+            serialized_content = self._serialize_mcp_content(result.content)
+
             if self.agent_config.debug and start_time:
                 duration_ms = (time.time() - start_time) * 1000
                 debug_info = DebugInfo(
                     request=debug_request,
                     response={
-                        "content": result.content,
+                        "content": serialized_content,
                         "is_error": result.isError if hasattr(result, "isError") else False,
                     },
                     duration_ms=duration_ms,
@@ -220,7 +257,7 @@ class MCPAdapter(ProtocolAdapter):
             # For AdCP, we expect the data in the content
             return TaskResult[Any](
                 status=TaskStatus.COMPLETED,
-                data=result.content,
+                data=serialized_content,
                 success=True,
                 debug_info=debug_info,
             )

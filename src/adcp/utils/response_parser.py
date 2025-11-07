@@ -13,20 +13,20 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 
 
-def parse_mcp_content(content: list[dict[str, Any] | Any], response_type: type[T]) -> T:
+def parse_mcp_content(content: list[dict[str, Any]], response_type: type[T]) -> T:
     """
     Parse MCP content array into structured response type.
 
     MCP tools return content as a list of content items:
     [{"type": "text", "text": "..."}, {"type": "resource", ...}]
 
-    Content items may be either plain dicts or Pydantic objects (TextContent, etc.)
-    depending on the MCP SDK version and usage pattern.
+    The MCP adapter is responsible for serializing MCP SDK Pydantic objects
+    to plain dicts before calling this function.
 
     For AdCP, we expect JSON data in text content items.
 
     Args:
-        content: MCP content array (list of dicts or Pydantic objects)
+        content: MCP content array (list of plain dicts)
         response_type: Expected Pydantic model type
 
     Returns:
@@ -38,19 +38,10 @@ def parse_mcp_content(content: list[dict[str, Any] | Any], response_type: type[T
     if not content:
         raise ValueError("Empty MCP content array")
 
-    # Helper to get field value from dict or object
-    def get_field(item: Any, field: str, default: Any = None) -> Any:
-        """Get field from dict or Pydantic object."""
-        if isinstance(item, dict):
-            return item.get(field, default)
-        return getattr(item, field, default)
-
     # Look for text content items that might contain JSON
     for item in content:
-        item_type = get_field(item, "type")
-
-        if item_type == "text":
-            text = get_field(item, "text", "")
+        if item.get("type") == "text":
+            text = item.get("text", "")
             if not text:
                 continue
 
@@ -67,7 +58,7 @@ def parse_mcp_content(content: list[dict[str, Any] | Any], response_type: type[T
                     f"MCP content doesn't match expected schema {response_type.__name__}: {e}"
                 )
                 raise ValueError(f"MCP response doesn't match expected schema: {e}") from e
-        elif item_type == "resource":
+        elif item.get("type") == "resource":
             # Resource content might have structured data
             try:
                 return response_type.model_validate(item)
@@ -81,12 +72,9 @@ def parse_mcp_content(content: list[dict[str, Any] | Any], response_type: type[T
     if len(content_preview) > 500:
         content_preview = content_preview[:500] + "..."
 
-    # Extract types for error message
-    content_types = [get_field(item, "type") for item in content]
-
     raise ValueError(
         f"No valid {response_type.__name__} data found in MCP content. "
-        f"Content types: {content_types}. "
+        f"Content types: {[item.get('type') for item in content]}. "
         f"Content preview:\n{content_preview}"
     )
 

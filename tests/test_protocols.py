@@ -240,3 +240,59 @@ class TestMCPAdapter:
         mock_exit_stack.aclose.assert_called_once()
         assert adapter._exit_stack is None
         assert adapter._session is None
+
+    def test_serialize_mcp_content_with_dicts(self, mcp_config):
+        """Test serializing MCP content that's already dicts."""
+        adapter = MCPAdapter(mcp_config)
+
+        content = [
+            {"type": "text", "text": "Hello"},
+            {"type": "resource", "uri": "file://test.txt"},
+        ]
+
+        result = adapter._serialize_mcp_content(content)
+
+        assert result == content  # Pass through unchanged
+        assert len(result) == 2
+
+    def test_serialize_mcp_content_with_pydantic_v2(self, mcp_config):
+        """Test serializing MCP content with Pydantic v2 objects."""
+        from pydantic import BaseModel
+
+        adapter = MCPAdapter(mcp_config)
+
+        class MockTextContent(BaseModel):
+            type: str
+            text: str
+
+        content = [
+            MockTextContent(type="text", text="Pydantic v2"),
+        ]
+
+        result = adapter._serialize_mcp_content(content)
+
+        assert len(result) == 1
+        assert result[0] == {"type": "text", "text": "Pydantic v2"}
+        assert isinstance(result[0], dict)
+
+    def test_serialize_mcp_content_mixed(self, mcp_config):
+        """Test serializing mixed MCP content (dicts and Pydantic objects)."""
+        from pydantic import BaseModel
+
+        adapter = MCPAdapter(mcp_config)
+
+        class MockTextContent(BaseModel):
+            type: str
+            text: str
+
+        content = [
+            {"type": "text", "text": "Plain dict"},
+            MockTextContent(type="text", text="Pydantic object"),
+        ]
+
+        result = adapter._serialize_mcp_content(content)
+
+        assert len(result) == 2
+        assert result[0] == {"type": "text", "text": "Plain dict"}
+        assert result[1] == {"type": "text", "text": "Pydantic object"}
+        assert all(isinstance(item, dict) for item in result)
