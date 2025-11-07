@@ -110,13 +110,19 @@ async def _dispatch_tool(client: ADCPClient, tool_name: str, payload: dict[str, 
         )
     else:
         available_tools = [
-            "get_products", "list_creative_formats", "sync_creatives", "list_creatives",
-            "get_media_buy_delivery", "list_authorized_properties", "get_signals",
-            "activate_signal", "provide_performance_feedback"
+            "get_products",
+            "list_creative_formats",
+            "sync_creatives",
+            "list_creatives",
+            "get_media_buy_delivery",
+            "list_authorized_properties",
+            "get_signals",
+            "activate_signal",
+            "provide_performance_feedback",
         ]
         return TaskResult(
             status=TaskStatus.FAILED,
-            error=f"Unknown tool: {tool_name}. Available tools: {', '.join(available_tools)}"
+            error=f"Unknown tool: {tool_name}. Available tools: {', '.join(available_tools)}",
         )
 
 
