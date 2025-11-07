@@ -287,6 +287,71 @@ def add_format_id_validation(code: str) -> str:
     return "\n".join(result_lines)
 
 
+def add_custom_implementations(code: str) -> str:
+    """
+    Add custom Pydantic class implementations that override type aliases.
+
+    The simple code generator produces type aliases (e.g., PreviewCreativeRequest = Any)
+    for complex schemas that use oneOf. We override them with proper Pydantic classes
+    to maintain type safety and enable batch API support.
+    """
+    custom_code = '''
+
+# ============================================================================
+# CUSTOM IMPLEMENTATIONS (override type aliases from generator)
+# ============================================================================
+# The simple code generator produces type aliases (e.g., PreviewCreativeRequest = Any)
+# for complex schemas that use oneOf. We override them here with proper Pydantic classes
+# to maintain type safety and enable batch API support.
+
+
+class FormatId(BaseModel):
+    """Structured format identifier with agent URL and format name"""
+
+    agent_url: str = Field(description="URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)")
+    id: str = Field(description="Format identifier within the agent's namespace (e.g., 'display_300x250', 'video_standard_30s')")
+
+    @field_validator("id")
+    @classmethod
+    def validate_id_pattern(cls, v: str) -> str:
+        """Validate format ID contains only alphanumeric characters, hyphens, and underscores."""
+        if not re.match(r"^[a-zA-Z0-9_-]+$", v):
+            raise ValueError(
+                f"Invalid format ID: {v!r}. Must contain only alphanumeric characters, hyphens, and underscores"
+            )
+        return v
+
+
+class PreviewCreativeRequest(BaseModel):
+    """Request to generate a preview of a creative manifest. Supports single or batch mode."""
+
+    # Single mode fields
+    format_id: FormatId | None = Field(None, description="Format identifier for rendering the preview (single mode)")
+    creative_manifest: CreativeManifest | None = Field(None, description="Complete creative manifest with all required assets (single mode)")
+    inputs: list[dict[str, Any]] | None = Field(None, description="Array of input sets for generating multiple preview variants")
+    template_id: str | None = Field(None, description="Specific template ID for custom format rendering")
+
+    # Batch mode field
+    requests: list[dict[str, Any]] | None = Field(None, description="Array of preview requests for batch processing (1-50 items)")
+
+    # Output format (applies to both modes)
+    output_format: Literal["url", "html"] | None = Field("url", description="Output format: 'url' for iframe URLs, 'html' for direct embedding")
+
+
+class PreviewCreativeResponse(BaseModel):
+    """Response containing preview links for one or more creatives. Format matches the request: single preview response for single requests, batch results for batch requests."""
+
+    # Single mode fields
+    previews: list[dict[str, Any]] | None = Field(None, description="Array of preview variants (single mode)")
+    interactive_url: str | None = Field(None, description="Optional URL to interactive testing page (single mode)")
+    expires_at: str | None = Field(None, description="ISO 8601 timestamp when preview links expire (single mode)")
+
+    # Batch mode field
+    results: list[dict[str, Any]] | None = Field(None, description="Array of preview results for batch processing")
+'''
+    return code + custom_code
+
+
 def main():
     """Generate models for core types and task request/response schemas."""
     if not SCHEMAS_DIR.exists():
@@ -418,12 +483,8 @@ def main():
     # Join all lines into final code
     generated_code = "\n".join(output_lines)
 
-    # Add custom validation for FormatId
-    generated_code = add_format_id_validation(generated_code)
-
-    # DEBUG: Save generated code before validation
-    Path("/tmp/generated_debug.py").write_text(generated_code)
-    print("DEBUG: Generated code saved to /tmp/generated_debug.py")
+    # Add custom implementations (FormatId, PreviewCreativeRequest, PreviewCreativeResponse)
+    generated_code = add_custom_implementations(generated_code)
 
     # Validate syntax before writing
     print("\nValidating generated code...")
@@ -431,7 +492,6 @@ def main():
     if not is_valid:
         print(f"✗ Syntax validation failed:", file=sys.stderr)
         print(f"  {error_msg}", file=sys.stderr)
-        print(f"DEBUG: Check /tmp/generated_debug.py for problematic code", file=sys.stderr)
         sys.exit(1)
     print("  ✓ Syntax validation passed")
 

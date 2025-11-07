@@ -611,6 +611,7 @@ class UpdateMediaBuyResponse(BaseModel):
     errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., partial update failures)")
 
 
+
 # ============================================================================
 # CUSTOM IMPLEMENTATIONS (override type aliases from generator)
 # ============================================================================
