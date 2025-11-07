@@ -210,7 +210,7 @@ class MCPAdapter(ProtocolAdapter):
                 result.append(item.model_dump())
             # Pydantic v1 model with dict()
             elif hasattr(item, "dict") and callable(item.dict):
-                result.append(item.dict())  # type: ignore[attr-defined]
+                result.append(item.dict())
             # Fallback: try to access __dict__
             elif hasattr(item, "__dict__"):
                 result.append(dict(item.__dict__))
