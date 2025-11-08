@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field, field_validator
 
 # These types are referenced in schemas but don't have schema files
 # Defining them as type aliases to maintain type safety
+ActivationKey = dict[str, Any]
 PackageRequest = dict[str, Any]
 PushNotificationConfig = dict[str, Any]
 ReportingCapabilities = dict[str, Any]
@@ -125,9 +126,22 @@ class BrandManifest(BaseModel):
     metadata: dict[str, Any] | None = Field(None, description="Additional brand metadata")
 
 
-# Type alias for Brand Manifest Reference
 # Brand manifest provided either as an inline object or a URL string pointing to a hosted manifest
-BrandManifestRef = Any
+
+class BrandManifestRefVariant1(BaseModel):
+    """Inline brand manifest object"""
+
+    pass
+
+
+class BrandManifestRefVariant2(BaseModel):
+    """URL to a hosted brand manifest JSON file. The manifest at this URL must conform to the brand-manifest.json schema."""
+
+    pass
+
+
+# Union type for Brand Manifest Reference
+BrandManifestRef = BrandManifestRefVariant1 | BrandManifestRefVariant2
 
 
 class Format(BaseModel):
@@ -255,9 +269,22 @@ class PerformanceFeedback(BaseModel):
     applied_at: str | None = Field(None, description="ISO 8601 timestamp when feedback was applied to optimization algorithms")
 
 
-# Type alias for Start Timing
 # Campaign start timing: 'asap' or ISO 8601 date-time
-StartTiming = Any
+
+class StartTimingVariant1(BaseModel):
+    """Start campaign as soon as possible"""
+
+    pass
+
+
+class StartTimingVariant2(BaseModel):
+    """Scheduled start date/time in ISO 8601 format"""
+
+    pass
+
+
+# Union type for Start Timing
+StartTiming = StartTimingVariant1 | StartTimingVariant2
 
 
 class SubAsset(BaseModel):
@@ -314,6 +341,50 @@ class PromotedProducts(BaseModel):
     manifest_query: str | None = Field(None, description="Natural language query to select products from the brand manifest (e.g., 'all Kraft Heinz pasta sauces', 'organic products under $20')")
 
 
+# A destination platform where signals can be activated (DSP, sales agent, etc.)
+
+class PlatformDestination(BaseModel):
+    type: Literal["platform"] = Field(description="Discriminator indicating this is a platform-based destination")
+    platform: str = Field(description="Platform identifier for DSPs (e.g., 'the-trade-desk', 'amazon-dsp')")
+    account: str | None = Field(None, description="Optional account identifier on the platform")
+
+
+class AgentDestination(BaseModel):
+    type: Literal["agent"] = Field(description="Discriminator indicating this is an agent URL-based destination")
+    agent_url: str = Field(description="URL identifying the destination agent (for sales agents, etc.)")
+    account: str | None = Field(None, description="Optional account identifier on the agent")
+
+
+# Union type for Destination
+Destination = PlatformDestination | AgentDestination
+
+
+# A signal deployment to a specific destination platform with activation status and key
+
+class PlatformDeployment(BaseModel):
+    type: Literal["platform"] = Field(description="Discriminator indicating this is a platform-based deployment")
+    platform: str = Field(description="Platform identifier for DSPs")
+    account: str | None = Field(None, description="Account identifier if applicable")
+    is_live: bool = Field(description="Whether signal is currently active on this destination")
+    activation_key: ActivationKey | None = Field(None, description="The key to use for targeting. Only present if is_live=true AND requester has access to this destination.")
+    estimated_activation_duration_minutes: float | None = Field(None, description="Estimated time to activate if not live, or to complete activation if in progress")
+    deployed_at: str | None = Field(None, description="Timestamp when activation completed (if is_live=true)")
+
+
+class AgentDeployment(BaseModel):
+    type: Literal["agent"] = Field(description="Discriminator indicating this is an agent URL-based deployment")
+    agent_url: str = Field(description="URL identifying the destination agent")
+    account: str | None = Field(None, description="Account identifier if applicable")
+    is_live: bool = Field(description="Whether signal is currently active on this destination")
+    activation_key: ActivationKey | None = Field(None, description="The key to use for targeting. Only present if is_live=true AND requester has access to this destination.")
+    estimated_activation_duration_minutes: float | None = Field(None, description="Estimated time to activate if not live, or to complete activation if in progress")
+    deployed_at: str | None = Field(None, description="Timestamp when activation completed (if is_live=true)")
+
+
+# Union type for Deployment
+Deployment = PlatformDeployment | AgentDeployment
+
+
 # Type alias for Advertising Channels
 # Standard advertising channels supported by AdCP
 Channels = Literal["display", "video", "audio", "native", "dooh", "ctv", "podcast", "retail", "social"]
@@ -354,9 +425,46 @@ TaskStatus = Literal["submitted", "working", "input-required", "completed", "can
 PricingModel = Literal["cpm", "vcpm", "cpc", "cpcv", "cpv", "cpp", "flat_rate"]
 
 
-# Type alias for Pricing Option
 # A pricing model option offered by a publisher for a product. Each pricing model has its own schema with model-specific requirements.
-PricingOption = Any
+
+class PricingOptionVariant1(BaseModel):
+    pass
+
+
+class PricingOptionVariant2(BaseModel):
+    pass
+
+
+class PricingOptionVariant3(BaseModel):
+    pass
+
+
+class PricingOptionVariant4(BaseModel):
+    pass
+
+
+class PricingOptionVariant5(BaseModel):
+    pass
+
+
+class PricingOptionVariant6(BaseModel):
+    pass
+
+
+class PricingOptionVariant7(BaseModel):
+    pass
+
+
+class PricingOptionVariant8(BaseModel):
+    pass
+
+
+class PricingOptionVariant9(BaseModel):
+    pass
+
+
+# Union type for Pricing Option
+PricingOption = PricingOptionVariant1 | PricingOptionVariant2 | PricingOptionVariant3 | PricingOptionVariant4 | PricingOptionVariant5 | PricingOptionVariant6 | PricingOptionVariant7 | PricingOptionVariant8 | PricingOptionVariant9
 
 
 # Type alias for Standard Format IDs

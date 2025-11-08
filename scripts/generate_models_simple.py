@@ -66,6 +66,102 @@ def escape_string_for_python(text: str) -> str:
     return text.strip()
 
 
+def generate_discriminated_union(schema: dict, base_name: str) -> str:
+    """
+    Generate Pydantic models for a discriminated union (oneOf with type discriminator).
+
+    Creates a base model for each variant and a union type for the parent.
+    For example, Destination = PlatformDestination | AgentDestination
+    """
+    lines = []
+
+    # Add schema description as a comment
+    if "description" in schema:
+        desc = escape_string_for_python(schema["description"])
+        lines.append(f"# {desc}")
+        lines.append("")
+
+    variant_names = []
+
+    # Generate a model for each variant in oneOf
+    for i, variant in enumerate(schema.get("oneOf", [])):
+        # Try to get discriminator value for better naming
+        discriminator_value = None
+        if "properties" in variant and "type" in variant["properties"]:
+            type_prop = variant["properties"]["type"]
+            if "const" in type_prop:
+                discriminator_value = type_prop["const"]
+
+        # Generate variant name
+        if discriminator_value:
+            variant_name = f"{discriminator_value.capitalize()}{base_name}"
+        else:
+            variant_name = f"{base_name}Variant{i+1}"
+
+        variant_names.append(variant_name)
+
+        # Generate the variant model
+        lines.append(f"class {variant_name}(BaseModel):")
+
+        # Add description if available
+        if "description" in variant:
+            desc = variant["description"].replace("\\", "\\\\").replace('"""', '\\"\\"\\"')
+            desc = desc.replace("\n", " ").replace("\r", "")
+            desc = re.sub(r"\s+", " ", desc).strip()
+            lines.append(f'    """{desc}"""')
+            lines.append("")
+
+        # Add properties
+        if "properties" in variant and variant["properties"]:
+            for prop_name, prop_schema in variant["properties"].items():
+                safe_name, needs_alias = sanitize_field_name(prop_name)
+                prop_type = get_python_type(prop_schema)
+                desc = prop_schema.get("description", "")
+                if desc:
+                    desc = escape_string_for_python(desc)
+
+                is_required = prop_name in variant.get("required", [])
+
+                if is_required:
+                    if desc and needs_alias:
+                        lines.append(
+                            f'    {safe_name}: {prop_type} = Field(alias="{prop_name}", description="{desc}")'
+                        )
+                    elif desc:
+                        lines.append(f'    {safe_name}: {prop_type} = Field(description="{desc}")')
+                    elif needs_alias:
+                        lines.append(f'    {safe_name}: {prop_type} = Field(alias="{prop_name}")')
+                    else:
+                        lines.append(f"    {safe_name}: {prop_type}")
+                else:
+                    if desc and needs_alias:
+                        lines.append(
+                            f'    {safe_name}: {prop_type} | None = Field(None, alias="{prop_name}", description="{desc}")'
+                        )
+                    elif desc:
+                        lines.append(
+                            f'    {safe_name}: {prop_type} | None = Field(None, description="{desc}")'
+                        )
+                    elif needs_alias:
+                        lines.append(
+                            f'    {safe_name}: {prop_type} | None = Field(None, alias="{prop_name}")'
+                        )
+                    else:
+                        lines.append(f"    {safe_name}: {prop_type} | None = None")
+        else:
+            lines.append("    pass")
+
+        lines.append("")
+        lines.append("")
+
+    # Create union type
+    union_type = " | ".join(variant_names)
+    lines.append(f"# Union type for {schema.get('title', base_name)}")
+    lines.append(f"{base_name} = {union_type}")
+
+    return "\n".join(lines)
+
+
 def generate_model_for_schema(schema_file: Path) -> str:
     """Generate Pydantic model code for a single schema inline."""
     with open(schema_file) as f:
@@ -73,6 +169,10 @@ def generate_model_for_schema(schema_file: Path) -> str:
 
     # Start with model name
     model_name = snake_to_pascal(schema_file.stem)
+
+    # Check if this is a oneOf discriminated union
+    if "oneOf" in schema and "properties" not in schema:
+        return generate_discriminated_union(schema, model_name)
 
     # Check if this is a simple type alias (enum or primitive type without properties)
     if "properties" not in schema:
@@ -154,6 +254,13 @@ def get_python_type(schema: dict) -> str:
         # Reference to another model
         ref = schema["$ref"]
         return snake_to_pascal(ref.replace(".json", ""))
+
+    # Handle const (discriminator values)
+    if "const" in schema:
+        const_value = schema["const"]
+        if isinstance(const_value, str):
+            return f'Literal["{const_value}"]'
+        return f"Literal[{const_value}]"
 
     schema_type = schema.get("type")
 
@@ -387,6 +494,8 @@ def main():
         "protocol-envelope.json",
         "response.json",
         "promoted-products.json",
+        "destination.json",
+        "deployment.json",
         # Enum types (need type aliases)
         "channels.json",
         "delivery-type.json",
@@ -436,6 +545,7 @@ def main():
         "",
         "# These types are referenced in schemas but don't have schema files",
         "# Defining them as type aliases to maintain type safety",
+        "ActivationKey = dict[str, Any]",
         "PackageRequest = dict[str, Any]",
         "PushNotificationConfig = dict[str, Any]",
         "ReportingCapabilities = dict[str, Any]",
