@@ -1,7 +1,8 @@
 """Tests for preview URL generation functionality."""
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from adcp import ADCPClient
 from adcp.types import AgentConfig, Protocol
@@ -19,10 +20,8 @@ from adcp.types.generated import (
 )
 from adcp.utils.preview_cache import (
     PreviewURLGenerator,
-    _create_sample_manifest_for_format,
     _create_sample_asset,
-    add_preview_urls_to_formats,
-    add_preview_urls_to_products,
+    _create_sample_manifest_for_format,
 )
 
 
@@ -64,9 +63,13 @@ async def test_preview_creative():
         previews=[{"preview_url": "https://preview.example.com/abc123"}],
         expires_at="2025-12-01T00:00:00Z",
     )
-    mock_parsed_result = TaskResult(status=TaskStatus.COMPLETED, data=mock_response_data, success=True)
+    mock_parsed_result = TaskResult(
+        status=TaskStatus.COMPLETED, data=mock_response_data, success=True
+    )
 
-    with patch.object(client.adapter, "preview_creative", return_value=mock_raw_result) as mock_call:
+    with patch.object(
+        client.adapter, "preview_creative", return_value=mock_raw_result
+    ) as mock_call:
         with patch.object(client.adapter, "_parse_response", return_value=mock_parsed_result):
             request = PreviewCreativeRequest(format_id=format_id, creative_manifest=manifest)
             result = await client.preview_creative(request)
@@ -119,7 +122,9 @@ async def test_get_preview_data_for_manifest():
         ],
         expires_at="2025-12-01T00:00:00Z",
     )
-    mock_parsed_result = TaskResult(status=TaskStatus.COMPLETED, data=mock_preview_response, success=True)
+    mock_parsed_result = TaskResult(
+        status=TaskStatus.COMPLETED, data=mock_preview_response, success=True
+    )
 
     with patch.object(client.adapter, "preview_creative", return_value=mock_raw_result):
         with patch.object(client.adapter, "_parse_response", return_value=mock_parsed_result):
@@ -160,9 +165,13 @@ async def test_preview_data_caching():
         previews=[{"preview_url": "https://preview.example.com/abc123"}],
         expires_at="2025-12-01T00:00:00Z",
     )
-    mock_parsed_result = TaskResult(status=TaskStatus.COMPLETED, data=mock_preview_response, success=True)
+    mock_parsed_result = TaskResult(
+        status=TaskStatus.COMPLETED, data=mock_preview_response, success=True
+    )
 
-    with patch.object(client.adapter, "preview_creative", return_value=mock_raw_result) as mock_call:
+    with patch.object(
+        client.adapter, "preview_creative", return_value=mock_raw_result
+    ) as mock_call:
         with patch.object(client.adapter, "_parse_response", return_value=mock_parsed_result):
             result1 = await generator.get_preview_data_for_manifest(format_id, manifest)
             result2 = await generator.get_preview_data_for_manifest(format_id, manifest)
@@ -234,8 +243,16 @@ async def test_get_products_with_preview_urls():
 
     with patch.object(client.adapter, "get_products", return_value=mock_raw_result):
         with patch.object(client.adapter, "_parse_response", return_value=mock_parsed_result):
-            with patch.object(creative_client.adapter, "preview_creative", return_value=mock_preview_raw_result):
-                with patch.object(creative_client.adapter, "_parse_response", return_value=mock_preview_parsed_result):
+            with patch.object(
+                creative_client.adapter,
+                "preview_creative",
+                return_value=mock_preview_raw_result,
+            ):
+                with patch.object(
+                    creative_client.adapter,
+                    "_parse_response",
+                    return_value=mock_preview_parsed_result,
+                ):
                     request = GetProductsRequest(brief="test campaign")
                     result = await client.get_products(
                         request, fetch_previews=True, creative_agent_client=creative_client
@@ -317,8 +334,16 @@ async def test_list_creative_formats_with_preview_urls():
     )
 
     with patch.object(client.adapter, "list_creative_formats", return_value=mock_raw_result):
-        with patch.object(client.adapter, "_parse_response", side_effect=[mock_parsed_result, mock_preview_parsed_result]):
-            with patch.object(client.adapter, "preview_creative", return_value=mock_preview_raw_result):
+        with patch.object(
+            client.adapter,
+            "_parse_response",
+            side_effect=[mock_parsed_result, mock_preview_parsed_result],
+        ):
+            with patch.object(
+                client.adapter,
+                "preview_creative",
+                return_value=mock_preview_raw_result,
+            ):
                 request = ListCreativeFormatsRequest()
                 result = await client.list_creative_formats(request, fetch_previews=True)
 

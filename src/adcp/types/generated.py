@@ -14,19 +14,8 @@ from __future__ import annotations
 import re
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-
-# ============================================================================
-# MISSING SCHEMA TYPES (referenced but not provided by upstream)
-# ============================================================================
-
-# These types are referenced in schemas but don't have schema files
-# Defining them as type aliases to maintain type safety
-ActivationKey = dict[str, Any]
-PackageRequest = dict[str, Any]
-PushNotificationConfig = dict[str, Any]
-ReportingCapabilities = dict[str, Any]
 
 
 # ============================================================================
@@ -287,13 +276,28 @@ class StartTimingVariant2(BaseModel):
 StartTiming = StartTimingVariant1 | StartTimingVariant2
 
 
-class SubAsset(BaseModel):
-    """Sub-asset for multi-asset creative formats, including carousel images and native ad template variables"""
+# Sub-asset for multi-asset creative formats, including carousel images and native ad template variables
 
-    asset_type: str | None = Field(None, description="Type of asset. Common types: headline, body_text, thumbnail_image, product_image, featured_image, logo, cta_text, price_text, sponsor_name, author_name, click_url")
-    asset_id: str | None = Field(None, description="Unique identifier for the asset within the creative")
-    content_uri: str | None = Field(None, description="URL for media assets (images, videos, etc.)")
-    content: Any | None = Field(None, description="Text content for text-based assets like headlines, body text, CTA text, etc.")
+class MediaSubAsset(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    asset_kind: Literal["media"] = Field(description="Discriminator indicating this is a media asset with content_uri")
+    asset_type: str = Field(description="Type of asset. Common types: thumbnail_image, product_image, featured_image, logo")
+    asset_id: str = Field(description="Unique identifier for the asset within the creative")
+    content_uri: str = Field(description="URL for media assets (images, videos, etc.)")
+
+
+class TextSubAsset(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    asset_kind: Literal["text"] = Field(description="Discriminator indicating this is a text asset with content")
+    asset_type: str = Field(description="Type of asset. Common types: headline, body_text, cta_text, price_text, sponsor_name, author_name, click_url")
+    asset_id: str = Field(description="Unique identifier for the asset within the creative")
+    content: Any = Field(description="Text content for text-based assets like headlines, body text, CTA text, etc.")
+
+
+# Union type for Sub-Asset
+SubAsset = MediaSubAsset | TextSubAsset
 
 
 class WebhookPayload(BaseModel):
@@ -308,7 +312,7 @@ class WebhookPayload(BaseModel):
     message: str | None = Field(None, description="Human-readable summary of the current task state. Provides context about what happened and what action may be needed.")
     context_id: str | None = Field(None, description="Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters.")
     progress: dict[str, Any] | None = Field(None, description="Progress information for tasks still in 'working' state. Rarely seen in webhooks since 'working' tasks typically complete synchronously, but may appear if a task transitions from 'submitted' to 'working'.")
-    result: Any | None = Field(None, description="Task-specific payload for this status update. For 'completed', contains the final result. For 'input-required', may contain approval or clarification context. Optional for non-terminal updates.")
+    result: Any | None = Field(None, description="Task-specific payload for this status update. Validated against the appropriate response schema based on task_type.")
     error: Any | None = Field(None, description="Error message for failed tasks. Only present when status is 'failed'.")
 
 
@@ -344,12 +348,16 @@ class PromotedProducts(BaseModel):
 # A destination platform where signals can be activated (DSP, sales agent, etc.)
 
 class PlatformDestination(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     type: Literal["platform"] = Field(description="Discriminator indicating this is a platform-based destination")
     platform: str = Field(description="Platform identifier for DSPs (e.g., 'the-trade-desk', 'amazon-dsp')")
     account: str | None = Field(None, description="Optional account identifier on the platform")
 
 
 class AgentDestination(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     type: Literal["agent"] = Field(description="Discriminator indicating this is an agent URL-based destination")
     agent_url: str = Field(description="URL identifying the destination agent (for sales agents, etc.)")
     account: str | None = Field(None, description="Optional account identifier on the agent")
@@ -362,6 +370,8 @@ Destination = PlatformDestination | AgentDestination
 # A signal deployment to a specific destination platform with activation status and key
 
 class PlatformDeployment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     type: Literal["platform"] = Field(description="Discriminator indicating this is a platform-based deployment")
     platform: str = Field(description="Platform identifier for DSPs")
     account: str | None = Field(None, description="Account identifier if applicable")
@@ -372,6 +382,8 @@ class PlatformDeployment(BaseModel):
 
 
 class AgentDeployment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     type: Literal["agent"] = Field(description="Discriminator indicating this is an agent URL-based deployment")
     agent_url: str = Field(description="URL identifying the destination agent")
     account: str | None = Field(None, description="Account identifier if applicable")
@@ -383,6 +395,45 @@ class AgentDeployment(BaseModel):
 
 # Union type for Deployment
 Deployment = PlatformDeployment | AgentDeployment
+
+
+# Universal identifier for using a signal on a destination platform. Can be either a segment ID or a key-value pair depending on the platform's targeting mechanism.
+
+class Segment_idActivationKey(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["segment_id"] = Field(description="Segment ID based targeting")
+    segment_id: str = Field(description="The platform-specific segment identifier to use in campaign targeting")
+
+
+class Key_valueActivationKey(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["key_value"] = Field(description="Key-value pair based targeting")
+    key: str = Field(description="The targeting parameter key")
+    value: str = Field(description="The targeting parameter value")
+
+
+# Union type for Activation Key
+ActivationKey = Segment_idActivationKey | Key_valueActivationKey
+
+
+class PushNotificationConfig(BaseModel):
+    """Webhook configuration for asynchronous task notifications. Uses A2A-compatible PushNotificationConfig structure. Supports Bearer tokens (simple) or HMAC signatures (production-recommended)."""
+
+    url: str = Field(description="Webhook endpoint URL for task status notifications")
+    token: str | None = Field(None, description="Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.")
+    authentication: dict[str, Any] = Field(description="Authentication configuration for webhook delivery (A2A-compatible)")
+
+
+class ReportingCapabilities(BaseModel):
+    """Reporting capabilities available for a product"""
+
+    available_reporting_frequencies: list[Literal["hourly", "daily", "monthly"]] = Field(description="Supported reporting frequency options")
+    expected_delay_minutes: int = Field(description="Expected delay in minutes before reporting data becomes available (e.g., 240 for 4-hour delay)")
+    timezone: str = Field(description="Timezone for reporting periods. Use 'UTC' or IANA timezone (e.g., 'America/New_York'). Critical for daily/monthly frequency alignment.")
+    supports_webhooks: bool = Field(description="Whether this product supports webhook-based reporting notifications")
+    available_metrics: list[Literal["impressions", "spend", "clicks", "ctr", "video_completions", "completion_rate", "conversions", "viewability", "engagement_rate"]] = Field(description="Metrics available in reporting. Impressions and spend are always implicitly included.")
 
 
 # Type alias for Advertising Channels
@@ -472,17 +523,118 @@ PricingOption = PricingOptionVariant1 | PricingOptionVariant2 | PricingOptionVar
 StandardFormatIds = Literal["display_300x250", "display_728x90", "display_320x50", "display_160x600", "display_970x250", "display_336x280", "display_expandable_300x250", "display_expandable_728x90", "display_interstitial_320x480", "display_interstitial_desktop", "display_dynamic_300x250", "display_responsive", "native_in_feed", "native_content_recommendation", "native_product", "video_skippable_15s", "video_skippable_30s", "video_non_skippable_15s", "video_non_skippable_30s", "video_outstream_autoplay", "video_vertical_story", "video_rewarded_30s", "video_pause_ad", "video_ctv_non_skippable_30s", "audio_standard_15s", "audio_standard_30s", "audio_podcast_host_read", "audio_programmatic", "universal_carousel", "universal_canvas", "universal_takeover", "universal_gallery", "universal_reveal", "dooh_landscape_static", "dooh_portrait_video"]
 
 
+# VAST (Video Ad Serving Template) tag for third-party video ad serving
+
+class UrlVastAsset(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    delivery_type: Literal["url"] = Field(description="Discriminator indicating VAST is delivered via URL endpoint")
+    url: str = Field(description="URL endpoint that returns VAST XML")
+    vast_version: Literal["2.0", "3.0", "4.0", "4.1", "4.2"] | None = Field(None, description="VAST specification version")
+    vpaid_enabled: bool | None = Field(None, description="Whether VPAID (Video Player-Ad Interface Definition) is supported")
+    duration_ms: int | None = Field(None, description="Expected video duration in milliseconds (if known)")
+    tracking_events: list[Literal["start", "firstQuartile", "midpoint", "thirdQuartile", "complete", "impression", "click", "pause", "resume", "skip", "mute", "unmute", "fullscreen", "exitFullscreen", "playerExpand", "playerCollapse"]] | None = Field(None, description="Tracking events supported by this VAST tag")
+
+
+class InlineVastAsset(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    delivery_type: Literal["inline"] = Field(description="Discriminator indicating VAST is delivered as inline XML content")
+    content: str = Field(description="Inline VAST XML content")
+    vast_version: Literal["2.0", "3.0", "4.0", "4.1", "4.2"] | None = Field(None, description="VAST specification version")
+    vpaid_enabled: bool | None = Field(None, description="Whether VPAID (Video Player-Ad Interface Definition) is supported")
+    duration_ms: int | None = Field(None, description="Expected video duration in milliseconds (if known)")
+    tracking_events: list[Literal["start", "firstQuartile", "midpoint", "thirdQuartile", "complete", "impression", "click", "pause", "resume", "skip", "mute", "unmute", "fullscreen", "exitFullscreen", "playerExpand", "playerCollapse"]] | None = Field(None, description="Tracking events supported by this VAST tag")
+
+
+# Union type for VAST Asset
+VastAsset = UrlVastAsset | InlineVastAsset
+
+
+# DAAST (Digital Audio Ad Serving Template) tag for third-party audio ad serving
+
+class UrlDaastAsset(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    delivery_type: Literal["url"] = Field(description="Discriminator indicating DAAST is delivered via URL endpoint")
+    url: str = Field(description="URL endpoint that returns DAAST XML")
+    daast_version: Literal["1.0", "1.1"] | None = Field(None, description="DAAST specification version")
+    duration_ms: int | None = Field(None, description="Expected audio duration in milliseconds (if known)")
+    tracking_events: list[Literal["start", "firstQuartile", "midpoint", "thirdQuartile", "complete", "impression", "pause", "resume", "skip", "mute", "unmute"]] | None = Field(None, description="Tracking events supported by this DAAST tag")
+    companion_ads: bool | None = Field(None, description="Whether companion display ads are included")
+
+
+class InlineDaastAsset(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    delivery_type: Literal["inline"] = Field(description="Discriminator indicating DAAST is delivered as inline XML content")
+    content: str = Field(description="Inline DAAST XML content")
+    daast_version: Literal["1.0", "1.1"] | None = Field(None, description="DAAST specification version")
+    duration_ms: int | None = Field(None, description="Expected audio duration in milliseconds (if known)")
+    tracking_events: list[Literal["start", "firstQuartile", "midpoint", "thirdQuartile", "complete", "impression", "pause", "resume", "skip", "mute", "unmute"]] | None = Field(None, description="Tracking events supported by this DAAST tag")
+    companion_ads: bool | None = Field(None, description="Whether companion display ads are included")
+
+
+# Union type for DAAST Asset
+DaastAsset = UrlDaastAsset | InlineDaastAsset
+
+
+# A single rendered piece of a creative preview with discriminated output format
+
+class UrlPreviewRender(BaseModel):
+    """URL-only preview format"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    render_id: str = Field(description="Unique identifier for this rendered piece within the variant")
+    output_format: Literal["url"] = Field(description="Discriminator indicating preview_url is provided")
+    preview_url: str = Field(description="URL to an HTML page that renders this piece. Can be embedded in an iframe.")
+    role: str = Field(description="Semantic role of this rendered piece. Use 'primary' for main content, 'companion' for associated banners, descriptive strings for device variants or custom roles.")
+    dimensions: dict[str, Any] | None = Field(None, description="Dimensions for this rendered piece")
+    embedding: dict[str, Any] | None = Field(None, description="Optional security and embedding metadata for safe iframe integration")
+
+
+class HtmlPreviewRender(BaseModel):
+    """HTML-only preview format"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    render_id: str = Field(description="Unique identifier for this rendered piece within the variant")
+    output_format: Literal["html"] = Field(description="Discriminator indicating preview_html is provided")
+    preview_html: str = Field(description="Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.")
+    role: str = Field(description="Semantic role of this rendered piece. Use 'primary' for main content, 'companion' for associated banners, descriptive strings for device variants or custom roles.")
+    dimensions: dict[str, Any] | None = Field(None, description="Dimensions for this rendered piece")
+    embedding: dict[str, Any] | None = Field(None, description="Optional security and embedding metadata")
+
+
+class BothPreviewRender(BaseModel):
+    """Both URL and HTML preview format"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    render_id: str = Field(description="Unique identifier for this rendered piece within the variant")
+    output_format: Literal["both"] = Field(description="Discriminator indicating both preview_url and preview_html are provided")
+    preview_url: str = Field(description="URL to an HTML page that renders this piece. Can be embedded in an iframe.")
+    preview_html: str = Field(description="Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.")
+    role: str = Field(description="Semantic role of this rendered piece. Use 'primary' for main content, 'companion' for associated banners, descriptive strings for device variants or custom roles.")
+    dimensions: dict[str, Any] | None = Field(None, description="Dimensions for this rendered piece")
+    embedding: dict[str, Any] | None = Field(None, description="Optional security and embedding metadata for safe iframe integration")
+
+
+# Union type for Preview Render
+PreviewRender = UrlPreviewRender | HtmlPreviewRender | BothPreviewRender
+
+
 
 # ============================================================================
 # TASK REQUEST/RESPONSE TYPES
 # ============================================================================
 
 class ActivateSignalRequest(BaseModel):
-    """Request parameters for activating a signal on a specific platform/account"""
+    """Request parameters for activating a signal on a specific destination"""
 
     signal_agent_segment_id: str = Field(description="The universal identifier for the signal to activate")
-    platform: str = Field(description="The target platform for activation")
-    account: str | None = Field(None, description="Account identifier (required for account-specific activation)")
+    destinations: list[Destination] = Field(description="Target destination(s) for activation. If the authenticated caller matches one of these destinations, activation keys will be included in the response.")
 
 
 class BuildCreativeRequest(BaseModel):
@@ -527,7 +679,7 @@ class GetSignalsRequest(BaseModel):
     """Request parameters for discovering signals based on description"""
 
     signal_spec: str = Field(description="Natural language description of the desired signals")
-    deliver_to: dict[str, Any] = Field(description="Where the signals need to be delivered")
+    deliver_to: dict[str, Any] = Field(description="Destination platforms where signals need to be activated")
     filters: dict[str, Any] | None = Field(None, description="Filters to refine results")
     max_results: int | None = Field(None, description="Maximum number of results to return")
 
@@ -564,6 +716,21 @@ class ListCreativesRequest(BaseModel):
     fields: list[Literal["creative_id", "name", "format", "status", "created_date", "updated_date", "tags", "assignments", "performance", "sub_assets"]] | None = Field(None, description="Specific fields to include in response (omit for all fields)")
 
 
+class PackageRequest(BaseModel):
+    """Package configuration for media buy creation"""
+
+    buyer_ref: str = Field(description="Buyer's reference identifier for this package")
+    product_id: str = Field(description="Product ID for this package")
+    format_ids: list[FormatId] | None = Field(None, description="Array of format IDs that will be used for this package - must be supported by the product. If omitted, defaults to all formats supported by the product.")
+    budget: float = Field(description="Budget allocation for this package in the media buy's currency")
+    pacing: Pacing | None = None
+    pricing_option_id: str = Field(description="ID of the selected pricing option from the product's pricing_options array")
+    bid_price: float | None = Field(None, description="Bid price for auction-based CPM pricing (required if using cpm-auction-option)")
+    targeting_overlay: Targeting | None = None
+    creative_ids: list[str] | None = Field(None, description="Creative IDs to assign to this package at creation time (references existing library creatives)")
+    creatives: list[CreativeAsset] | None = Field(None, description="Full creative objects to upload and assign to this package at creation time (alternative to creative_ids - creatives will be added to library). Supports both static and generative creatives.")
+
+
 class ProvidePerformanceFeedbackRequest(BaseModel):
     """Request payload for provide_performance_feedback task"""
 
@@ -588,6 +755,22 @@ class SyncCreativesRequest(BaseModel):
     push_notification_config: PushNotificationConfig | None = Field(None, description="Optional webhook configuration for async sync notifications. Publisher will send webhook when sync completes if operation takes longer than immediate response time (typically for large bulk operations or manual approval/HITL).")
 
 
+class TasksGetRequest(BaseModel):
+    """Request parameters for retrieving a specific task by ID with optional conversation history across all AdCP domains"""
+
+    task_id: str = Field(description="Unique identifier of the task to retrieve")
+    include_history: bool | None = Field(None, description="Include full conversation history for this task (may increase response size)")
+
+
+class TasksListRequest(BaseModel):
+    """Request parameters for listing and filtering async tasks across all AdCP domains with state reconciliation capabilities"""
+
+    filters: dict[str, Any] | None = Field(None, description="Filter criteria for querying tasks")
+    sort: dict[str, Any] | None = Field(None, description="Sorting parameters")
+    pagination: dict[str, Any] | None = Field(None, description="Pagination parameters")
+    include_history: bool | None = Field(None, description="Include full conversation history for each task (may significantly increase response size)")
+
+
 class UpdateMediaBuyRequest(BaseModel):
     """Request parameters for updating campaign and package settings"""
 
@@ -600,30 +783,26 @@ class UpdateMediaBuyRequest(BaseModel):
     push_notification_config: PushNotificationConfig | None = Field(None, description="Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time.")
 
 
-class ActivateSignalResponse(BaseModel):
-    """Response payload for activate_signal task"""
+# Response containing the transformed or generated creative manifest, ready for use with preview_creative or sync_creatives. Returns either the complete creative manifest OR error information, never both.
 
-    decisioning_platform_segment_id: str | None = Field(None, description="The platform-specific ID to use once activated")
-    estimated_activation_duration_minutes: float | None = Field(None, description="Estimated time to complete (optional)")
-    deployed_at: str | None = Field(None, description="Timestamp when activation completed (optional)")
-    errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., activation failures, platform issues)")
+class BuildCreativeResponseVariant1(BaseModel):
+    """Success response - creative manifest generated successfully"""
 
-
-class BuildCreativeResponse(BaseModel):
-    """Response containing the transformed or generated creative manifest, ready for use with preview_creative or sync_creatives"""
+    model_config = ConfigDict(extra="forbid")
 
     creative_manifest: CreativeManifest = Field(description="The generated or transformed creative manifest")
-    errors: list[Error] | None = Field(None, description="Task-specific errors and warnings")
 
 
-class CreateMediaBuyResponse(BaseModel):
-    """Response payload for create_media_buy task"""
+class BuildCreativeResponseVariant2(BaseModel):
+    """Error response - creative generation failed"""
 
-    media_buy_id: str | None = Field(None, description="Publisher's unique identifier for the created media buy")
-    buyer_ref: str = Field(description="Buyer's reference identifier for this media buy")
-    creative_deadline: str | None = Field(None, description="ISO 8601 timestamp for creative upload deadline")
-    packages: list[dict[str, Any]] | None = Field(None, description="Array of created packages")
-    errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., partial package creation failures)")
+    model_config = ConfigDict(extra="forbid")
+
+    errors: list[Error] = Field(description="Array of errors explaining why creative generation failed")
+
+
+# Union type for Build Creative Response
+BuildCreativeResponse = BuildCreativeResponseVariant1 | BuildCreativeResponseVariant2
 
 
 class GetMediaBuyDeliveryResponse(BaseModel):
@@ -685,28 +864,50 @@ class ListCreativesResponse(BaseModel):
     status_summary: dict[str, Any] | None = Field(None, description="Breakdown of creatives by status")
 
 
-class ProvidePerformanceFeedbackResponse(BaseModel):
-    """Response payload for provide_performance_feedback task"""
+# Response payload for provide_performance_feedback task. Returns either success confirmation OR error information, never both.
 
-    success: bool = Field(description="Whether the performance feedback was successfully received")
-    errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., invalid measurement period, missing campaign data)")
+class ProvidePerformanceFeedbackResponseVariant1(BaseModel):
+    """Success response - feedback received and processed"""
 
+    model_config = ConfigDict(extra="forbid")
 
-class SyncCreativesResponse(BaseModel):
-    """Response from creative sync operation with results for each creative"""
-
-    dry_run: bool | None = Field(None, description="Whether this was a dry run (no actual changes made)")
-    creatives: list[dict[str, Any]] = Field(description="Results for each creative processed")
+    success: Literal[True] = Field(description="Whether the performance feedback was successfully received")
 
 
-class UpdateMediaBuyResponse(BaseModel):
-    """Response payload for update_media_buy task"""
+class ProvidePerformanceFeedbackResponseVariant2(BaseModel):
+    """Error response - feedback rejected or could not be processed"""
 
-    media_buy_id: str = Field(description="Publisher's identifier for the media buy")
-    buyer_ref: str = Field(description="Buyer's reference identifier for the media buy")
-    implementation_date: Any | None = Field(None, description="ISO 8601 timestamp when changes take effect (null if pending approval)")
-    affected_packages: list[dict[str, Any]] | None = Field(None, description="Array of packages that were modified")
-    errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., partial update failures)")
+    model_config = ConfigDict(extra="forbid")
+
+    errors: list[Error] = Field(description="Array of errors explaining why feedback was rejected (e.g., invalid measurement period, missing campaign data)")
+
+
+# Union type for Provide Performance Feedback Response
+ProvidePerformanceFeedbackResponse = ProvidePerformanceFeedbackResponseVariant1 | ProvidePerformanceFeedbackResponseVariant2
+
+
+class TasksGetResponse(BaseModel):
+    """Response containing detailed information about a specific task including status and optional conversation history across all AdCP domains"""
+
+    task_id: str = Field(description="Unique identifier for this task")
+    task_type: TaskType = Field(description="Type of AdCP operation")
+    domain: Literal["media-buy", "signals"] = Field(description="AdCP domain this task belongs to")
+    status: TaskStatus = Field(description="Current task status")
+    created_at: str = Field(description="When the task was initially created (ISO 8601)")
+    updated_at: str = Field(description="When the task was last updated (ISO 8601)")
+    completed_at: str | None = Field(None, description="When the task completed (ISO 8601, only for completed/failed/canceled tasks)")
+    has_webhook: bool | None = Field(None, description="Whether this task has webhook configuration")
+    progress: dict[str, Any] | None = Field(None, description="Progress information for long-running tasks")
+    error: dict[str, Any] | None = Field(None, description="Error details for failed tasks")
+    history: list[dict[str, Any]] | None = Field(None, description="Complete conversation history for this task (only included if include_history was true in request)")
+
+
+class TasksListResponse(BaseModel):
+    """Response from task listing query with filtered results and state reconciliation data across all AdCP domains"""
+
+    query_summary: dict[str, Any] = Field(description="Summary of the query that was executed")
+    tasks: list[dict[str, Any]] = Field(description="Array of tasks matching the query criteria")
+    pagination: dict[str, Any] = Field(description="Pagination information")
 
 
 
@@ -761,3 +962,211 @@ class PreviewCreativeResponse(BaseModel):
 
     # Batch mode field
     results: list[dict[str, Any]] | None = Field(default=None, description="Array of preview results for batch processing")
+
+
+# ============================================================================
+# ONEOF DISCRIMINATED UNIONS FOR RESPONSE TYPES
+# ============================================================================
+# These response types use oneOf semantics: success XOR error, never both.
+# Implemented as Union types with distinct Success/Error variants.
+
+
+class ActivateSignalSuccess(BaseModel):
+    """Successful signal activation response"""
+
+    decisioning_platform_segment_id: str = Field(
+        description="The platform-specific ID to use once activated"
+    )
+    estimated_activation_duration_minutes: float | None = None
+    deployed_at: str | None = None
+
+
+class ActivateSignalError(BaseModel):
+    """Failed signal activation response"""
+
+    errors: list[Error] = Field(description="Task-specific errors and warnings")
+
+
+# Override the generated ActivateSignalResponse type alias
+ActivateSignalResponse = ActivateSignalSuccess | ActivateSignalError
+
+
+class CreateMediaBuySuccess(BaseModel):
+    """Successful media buy creation response"""
+
+    media_buy_id: str = Field(description="The unique ID for the media buy")
+    buyer_ref: str = Field(description="The buyer's reference ID for this media buy")
+    packages: list[Package] = Field(
+        description="Array of approved packages. Each package is ready for creative assignment."
+    )
+    creative_deadline: str | None = Field(
+        None,
+        description="ISO 8601 date when creatives must be provided for launch",
+    )
+
+
+class CreateMediaBuyError(BaseModel):
+    """Failed media buy creation response"""
+
+    errors: list[Error] = Field(description="Task-specific errors and warnings")
+
+
+# Override the generated CreateMediaBuyResponse type alias
+CreateMediaBuyResponse = CreateMediaBuySuccess | CreateMediaBuyError
+
+
+class UpdateMediaBuySuccess(BaseModel):
+    """Successful media buy update response"""
+
+    media_buy_id: str = Field(description="The unique ID for the media buy")
+    buyer_ref: str = Field(description="The buyer's reference ID for this media buy")
+    packages: list[Package] = Field(
+        description="Array of updated packages reflecting the changes"
+    )
+
+
+class UpdateMediaBuyError(BaseModel):
+    """Failed media buy update response"""
+
+    errors: list[Error] = Field(description="Task-specific errors and warnings")
+
+
+# Override the generated UpdateMediaBuyResponse type alias
+UpdateMediaBuyResponse = UpdateMediaBuySuccess | UpdateMediaBuyError
+
+
+class SyncCreativesSuccess(BaseModel):
+    """Successful creative sync response"""
+
+    assignments: list[CreativeAssignment] = Field(
+        description="Array of creative assignments with updated status"
+    )
+
+
+class SyncCreativesError(BaseModel):
+    """Failed creative sync response"""
+
+    errors: list[Error] = Field(description="Task-specific errors and warnings")
+
+
+# Override the generated SyncCreativesResponse type alias
+SyncCreativesResponse = SyncCreativesSuccess | SyncCreativesError
+
+
+# Explicit exports for module interface
+__all__ = [
+    "ActivateSignalError",
+    "ActivateSignalRequest",
+    "ActivateSignalResponse",
+    "ActivateSignalSuccess",
+    "ActivationKey",
+    "AgentDeployment",
+    "AgentDestination",
+    "BothPreviewRender",
+    "BrandManifest",
+    "BrandManifestRef",
+    "BrandManifestRefVariant1",
+    "BrandManifestRefVariant2",
+    "BuildCreativeRequest",
+    "BuildCreativeResponse",
+    "BuildCreativeResponseVariant1",
+    "BuildCreativeResponseVariant2",
+    "Channels",
+    "CreateMediaBuyError",
+    "CreateMediaBuyRequest",
+    "CreateMediaBuyResponse",
+    "CreateMediaBuySuccess",
+    "CreativeAsset",
+    "CreativeAssignment",
+    "CreativeManifest",
+    "CreativePolicy",
+    "DaastAsset",
+    "DeliveryMetrics",
+    "DeliveryType",
+    "Deployment",
+    "Destination",
+    "Error",
+    "Format",
+    "FormatId",
+    "FrequencyCap",
+    "GetMediaBuyDeliveryRequest",
+    "GetMediaBuyDeliveryResponse",
+    "GetProductsRequest",
+    "GetProductsResponse",
+    "GetSignalsRequest",
+    "GetSignalsResponse",
+    "HtmlPreviewRender",
+    "InlineDaastAsset",
+    "InlineVastAsset",
+    "Key_valueActivationKey",
+    "ListAuthorizedPropertiesRequest",
+    "ListAuthorizedPropertiesResponse",
+    "ListCreativeFormatsRequest",
+    "ListCreativeFormatsResponse",
+    "ListCreativesRequest",
+    "ListCreativesResponse",
+    "Measurement",
+    "MediaBuy",
+    "MediaBuyStatus",
+    "MediaSubAsset",
+    "Pacing",
+    "Package",
+    "PackageRequest",
+    "PackageStatus",
+    "PerformanceFeedback",
+    "Placement",
+    "PlatformDeployment",
+    "PlatformDestination",
+    "PreviewCreativeRequest",
+    "PreviewCreativeResponse",
+    "PreviewRender",
+    "PricingModel",
+    "PricingOption",
+    "PricingOptionVariant1",
+    "PricingOptionVariant2",
+    "PricingOptionVariant3",
+    "PricingOptionVariant4",
+    "PricingOptionVariant5",
+    "PricingOptionVariant6",
+    "PricingOptionVariant7",
+    "PricingOptionVariant8",
+    "PricingOptionVariant9",
+    "Product",
+    "PromotedProducts",
+    "Property",
+    "ProtocolEnvelope",
+    "ProvidePerformanceFeedbackRequest",
+    "ProvidePerformanceFeedbackResponse",
+    "ProvidePerformanceFeedbackResponseVariant1",
+    "ProvidePerformanceFeedbackResponseVariant2",
+    "PushNotificationConfig",
+    "ReportingCapabilities",
+    "Response",
+    "Segment_idActivationKey",
+    "StandardFormatIds",
+    "StartTiming",
+    "StartTimingVariant1",
+    "StartTimingVariant2",
+    "SubAsset",
+    "SyncCreativesError",
+    "SyncCreativesRequest",
+    "SyncCreativesResponse",
+    "SyncCreativesSuccess",
+    "Targeting",
+    "TaskStatus",
+    "TaskType",
+    "TasksGetRequest",
+    "TasksGetResponse",
+    "TasksListRequest",
+    "TasksListResponse",
+    "TextSubAsset",
+    "UpdateMediaBuyError",
+    "UpdateMediaBuyRequest",
+    "UpdateMediaBuyResponse",
+    "UpdateMediaBuySuccess",
+    "UrlDaastAsset",
+    "UrlPreviewRender",
+    "UrlVastAsset",
+    "VastAsset",
+    "WebhookPayload",
+]

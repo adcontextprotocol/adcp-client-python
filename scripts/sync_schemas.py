@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Sync AdCP JSON schemas from adcontextprotocol.org.
+Sync AdCP JSON schemas from GitHub main branch.
 
-This script downloads all AdCP schemas to schemas/cache/ for code generation.
-Based on the JavaScript client's sync-schemas.ts.
+This script downloads ALL AdCP schemas from the repository directory structure,
+not just those listed in index.json. This ensures we get all schemas including
+asset types (vast-asset.json, daast-asset.json) with discriminators from PR #189.
 """
 
 import json
@@ -12,8 +13,10 @@ from pathlib import Path
 from urllib.request import urlopen
 from urllib.error import URLError
 
-ADCP_BASE_URL = "https://adcontextprotocol.org"
-SCHEMA_INDEX_URL = f"{ADCP_BASE_URL}/schemas/v1/index.json"
+# Use GitHub API and raw content for complete schema discovery
+GITHUB_API_BASE = "https://api.github.com/repos/adcontextprotocol/adcp/contents"
+ADCP_BASE_URL = "https://raw.githubusercontent.com/adcontextprotocol/adcp/main"
+SCHEMA_INDEX_URL = f"{ADCP_BASE_URL}/static/schemas/v1/index.json"
 CACHE_DIR = Path(__file__).parent.parent / "schemas" / "cache"
 
 
@@ -47,6 +50,40 @@ def extract_refs(schema: dict) -> set[str]:
     return refs
 
 
+def list_directory_contents(api_path: str) -> list[dict]:
+    """List contents of a GitHub directory via API."""
+    try:
+        url = f"{GITHUB_API_BASE}/{api_path}"
+        with urlopen(url) as response:
+            return json.loads(response.read().decode())
+    except URLError as e:
+        print(f"Error listing {api_path}: {e}", file=sys.stderr)
+        return []
+
+
+def discover_all_schemas(api_path: str = "static/schemas/v1") -> list[str]:
+    """
+    Recursively discover all .json schema files in the GitHub repository.
+
+    Returns:
+        List of raw GitHub URLs for all schema files
+    """
+    schema_urls = []
+    contents = list_directory_contents(api_path)
+
+    for item in contents:
+        if item["type"] == "file" and item["name"].endswith(".json"):
+            # Convert download_url to raw GitHub URL for consistency
+            raw_url = item["download_url"]
+            schema_urls.append(raw_url)
+        elif item["type"] == "dir":
+            # Recursively explore subdirectories
+            subdir_urls = discover_all_schemas(item["path"])
+            schema_urls.extend(subdir_urls)
+
+    return schema_urls
+
+
 def download_schema_file(url: str, version: str) -> None:
     """Download a schema and save it to cache."""
     # Extract filename from URL
@@ -74,57 +111,31 @@ def download_schema_file(url: str, version: str) -> None:
 
     print(f"  ✓ {filename}")
 
-    # Download referenced schemas
-    refs = extract_refs(schema)
-    for ref_url in refs:
-        if ref_url.startswith(ADCP_BASE_URL):
-            download_schema_file(ref_url, version)
-
 
 def main():
     """Main entry point."""
-    print("Syncing AdCP schemas from adcontextprotocol.org...")
+    print("Syncing AdCP schemas from GitHub main branch...")
     print(f"Cache directory: {CACHE_DIR}\n")
 
     try:
-        # Download index
-        print("Fetching schema index...")
+        # Download index to get version
+        print("Fetching schema index for version info...")
         index = download_schema(SCHEMA_INDEX_URL)
         version = index.get("version", "unknown")
         print(f"Schema version: {version}\n")
 
-        # Collect all schema URLs from index
-        schema_urls = set()
+        # Discover ALL schemas by crawling the directory structure
+        print("Discovering all schemas in repository...")
+        schema_urls = discover_all_schemas("static/schemas/v1")
 
-        # Extract from schemas section
-        if "schemas" in index:
-            for section_name, section in index["schemas"].items():
-                # Get schemas from schemas subsection
-                if "schemas" in section:
-                    for schema_name, schema_info in section["schemas"].items():
-                        if "$ref" in schema_info:
-                            ref_url = schema_info["$ref"]
-                            # Convert relative URL to absolute
-                            if not ref_url.startswith("http"):
-                                ref_url = f"{ADCP_BASE_URL}{ref_url}"
-                            schema_urls.add(ref_url)
+        # Remove duplicates and sort
+        schema_urls = sorted(set(schema_urls))
 
-                # Get schemas from tasks subsection (request/response)
-                if "tasks" in section:
-                    for task_name, task_info in section["tasks"].items():
-                        for io_type in ["request", "response"]:
-                            if io_type in task_info and "$ref" in task_info[io_type]:
-                                ref_url = task_info[io_type]["$ref"]
-                                # Convert relative URL to absolute
-                                if not ref_url.startswith("http"):
-                                    ref_url = f"{ADCP_BASE_URL}{ref_url}"
-                                schema_urls.add(ref_url)
-
-        print(f"Found {len(schema_urls)} schemas\n")
+        print(f"Found {len(schema_urls)} schemas across all directories\n")
 
         # Download all schemas
         print("Downloading schemas:")
-        for url in sorted(schema_urls):
+        for url in schema_urls:
             download_schema_file(url, version)
 
         # Create latest symlink

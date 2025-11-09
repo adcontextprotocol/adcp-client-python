@@ -28,19 +28,37 @@ RESERVED_NAMES = set(keyword.kwlist) | {
 
 
 def snake_to_pascal(name: str) -> str:
-    """Convert snake_case to PascalCase."""
-    return "".join(word.capitalize() for word in name.split("-"))
+    """
+    Convert snake_case to PascalCase.
+
+    Raises:
+        ValueError: If the result is not a valid Python identifier
+    """
+    pascal = "".join(word.capitalize() for word in name.split("-"))
+
+    # Validate result is a valid Python identifier
+    if not pascal.isidentifier():
+        raise ValueError(
+            f"Cannot convert '{name}' to valid Python identifier: '{pascal}'"
+        )
+
+    return pascal
 
 
 def sanitize_field_name(name: str) -> str:
     """
-    Sanitize field name to avoid Python keyword collisions.
+    Sanitize field name to avoid Python keyword collisions and invalid identifiers.
 
     Returns tuple of (sanitized_name, needs_alias) where needs_alias indicates
     if the field needs a Field(alias=...) to preserve original JSON name.
     """
+    # Handle fields starting with invalid characters (like $schema)
+    if name.startswith("$"):
+        return name.replace("$", "dollar_"), True
+
     if name in RESERVED_NAMES:
         return f"{name}_", True
+
     return name, False
 
 
@@ -86,14 +104,24 @@ def generate_discriminated_union(schema: dict, base_name: str) -> str:
     # Generate a model for each variant in oneOf
     for i, variant in enumerate(schema.get("oneOf", [])):
         # Try to get discriminator value for better naming
+        # Check common discriminator fields: type, asset_kind, output_format, delivery_type
         discriminator_value = None
-        if "properties" in variant and "type" in variant["properties"]:
-            type_prop = variant["properties"]["type"]
-            if "const" in type_prop:
-                discriminator_value = type_prop["const"]
+        if "properties" in variant:
+            for disc_field in ["type", "asset_kind", "output_format", "delivery_type"]:
+                if disc_field in variant["properties"]:
+                    disc_prop = variant["properties"][disc_field]
+                    if "const" in disc_prop:
+                        discriminator_value = disc_prop["const"]
+                        break
+                    elif "enum" in disc_prop and len(disc_prop["enum"]) == 1:
+                        # Single-value enum can also be a discriminator
+                        discriminator_value = disc_prop["enum"][0]
+                        break
 
         # Generate variant name
         if discriminator_value:
+            # Capitalize discriminator value and append to base name
+            # e.g., "media" + "SubAsset" = "MediaSubAsset"
             variant_name = f"{discriminator_value.capitalize()}{base_name}"
         else:
             variant_name = f"{base_name}Variant{i+1}"
@@ -109,6 +137,11 @@ def generate_discriminated_union(schema: dict, base_name: str) -> str:
             desc = desc.replace("\n", " ").replace("\r", "")
             desc = re.sub(r"\s+", " ", desc).strip()
             lines.append(f'    """{desc}"""')
+            lines.append("")
+
+        # Add model_config with extra="forbid" if additionalProperties is false
+        if variant.get("additionalProperties") is False:
+            lines.append('    model_config = ConfigDict(extra="forbid")')
             lines.append("")
 
         # Add properties
@@ -252,8 +285,27 @@ def get_python_type(schema: dict) -> str:
     """Convert JSON schema type to Python type hint."""
     if "$ref" in schema:
         # Reference to another model
+        # Extract just the filename from paths like "/schemas/v1/core/format-id.json"
+        # Handles: absolute paths, relative paths, fragment identifiers (#/definitions/Foo)
         ref = schema["$ref"]
-        return snake_to_pascal(ref.replace(".json", ""))
+
+        if not ref:
+            raise ValueError("Empty $ref in schema")
+
+        # Split on # to handle fragment identifiers, then get the path part
+        path_part = ref.split("#")[0]
+
+        if not path_part:
+            # Pure fragment reference like "#/definitions/Foo" - not supported
+            raise ValueError(f"Fragment-only $ref not supported: {ref}")
+
+        # Extract filename from path (handles both / and \ separators)
+        filename = path_part.replace("\\", "/").split("/")[-1].replace(".json", "")
+
+        if not filename:
+            raise ValueError(f"Could not extract filename from $ref: {ref}")
+
+        return snake_to_pascal(filename)
 
     # Handle const (discriminator values)
     if "const" in schema:
@@ -394,6 +446,45 @@ def add_format_id_validation(code: str) -> str:
     return "\n".join(result_lines)
 
 
+def extract_type_names(code: str) -> list[str]:
+    """
+    Extract all type names (classes and type aliases) from generated code using AST.
+
+    This is more robust than string parsing as it handles:
+    - Comments containing class-like patterns
+    - Multiline docstrings
+    - Complex type expressions
+
+    Returns:
+        List of type names sorted alphabetically
+    """
+    type_names = []
+
+    try:
+        tree = ast.parse(code)
+    except SyntaxError as e:
+        # If code has syntax errors, fall back to empty list
+        # (validation will catch this later)
+        return []
+
+    for node in ast.walk(tree):
+        # Class definitions (e.g., class Foo(BaseModel):)
+        if isinstance(node, ast.ClassDef):
+            type_names.append(node.name)
+
+        # Type aliases at module level (e.g., TypeName = SomeType | OtherType)
+        # These are Assign nodes at the module body level
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    # Only include type aliases that start with capital letter
+                    # (convention for type names in Python)
+                    if target.id[0].isupper():
+                        type_names.append(target.id)
+
+    return sorted(set(type_names))
+
+
 def add_custom_implementations(code: str) -> str:
     """
     Add custom Pydantic class implementations that override type aliases.
@@ -455,6 +546,95 @@ class PreviewCreativeResponse(BaseModel):
 
     # Batch mode field
     results: list[dict[str, Any]] | None = Field(default=None, description="Array of preview results for batch processing")
+
+
+# ============================================================================
+# ONEOF DISCRIMINATED UNIONS FOR RESPONSE TYPES
+# ============================================================================
+# These response types use oneOf semantics: success XOR error, never both.
+# Implemented as Union types with distinct Success/Error variants.
+
+
+class ActivateSignalSuccess(BaseModel):
+    """Successful signal activation response"""
+
+    decisioning_platform_segment_id: str = Field(
+        description="The platform-specific ID to use once activated"
+    )
+    estimated_activation_duration_minutes: float | None = None
+    deployed_at: str | None = None
+
+
+class ActivateSignalError(BaseModel):
+    """Failed signal activation response"""
+
+    errors: list[Error] = Field(description="Task-specific errors and warnings")
+
+
+# Override the generated ActivateSignalResponse type alias
+ActivateSignalResponse = ActivateSignalSuccess | ActivateSignalError
+
+
+class CreateMediaBuySuccess(BaseModel):
+    """Successful media buy creation response"""
+
+    media_buy_id: str = Field(description="The unique ID for the media buy")
+    buyer_ref: str = Field(description="The buyer's reference ID for this media buy")
+    packages: list[Package] = Field(
+        description="Array of approved packages. Each package is ready for creative assignment."
+    )
+    creative_deadline: str | None = Field(
+        None,
+        description="ISO 8601 date when creatives must be provided for launch",
+    )
+
+
+class CreateMediaBuyError(BaseModel):
+    """Failed media buy creation response"""
+
+    errors: list[Error] = Field(description="Task-specific errors and warnings")
+
+
+# Override the generated CreateMediaBuyResponse type alias
+CreateMediaBuyResponse = CreateMediaBuySuccess | CreateMediaBuyError
+
+
+class UpdateMediaBuySuccess(BaseModel):
+    """Successful media buy update response"""
+
+    media_buy_id: str = Field(description="The unique ID for the media buy")
+    buyer_ref: str = Field(description="The buyer's reference ID for this media buy")
+    packages: list[Package] = Field(
+        description="Array of updated packages reflecting the changes"
+    )
+
+
+class UpdateMediaBuyError(BaseModel):
+    """Failed media buy update response"""
+
+    errors: list[Error] = Field(description="Task-specific errors and warnings")
+
+
+# Override the generated UpdateMediaBuyResponse type alias
+UpdateMediaBuyResponse = UpdateMediaBuySuccess | UpdateMediaBuyError
+
+
+class SyncCreativesSuccess(BaseModel):
+    """Successful creative sync response"""
+
+    assignments: list[CreativeAssignment] = Field(
+        description="Array of creative assignments with updated status"
+    )
+
+
+class SyncCreativesError(BaseModel):
+    """Failed creative sync response"""
+
+    errors: list[Error] = Field(description="Task-specific errors and warnings")
+
+
+# Override the generated SyncCreativesResponse type alias
+SyncCreativesResponse = SyncCreativesSuccess | SyncCreativesError
 '''
     return code + custom_code
 
@@ -496,6 +676,9 @@ def main():
         "promoted-products.json",
         "destination.json",
         "deployment.json",
+        "activation-key.json",
+        "push-notification-config.json",
+        "reporting-capabilities.json",
         # Enum types (need type aliases)
         "channels.json",
         "delivery-type.json",
@@ -507,6 +690,10 @@ def main():
         "pricing-model.json",
         "pricing-option.json",
         "standard-format-ids.json",
+        # Asset types with discriminators (from ADCP PR #189)
+        "vast-asset.json",
+        "daast-asset.json",
+        "preview-render.json",
     ]
 
     # Find all schemas
@@ -536,19 +723,8 @@ def main():
         "import re",
         "from typing import Any, Literal",
         "",
-        "from pydantic import BaseModel, Field, field_validator",
+        "from pydantic import BaseModel, ConfigDict, Field, field_validator",
         "",
-        "",
-        "# ============================================================================",
-        "# MISSING SCHEMA TYPES (referenced but not provided by upstream)",
-        "# ============================================================================",
-        "",
-        "# These types are referenced in schemas but don't have schema files",
-        "# Defining them as type aliases to maintain type safety",
-        "ActivationKey = dict[str, Any]",
-        "PackageRequest = dict[str, Any]",
-        "PushNotificationConfig = dict[str, Any]",
-        "ReportingCapabilities = dict[str, Any]",
         "",
         "",
         "# ============================================================================",
@@ -557,8 +733,14 @@ def main():
         "",
     ]
 
+    # Skip core types that have custom implementations
+    skip_core_types = {"format-id"}
+
     # Generate core types first
     for schema_file in core_schemas:
+        if schema_file.stem in skip_core_types:
+            print(f"  Skipping {schema_file.stem} (custom implementation)...")
+            continue
         print(f"  Generating core type: {schema_file.stem}...")
         try:
             model_code = generate_model_for_schema(schema_file)
@@ -580,8 +762,15 @@ def main():
     )
 
     # Generate task models
-    # Skip preview types - they're implemented in custom implementations section
-    skip_types = {"preview-creative-request", "preview-creative-response"}
+    # Skip types that have custom implementations
+    skip_types = {
+        "preview-creative-request",
+        "preview-creative-response",
+        "activate-signal-response",
+        "create-media-buy-response",
+        "update-media-buy-response",
+        "sync-creatives-response",
+    }
     for schema_file in task_schemas:
         if schema_file.stem in skip_types:
             print(f"  Skipping {schema_file.stem} (custom implementation)...")
@@ -600,6 +789,14 @@ def main():
 
     # Add custom implementations (FormatId, PreviewCreativeRequest, PreviewCreativeResponse)
     generated_code = add_custom_implementations(generated_code)
+
+    # Extract all type names for __all__ export
+    type_names = extract_type_names(generated_code)
+    all_exports = "\n\n# Explicit exports for module interface\n__all__ = [\n"
+    for name in type_names:
+        all_exports += f'    "{name}",\n'
+    all_exports += "]\n"
+    generated_code += all_exports
 
     # Validate syntax before writing
     print("\nValidating generated code...")
@@ -621,6 +818,80 @@ def main():
         print(f"  {error_msg}", file=sys.stderr)
         sys.exit(1)
     print("  ✓ Import validation passed")
+
+    # Validate no schemas are missing from core_types list
+    print("\nValidating schema coverage...")
+    all_schemas = sorted(SCHEMAS_DIR.glob("*.json"))
+    all_schema_names = {s.name for s in all_schemas if s.name != "index.json"}
+
+    # Schemas we explicitly process
+    core_type_names = set(core_types)
+    task_patterns = {"*-request.json", "*-response.json"}
+
+    # Schemas we intentionally skip with custom implementations or reasons
+    skip_with_reason = {
+        # Custom implementations in types/core.py or types/tasks.py
+        "format-id.json": "custom FormatId type alias",
+        "preview-creative-request.json": "custom implementation",
+        "preview-creative-response.json": "custom implementation with preview variants",
+        "activate-signal-response.json": "custom discriminated union",
+        "create-media-buy-response.json": "custom discriminated union",
+        "sync-creatives-response.json": "custom discriminated union",
+        "update-media-buy-response.json": "custom discriminated union",
+        # Standalone configuration files (not used in Python SDK)
+        "adagents.json": "standalone config file for /.well-known/adagents.json",
+        "promoted-offerings.json": "standalone brand manifest structure",
+        # Asset type schemas (referenced within creative-asset.json's oneOf)
+        "audio-asset.json": "sub-schema of creative-asset oneOf",
+        "css-asset.json": "sub-schema of creative-asset oneOf",
+        "html-asset.json": "sub-schema of creative-asset oneOf",
+        "image-asset.json": "sub-schema of creative-asset oneOf",
+        "javascript-asset.json": "sub-schema of creative-asset oneOf",
+        "markdown-asset.json": "sub-schema of creative-asset oneOf",
+        "text-asset.json": "sub-schema of creative-asset oneOf",
+        "url-asset.json": "sub-schema of creative-asset oneOf",
+        "video-asset.json": "sub-schema of creative-asset oneOf",
+        "webhook-asset.json": "sub-schema of creative-asset oneOf",
+        # Pricing option schemas (referenced within pricing-option.json's oneOf)
+        "cpc-option.json": "sub-schema of pricing-option oneOf",
+        "cpcv-option.json": "sub-schema of pricing-option oneOf",
+        "cpm-auction-option.json": "sub-schema of pricing-option oneOf",
+        "cpm-fixed-option.json": "sub-schema of pricing-option oneOf",
+        "cpp-option.json": "sub-schema of pricing-option oneOf",
+        "cpv-option.json": "sub-schema of pricing-option oneOf",
+        "flat-rate-option.json": "sub-schema of pricing-option oneOf",
+        "vcpm-auction-option.json": "sub-schema of pricing-option oneOf",
+        "vcpm-fixed-option.json": "sub-schema of pricing-option oneOf",
+        # Enum/type schemas (used inline, not as standalone types)
+        "asset-type.json": "enum used inline in sub-asset",
+        "creative-status.json": "enum used inline in creative-asset",
+        "frequency-cap-scope.json": "enum used inline in frequency-cap",
+        "identifier-types.json": "enum used inline in targeting",
+        "publisher-identifier-types.json": "enum used inline in property",
+    }
+
+    # Find schemas that aren't covered
+    processed_schemas = core_type_names.copy()
+    for pattern in task_patterns:
+        task_files = SCHEMAS_DIR.glob(pattern)
+        processed_schemas.update(f.name for f in task_files)
+
+    unprocessed = all_schema_names - processed_schemas - set(skip_with_reason.keys())
+
+    if unprocessed:
+        print(f"\n✗ ERROR: Found {len(unprocessed)} schema(s) not processed by generator:", file=sys.stderr)
+        for schema in sorted(unprocessed):
+            print(f"  - {schema}", file=sys.stderr)
+        print(f"\nThese schemas should either be:", file=sys.stderr)
+        print(f"  1. Added to core_types list in generate_models_simple.py", file=sys.stderr)
+        print(f"  2. Added to skip_with_reason with explanation", file=sys.stderr)
+        print(f"\nThis prevents accidentally missing schema types!", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"  ✓ All {len(all_schema_names)} schemas accounted for")
+    print(f"    - {len(core_type_names)} core types")
+    print(f"    - {len([s for s in all_schema_names if s.endswith('-request.json') or s.endswith('-response.json')])} task types")
+    print(f"    - {len(skip_with_reason)} intentionally skipped")
 
     print(f"\n✓ Successfully generated and validated models")
     print(f"  Output: {output_file}")

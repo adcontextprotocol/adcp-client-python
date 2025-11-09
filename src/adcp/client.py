@@ -11,6 +11,8 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
 
+from pydantic import BaseModel
+
 from adcp.exceptions import ADCPWebhookSignatureError
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.base import ProtocolAdapter
@@ -154,7 +156,9 @@ class ADCPClient:
             )
         )
 
-        result = self.adapter._parse_response(raw_result, GetProductsResponse)
+        result: TaskResult[GetProductsResponse] = self.adapter._parse_response(
+            raw_result, GetProductsResponse
+        )
 
         if fetch_previews and result.success and result.data and creative_agent_client:
             from adcp.utils.preview_cache import add_preview_urls_to_products
@@ -215,7 +219,9 @@ class ADCPClient:
             )
         )
 
-        result = self.adapter._parse_response(raw_result, ListCreativeFormatsResponse)
+        result: TaskResult[ListCreativeFormatsResponse] = self.adapter._parse_response(
+            raw_result, ListCreativeFormatsResponse
+        )
 
         if fetch_previews and result.success and result.data:
             from adcp.utils.preview_cache import add_preview_urls_to_formats
@@ -617,15 +623,16 @@ class ADCPClient:
         from adcp.utils.response_parser import parse_json_or_text
 
         # Map task types to their response types (using string literals, not enum)
-        response_type_map: dict[str, type] = {
+        # Note: Some response types are Union types (e.g., ActivateSignalResponse = Success | Error)
+        response_type_map: dict[str, type[BaseModel] | Any] = {
             "get_products": GetProductsResponse,
             "list_creative_formats": ListCreativeFormatsResponse,
-            "sync_creatives": SyncCreativesResponse,
+            "sync_creatives": SyncCreativesResponse,  # Union type
             "list_creatives": ListCreativesResponse,
             "get_media_buy_delivery": GetMediaBuyDeliveryResponse,
             "list_authorized_properties": ListAuthorizedPropertiesResponse,
             "get_signals": GetSignalsResponse,
-            "activate_signal": ActivateSignalResponse,
+            "activate_signal": ActivateSignalResponse,  # Union type
             "provide_performance_feedback": ProvidePerformanceFeedbackResponse,
         }
 
