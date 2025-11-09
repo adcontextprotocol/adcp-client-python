@@ -346,7 +346,6 @@ class TestMCPAdapter:
     async def test_connection_failure_cleanup(self, mcp_config):
         """Test that connection failures clean up resources properly."""
         from contextlib import AsyncExitStack
-        from unittest.mock import MagicMock
 
         import httpcore
 

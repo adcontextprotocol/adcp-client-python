@@ -24,7 +24,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 # These types are referenced in schemas but don't have schema files
 # Defining them as type aliases to maintain type safety
 ActivationKey = dict[str, Any]
-PackageRequest = dict[str, Any]
 PushNotificationConfig = dict[str, Any]
 ReportingCapabilities = dict[str, Any]
 

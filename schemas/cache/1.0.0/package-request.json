@@ -17,7 +17,7 @@
       "type": "array",
       "description": "Array of format IDs that will be used for this package - must be supported by the product. If omitted, defaults to all formats supported by the product.",
       "items": {
-        "$ref": "/schemas/v1/core/format-id.json"
+        "$ref": "format-id.json"
       },
       "minItems": 1
     },
@@ -27,7 +27,7 @@
       "minimum": 0
     },
     "pacing": {
-      "$ref": "/schemas/v1/enums/pacing.json"
+      "$ref": "pacing.json"
     },
     "pricing_option_id": {
       "type": "string",
@@ -39,7 +39,7 @@
       "minimum": 0
     },
     "targeting_overlay": {
-      "$ref": "/schemas/v1/core/targeting.json"
+      "$ref": "targeting.json"
     },
     "creative_ids": {
       "type": "array",
@@ -52,7 +52,7 @@
       "type": "array",
       "description": "Full creative objects to upload and assign to this package at creation time (alternative to creative_ids - creatives will be added to library). Supports both static and generative creatives.",
       "items": {
-        "$ref": "/schemas/v1/core/creative-asset.json"
+        "$ref": "creative-asset.json"
       },
       "maxItems": 100
     }
