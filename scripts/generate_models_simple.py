@@ -784,6 +784,80 @@ def main():
         sys.exit(1)
     print("  ✓ Import validation passed")
 
+    # Validate no schemas are missing from core_types list
+    print("\nValidating schema coverage...")
+    all_schemas = sorted(SCHEMAS_DIR.glob("*.json"))
+    all_schema_names = {s.name for s in all_schemas if s.name != "index.json"}
+
+    # Schemas we explicitly process
+    core_type_names = set(core_types)
+    task_patterns = {"*-request.json", "*-response.json"}
+
+    # Schemas we intentionally skip with custom implementations or reasons
+    skip_with_reason = {
+        # Custom implementations in types/core.py or types/tasks.py
+        "format-id.json": "custom FormatId type alias",
+        "preview-creative-request.json": "custom implementation",
+        "preview-creative-response.json": "custom implementation with preview variants",
+        "activate-signal-response.json": "custom discriminated union",
+        "create-media-buy-response.json": "custom discriminated union",
+        "sync-creatives-response.json": "custom discriminated union",
+        "update-media-buy-response.json": "custom discriminated union",
+        # Standalone configuration files (not used in Python SDK)
+        "adagents.json": "standalone config file for /.well-known/adagents.json",
+        "promoted-offerings.json": "standalone brand manifest structure",
+        # Asset type schemas (referenced within creative-asset.json's oneOf)
+        "audio-asset.json": "sub-schema of creative-asset oneOf",
+        "css-asset.json": "sub-schema of creative-asset oneOf",
+        "html-asset.json": "sub-schema of creative-asset oneOf",
+        "image-asset.json": "sub-schema of creative-asset oneOf",
+        "javascript-asset.json": "sub-schema of creative-asset oneOf",
+        "markdown-asset.json": "sub-schema of creative-asset oneOf",
+        "text-asset.json": "sub-schema of creative-asset oneOf",
+        "url-asset.json": "sub-schema of creative-asset oneOf",
+        "video-asset.json": "sub-schema of creative-asset oneOf",
+        "webhook-asset.json": "sub-schema of creative-asset oneOf",
+        # Pricing option schemas (referenced within pricing-option.json's oneOf)
+        "cpc-option.json": "sub-schema of pricing-option oneOf",
+        "cpcv-option.json": "sub-schema of pricing-option oneOf",
+        "cpm-auction-option.json": "sub-schema of pricing-option oneOf",
+        "cpm-fixed-option.json": "sub-schema of pricing-option oneOf",
+        "cpp-option.json": "sub-schema of pricing-option oneOf",
+        "cpv-option.json": "sub-schema of pricing-option oneOf",
+        "flat-rate-option.json": "sub-schema of pricing-option oneOf",
+        "vcpm-auction-option.json": "sub-schema of pricing-option oneOf",
+        "vcpm-fixed-option.json": "sub-schema of pricing-option oneOf",
+        # Enum/type schemas (used inline, not as standalone types)
+        "asset-type.json": "enum used inline in sub-asset",
+        "creative-status.json": "enum used inline in creative-asset",
+        "frequency-cap-scope.json": "enum used inline in frequency-cap",
+        "identifier-types.json": "enum used inline in targeting",
+        "publisher-identifier-types.json": "enum used inline in property",
+    }
+
+    # Find schemas that aren't covered
+    processed_schemas = core_type_names.copy()
+    for pattern in task_patterns:
+        task_files = SCHEMAS_DIR.glob(pattern)
+        processed_schemas.update(f.name for f in task_files)
+
+    unprocessed = all_schema_names - processed_schemas - set(skip_with_reason.keys())
+
+    if unprocessed:
+        print(f"\n✗ ERROR: Found {len(unprocessed)} schema(s) not processed by generator:", file=sys.stderr)
+        for schema in sorted(unprocessed):
+            print(f"  - {schema}", file=sys.stderr)
+        print(f"\nThese schemas should either be:", file=sys.stderr)
+        print(f"  1. Added to core_types list in generate_models_simple.py", file=sys.stderr)
+        print(f"  2. Added to skip_with_reason with explanation", file=sys.stderr)
+        print(f"\nThis prevents accidentally missing schema types!", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"  ✓ All {len(all_schema_names)} schemas accounted for")
+    print(f"    - {len(core_type_names)} core types")
+    print(f"    - {len([s for s in all_schema_names if s.endswith('-request.json') or s.endswith('-response.json')])} task types")
+    print(f"    - {len(skip_with_reason)} intentionally skipped")
+
     print(f"\n✓ Successfully generated and validated models")
     print(f"  Output: {output_file}")
     print(f"  Core types: {len(core_schemas)}")
