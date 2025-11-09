@@ -34,13 +34,18 @@ def snake_to_pascal(name: str) -> str:
 
 def sanitize_field_name(name: str) -> str:
     """
-    Sanitize field name to avoid Python keyword collisions.
+    Sanitize field name to avoid Python keyword collisions and invalid identifiers.
 
     Returns tuple of (sanitized_name, needs_alias) where needs_alias indicates
     if the field needs a Field(alias=...) to preserve original JSON name.
     """
+    # Handle fields starting with invalid characters (like $schema)
+    if name.startswith("$"):
+        return name.replace("$", "dollar_"), True
+
     if name in RESERVED_NAMES:
         return f"{name}_", True
+
     return name, False
 
 
@@ -258,8 +263,10 @@ def get_python_type(schema: dict) -> str:
     """Convert JSON schema type to Python type hint."""
     if "$ref" in schema:
         # Reference to another model
+        # Extract just the filename from paths like "/schemas/v1/core/format-id.json"
         ref = schema["$ref"]
-        return snake_to_pascal(ref.replace(".json", ""))
+        filename = ref.split("/")[-1].replace(".json", "")
+        return snake_to_pascal(filename)
 
     # Handle const (discriminator values)
     if "const" in schema:
@@ -690,8 +697,14 @@ def main():
         "",
     ]
 
+    # Skip core types that have custom implementations
+    skip_core_types = {"format-id"}
+
     # Generate core types first
     for schema_file in core_schemas:
+        if schema_file.stem in skip_core_types:
+            print(f"  Skipping {schema_file.stem} (custom implementation)...")
+            continue
         print(f"  Generating core type: {schema_file.stem}...")
         try:
             model_code = generate_model_for_schema(schema_file)

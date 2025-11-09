@@ -574,6 +574,21 @@ class ListCreativesRequest(BaseModel):
     fields: list[Literal["creative_id", "name", "format", "status", "created_date", "updated_date", "tags", "assignments", "performance", "sub_assets"]] | None = Field(None, description="Specific fields to include in response (omit for all fields)")
 
 
+class PackageRequest(BaseModel):
+    """Package configuration for media buy creation"""
+
+    buyer_ref: str = Field(description="Buyer's reference identifier for this package")
+    product_id: str = Field(description="Product ID for this package")
+    format_ids: list[FormatId] | None = Field(None, description="Array of format IDs that will be used for this package - must be supported by the product. If omitted, defaults to all formats supported by the product.")
+    budget: float = Field(description="Budget allocation for this package in the media buy's currency")
+    pacing: Pacing | None = None
+    pricing_option_id: str = Field(description="ID of the selected pricing option from the product's pricing_options array")
+    bid_price: float | None = Field(None, description="Bid price for auction-based CPM pricing (required if using cpm-auction-option)")
+    targeting_overlay: Targeting | None = None
+    creative_ids: list[str] | None = Field(None, description="Creative IDs to assign to this package at creation time (references existing library creatives)")
+    creatives: list[CreativeAsset] | None = Field(None, description="Full creative objects to upload and assign to this package at creation time (alternative to creative_ids - creatives will be added to library). Supports both static and generative creatives.")
+
+
 class ProvidePerformanceFeedbackRequest(BaseModel):
     """Request payload for provide_performance_feedback task"""
 
@@ -596,6 +611,22 @@ class SyncCreativesRequest(BaseModel):
     dry_run: bool | None = Field(None, description="When true, preview changes without applying them. Returns what would be created/updated/deleted.")
     validation_mode: Literal["strict", "lenient"] | None = Field(None, description="Validation strictness. 'strict' fails entire sync on any validation error. 'lenient' processes valid creatives and reports errors.")
     push_notification_config: PushNotificationConfig | None = Field(None, description="Optional webhook configuration for async sync notifications. Publisher will send webhook when sync completes if operation takes longer than immediate response time (typically for large bulk operations or manual approval/HITL).")
+
+
+class TasksGetRequest(BaseModel):
+    """Request parameters for retrieving a specific task by ID with optional conversation history across all AdCP domains"""
+
+    task_id: str = Field(description="Unique identifier of the task to retrieve")
+    include_history: bool | None = Field(None, description="Include full conversation history for this task (may increase response size)")
+
+
+class TasksListRequest(BaseModel):
+    """Request parameters for listing and filtering async tasks across all AdCP domains with state reconciliation capabilities"""
+
+    filters: dict[str, Any] | None = Field(None, description="Filter criteria for querying tasks")
+    sort: dict[str, Any] | None = Field(None, description="Sorting parameters")
+    pagination: dict[str, Any] | None = Field(None, description="Pagination parameters")
+    include_history: bool | None = Field(None, description="Include full conversation history for each task (may significantly increase response size)")
 
 
 class UpdateMediaBuyRequest(BaseModel):
@@ -703,6 +734,30 @@ class ProvidePerformanceFeedbackResponseVariant2(BaseModel):
 
 # Union type for Provide Performance Feedback Response
 ProvidePerformanceFeedbackResponse = ProvidePerformanceFeedbackResponseVariant1 | ProvidePerformanceFeedbackResponseVariant2
+
+
+class TasksGetResponse(BaseModel):
+    """Response containing detailed information about a specific task including status and optional conversation history across all AdCP domains"""
+
+    task_id: str = Field(description="Unique identifier for this task")
+    task_type: TaskType = Field(description="Type of AdCP operation")
+    domain: Literal["media-buy", "signals"] = Field(description="AdCP domain this task belongs to")
+    status: TaskStatus = Field(description="Current task status")
+    created_at: str = Field(description="When the task was initially created (ISO 8601)")
+    updated_at: str = Field(description="When the task was last updated (ISO 8601)")
+    completed_at: str | None = Field(None, description="When the task completed (ISO 8601, only for completed/failed/canceled tasks)")
+    has_webhook: bool | None = Field(None, description="Whether this task has webhook configuration")
+    progress: dict[str, Any] | None = Field(None, description="Progress information for long-running tasks")
+    error: dict[str, Any] | None = Field(None, description="Error details for failed tasks")
+    history: list[dict[str, Any]] | None = Field(None, description="Complete conversation history for this task (only included if include_history was true in request)")
+
+
+class TasksListResponse(BaseModel):
+    """Response from task listing query with filtered results and state reconciliation data across all AdCP domains"""
+
+    query_summary: dict[str, Any] = Field(description="Summary of the query that was executed")
+    tasks: list[dict[str, Any]] = Field(description="Array of tasks matching the query criteria")
+    pagination: dict[str, Any] = Field(description="Pagination information")
 
 
 
@@ -942,6 +997,10 @@ __all__ = [
     "Targeting",
     "TaskStatus",
     "TaskType",
+    "TasksGetRequest",
+    "TasksGetResponse",
+    "TasksListRequest",
+    "TasksListResponse",
     "TextSubAsset",
     "UpdateMediaBuyError",
     "UpdateMediaBuyRequest",
