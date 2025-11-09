@@ -20,10 +20,17 @@ from adcp.exceptions import (
 )
 from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus, WebhookMetadata
 from adcp.types.generated import (
+    # Request/Response types
     ActivateSignalRequest,
     ActivateSignalResponse,
+    ActivateSignalSuccess,
+    ActivateSignalError,
+    BuildCreativeRequest,
+    BuildCreativeResponse,
     CreateMediaBuyRequest,
     CreateMediaBuyResponse,
+    CreateMediaBuySuccess,
+    CreateMediaBuyError,
     GetMediaBuyDeliveryRequest,
     GetMediaBuyDeliveryResponse,
     GetProductsRequest,
@@ -36,17 +43,76 @@ from adcp.types.generated import (
     ListCreativeFormatsResponse,
     ListCreativesRequest,
     ListCreativesResponse,
-    MediaBuy,
-    Product,
+    PreviewCreativeRequest,
+    PreviewCreativeResponse,
     ProvidePerformanceFeedbackRequest,
     ProvidePerformanceFeedbackResponse,
     SyncCreativesRequest,
     SyncCreativesResponse,
+    SyncCreativesSuccess,
+    SyncCreativesError,
     UpdateMediaBuyRequest,
     UpdateMediaBuyResponse,
+    UpdateMediaBuySuccess,
+    UpdateMediaBuyError,
+    # Core domain types
+    MediaBuy,
+    Product,
+    Package,
+    Error,
+    # Creative types
+    CreativeAsset,
+    CreativeManifest,
+    CreativeAssignment,
+    CreativePolicy,
+    Format,
+    FormatId,
+    # Property and placement types
+    Property,
+    Placement,
+    # Targeting types
+    Targeting,
+    FrequencyCap,
+    Pacing,
+    # Brand types
+    BrandManifest,
+    BrandManifestRef,
+    # Metrics types
+    DeliveryMetrics,
+    Measurement,
+    PerformanceFeedback,
+    # Status enums
+    MediaBuyStatus,
+    PackageStatus,
+    # Pricing types
+    PricingOption,
+    PricingModel,
+    # Delivery types
+    DeliveryType,
+    StartTiming,
+    # Channel types
+    Channels,
+    StandardFormatIds,
+    # Protocol types
+    WebhookPayload,
+    ProtocolEnvelope,
+    Response,
+    PromotedProducts,
+    # Deployment types
+    Destination,
+    Deployment,
+    PlatformDestination,
+    AgentDestination,
+    PlatformDeployment,
+    AgentDeployment,
+    # Sub-asset types
+    SubAsset,
+    # Task types
+    TaskType,
+    TaskStatus as GeneratedTaskStatus,
 )
 
-__version__ = "1.2.0"
+__version__ = "2.0.0"
 
 __all__ = [
     # Client classes
@@ -67,30 +133,94 @@ __all__ = [
     "ADCPToolNotFoundError",
     "ADCPWebhookError",
     "ADCPWebhookSignatureError",
-    # Generated request/response types
-    "GetProductsRequest",
-    "GetProductsResponse",
-    "CreateMediaBuyRequest",
-    "CreateMediaBuyResponse",
-    "UpdateMediaBuyRequest",
-    "UpdateMediaBuyResponse",
-    "SyncCreativesRequest",
-    "SyncCreativesResponse",
-    "ListCreativesRequest",
-    "ListCreativesResponse",
-    "ListCreativeFormatsRequest",
-    "ListCreativeFormatsResponse",
-    "GetMediaBuyDeliveryRequest",
-    "GetMediaBuyDeliveryResponse",
-    "ListAuthorizedPropertiesRequest",
-    "ListAuthorizedPropertiesResponse",
-    "GetSignalsRequest",
-    "GetSignalsResponse",
+    # Request/Response types
     "ActivateSignalRequest",
     "ActivateSignalResponse",
+    "ActivateSignalSuccess",
+    "ActivateSignalError",
+    "BuildCreativeRequest",
+    "BuildCreativeResponse",
+    "CreateMediaBuyRequest",
+    "CreateMediaBuyResponse",
+    "CreateMediaBuySuccess",
+    "CreateMediaBuyError",
+    "GetMediaBuyDeliveryRequest",
+    "GetMediaBuyDeliveryResponse",
+    "GetProductsRequest",
+    "GetProductsResponse",
+    "GetSignalsRequest",
+    "GetSignalsResponse",
+    "ListAuthorizedPropertiesRequest",
+    "ListAuthorizedPropertiesResponse",
+    "ListCreativeFormatsRequest",
+    "ListCreativeFormatsResponse",
+    "ListCreativesRequest",
+    "ListCreativesResponse",
+    "PreviewCreativeRequest",
+    "PreviewCreativeResponse",
     "ProvidePerformanceFeedbackRequest",
     "ProvidePerformanceFeedbackResponse",
+    "SyncCreativesRequest",
+    "SyncCreativesResponse",
+    "SyncCreativesSuccess",
+    "SyncCreativesError",
+    "UpdateMediaBuyRequest",
+    "UpdateMediaBuyResponse",
+    "UpdateMediaBuySuccess",
+    "UpdateMediaBuyError",
     # Core domain types
-    "Product",
     "MediaBuy",
+    "Product",
+    "Package",
+    "Error",
+    # Creative types
+    "CreativeAsset",
+    "CreativeManifest",
+    "CreativeAssignment",
+    "CreativePolicy",
+    "Format",
+    "FormatId",
+    # Property and placement types
+    "Property",
+    "Placement",
+    # Targeting types
+    "Targeting",
+    "FrequencyCap",
+    "Pacing",
+    # Brand types
+    "BrandManifest",
+    "BrandManifestRef",
+    # Metrics types
+    "DeliveryMetrics",
+    "Measurement",
+    "PerformanceFeedback",
+    # Status enums
+    "MediaBuyStatus",
+    "PackageStatus",
+    # Pricing types
+    "PricingOption",
+    "PricingModel",
+    # Delivery types
+    "DeliveryType",
+    "StartTiming",
+    # Channel types
+    "Channels",
+    "StandardFormatIds",
+    # Protocol types
+    "WebhookPayload",
+    "ProtocolEnvelope",
+    "Response",
+    "PromotedProducts",
+    # Deployment types
+    "Destination",
+    "Deployment",
+    "PlatformDestination",
+    "AgentDestination",
+    "PlatformDeployment",
+    "AgentDeployment",
+    # Sub-asset types
+    "SubAsset",
+    # Task types
+    "TaskType",
+    "GeneratedTaskStatus",
 ]

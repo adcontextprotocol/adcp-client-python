@@ -30,15 +30,16 @@ class ProtocolAdapter(ABC):
     # Helper methods for response parsing
     # ========================================================================
 
-    def _parse_response(self, raw_result: TaskResult[Any], response_type: type[T]) -> TaskResult[T]:
+    def _parse_response(self, raw_result: TaskResult[Any], response_type: type[T] | Any) -> TaskResult[T]:
         """
         Parse raw TaskResult into typed TaskResult.
 
         Handles both MCP content arrays and A2A dict responses.
+        Supports both single types and Union types (for oneOf discriminated unions).
 
         Args:
             raw_result: Raw TaskResult from adapter
-            response_type: Expected Pydantic response type
+            response_type: Expected Pydantic response type (can be a Union type)
 
         Returns:
             Typed TaskResult

@@ -600,13 +600,22 @@ class UpdateMediaBuyRequest(BaseModel):
     push_notification_config: PushNotificationConfig | None = Field(None, description="Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time.")
 
 
-class ActivateSignalResponse(BaseModel):
-    """Response payload for activate_signal task"""
+class ActivateSignalSuccess(BaseModel):
+    """Successful signal activation response"""
 
-    decisioning_platform_segment_id: str | None = Field(None, description="The platform-specific ID to use once activated")
+    decisioning_platform_segment_id: str = Field(description="The platform-specific ID to use once activated")
     estimated_activation_duration_minutes: float | None = Field(None, description="Estimated time to complete (optional)")
     deployed_at: str | None = Field(None, description="Timestamp when activation completed (optional)")
-    errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., activation failures, platform issues)")
+
+
+class ActivateSignalError(BaseModel):
+    """Failed signal activation response"""
+
+    errors: list[Error] = Field(description="Task-specific errors and warnings (e.g., activation failures, platform issues)")
+
+
+# Union type for ActivateSignalResponse
+ActivateSignalResponse = ActivateSignalSuccess | ActivateSignalError
 
 
 class BuildCreativeResponse(BaseModel):
@@ -616,14 +625,23 @@ class BuildCreativeResponse(BaseModel):
     errors: list[Error] | None = Field(None, description="Task-specific errors and warnings")
 
 
-class CreateMediaBuyResponse(BaseModel):
-    """Response payload for create_media_buy task"""
+class CreateMediaBuySuccess(BaseModel):
+    """Successful media buy creation response"""
 
-    media_buy_id: str | None = Field(None, description="Publisher's unique identifier for the created media buy")
+    media_buy_id: str = Field(description="Publisher's unique identifier for the created media buy")
     buyer_ref: str = Field(description="Buyer's reference identifier for this media buy")
     creative_deadline: str | None = Field(None, description="ISO 8601 timestamp for creative upload deadline")
-    packages: list[dict[str, Any]] | None = Field(None, description="Array of created packages")
-    errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., partial package creation failures)")
+    packages: list[dict[str, Any]] = Field(description="Array of created packages")
+
+
+class CreateMediaBuyError(BaseModel):
+    """Failed media buy creation response"""
+
+    errors: list[Error] = Field(description="Task-specific errors and warnings (e.g., partial package creation failures)")
+
+
+# Union type for CreateMediaBuyResponse
+CreateMediaBuyResponse = CreateMediaBuySuccess | CreateMediaBuyError
 
 
 class GetMediaBuyDeliveryResponse(BaseModel):
@@ -692,21 +710,40 @@ class ProvidePerformanceFeedbackResponse(BaseModel):
     errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., invalid measurement period, missing campaign data)")
 
 
-class SyncCreativesResponse(BaseModel):
-    """Response from creative sync operation with results for each creative"""
+class SyncCreativesSuccess(BaseModel):
+    """Successful creative sync response"""
 
     dry_run: bool | None = Field(None, description="Whether this was a dry run (no actual changes made)")
     creatives: list[dict[str, Any]] = Field(description="Results for each creative processed")
 
 
-class UpdateMediaBuyResponse(BaseModel):
-    """Response payload for update_media_buy task"""
+class SyncCreativesError(BaseModel):
+    """Failed creative sync response (operation-level failures like auth or service down)"""
+
+    errors: list[Error] = Field(description="Operation-level errors (auth, service down, etc.)")
+
+
+# Union type for SyncCreativesResponse
+SyncCreativesResponse = SyncCreativesSuccess | SyncCreativesError
+
+
+class UpdateMediaBuySuccess(BaseModel):
+    """Successful media buy update response"""
 
     media_buy_id: str = Field(description="Publisher's identifier for the media buy")
     buyer_ref: str = Field(description="Buyer's reference identifier for the media buy")
     implementation_date: Any | None = Field(None, description="ISO 8601 timestamp when changes take effect (null if pending approval)")
     affected_packages: list[dict[str, Any]] | None = Field(None, description="Array of packages that were modified")
-    errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., partial update failures)")
+
+
+class UpdateMediaBuyError(BaseModel):
+    """Failed media buy update response"""
+
+    errors: list[Error] = Field(description="Task-specific errors and warnings (e.g., partial update failures)")
+
+
+# Union type for UpdateMediaBuyResponse
+UpdateMediaBuyResponse = UpdateMediaBuySuccess | UpdateMediaBuyError
 
 
 
