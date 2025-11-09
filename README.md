@@ -24,7 +24,39 @@ pip install adcp
 
 > **Note**: This client requires Python 3.10 or later and supports both synchronous and asynchronous workflows.
 
+## Quick Start: Test Helpers
+
+The fastest way to get started is using the pre-configured test agents:
+
+```python
+from adcp.testing import test_agent
+from adcp.types.generated import GetProductsRequest
+
+# Zero configuration - just import and use!
+result = await test_agent.get_products(
+    GetProductsRequest(
+        brief="Coffee subscription service",
+        promoted_offering="Premium coffee deliveries"
+    )
+)
+
+if result.success:
+    print(f"Found {len(result.data.products)} products")
+```
+
+Test helpers include:
+- **`test_agent`**: Pre-configured MCP test agent (ready to use)
+- **`test_agent_a2a`**: Pre-configured A2A test agent
+- **`test_agent_client`**: Multi-agent client with both protocols
+- **`create_test_agent()`**: Factory for custom test configurations
+
+> **Note**: Test agents are rate-limited and for testing/examples only. DO NOT use in production.
+
+See [examples/test_helpers_demo.py](examples/test_helpers_demo.py) for more examples.
+
 ## Quick Start: Distributed Operations
+
+For production use, configure your own agents:
 
 ```python
 from adcp import ADCPMultiAgentClient, AgentConfig, GetProductsRequest
@@ -74,6 +106,43 @@ async with ADCPMultiAgentClient(
 ```
 
 ## Features
+
+### Test Helpers
+
+Pre-configured test agents for instant prototyping and testing:
+
+```python
+from adcp.testing import test_agent, test_agent_a2a, test_agent_client, create_test_agent
+from adcp.types.generated import GetProductsRequest
+
+# 1. Single agent (MCP)
+result = await test_agent.get_products(
+    GetProductsRequest(brief="Coffee brands")
+)
+
+# 2. Single agent (A2A)
+result = await test_agent_a2a.get_products(
+    GetProductsRequest(brief="Coffee brands")
+)
+
+# 3. Multi-agent (parallel execution)
+results = await test_agent_client.get_products(
+    GetProductsRequest(brief="Coffee brands")
+)
+
+# 4. Custom configuration
+from adcp.client import ADCPClient
+config = create_test_agent(id="my-test", name="My Test Agent")
+client = ADCPClient(config)
+```
+
+**Use cases:**
+- Quick prototyping and experimentation
+- Example code and documentation
+- Integration testing without mock servers
+- Learning AdCP concepts
+
+**Important:** Test agents are public, rate-limited, and for testing only. Never use in production.
 
 ### Full Protocol Support
 - **A2A Protocol**: Native support for Agent-to-Agent protocol
