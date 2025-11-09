@@ -48,7 +48,8 @@ def test_mcp_config_structure():
     """Test TEST_AGENT_MCP_CONFIG has correct structure."""
     assert TEST_AGENT_MCP_CONFIG.id == "test-agent-mcp"
     assert TEST_AGENT_MCP_CONFIG.protocol == Protocol.MCP
-    assert TEST_AGENT_MCP_CONFIG.agent_uri == "https://test-agent.adcontextprotocol.org/mcp/"
+    # AgentConfig validator strips trailing slashes for consistency
+    assert TEST_AGENT_MCP_CONFIG.agent_uri == "https://test-agent.adcontextprotocol.org/mcp"
     assert TEST_AGENT_MCP_CONFIG.auth_token is not None
 
 
