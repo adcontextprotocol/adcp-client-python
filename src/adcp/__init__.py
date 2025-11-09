@@ -133,6 +133,17 @@ from adcp.types.generated import (
     TaskStatus as GeneratedTaskStatus,
 )
 
+# Test helpers
+from adcp.testing import (
+    TEST_AGENT_A2A_CONFIG,
+    TEST_AGENT_MCP_CONFIG,
+    TEST_AGENT_TOKEN,
+    create_test_agent,
+    test_agent,
+    test_agent_a2a,
+    test_agent_client,
+)
+
 __version__ = "1.2.1"
 
 __all__ = [
@@ -145,6 +156,14 @@ __all__ = [
     "TaskResult",
     "TaskStatus",
     "WebhookMetadata",
+    # Test helpers
+    "test_agent",
+    "test_agent_a2a",
+    "test_agent_client",
+    "create_test_agent",
+    "TEST_AGENT_TOKEN",
+    "TEST_AGENT_MCP_CONFIG",
+    "TEST_AGENT_A2A_CONFIG",
     # Exceptions
     "ADCPError",
     "ADCPConnectionError",
