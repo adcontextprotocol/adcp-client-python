@@ -47,6 +47,7 @@ if result.success:
 Test helpers include:
 - **`test_agent`**: Pre-configured MCP test agent (ready to use)
 - **`test_agent_a2a`**: Pre-configured A2A test agent
+- **`creative_agent`**: Reference creative agent for preview functionality
 - **`test_agent_client`**: Multi-agent client with both protocols
 - **`create_test_agent()`**: Factory for custom test configurations
 
@@ -112,8 +113,8 @@ async with ADCPMultiAgentClient(
 Pre-configured test agents for instant prototyping and testing:
 
 ```python
-from adcp.testing import test_agent, test_agent_a2a, test_agent_client, create_test_agent
-from adcp.types.generated import GetProductsRequest
+from adcp.testing import test_agent, test_agent_a2a, creative_agent, test_agent_client, create_test_agent
+from adcp.types.generated import GetProductsRequest, PreviewCreativeRequest
 
 # 1. Single agent (MCP)
 result = await test_agent.get_products(
@@ -125,14 +126,21 @@ result = await test_agent_a2a.get_products(
     GetProductsRequest(brief="Coffee brands")
 )
 
-# 3. Multi-agent (parallel execution)
+# 3. Creative agent (preview functionality)
+result = await creative_agent.preview_creative(
+    PreviewCreativeRequest(
+        manifest={"format_id": "banner_300x250", "assets": {...}}
+    )
+)
+
+# 4. Multi-agent (parallel execution)
 results = await test_agent_client.get_products(
     GetProductsRequest(brief="Coffee brands")
 )
 
-# 4. Custom configuration
+# 5. Custom configuration
 from adcp.client import ADCPClient
-config = create_test_agent(id="my-test", name="My Test Agent")
+config = create_test_agent(id="my-test", timeout=60.0)
 client = ADCPClient(config)
 ```
 

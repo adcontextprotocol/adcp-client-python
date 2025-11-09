@@ -30,6 +30,14 @@ TEST_AGENT_A2A_CONFIG = AgentConfig(
     auth_token=TEST_AGENT_TOKEN,
 )
 
+# Reference creative agent configuration - MCP protocol
+# No authentication required for the reference creative agent
+CREATIVE_AGENT_CONFIG = AgentConfig(
+    id="creative-agent",
+    agent_uri="https://creative.adcontextprotocol.org/mcp",
+    protocol=Protocol.MCP,
+)
+
 
 def _create_test_agent_client() -> ADCPClient:
     """Create pre-configured test agent client using MCP protocol.
@@ -57,6 +65,19 @@ def _create_test_agent_a2a_client() -> ADCPClient:
         DO NOT use in production applications.
     """
     return ADCPClient(TEST_AGENT_A2A_CONFIG)
+
+
+def _create_creative_agent_client() -> ADCPClient:
+    """Create pre-configured creative agent client.
+
+    Returns:
+        ADCPClient instance configured for the reference creative agent
+
+    Note:
+        The reference creative agent is public and requires no authentication.
+        It provides creative preview functionality for testing and examples.
+    """
+    return ADCPClient(CREATIVE_AGENT_CONFIG)
 
 
 def _create_test_multi_agent_client() -> ADCPMultiAgentClient:
@@ -117,6 +138,29 @@ test_agent: ADCPClient = _create_test_agent_client()
 #     The auth token is public and may be rotated without notice.
 #     DO NOT use in production applications.
 test_agent_a2a: ADCPClient = _create_test_agent_a2a_client()
+
+# Pre-configured reference creative agent.
+# Provides creative preview functionality without authentication.
+#
+# Example:
+#     ```python
+#     from adcp.testing import creative_agent
+#     from adcp.types.generated import PreviewCreativeRequest
+#
+#     result = await creative_agent.preview_creative(
+#         PreviewCreativeRequest(
+#             manifest={
+#                 "format_id": "banner_300x250",
+#                 "assets": {...}
+#             }
+#         )
+#     )
+#     ```
+#
+# Note:
+#     The reference creative agent is public and requires no authentication.
+#     Perfect for testing creative rendering and preview functionality.
+creative_agent: ADCPClient = _create_creative_agent_client()
 
 # Multi-agent client with both test agents configured.
 # Useful for testing multi-agent patterns and protocol comparisons.

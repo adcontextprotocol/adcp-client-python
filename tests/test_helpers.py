@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from adcp.client import ADCPClient, ADCPMultiAgentClient
 from adcp.testing import (
+    CREATIVE_AGENT_CONFIG,
     TEST_AGENT_A2A_CONFIG,
     TEST_AGENT_MCP_CONFIG,
     TEST_AGENT_TOKEN,
     create_test_agent,
+    creative_agent,
     test_agent,
     test_agent_a2a,
     test_agent_client,
@@ -151,3 +153,27 @@ def test_agent_ids_in_test_agent_client():
     agent_ids = test_agent_client.agent_ids
     assert "test-agent-mcp" in agent_ids
     assert "test-agent-a2a" in agent_ids
+
+
+def test_creative_agent_config_structure():
+    """Test CREATIVE_AGENT_CONFIG has correct structure."""
+    assert CREATIVE_AGENT_CONFIG.id == "creative-agent"
+    assert CREATIVE_AGENT_CONFIG.protocol == Protocol.MCP
+    assert CREATIVE_AGENT_CONFIG.agent_uri == "https://creative.adcontextprotocol.org/mcp"
+    # Creative agent requires no authentication
+    assert CREATIVE_AGENT_CONFIG.auth_token is None
+
+
+def test_creative_agent_is_adcp_client():
+    """Test that creative_agent is an ADCPClient instance."""
+    assert isinstance(creative_agent, ADCPClient)
+    assert hasattr(creative_agent, "preview_creative")
+    assert hasattr(creative_agent, "list_creative_formats")
+    assert callable(creative_agent.preview_creative)
+    assert callable(creative_agent.list_creative_formats)
+
+
+def test_creative_agent_config_match():
+    """Test that creative_agent uses CREATIVE_AGENT_CONFIG."""
+    assert creative_agent.agent_config.id == CREATIVE_AGENT_CONFIG.id
+    assert creative_agent.agent_config.protocol == CREATIVE_AGENT_CONFIG.protocol
