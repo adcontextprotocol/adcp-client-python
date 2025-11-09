@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Sync AdCP JSON schemas from adcontextprotocol.org.
+Sync AdCP JSON schemas from GitHub main branch.
 
 This script downloads all AdCP schemas to schemas/cache/ for code generation.
+Fetches from GitHub to get latest schemas including discriminators from PR #189.
 Based on the JavaScript client's sync-schemas.ts.
 """
 
@@ -12,8 +13,9 @@ from pathlib import Path
 from urllib.request import urlopen
 from urllib.error import URLError
 
-ADCP_BASE_URL = "https://adcontextprotocol.org"
-SCHEMA_INDEX_URL = f"{ADCP_BASE_URL}/schemas/v1/index.json"
+# Use GitHub raw content for latest schemas (includes PR #189 discriminators)
+ADCP_BASE_URL = "https://raw.githubusercontent.com/adcontextprotocol/adcp/main"
+SCHEMA_INDEX_URL = f"{ADCP_BASE_URL}/static/schemas/v1/index.json"
 CACHE_DIR = Path(__file__).parent.parent / "schemas" / "cache"
 
 
@@ -83,7 +85,7 @@ def download_schema_file(url: str, version: str) -> None:
 
 def main():
     """Main entry point."""
-    print("Syncing AdCP schemas from adcontextprotocol.org...")
+    print("Syncing AdCP schemas from GitHub main branch...")
     print(f"Cache directory: {CACHE_DIR}\n")
 
     try:
@@ -106,7 +108,8 @@ def main():
                             ref_url = schema_info["$ref"]
                             # Convert relative URL to absolute
                             if not ref_url.startswith("http"):
-                                ref_url = f"{ADCP_BASE_URL}{ref_url}"
+                                # For GitHub, prepend /static to the path
+                                ref_url = f"{ADCP_BASE_URL}/static{ref_url}"
                             schema_urls.add(ref_url)
 
                 # Get schemas from tasks subsection (request/response)
@@ -117,7 +120,8 @@ def main():
                                 ref_url = task_info[io_type]["$ref"]
                                 # Convert relative URL to absolute
                                 if not ref_url.startswith("http"):
-                                    ref_url = f"{ADCP_BASE_URL}{ref_url}"
+                                    # For GitHub, prepend /static to the path
+                                    ref_url = f"{ADCP_BASE_URL}/static{ref_url}"
                                 schema_urls.add(ref_url)
 
         print(f"Found {len(schema_urls)} schemas\n")

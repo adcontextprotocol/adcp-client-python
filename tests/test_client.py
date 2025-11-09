@@ -156,7 +156,10 @@ async def test_all_client_methods():
         (
             "activate_signal",
             "ActivateSignalRequest",
-            {"signal_agent_segment_id": "test", "platform": "test"},
+            {
+                "signal_agent_segment_id": "test",
+                "destinations": [{"type": "platform", "platform": "test"}],
+            },
         ),
         (
             "provide_performance_feedback",

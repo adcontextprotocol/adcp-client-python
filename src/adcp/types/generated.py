@@ -287,13 +287,24 @@ class StartTimingVariant2(BaseModel):
 StartTiming = StartTimingVariant1 | StartTimingVariant2
 
 
-class SubAsset(BaseModel):
-    """Sub-asset for multi-asset creative formats, including carousel images and native ad template variables"""
+# Sub-asset for multi-asset creative formats, including carousel images and native ad template variables
 
-    asset_type: str | None = Field(None, description="Type of asset. Common types: headline, body_text, thumbnail_image, product_image, featured_image, logo, cta_text, price_text, sponsor_name, author_name, click_url")
-    asset_id: str | None = Field(None, description="Unique identifier for the asset within the creative")
-    content_uri: str | None = Field(None, description="URL for media assets (images, videos, etc.)")
-    content: Any | None = Field(None, description="Text content for text-based assets like headlines, body text, CTA text, etc.")
+class MediaSubAsset(BaseModel):
+    asset_kind: Literal["media"] = Field(description="Discriminator indicating this is a media asset with content_uri")
+    asset_type: str = Field(description="Type of asset. Common types: thumbnail_image, product_image, featured_image, logo")
+    asset_id: str = Field(description="Unique identifier for the asset within the creative")
+    content_uri: str = Field(description="URL for media assets (images, videos, etc.)")
+
+
+class TextSubAsset(BaseModel):
+    asset_kind: Literal["text"] = Field(description="Discriminator indicating this is a text asset with content")
+    asset_type: str = Field(description="Type of asset. Common types: headline, body_text, cta_text, price_text, sponsor_name, author_name, click_url")
+    asset_id: str = Field(description="Unique identifier for the asset within the creative")
+    content: Any = Field(description="Text content for text-based assets like headlines, body text, CTA text, etc.")
+
+
+# Union type for Sub-Asset
+SubAsset = MediaSubAsset | TextSubAsset
 
 
 class WebhookPayload(BaseModel):
@@ -308,7 +319,7 @@ class WebhookPayload(BaseModel):
     message: str | None = Field(None, description="Human-readable summary of the current task state. Provides context about what happened and what action may be needed.")
     context_id: str | None = Field(None, description="Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters.")
     progress: dict[str, Any] | None = Field(None, description="Progress information for tasks still in 'working' state. Rarely seen in webhooks since 'working' tasks typically complete synchronously, but may appear if a task transitions from 'submitted' to 'working'.")
-    result: Any | None = Field(None, description="Task-specific payload for this status update. For 'completed', contains the final result. For 'input-required', may contain approval or clarification context. Optional for non-terminal updates.")
+    result: Any | None = Field(None, description="Task-specific payload for this status update. Validated against the appropriate response schema based on task_type.")
     error: Any | None = Field(None, description="Error message for failed tasks. Only present when status is 'failed'.")
 
 
@@ -478,11 +489,10 @@ StandardFormatIds = Literal["display_300x250", "display_728x90", "display_320x50
 # ============================================================================
 
 class ActivateSignalRequest(BaseModel):
-    """Request parameters for activating a signal on a specific platform/account"""
+    """Request parameters for activating a signal on a specific destination"""
 
     signal_agent_segment_id: str = Field(description="The universal identifier for the signal to activate")
-    platform: str = Field(description="The target platform for activation")
-    account: str | None = Field(None, description="Account identifier (required for account-specific activation)")
+    destinations: list[Destination] = Field(description="Target destination(s) for activation. If the authenticated caller matches one of these destinations, activation keys will be included in the response.")
 
 
 class BuildCreativeRequest(BaseModel):
@@ -527,7 +537,7 @@ class GetSignalsRequest(BaseModel):
     """Request parameters for discovering signals based on description"""
 
     signal_spec: str = Field(description="Natural language description of the desired signals")
-    deliver_to: dict[str, Any] = Field(description="Where the signals need to be delivered")
+    deliver_to: dict[str, Any] = Field(description="Destination platforms where signals need to be activated")
     filters: dict[str, Any] | None = Field(None, description="Filters to refine results")
     max_results: int | None = Field(None, description="Maximum number of results to return")
 
@@ -600,11 +610,22 @@ class UpdateMediaBuyRequest(BaseModel):
     push_notification_config: PushNotificationConfig | None = Field(None, description="Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time.")
 
 
-class BuildCreativeResponse(BaseModel):
-    """Response containing the transformed or generated creative manifest, ready for use with preview_creative or sync_creatives"""
+# Response containing the transformed or generated creative manifest, ready for use with preview_creative or sync_creatives. Returns either the complete creative manifest OR error information, never both.
+
+class BuildCreativeResponseVariant1(BaseModel):
+    """Success response - creative manifest generated successfully"""
 
     creative_manifest: CreativeManifest = Field(description="The generated or transformed creative manifest")
-    errors: list[Error] | None = Field(None, description="Task-specific errors and warnings")
+
+
+class BuildCreativeResponseVariant2(BaseModel):
+    """Error response - creative generation failed"""
+
+    errors: list[Error] = Field(description="Array of errors explaining why creative generation failed")
+
+
+# Union type for Build Creative Response
+BuildCreativeResponse = BuildCreativeResponseVariant1 | BuildCreativeResponseVariant2
 
 
 class GetMediaBuyDeliveryResponse(BaseModel):
@@ -666,11 +687,22 @@ class ListCreativesResponse(BaseModel):
     status_summary: dict[str, Any] | None = Field(None, description="Breakdown of creatives by status")
 
 
-class ProvidePerformanceFeedbackResponse(BaseModel):
-    """Response payload for provide_performance_feedback task"""
+# Response payload for provide_performance_feedback task. Returns either success confirmation OR error information, never both.
 
-    success: bool = Field(description="Whether the performance feedback was successfully received")
-    errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., invalid measurement period, missing campaign data)")
+class ProvidePerformanceFeedbackResponseVariant1(BaseModel):
+    """Success response - feedback received and processed"""
+
+    success: Literal[True] = Field(description="Whether the performance feedback was successfully received")
+
+
+class ProvidePerformanceFeedbackResponseVariant2(BaseModel):
+    """Error response - feedback rejected or could not be processed"""
+
+    errors: list[Error] = Field(description="Array of errors explaining why feedback was rejected (e.g., invalid measurement period, missing campaign data)")
+
+
+# Union type for Provide Performance Feedback Response
+ProvidePerformanceFeedbackResponse = ProvidePerformanceFeedbackResponseVariant1 | ProvidePerformanceFeedbackResponseVariant2
 
 
 
@@ -831,6 +863,8 @@ __all__ = [
     "BrandManifestRefVariant2",
     "BuildCreativeRequest",
     "BuildCreativeResponse",
+    "BuildCreativeResponseVariant1",
+    "BuildCreativeResponseVariant2",
     "Channels",
     "CreateMediaBuyError",
     "CreateMediaBuyRequest",
@@ -863,6 +897,7 @@ __all__ = [
     "Measurement",
     "MediaBuy",
     "MediaBuyStatus",
+    "MediaSubAsset",
     "Pacing",
     "Package",
     "PackageRequest",
@@ -890,6 +925,8 @@ __all__ = [
     "ProtocolEnvelope",
     "ProvidePerformanceFeedbackRequest",
     "ProvidePerformanceFeedbackResponse",
+    "ProvidePerformanceFeedbackResponseVariant1",
+    "ProvidePerformanceFeedbackResponseVariant2",
     "PushNotificationConfig",
     "ReportingCapabilities",
     "Response",
@@ -905,6 +942,7 @@ __all__ = [
     "Targeting",
     "TaskStatus",
     "TaskType",
+    "TextSubAsset",
     "UpdateMediaBuyError",
     "UpdateMediaBuyRequest",
     "UpdateMediaBuyResponse",

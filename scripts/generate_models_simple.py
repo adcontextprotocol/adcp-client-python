@@ -86,14 +86,20 @@ def generate_discriminated_union(schema: dict, base_name: str) -> str:
     # Generate a model for each variant in oneOf
     for i, variant in enumerate(schema.get("oneOf", [])):
         # Try to get discriminator value for better naming
+        # Check common discriminator fields: type, asset_kind, output_format, delivery_type
         discriminator_value = None
-        if "properties" in variant and "type" in variant["properties"]:
-            type_prop = variant["properties"]["type"]
-            if "const" in type_prop:
-                discriminator_value = type_prop["const"]
+        if "properties" in variant:
+            for disc_field in ["type", "asset_kind", "output_format", "delivery_type"]:
+                if disc_field in variant["properties"]:
+                    disc_prop = variant["properties"][disc_field]
+                    if "const" in disc_prop:
+                        discriminator_value = disc_prop["const"]
+                        break
 
         # Generate variant name
         if discriminator_value:
+            # Capitalize discriminator value and append to base name
+            # e.g., "media" + "SubAsset" = "MediaSubAsset"
             variant_name = f"{discriminator_value.capitalize()}{base_name}"
         else:
             variant_name = f"{base_name}Variant{i+1}"
