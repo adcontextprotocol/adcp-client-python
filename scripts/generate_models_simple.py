@@ -28,8 +28,21 @@ RESERVED_NAMES = set(keyword.kwlist) | {
 
 
 def snake_to_pascal(name: str) -> str:
-    """Convert snake_case to PascalCase."""
-    return "".join(word.capitalize() for word in name.split("-"))
+    """
+    Convert snake_case to PascalCase.
+
+    Raises:
+        ValueError: If the result is not a valid Python identifier
+    """
+    pascal = "".join(word.capitalize() for word in name.split("-"))
+
+    # Validate result is a valid Python identifier
+    if not pascal.isidentifier():
+        raise ValueError(
+            f"Cannot convert '{name}' to valid Python identifier: '{pascal}'"
+        )
+
+    return pascal
 
 
 def sanitize_field_name(name: str) -> str:
@@ -99,6 +112,10 @@ def generate_discriminated_union(schema: dict, base_name: str) -> str:
                     disc_prop = variant["properties"][disc_field]
                     if "const" in disc_prop:
                         discriminator_value = disc_prop["const"]
+                        break
+                    elif "enum" in disc_prop and len(disc_prop["enum"]) == 1:
+                        # Single-value enum can also be a discriminator
+                        discriminator_value = disc_prop["enum"][0]
                         break
 
         # Generate variant name
