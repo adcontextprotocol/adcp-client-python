@@ -39,6 +39,50 @@ jobs:
         run: |
           pytest tests/ -v --cov=src/adcp --cov-report=term-missing
 
+  conventional-commits:
+    name: Validate conventional commit format
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate PR commits
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate individual commits
+        run: |
+          # Get the base branch
+          BASE_SHA=$(git merge-base origin/${{ github.base_ref }} HEAD)
+
+          # Check each commit since the base
+          echo "Validating commits since $BASE_SHA..."
+          git log --format="%H %s" $BASE_SHA..HEAD | while read sha message; do
+            # Check if message matches conventional commit format
+            if ! echo "$message" | grep -qE '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?!?: .+'; then
+              echo "❌ Commit $sha does not follow Conventional Commits format:"
+              echo "   $message"
+              echo ""
+              echo "Expected format: <type>[optional scope]: <description>"
+              echo "Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
+              echo ""
+              echo "Examples:"
+              echo "  feat: add new feature"
+              echo "  fix: resolve bug in parser"
+              echo "  feat(api): add new endpoint"
+              echo "  feat!: breaking change"
+              exit 1
+            else
+              echo "✓ $sha: $message"
+            fi
+          done
+          echo ""
+          echo "✅ All commits follow Conventional Commits format"
+
   schema-check:
     name: Validate schemas are up-to-date
     runs-on: ubuntu-latest
