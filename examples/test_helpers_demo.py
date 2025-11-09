@@ -38,7 +38,7 @@ async def simplest_example() -> None:
 
         if result.success and result.data:
             print(f"✅ Success! Found {len(result.data.products)} products")
-            print(f"   Protocol: MCP")
+            print("   Protocol: MCP")
             print()
         else:
             print(f"❌ Error: {result.error}")

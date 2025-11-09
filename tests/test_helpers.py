@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from adcp.client import ADCPClient, ADCPMultiAgentClient
 from adcp.testing import (
     TEST_AGENT_A2A_CONFIG,
