@@ -94,7 +94,9 @@ from adcp.types.generated import (
     StandardFormatIds,
     StartTiming,
     # Sub-asset types
+    MediaSubAsset,
     SubAsset,
+    TextSubAsset,
     SyncCreativesError,
     SyncCreativesRequest,
     SyncCreativesResponse,
@@ -221,7 +223,9 @@ __all__ = [
     "PlatformDeployment",
     "AgentDeployment",
     # Sub-asset types
+    "MediaSubAsset",
     "SubAsset",
+    "TextSubAsset",
     # Task types
     "TaskType",
     "GeneratedTaskStatus",
