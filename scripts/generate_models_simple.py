@@ -269,8 +269,25 @@ def get_python_type(schema: dict) -> str:
     if "$ref" in schema:
         # Reference to another model
         # Extract just the filename from paths like "/schemas/v1/core/format-id.json"
+        # Handles: absolute paths, relative paths, fragment identifiers (#/definitions/Foo)
         ref = schema["$ref"]
-        filename = ref.split("/")[-1].replace(".json", "")
+
+        if not ref:
+            raise ValueError("Empty $ref in schema")
+
+        # Split on # to handle fragment identifiers, then get the path part
+        path_part = ref.split("#")[0]
+
+        if not path_part:
+            # Pure fragment reference like "#/definitions/Foo" - not supported
+            raise ValueError(f"Fragment-only $ref not supported: {ref}")
+
+        # Extract filename from path (handles both / and \ separators)
+        filename = path_part.replace("\\", "/").split("/")[-1].replace(".json", "")
+
+        if not filename:
+            raise ValueError(f"Could not extract filename from $ref: {ref}")
+
         return snake_to_pascal(filename)
 
     # Handle const (discriminator values)
@@ -414,38 +431,39 @@ def add_format_id_validation(code: str) -> str:
 
 def extract_type_names(code: str) -> list[str]:
     """
-    Extract all type names (classes and type aliases) from generated code.
+    Extract all type names (classes and type aliases) from generated code using AST.
+
+    This is more robust than string parsing as it handles:
+    - Comments containing class-like patterns
+    - Multiline docstrings
+    - Complex type expressions
 
     Returns:
         List of type names sorted alphabetically
     """
     type_names = []
 
-    # Parse the code to find class definitions and type aliases
-    for line in code.split("\n"):
-        stripped = line.strip()
+    try:
+        tree = ast.parse(code)
+    except SyntaxError as e:
+        # If code has syntax errors, fall back to empty list
+        # (validation will catch this later)
+        return []
 
-        # Class definitions
-        if stripped.startswith("class ") and "(BaseModel)" in stripped:
-            # Extract class name: "class Foo(BaseModel):" -> "Foo"
-            class_name = stripped.split("class ")[1].split("(")[0].strip()
-            type_names.append(class_name)
+    for node in ast.walk(tree):
+        # Class definitions (e.g., class Foo(BaseModel):)
+        if isinstance(node, ast.ClassDef):
+            type_names.append(node.name)
 
-        # Type aliases: "TypeName = ..." (not inside a class)
-        elif "=" in stripped and not stripped.startswith(("#", "    ")):
-            # Check if it looks like a type alias at module level
-            parts = stripped.split("=", 1)
-            if len(parts) == 2:
-                name = parts[0].strip()
-                # Valid identifier, not a dunder, not an import, starts with capital
-                if (
-                    name.replace("_", "").isalnum()
-                    and not name.startswith("__")
-                    and "import" not in stripped
-                    and "Field(" not in stripped
-                    and name[0].isupper()  # Type names start with capital letter
-                ):
-                    type_names.append(name)
+        # Type aliases at module level (e.g., TypeName = SomeType | OtherType)
+        # These are Assign nodes at the module body level
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    # Only include type aliases that start with capital letter
+                    # (convention for type names in Python)
+                    if target.id[0].isupper():
+                        type_names.append(target.id)
 
     return sorted(set(type_names))
 
