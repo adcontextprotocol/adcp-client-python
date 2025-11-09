@@ -17,16 +17,6 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-# ============================================================================
-# MISSING SCHEMA TYPES (referenced but not provided by upstream)
-# ============================================================================
-
-# These types are referenced in schemas but don't have schema files
-# Defining them as type aliases to maintain type safety
-ActivationKey = dict[str, Any]
-PushNotificationConfig = dict[str, Any]
-ReportingCapabilities = dict[str, Any]
-
 
 # ============================================================================
 # CORE DOMAIN TYPES
@@ -405,6 +395,45 @@ class AgentDeployment(BaseModel):
 
 # Union type for Deployment
 Deployment = PlatformDeployment | AgentDeployment
+
+
+# Universal identifier for using a signal on a destination platform. Can be either a segment ID or a key-value pair depending on the platform's targeting mechanism.
+
+class Segment_idActivationKey(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["segment_id"] = Field(description="Segment ID based targeting")
+    segment_id: str = Field(description="The platform-specific segment identifier to use in campaign targeting")
+
+
+class Key_valueActivationKey(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["key_value"] = Field(description="Key-value pair based targeting")
+    key: str = Field(description="The targeting parameter key")
+    value: str = Field(description="The targeting parameter value")
+
+
+# Union type for Activation Key
+ActivationKey = Segment_idActivationKey | Key_valueActivationKey
+
+
+class PushNotificationConfig(BaseModel):
+    """Webhook configuration for asynchronous task notifications. Uses A2A-compatible PushNotificationConfig structure. Supports Bearer tokens (simple) or HMAC signatures (production-recommended)."""
+
+    url: str = Field(description="Webhook endpoint URL for task status notifications")
+    token: str | None = Field(None, description="Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.")
+    authentication: dict[str, Any] = Field(description="Authentication configuration for webhook delivery (A2A-compatible)")
+
+
+class ReportingCapabilities(BaseModel):
+    """Reporting capabilities available for a product"""
+
+    available_reporting_frequencies: list[Literal["hourly", "daily", "monthly"]] = Field(description="Supported reporting frequency options")
+    expected_delay_minutes: int = Field(description="Expected delay in minutes before reporting data becomes available (e.g., 240 for 4-hour delay)")
+    timezone: str = Field(description="Timezone for reporting periods. Use 'UTC' or IANA timezone (e.g., 'America/New_York'). Critical for daily/monthly frequency alignment.")
+    supports_webhooks: bool = Field(description="Whether this product supports webhook-based reporting notifications")
+    available_metrics: list[Literal["impressions", "spend", "clicks", "ctr", "video_completions", "completion_rate", "conversions", "viewability", "engagement_rate"]] = Field(description="Metrics available in reporting. Impressions and spend are always implicitly included.")
 
 
 # Type alias for Advertising Channels
@@ -1069,6 +1098,7 @@ __all__ = [
     "HtmlPreviewRender",
     "InlineDaastAsset",
     "InlineVastAsset",
+    "Key_valueActivationKey",
     "ListAuthorizedPropertiesRequest",
     "ListAuthorizedPropertiesResponse",
     "ListCreativeFormatsRequest",
@@ -1112,6 +1142,7 @@ __all__ = [
     "PushNotificationConfig",
     "ReportingCapabilities",
     "Response",
+    "Segment_idActivationKey",
     "StandardFormatIds",
     "StartTiming",
     "StartTimingVariant1",
