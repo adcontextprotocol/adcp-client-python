@@ -122,6 +122,11 @@ def generate_discriminated_union(schema: dict, base_name: str) -> str:
             lines.append(f'    """{desc}"""')
             lines.append("")
 
+        # Add model_config with extra="forbid" if additionalProperties is false
+        if variant.get("additionalProperties") is False:
+            lines.append('    model_config = ConfigDict(extra="forbid")')
+            lines.append("")
+
         # Add properties
         if "properties" in variant and variant["properties"]:
             for prop_name, prop_schema in variant["properties"].items():
@@ -647,6 +652,10 @@ def main():
         "pricing-model.json",
         "pricing-option.json",
         "standard-format-ids.json",
+        # Asset types with discriminators (from ADCP PR #189)
+        "vast-asset.json",
+        "daast-asset.json",
+        "preview-render.json",
     ]
 
     # Find all schemas
@@ -676,7 +685,7 @@ def main():
         "import re",
         "from typing import Any, Literal",
         "",
-        "from pydantic import BaseModel, Field, field_validator",
+        "from pydantic import BaseModel, ConfigDict, Field, field_validator",
         "",
         "",
         "# ============================================================================",

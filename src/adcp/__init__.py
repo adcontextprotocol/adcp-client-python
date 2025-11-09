@@ -97,6 +97,18 @@ from adcp.types.generated import (
     MediaSubAsset,
     SubAsset,
     TextSubAsset,
+    # Asset delivery types (VAST/DAAST)
+    VastAsset,
+    UrlVastAsset,
+    InlineVastAsset,
+    DaastAsset,
+    UrlDaastAsset,
+    InlineDaastAsset,
+    # Preview render types
+    PreviewRender,
+    UrlPreviewRender,
+    HtmlPreviewRender,
+    BothPreviewRender,
     SyncCreativesError,
     SyncCreativesRequest,
     SyncCreativesResponse,
@@ -226,6 +238,18 @@ __all__ = [
     "MediaSubAsset",
     "SubAsset",
     "TextSubAsset",
+    # Asset delivery types (VAST/DAAST)
+    "VastAsset",
+    "UrlVastAsset",
+    "InlineVastAsset",
+    "DaastAsset",
+    "UrlDaastAsset",
+    "InlineDaastAsset",
+    # Preview render types
+    "PreviewRender",
+    "UrlPreviewRender",
+    "HtmlPreviewRender",
+    "BothPreviewRender",
     # Task types
     "TaskType",
     "GeneratedTaskStatus",

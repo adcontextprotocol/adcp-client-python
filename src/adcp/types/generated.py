@@ -14,7 +14,7 @@ from __future__ import annotations
 import re
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # ============================================================================
@@ -290,6 +290,8 @@ StartTiming = StartTimingVariant1 | StartTimingVariant2
 # Sub-asset for multi-asset creative formats, including carousel images and native ad template variables
 
 class MediaSubAsset(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     asset_kind: Literal["media"] = Field(description="Discriminator indicating this is a media asset with content_uri")
     asset_type: str = Field(description="Type of asset. Common types: thumbnail_image, product_image, featured_image, logo")
     asset_id: str = Field(description="Unique identifier for the asset within the creative")
@@ -297,6 +299,8 @@ class MediaSubAsset(BaseModel):
 
 
 class TextSubAsset(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     asset_kind: Literal["text"] = Field(description="Discriminator indicating this is a text asset with content")
     asset_type: str = Field(description="Type of asset. Common types: headline, body_text, cta_text, price_text, sponsor_name, author_name, click_url")
     asset_id: str = Field(description="Unique identifier for the asset within the creative")
@@ -355,12 +359,16 @@ class PromotedProducts(BaseModel):
 # A destination platform where signals can be activated (DSP, sales agent, etc.)
 
 class PlatformDestination(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     type: Literal["platform"] = Field(description="Discriminator indicating this is a platform-based destination")
     platform: str = Field(description="Platform identifier for DSPs (e.g., 'the-trade-desk', 'amazon-dsp')")
     account: str | None = Field(None, description="Optional account identifier on the platform")
 
 
 class AgentDestination(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     type: Literal["agent"] = Field(description="Discriminator indicating this is an agent URL-based destination")
     agent_url: str = Field(description="URL identifying the destination agent (for sales agents, etc.)")
     account: str | None = Field(None, description="Optional account identifier on the agent")
@@ -373,6 +381,8 @@ Destination = PlatformDestination | AgentDestination
 # A signal deployment to a specific destination platform with activation status and key
 
 class PlatformDeployment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     type: Literal["platform"] = Field(description="Discriminator indicating this is a platform-based deployment")
     platform: str = Field(description="Platform identifier for DSPs")
     account: str | None = Field(None, description="Account identifier if applicable")
@@ -383,6 +393,8 @@ class PlatformDeployment(BaseModel):
 
 
 class AgentDeployment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     type: Literal["agent"] = Field(description="Discriminator indicating this is an agent URL-based deployment")
     agent_url: str = Field(description="URL identifying the destination agent")
     account: str | None = Field(None, description="Account identifier if applicable")
@@ -481,6 +493,108 @@ PricingOption = PricingOptionVariant1 | PricingOptionVariant2 | PricingOptionVar
 # Type alias for Standard Format IDs
 # Enumeration of all standard creative format identifiers in AdCP
 StandardFormatIds = Literal["display_300x250", "display_728x90", "display_320x50", "display_160x600", "display_970x250", "display_336x280", "display_expandable_300x250", "display_expandable_728x90", "display_interstitial_320x480", "display_interstitial_desktop", "display_dynamic_300x250", "display_responsive", "native_in_feed", "native_content_recommendation", "native_product", "video_skippable_15s", "video_skippable_30s", "video_non_skippable_15s", "video_non_skippable_30s", "video_outstream_autoplay", "video_vertical_story", "video_rewarded_30s", "video_pause_ad", "video_ctv_non_skippable_30s", "audio_standard_15s", "audio_standard_30s", "audio_podcast_host_read", "audio_programmatic", "universal_carousel", "universal_canvas", "universal_takeover", "universal_gallery", "universal_reveal", "dooh_landscape_static", "dooh_portrait_video"]
+
+
+# VAST (Video Ad Serving Template) tag for third-party video ad serving
+
+class UrlVastAsset(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    delivery_type: Literal["url"] = Field(description="Discriminator indicating VAST is delivered via URL endpoint")
+    url: str = Field(description="URL endpoint that returns VAST XML")
+    vast_version: Literal["2.0", "3.0", "4.0", "4.1", "4.2"] | None = Field(None, description="VAST specification version")
+    vpaid_enabled: bool | None = Field(None, description="Whether VPAID (Video Player-Ad Interface Definition) is supported")
+    duration_ms: int | None = Field(None, description="Expected video duration in milliseconds (if known)")
+    tracking_events: list[Literal["start", "firstQuartile", "midpoint", "thirdQuartile", "complete", "impression", "click", "pause", "resume", "skip", "mute", "unmute", "fullscreen", "exitFullscreen", "playerExpand", "playerCollapse"]] | None = Field(None, description="Tracking events supported by this VAST tag")
+
+
+class InlineVastAsset(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    delivery_type: Literal["inline"] = Field(description="Discriminator indicating VAST is delivered as inline XML content")
+    content: str = Field(description="Inline VAST XML content")
+    vast_version: Literal["2.0", "3.0", "4.0", "4.1", "4.2"] | None = Field(None, description="VAST specification version")
+    vpaid_enabled: bool | None = Field(None, description="Whether VPAID (Video Player-Ad Interface Definition) is supported")
+    duration_ms: int | None = Field(None, description="Expected video duration in milliseconds (if known)")
+    tracking_events: list[Literal["start", "firstQuartile", "midpoint", "thirdQuartile", "complete", "impression", "click", "pause", "resume", "skip", "mute", "unmute", "fullscreen", "exitFullscreen", "playerExpand", "playerCollapse"]] | None = Field(None, description="Tracking events supported by this VAST tag")
+
+
+# Union type for VAST Asset
+VastAsset = UrlVastAsset | InlineVastAsset
+
+
+# DAAST (Digital Audio Ad Serving Template) tag for third-party audio ad serving
+
+class UrlDaastAsset(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    delivery_type: Literal["url"] = Field(description="Discriminator indicating DAAST is delivered via URL endpoint")
+    url: str = Field(description="URL endpoint that returns DAAST XML")
+    daast_version: Literal["1.0", "1.1"] | None = Field(None, description="DAAST specification version")
+    duration_ms: int | None = Field(None, description="Expected audio duration in milliseconds (if known)")
+    tracking_events: list[Literal["start", "firstQuartile", "midpoint", "thirdQuartile", "complete", "impression", "pause", "resume", "skip", "mute", "unmute"]] | None = Field(None, description="Tracking events supported by this DAAST tag")
+    companion_ads: bool | None = Field(None, description="Whether companion display ads are included")
+
+
+class InlineDaastAsset(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    delivery_type: Literal["inline"] = Field(description="Discriminator indicating DAAST is delivered as inline XML content")
+    content: str = Field(description="Inline DAAST XML content")
+    daast_version: Literal["1.0", "1.1"] | None = Field(None, description="DAAST specification version")
+    duration_ms: int | None = Field(None, description="Expected audio duration in milliseconds (if known)")
+    tracking_events: list[Literal["start", "firstQuartile", "midpoint", "thirdQuartile", "complete", "impression", "pause", "resume", "skip", "mute", "unmute"]] | None = Field(None, description="Tracking events supported by this DAAST tag")
+    companion_ads: bool | None = Field(None, description="Whether companion display ads are included")
+
+
+# Union type for DAAST Asset
+DaastAsset = UrlDaastAsset | InlineDaastAsset
+
+
+# A single rendered piece of a creative preview with discriminated output format
+
+class UrlPreviewRender(BaseModel):
+    """URL-only preview format"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    render_id: str = Field(description="Unique identifier for this rendered piece within the variant")
+    output_format: Literal["url"] = Field(description="Discriminator indicating preview_url is provided")
+    preview_url: str = Field(description="URL to an HTML page that renders this piece. Can be embedded in an iframe.")
+    role: str = Field(description="Semantic role of this rendered piece. Use 'primary' for main content, 'companion' for associated banners, descriptive strings for device variants or custom roles.")
+    dimensions: dict[str, Any] | None = Field(None, description="Dimensions for this rendered piece")
+    embedding: dict[str, Any] | None = Field(None, description="Optional security and embedding metadata for safe iframe integration")
+
+
+class HtmlPreviewRender(BaseModel):
+    """HTML-only preview format"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    render_id: str = Field(description="Unique identifier for this rendered piece within the variant")
+    output_format: Literal["html"] = Field(description="Discriminator indicating preview_html is provided")
+    preview_html: str = Field(description="Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.")
+    role: str = Field(description="Semantic role of this rendered piece. Use 'primary' for main content, 'companion' for associated banners, descriptive strings for device variants or custom roles.")
+    dimensions: dict[str, Any] | None = Field(None, description="Dimensions for this rendered piece")
+    embedding: dict[str, Any] | None = Field(None, description="Optional security and embedding metadata")
+
+
+class BothPreviewRender(BaseModel):
+    """Both URL and HTML preview format"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    render_id: str = Field(description="Unique identifier for this rendered piece within the variant")
+    output_format: Literal["both"] = Field(description="Discriminator indicating both preview_url and preview_html are provided")
+    preview_url: str = Field(description="URL to an HTML page that renders this piece. Can be embedded in an iframe.")
+    preview_html: str = Field(description="Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.")
+    role: str = Field(description="Semantic role of this rendered piece. Use 'primary' for main content, 'companion' for associated banners, descriptive strings for device variants or custom roles.")
+    dimensions: dict[str, Any] | None = Field(None, description="Dimensions for this rendered piece")
+    embedding: dict[str, Any] | None = Field(None, description="Optional security and embedding metadata for safe iframe integration")
+
+
+# Union type for Preview Render
+PreviewRender = UrlPreviewRender | HtmlPreviewRender | BothPreviewRender
 
 
 
@@ -646,11 +760,15 @@ class UpdateMediaBuyRequest(BaseModel):
 class BuildCreativeResponseVariant1(BaseModel):
     """Success response - creative manifest generated successfully"""
 
+    model_config = ConfigDict(extra="forbid")
+
     creative_manifest: CreativeManifest = Field(description="The generated or transformed creative manifest")
 
 
 class BuildCreativeResponseVariant2(BaseModel):
     """Error response - creative generation failed"""
+
+    model_config = ConfigDict(extra="forbid")
 
     errors: list[Error] = Field(description="Array of errors explaining why creative generation failed")
 
@@ -723,11 +841,15 @@ class ListCreativesResponse(BaseModel):
 class ProvidePerformanceFeedbackResponseVariant1(BaseModel):
     """Success response - feedback received and processed"""
 
+    model_config = ConfigDict(extra="forbid")
+
     success: Literal[True] = Field(description="Whether the performance feedback was successfully received")
 
 
 class ProvidePerformanceFeedbackResponseVariant2(BaseModel):
     """Error response - feedback rejected or could not be processed"""
+
+    model_config = ConfigDict(extra="forbid")
 
     errors: list[Error] = Field(description="Array of errors explaining why feedback was rejected (e.g., invalid measurement period, missing campaign data)")
 
@@ -912,6 +1034,7 @@ __all__ = [
     "ActivationKey",
     "AgentDeployment",
     "AgentDestination",
+    "BothPreviewRender",
     "BrandManifest",
     "BrandManifestRef",
     "BrandManifestRefVariant1",
@@ -929,6 +1052,7 @@ __all__ = [
     "CreativeAssignment",
     "CreativeManifest",
     "CreativePolicy",
+    "DaastAsset",
     "DeliveryMetrics",
     "DeliveryType",
     "Deployment",
@@ -943,6 +1067,9 @@ __all__ = [
     "GetProductsResponse",
     "GetSignalsRequest",
     "GetSignalsResponse",
+    "HtmlPreviewRender",
+    "InlineDaastAsset",
+    "InlineVastAsset",
     "ListAuthorizedPropertiesRequest",
     "ListAuthorizedPropertiesResponse",
     "ListCreativeFormatsRequest",
@@ -963,6 +1090,7 @@ __all__ = [
     "PlatformDestination",
     "PreviewCreativeRequest",
     "PreviewCreativeResponse",
+    "PreviewRender",
     "PricingModel",
     "PricingOption",
     "PricingOptionVariant1",
@@ -1006,5 +1134,9 @@ __all__ = [
     "UpdateMediaBuyRequest",
     "UpdateMediaBuyResponse",
     "UpdateMediaBuySuccess",
+    "UrlDaastAsset",
+    "UrlPreviewRender",
+    "UrlVastAsset",
+    "VastAsset",
     "WebhookPayload",
 ]
