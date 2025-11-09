@@ -394,6 +394,44 @@ def add_format_id_validation(code: str) -> str:
     return "\n".join(result_lines)
 
 
+def extract_type_names(code: str) -> list[str]:
+    """
+    Extract all type names (classes and type aliases) from generated code.
+
+    Returns:
+        List of type names sorted alphabetically
+    """
+    type_names = []
+
+    # Parse the code to find class definitions and type aliases
+    for line in code.split("\n"):
+        stripped = line.strip()
+
+        # Class definitions
+        if stripped.startswith("class ") and "(BaseModel)" in stripped:
+            # Extract class name: "class Foo(BaseModel):" -> "Foo"
+            class_name = stripped.split("class ")[1].split("(")[0].strip()
+            type_names.append(class_name)
+
+        # Type aliases: "TypeName = ..." (not inside a class)
+        elif "=" in stripped and not stripped.startswith(("#", "    ")):
+            # Check if it looks like a type alias at module level
+            parts = stripped.split("=", 1)
+            if len(parts) == 2:
+                name = parts[0].strip()
+                # Valid identifier, not a dunder, not an import, starts with capital
+                if (
+                    name.replace("_", "").isalnum()
+                    and not name.startswith("__")
+                    and "import" not in stripped
+                    and "Field(" not in stripped
+                    and name[0].isupper()  # Type names start with capital letter
+                ):
+                    type_names.append(name)
+
+    return sorted(set(type_names))
+
+
 def add_custom_implementations(code: str) -> str:
     """
     Add custom Pydantic class implementations that override type aliases.
@@ -455,6 +493,95 @@ class PreviewCreativeResponse(BaseModel):
 
     # Batch mode field
     results: list[dict[str, Any]] | None = Field(default=None, description="Array of preview results for batch processing")
+
+
+# ============================================================================
+# ONEOF DISCRIMINATED UNIONS FOR RESPONSE TYPES
+# ============================================================================
+# These response types use oneOf semantics: success XOR error, never both.
+# Implemented as Union types with distinct Success/Error variants.
+
+
+class ActivateSignalSuccess(BaseModel):
+    """Successful signal activation response"""
+
+    decisioning_platform_segment_id: str = Field(
+        description="The platform-specific ID to use once activated"
+    )
+    estimated_activation_duration_minutes: float | None = None
+    deployed_at: str | None = None
+
+
+class ActivateSignalError(BaseModel):
+    """Failed signal activation response"""
+
+    errors: list[Error] = Field(description="Task-specific errors and warnings")
+
+
+# Override the generated ActivateSignalResponse type alias
+ActivateSignalResponse = ActivateSignalSuccess | ActivateSignalError
+
+
+class CreateMediaBuySuccess(BaseModel):
+    """Successful media buy creation response"""
+
+    media_buy_id: str = Field(description="The unique ID for the media buy")
+    buyer_ref: str = Field(description="The buyer's reference ID for this media buy")
+    packages: list[Package] = Field(
+        description="Array of approved packages. Each package is ready for creative assignment."
+    )
+    creative_deadline: str | None = Field(
+        None,
+        description="ISO 8601 date when creatives must be provided for launch",
+    )
+
+
+class CreateMediaBuyError(BaseModel):
+    """Failed media buy creation response"""
+
+    errors: list[Error] = Field(description="Task-specific errors and warnings")
+
+
+# Override the generated CreateMediaBuyResponse type alias
+CreateMediaBuyResponse = CreateMediaBuySuccess | CreateMediaBuyError
+
+
+class UpdateMediaBuySuccess(BaseModel):
+    """Successful media buy update response"""
+
+    media_buy_id: str = Field(description="The unique ID for the media buy")
+    buyer_ref: str = Field(description="The buyer's reference ID for this media buy")
+    packages: list[Package] = Field(
+        description="Array of updated packages reflecting the changes"
+    )
+
+
+class UpdateMediaBuyError(BaseModel):
+    """Failed media buy update response"""
+
+    errors: list[Error] = Field(description="Task-specific errors and warnings")
+
+
+# Override the generated UpdateMediaBuyResponse type alias
+UpdateMediaBuyResponse = UpdateMediaBuySuccess | UpdateMediaBuyError
+
+
+class SyncCreativesSuccess(BaseModel):
+    """Successful creative sync response"""
+
+    assignments: list[CreativeAssignment] = Field(
+        description="Array of creative assignments with updated status"
+    )
+
+
+class SyncCreativesError(BaseModel):
+    """Failed creative sync response"""
+
+    errors: list[Error] = Field(description="Task-specific errors and warnings")
+
+
+# Override the generated SyncCreativesResponse type alias
+SyncCreativesResponse = SyncCreativesSuccess | SyncCreativesError
 '''
     return code + custom_code
 
@@ -580,8 +707,15 @@ def main():
     )
 
     # Generate task models
-    # Skip preview types - they're implemented in custom implementations section
-    skip_types = {"preview-creative-request", "preview-creative-response"}
+    # Skip types that have custom implementations
+    skip_types = {
+        "preview-creative-request",
+        "preview-creative-response",
+        "activate-signal-response",
+        "create-media-buy-response",
+        "update-media-buy-response",
+        "sync-creatives-response",
+    }
     for schema_file in task_schemas:
         if schema_file.stem in skip_types:
             print(f"  Skipping {schema_file.stem} (custom implementation)...")
@@ -600,6 +734,14 @@ def main():
 
     # Add custom implementations (FormatId, PreviewCreativeRequest, PreviewCreativeResponse)
     generated_code = add_custom_implementations(generated_code)
+
+    # Extract all type names for __all__ export
+    type_names = extract_type_names(generated_code)
+    all_exports = "\n\n# Explicit exports for module interface\n__all__ = [\n"
+    for name in type_names:
+        all_exports += f'    "{name}",\n'
+    all_exports += "]\n"
+    generated_code += all_exports
 
     # Validate syntax before writing
     print("\nValidating generated code...")

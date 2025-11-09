@@ -600,48 +600,11 @@ class UpdateMediaBuyRequest(BaseModel):
     push_notification_config: PushNotificationConfig | None = Field(None, description="Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time.")
 
 
-class ActivateSignalSuccess(BaseModel):
-    """Successful signal activation response"""
-
-    decisioning_platform_segment_id: str = Field(description="The platform-specific ID to use once activated")
-    estimated_activation_duration_minutes: float | None = Field(None, description="Estimated time to complete (optional)")
-    deployed_at: str | None = Field(None, description="Timestamp when activation completed (optional)")
-
-
-class ActivateSignalError(BaseModel):
-    """Failed signal activation response"""
-
-    errors: list[Error] = Field(description="Task-specific errors and warnings (e.g., activation failures, platform issues)")
-
-
-# Union type for ActivateSignalResponse
-ActivateSignalResponse = ActivateSignalSuccess | ActivateSignalError
-
-
 class BuildCreativeResponse(BaseModel):
     """Response containing the transformed or generated creative manifest, ready for use with preview_creative or sync_creatives"""
 
     creative_manifest: CreativeManifest = Field(description="The generated or transformed creative manifest")
     errors: list[Error] | None = Field(None, description="Task-specific errors and warnings")
-
-
-class CreateMediaBuySuccess(BaseModel):
-    """Successful media buy creation response"""
-
-    media_buy_id: str = Field(description="Publisher's unique identifier for the created media buy")
-    buyer_ref: str = Field(description="Buyer's reference identifier for this media buy")
-    creative_deadline: str | None = Field(None, description="ISO 8601 timestamp for creative upload deadline")
-    packages: list[dict[str, Any]] = Field(description="Array of created packages")
-
-
-class CreateMediaBuyError(BaseModel):
-    """Failed media buy creation response"""
-
-    errors: list[Error] = Field(description="Task-specific errors and warnings (e.g., partial package creation failures)")
-
-
-# Union type for CreateMediaBuyResponse
-CreateMediaBuyResponse = CreateMediaBuySuccess | CreateMediaBuyError
 
 
 class GetMediaBuyDeliveryResponse(BaseModel):
@@ -710,42 +673,6 @@ class ProvidePerformanceFeedbackResponse(BaseModel):
     errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., invalid measurement period, missing campaign data)")
 
 
-class SyncCreativesSuccess(BaseModel):
-    """Successful creative sync response"""
-
-    dry_run: bool | None = Field(None, description="Whether this was a dry run (no actual changes made)")
-    creatives: list[dict[str, Any]] = Field(description="Results for each creative processed")
-
-
-class SyncCreativesError(BaseModel):
-    """Failed creative sync response (operation-level failures like auth or service down)"""
-
-    errors: list[Error] = Field(description="Operation-level errors (auth, service down, etc.)")
-
-
-# Union type for SyncCreativesResponse
-SyncCreativesResponse = SyncCreativesSuccess | SyncCreativesError
-
-
-class UpdateMediaBuySuccess(BaseModel):
-    """Successful media buy update response"""
-
-    media_buy_id: str = Field(description="Publisher's identifier for the media buy")
-    buyer_ref: str = Field(description="Buyer's reference identifier for the media buy")
-    implementation_date: Any | None = Field(None, description="ISO 8601 timestamp when changes take effect (null if pending approval)")
-    affected_packages: list[dict[str, Any]] | None = Field(None, description="Array of packages that were modified")
-
-
-class UpdateMediaBuyError(BaseModel):
-    """Failed media buy update response"""
-
-    errors: list[Error] = Field(description="Task-specific errors and warnings (e.g., partial update failures)")
-
-
-# Union type for UpdateMediaBuyResponse
-UpdateMediaBuyResponse = UpdateMediaBuySuccess | UpdateMediaBuyError
-
-
 
 # ============================================================================
 # CUSTOM IMPLEMENTATIONS (override type aliases from generator)
@@ -801,100 +728,186 @@ class PreviewCreativeResponse(BaseModel):
 
 
 # ============================================================================
-# EXPORTS
+# ONEOF DISCRIMINATED UNIONS FOR RESPONSE TYPES
 # ============================================================================
+# These response types use oneOf semantics: success XOR error, never both.
+# Implemented as Union types with distinct Success/Error variants.
 
+
+class ActivateSignalSuccess(BaseModel):
+    """Successful signal activation response"""
+
+    decisioning_platform_segment_id: str = Field(
+        description="The platform-specific ID to use once activated"
+    )
+    estimated_activation_duration_minutes: float | None = None
+    deployed_at: str | None = None
+
+
+class ActivateSignalError(BaseModel):
+    """Failed signal activation response"""
+
+    errors: list[Error] = Field(description="Task-specific errors and warnings")
+
+
+# Override the generated ActivateSignalResponse type alias
+ActivateSignalResponse = ActivateSignalSuccess | ActivateSignalError
+
+
+class CreateMediaBuySuccess(BaseModel):
+    """Successful media buy creation response"""
+
+    media_buy_id: str = Field(description="The unique ID for the media buy")
+    buyer_ref: str = Field(description="The buyer's reference ID for this media buy")
+    packages: list[Package] = Field(
+        description="Array of approved packages. Each package is ready for creative assignment."
+    )
+    creative_deadline: str | None = Field(
+        None,
+        description="ISO 8601 date when creatives must be provided for launch",
+    )
+
+
+class CreateMediaBuyError(BaseModel):
+    """Failed media buy creation response"""
+
+    errors: list[Error] = Field(description="Task-specific errors and warnings")
+
+
+# Override the generated CreateMediaBuyResponse type alias
+CreateMediaBuyResponse = CreateMediaBuySuccess | CreateMediaBuyError
+
+
+class UpdateMediaBuySuccess(BaseModel):
+    """Successful media buy update response"""
+
+    media_buy_id: str = Field(description="The unique ID for the media buy")
+    buyer_ref: str = Field(description="The buyer's reference ID for this media buy")
+    packages: list[Package] = Field(
+        description="Array of updated packages reflecting the changes"
+    )
+
+
+class UpdateMediaBuyError(BaseModel):
+    """Failed media buy update response"""
+
+    errors: list[Error] = Field(description="Task-specific errors and warnings")
+
+
+# Override the generated UpdateMediaBuyResponse type alias
+UpdateMediaBuyResponse = UpdateMediaBuySuccess | UpdateMediaBuyError
+
+
+class SyncCreativesSuccess(BaseModel):
+    """Successful creative sync response"""
+
+    assignments: list[CreativeAssignment] = Field(
+        description="Array of creative assignments with updated status"
+    )
+
+
+class SyncCreativesError(BaseModel):
+    """Failed creative sync response"""
+
+    errors: list[Error] = Field(description="Task-specific errors and warnings")
+
+
+# Override the generated SyncCreativesResponse type alias
+SyncCreativesResponse = SyncCreativesSuccess | SyncCreativesError
+
+
+# Explicit exports for module interface
 __all__ = [
-    # Request types
-    "ActivateSignalRequest",
-    "BuildCreativeRequest",
-    "CreateMediaBuyRequest",
-    "GetMediaBuyDeliveryRequest",
-    "GetProductsRequest",
-    "GetSignalsRequest",
-    "ListAuthorizedPropertiesRequest",
-    "ListCreativeFormatsRequest",
-    "ListCreativesRequest",
-    "PreviewCreativeRequest",
-    "ProvidePerformanceFeedbackRequest",
-    "SyncCreativesRequest",
-    "UpdateMediaBuyRequest",
-    # Response types (unions)
-    "ActivateSignalResponse",
-    "BuildCreativeResponse",
-    "CreateMediaBuyResponse",
-    "GetMediaBuyDeliveryResponse",
-    "GetProductsResponse",
-    "GetSignalsResponse",
-    "ListAuthorizedPropertiesResponse",
-    "ListCreativeFormatsResponse",
-    "ListCreativesResponse",
-    "PreviewCreativeResponse",
-    "ProvidePerformanceFeedbackResponse",
-    "SyncCreativesResponse",
-    "UpdateMediaBuyResponse",
-    # Response variants (discriminated union members)
-    "ActivateSignalSuccess",
     "ActivateSignalError",
-    "CreateMediaBuySuccess",
-    "CreateMediaBuyError",
-    "SyncCreativesSuccess",
-    "SyncCreativesError",
-    "UpdateMediaBuySuccess",
-    "UpdateMediaBuyError",
-    # Core domain types
-    "MediaBuy",
-    "Product",
-    "Package",
-    "Error",
-    # Creative types
-    "CreativeAsset",
-    "CreativeManifest",
-    "CreativeAssignment",
-    "CreativePolicy",
-    "Format",
-    "FormatId",
-    # Property and placement types
-    "Property",
-    "Placement",
-    # Targeting types
-    "Targeting",
-    "FrequencyCap",
-    "Pacing",
-    # Brand types
+    "ActivateSignalRequest",
+    "ActivateSignalResponse",
+    "ActivateSignalSuccess",
+    "ActivationKey",
+    "AgentDeployment",
+    "AgentDestination",
     "BrandManifest",
     "BrandManifestRef",
-    # Metrics types
-    "DeliveryMetrics",
-    "Measurement",
-    "PerformanceFeedback",
-    # Status enums
-    "MediaBuyStatus",
-    "PackageStatus",
-    # Pricing types
-    "PricingOption",
-    "PricingModel",
-    # Delivery types
-    "DeliveryType",
-    "StartTiming",
-    # Channel types
+    "BrandManifestRefVariant1",
+    "BrandManifestRefVariant2",
+    "BuildCreativeRequest",
+    "BuildCreativeResponse",
     "Channels",
-    "StandardFormatIds",
-    # Protocol types
-    "WebhookPayload",
-    "ProtocolEnvelope",
-    "Response",
-    "PromotedProducts",
-    # Deployment types
-    "Destination",
+    "CreateMediaBuyError",
+    "CreateMediaBuyRequest",
+    "CreateMediaBuyResponse",
+    "CreateMediaBuySuccess",
+    "CreativeAsset",
+    "CreativeAssignment",
+    "CreativeManifest",
+    "CreativePolicy",
+    "DeliveryMetrics",
+    "DeliveryType",
     "Deployment",
-    "PlatformDestination",
-    "AgentDestination",
+    "Destination",
+    "Error",
+    "Format",
+    "FormatId",
+    "FrequencyCap",
+    "GetMediaBuyDeliveryRequest",
+    "GetMediaBuyDeliveryResponse",
+    "GetProductsRequest",
+    "GetProductsResponse",
+    "GetSignalsRequest",
+    "GetSignalsResponse",
+    "ListAuthorizedPropertiesRequest",
+    "ListAuthorizedPropertiesResponse",
+    "ListCreativeFormatsRequest",
+    "ListCreativeFormatsResponse",
+    "ListCreativesRequest",
+    "ListCreativesResponse",
+    "Measurement",
+    "MediaBuy",
+    "MediaBuyStatus",
+    "Pacing",
+    "Package",
+    "PackageRequest",
+    "PackageStatus",
+    "PerformanceFeedback",
+    "Placement",
     "PlatformDeployment",
-    "AgentDeployment",
-    # Sub-asset types
+    "PlatformDestination",
+    "PreviewCreativeRequest",
+    "PreviewCreativeResponse",
+    "PricingModel",
+    "PricingOption",
+    "PricingOptionVariant1",
+    "PricingOptionVariant2",
+    "PricingOptionVariant3",
+    "PricingOptionVariant4",
+    "PricingOptionVariant5",
+    "PricingOptionVariant6",
+    "PricingOptionVariant7",
+    "PricingOptionVariant8",
+    "PricingOptionVariant9",
+    "Product",
+    "PromotedProducts",
+    "Property",
+    "ProtocolEnvelope",
+    "ProvidePerformanceFeedbackRequest",
+    "ProvidePerformanceFeedbackResponse",
+    "PushNotificationConfig",
+    "ReportingCapabilities",
+    "Response",
+    "StandardFormatIds",
+    "StartTiming",
+    "StartTimingVariant1",
+    "StartTimingVariant2",
     "SubAsset",
-    # Task types
-    "TaskType",
+    "SyncCreativesError",
+    "SyncCreativesRequest",
+    "SyncCreativesResponse",
+    "SyncCreativesSuccess",
+    "Targeting",
     "TaskStatus",
+    "TaskType",
+    "UpdateMediaBuyError",
+    "UpdateMediaBuyRequest",
+    "UpdateMediaBuyResponse",
+    "UpdateMediaBuySuccess",
+    "WebhookPayload",
 ]
