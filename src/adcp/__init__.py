@@ -18,6 +18,17 @@ from adcp.exceptions import (
     ADCPWebhookError,
     ADCPWebhookSignatureError,
 )
+
+# Test helpers
+from adcp.testing import (
+    TEST_AGENT_A2A_CONFIG,
+    TEST_AGENT_MCP_CONFIG,
+    TEST_AGENT_TOKEN,
+    create_test_agent,
+    test_agent,
+    test_agent_a2a,
+    test_agent_client,
+)
 from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus, WebhookMetadata
 from adcp.types.generated import (
     ActivateSignalError,
@@ -131,17 +142,6 @@ from adcp.types.generated import (
 )
 from adcp.types.generated import (
     TaskStatus as GeneratedTaskStatus,
-)
-
-# Test helpers
-from adcp.testing import (
-    TEST_AGENT_A2A_CONFIG,
-    TEST_AGENT_MCP_CONFIG,
-    TEST_AGENT_TOKEN,
-    create_test_agent,
-    test_agent,
-    test_agent_a2a,
-    test_agent_client,
 )
 
 __version__ = "1.2.1"
