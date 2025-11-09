@@ -22,6 +22,8 @@ AdCP operations are **distributed and asynchronous by default**. An agent might:
 pip install adcp
 ```
 
+> **Note**: This client requires Python 3.10 or later and supports both synchronous and asynchronous workflows.
+
 ## Quick Start: Distributed Operations
 
 ```python
