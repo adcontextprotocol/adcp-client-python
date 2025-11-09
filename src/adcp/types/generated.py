@@ -798,3 +798,103 @@ class PreviewCreativeResponse(BaseModel):
 
     # Batch mode field
     results: list[dict[str, Any]] | None = Field(default=None, description="Array of preview results for batch processing")
+
+
+# ============================================================================
+# EXPORTS
+# ============================================================================
+
+__all__ = [
+    # Request types
+    "ActivateSignalRequest",
+    "BuildCreativeRequest",
+    "CreateMediaBuyRequest",
+    "GetMediaBuyDeliveryRequest",
+    "GetProductsRequest",
+    "GetSignalsRequest",
+    "ListAuthorizedPropertiesRequest",
+    "ListCreativeFormatsRequest",
+    "ListCreativesRequest",
+    "PreviewCreativeRequest",
+    "ProvidePerformanceFeedbackRequest",
+    "SyncCreativesRequest",
+    "UpdateMediaBuyRequest",
+    # Response types (unions)
+    "ActivateSignalResponse",
+    "BuildCreativeResponse",
+    "CreateMediaBuyResponse",
+    "GetMediaBuyDeliveryResponse",
+    "GetProductsResponse",
+    "GetSignalsResponse",
+    "ListAuthorizedPropertiesResponse",
+    "ListCreativeFormatsResponse",
+    "ListCreativesResponse",
+    "PreviewCreativeResponse",
+    "ProvidePerformanceFeedbackResponse",
+    "SyncCreativesResponse",
+    "UpdateMediaBuyResponse",
+    # Response variants (discriminated union members)
+    "ActivateSignalSuccess",
+    "ActivateSignalError",
+    "CreateMediaBuySuccess",
+    "CreateMediaBuyError",
+    "SyncCreativesSuccess",
+    "SyncCreativesError",
+    "UpdateMediaBuySuccess",
+    "UpdateMediaBuyError",
+    # Core domain types
+    "MediaBuy",
+    "Product",
+    "Package",
+    "Error",
+    # Creative types
+    "CreativeAsset",
+    "CreativeManifest",
+    "CreativeAssignment",
+    "CreativePolicy",
+    "Format",
+    "FormatId",
+    # Property and placement types
+    "Property",
+    "Placement",
+    # Targeting types
+    "Targeting",
+    "FrequencyCap",
+    "Pacing",
+    # Brand types
+    "BrandManifest",
+    "BrandManifestRef",
+    # Metrics types
+    "DeliveryMetrics",
+    "Measurement",
+    "PerformanceFeedback",
+    # Status enums
+    "MediaBuyStatus",
+    "PackageStatus",
+    # Pricing types
+    "PricingOption",
+    "PricingModel",
+    # Delivery types
+    "DeliveryType",
+    "StartTiming",
+    # Channel types
+    "Channels",
+    "StandardFormatIds",
+    # Protocol types
+    "WebhookPayload",
+    "ProtocolEnvelope",
+    "Response",
+    "PromotedProducts",
+    # Deployment types
+    "Destination",
+    "Deployment",
+    "PlatformDestination",
+    "AgentDestination",
+    "PlatformDeployment",
+    "AgentDeployment",
+    # Sub-asset types
+    "SubAsset",
+    # Task types
+    "TaskType",
+    "TaskStatus",
+]

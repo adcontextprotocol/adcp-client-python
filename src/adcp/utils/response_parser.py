@@ -53,7 +53,8 @@ def _validate_union_type(data: dict[str, Any], response_type: type[T]) -> T:
         error_msgs = [f"{name}: {str(e)}" for name, e in errors]
         # Raise a ValueError instead of ValidationError for better error messages
         raise ValueError(
-            f"Data doesn't match any Union variant. Attempted variants: {', '.join([e[0] for e in errors])}. "
+            f"Data doesn't match any Union variant. "
+            f"Attempted variants: {', '.join([e[0] for e in errors])}. "
             f"Errors: {'; '.join(error_msgs)}"
         )
 
