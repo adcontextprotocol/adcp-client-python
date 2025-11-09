@@ -113,11 +113,11 @@ def test_create_test_agent_with_overrides():
     """Test that create_test_agent allows overrides."""
     config = create_test_agent(
         id="custom-test-agent",
-        name="Custom Test Agent",
+        timeout=60.0,
     )
 
     assert config.id == "custom-test-agent"
-    assert config.name == "Custom Test Agent"
+    assert config.timeout == 60.0
     assert config.protocol == Protocol.MCP  # unchanged
     assert config.auth_token is not None  # retained
 

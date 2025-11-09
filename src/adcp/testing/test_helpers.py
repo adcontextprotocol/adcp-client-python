@@ -5,6 +5,8 @@ These provide pre-configured access to AdCP's public test agent.
 
 from __future__ import annotations
 
+from typing import Any
+
 from adcp.client import ADCPClient, ADCPMultiAgentClient
 from adcp.types.core import AgentConfig, Protocol
 
@@ -15,7 +17,6 @@ TEST_AGENT_TOKEN = "1v8tAhASaUYYp4odoQ1PnMpdqNaMiTrCRqYo9OJp6IQ"
 # Public test agent configuration - MCP protocol
 TEST_AGENT_MCP_CONFIG = AgentConfig(
     id="test-agent-mcp",
-    name="AdCP Public Test Agent (MCP)",
     agent_uri="https://test-agent.adcontextprotocol.org/mcp/",
     protocol=Protocol.MCP,
     auth_token=TEST_AGENT_TOKEN,
@@ -24,7 +25,6 @@ TEST_AGENT_MCP_CONFIG = AgentConfig(
 # Public test agent configuration - A2A protocol
 TEST_AGENT_A2A_CONFIG = AgentConfig(
     id="test-agent-a2a",
-    name="AdCP Public Test Agent (A2A)",
     agent_uri="https://test-agent.adcontextprotocol.org",
     protocol=Protocol.A2A,
     auth_token=TEST_AGENT_TOKEN,
@@ -144,7 +144,7 @@ test_agent_a2a: ADCPClient = _create_test_agent_a2a_client()
 test_agent_client: ADCPMultiAgentClient = _create_test_multi_agent_client()
 
 
-def create_test_agent(**overrides) -> AgentConfig:
+def create_test_agent(**overrides: Any) -> AgentConfig:
     """Create a custom test agent configuration.
 
     Useful when you need to modify the default test agent setup.

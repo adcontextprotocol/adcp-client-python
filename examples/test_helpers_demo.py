@@ -117,14 +117,14 @@ async def custom_test_agent() -> None:
     # Create a custom config with your own ID
     custom_config = create_test_agent(
         id="my-custom-test",
-        name="My Custom Test Agent",
+        timeout=60.0,
     )
 
     print("Created custom config:")
     print(f"  ID: {custom_config.id}")
-    print(f"  Name: {custom_config.name}")
     print(f"  Protocol: {custom_config.protocol}")
     print(f"  URI: {custom_config.agent_uri}")
+    print(f"  Timeout: {custom_config.timeout}s")
     print()
 
     # Use it with a client
