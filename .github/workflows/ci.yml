@@ -62,6 +62,12 @@ jobs:
           # Check each commit since the base
           echo "Validating commits since $BASE_SHA..."
           git log --format="%H %s" $BASE_SHA..HEAD | while read sha message; do
+            # Skip merge commits (GitHub automatically creates these)
+            if echo "$message" | grep -qE '^Merge [0-9a-f]+ into [0-9a-f]+'; then
+              echo "⊙ Skipping merge commit: $sha"
+              continue
+            fi
+
             # Check if message matches conventional commit format
             if ! echo "$message" | grep -qE '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?!?: .+'; then
               echo "❌ Commit $sha does not follow Conventional Commits format:"
