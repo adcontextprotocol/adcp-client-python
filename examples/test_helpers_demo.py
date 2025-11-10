@@ -13,7 +13,9 @@ from adcp.testing import (
     create_test_agent,
     test_agent,
     test_agent_a2a,
+    test_agent_a2a_no_auth,
     test_agent_client,
+    test_agent_no_auth,
 )
 from adcp.types.generated import GetProductsRequest, ListCreativeFormatsRequest
 
@@ -148,12 +150,57 @@ async def custom_test_agent() -> None:
         await client.close()
 
 
+async def auth_vs_no_auth_comparison() -> None:
+    """Example 5: Authenticated vs Unauthenticated Requests.
+
+    Compare behavior between authenticated and unauthenticated test agents.
+    Useful for testing how agents handle different authentication states.
+    """
+    print("🔐 Example 5: Authentication Comparison")
+    print("=" * 39)
+    print()
+
+    request = GetProductsRequest(
+        brief="Coffee subscription service",
+        promoted_offering="Premium coffee",
+    )
+
+    try:
+        # Test with authentication
+        print("Testing WITH authentication (MCP)...")
+        auth_result = await test_agent.get_products(request)
+        auth_success = "✅" if auth_result.success else "❌"
+        auth_count = len(auth_result.data.products) if auth_result.data else 0
+        print(f"  {auth_success} With Auth: {auth_count} products")
+
+        # Test without authentication
+        print("Testing WITHOUT authentication (MCP)...")
+        no_auth_result = await test_agent_no_auth.get_products(request)
+        no_auth_success = "✅" if no_auth_result.success else "❌"
+        no_auth_count = len(no_auth_result.data.products) if no_auth_result.data else 0
+        print(f"  {no_auth_success} No Auth: {no_auth_count} products")
+
+        # Compare results
+        print()
+        if auth_count != no_auth_count:
+            print("  💡 Note: Different results with/without auth!")
+            print(f"     Auth returned {auth_count} products")
+            print(f"     No auth returned {no_auth_count} products")
+        else:
+            print("  💡 Note: Same results with/without auth")
+
+        print()
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        print()
+
+
 async def various_operations() -> None:
-    """Example 5: Testing Different Operations.
+    """Example 6: Testing Different Operations.
 
     Show various ADCP operations with test agents.
     """
-    print("🎬 Example 5: Various ADCP Operations")
+    print("🎬 Example 6: Various ADCP Operations")
     print("=" * 37)
     print()
 
@@ -195,11 +242,14 @@ async def main() -> None:
     await protocol_comparison()
     await multi_agent_example()
     await custom_test_agent()
+    await auth_vs_no_auth_comparison()
     await various_operations()
 
     print("💡 Key Takeaways:")
-    print("   • test_agent = Pre-configured MCP test agent (ready to use!)")
-    print("   • test_agent_a2a = Pre-configured A2A test agent")
+    print("   • test_agent = Pre-configured MCP test agent with auth")
+    print("   • test_agent_a2a = Pre-configured A2A test agent with auth")
+    print("   • test_agent_no_auth = Pre-configured MCP test agent WITHOUT auth")
+    print("   • test_agent_a2a_no_auth = Pre-configured A2A test agent WITHOUT auth")
     print("   • test_agent_client = Multi-agent client with both protocols")
     print("   • create_test_agent() = Create custom test configurations")
     print("   • Perfect for examples, docs, and quick testing")

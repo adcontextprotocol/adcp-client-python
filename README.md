@@ -45,8 +45,10 @@ if result.success:
 ```
 
 Test helpers include:
-- **`test_agent`**: Pre-configured MCP test agent (ready to use)
-- **`test_agent_a2a`**: Pre-configured A2A test agent
+- **`test_agent`**: Pre-configured MCP test agent with authentication
+- **`test_agent_a2a`**: Pre-configured A2A test agent with authentication
+- **`test_agent_no_auth`**: Pre-configured MCP test agent WITHOUT authentication
+- **`test_agent_a2a_no_auth`**: Pre-configured A2A test agent WITHOUT authentication
 - **`creative_agent`**: Reference creative agent for preview functionality
 - **`test_agent_client`**: Multi-agent client with both protocols
 - **`create_test_agent()`**: Factory for custom test configurations
@@ -113,32 +115,47 @@ async with ADCPMultiAgentClient(
 Pre-configured test agents for instant prototyping and testing:
 
 ```python
-from adcp.testing import test_agent, test_agent_a2a, creative_agent, test_agent_client, create_test_agent
+from adcp.testing import (
+    test_agent, test_agent_a2a,
+    test_agent_no_auth, test_agent_a2a_no_auth,
+    creative_agent, test_agent_client, create_test_agent
+)
 from adcp.types.generated import GetProductsRequest, PreviewCreativeRequest
 
-# 1. Single agent (MCP)
+# 1. Single agent with authentication (MCP)
 result = await test_agent.get_products(
     GetProductsRequest(brief="Coffee brands")
 )
 
-# 2. Single agent (A2A)
+# 2. Single agent with authentication (A2A)
 result = await test_agent_a2a.get_products(
     GetProductsRequest(brief="Coffee brands")
 )
 
-# 3. Creative agent (preview functionality)
+# 3. Single agent WITHOUT authentication (MCP)
+# Useful for testing unauthenticated behavior
+result = await test_agent_no_auth.get_products(
+    GetProductsRequest(brief="Coffee brands")
+)
+
+# 4. Single agent WITHOUT authentication (A2A)
+result = await test_agent_a2a_no_auth.get_products(
+    GetProductsRequest(brief="Coffee brands")
+)
+
+# 5. Creative agent (preview functionality, no auth required)
 result = await creative_agent.preview_creative(
     PreviewCreativeRequest(
         manifest={"format_id": "banner_300x250", "assets": {...}}
     )
 )
 
-# 4. Multi-agent (parallel execution)
+# 6. Multi-agent (parallel execution with both protocols)
 results = await test_agent_client.get_products(
     GetProductsRequest(brief="Coffee brands")
 )
 
-# 5. Custom configuration
+# 7. Custom configuration
 from adcp.client import ADCPClient
 config = create_test_agent(id="my-test", timeout=60.0)
 client = ADCPClient(config)
@@ -148,6 +165,7 @@ client = ADCPClient(config)
 - Quick prototyping and experimentation
 - Example code and documentation
 - Integration testing without mock servers
+- Testing authentication behavior (comparing auth vs no-auth results)
 - Learning AdCP concepts
 
 **Important:** Test agents are public, rate-limited, and for testing only. Never use in production.
@@ -415,6 +433,46 @@ uvx adcp --json myagent get_products '{"brief":"TV ads"}'
 
 # Enable debug mode
 uvx adcp --debug myagent get_products '{"brief":"TV ads"}'
+```
+
+### Using Test Agents from CLI
+
+The CLI provides easy access to public test agents without configuration:
+
+```bash
+# Use test agent with authentication (MCP)
+uvx adcp https://test-agent.adcontextprotocol.org/mcp/ \
+  --auth 1v8tAhASaUYYp4odoQ1PnMpdqNaMiTrCRqYo9OJp6IQ \
+  get_products '{"brief":"Coffee brands"}'
+
+# Use test agent WITHOUT authentication (MCP)
+uvx adcp https://test-agent.adcontextprotocol.org/mcp/ \
+  get_products '{"brief":"Coffee brands"}'
+
+# Use test agent with authentication (A2A)
+uvx adcp --protocol a2a \
+  --auth 1v8tAhASaUYYp4odoQ1PnMpdqNaMiTrCRqYo9OJp6IQ \
+  https://test-agent.adcontextprotocol.org \
+  get_products '{"brief":"Coffee brands"}'
+
+# Save test agent for easier access
+uvx adcp --save-auth test-agent https://test-agent.adcontextprotocol.org/mcp/ mcp
+# Enter token when prompted: 1v8tAhASaUYYp4odoQ1PnMpdqNaMiTrCRqYo9OJp6IQ
+
+# Now use saved config
+uvx adcp test-agent get_products '{"brief":"Coffee brands"}'
+
+# Use creative agent (no auth required)
+uvx adcp https://creative.adcontextprotocol.org/mcp \
+  preview_creative @creative_manifest.json
+```
+
+**Test Agent Details:**
+- **URL (MCP)**: `https://test-agent.adcontextprotocol.org/mcp/`
+- **URL (A2A)**: `https://test-agent.adcontextprotocol.org`
+- **Auth Token**: `1v8tAhASaUYYp4odoQ1PnMpdqNaMiTrCRqYo9OJp6IQ` (optional, public token)
+- **Rate Limited**: For testing only, not for production
+- **No Auth Mode**: Omit `--auth` flag to test unauthenticated behavior
 ```
 
 ### Configuration Management
