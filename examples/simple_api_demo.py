@@ -85,12 +85,13 @@ async def demo_production_client():
     # Create a production client
     from adcp import ADCPClient, AgentConfig, Protocol
 
+    # Note: This is a public test token for demo purposes
     client = ADCPClient(
         AgentConfig(
             id="my-agent",
             agent_uri="https://test-agent.adcontextprotocol.org/mcp/",
             protocol=Protocol.MCP,
-            auth_token="1v8tAhASaUYYp4odoQ1PnMpdqNaMiTrCRqYo9OJp6IQ",
+            auth_token="1v8tAhASaUYYp4odoQ1PnMpdqNaMiTrCRqYo9OJp6IQ",  # Public test token
         )
     )
 
