@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v1.3.0...v1.3.1) (2025-11-10)
+
+
+### Bug Fixes
+
+* export no-auth test helpers from main module ([#30](https://github.com/adcontextprotocol/adcp-client-python/issues/30)) ([fb2459d](https://github.com/adcontextprotocol/adcp-client-python/commit/fb2459da396ee1dfd01bfa437130b0042f8360e7))
+
 ## [1.3.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v1.2.1...v1.3.0) (2025-11-10)
 
 
