@@ -119,3 +119,37 @@ class ADCPWebhookSignatureError(ADCPWebhookError):
             "     Webhook signatures use HMAC-SHA256 for security."
         )
         super().__init__(message, agent_id, None, suggestion)
+
+
+class ADCPSimpleAPIError(ADCPError):
+    """Error from simplified API (.simple accessor).
+
+    Raised when a simple API method fails. The underlying error details
+    are available in the message. For more control over error handling,
+    use the standard API (client.method()) instead of client.simple.method().
+    """
+
+    def __init__(
+        self,
+        operation: str,
+        error_message: str | None = None,
+        agent_id: str | None = None,
+    ):
+        """Initialize simple API error.
+
+        Args:
+            operation: The operation that failed (e.g., "get_products")
+            error_message: The underlying error message from TaskResult
+            agent_id: Optional agent ID for context
+        """
+        message = f"{operation} failed"
+        if error_message:
+            message = f"{message}: {error_message}"
+
+        suggestion = (
+            f"For more control over error handling, use the standard API:\n"
+            f"     result = await client.{operation}(request)\n"
+            f"     if not result.success:\n"
+            f"         # Handle error with full TaskResult context"
+        )
+        super().__init__(message, agent_id, None, suggestion)

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from adcp.exceptions import ADCPSimpleAPIError
 from adcp.types.generated import (
     ActivateSignalRequest,
     ActivateSignalResponse,
@@ -76,16 +77,23 @@ class SimpleAPI:
         self,
         **kwargs: Any,
     ) -> GetProductsResponse:
-        """Get advertising products.
+        """Get advertising products (simplified).
+
+        This is a convenience wrapper around client.get_products() that:
+        - Accepts kwargs instead of GetProductsRequest
+        - Returns unwrapped GetProductsResponse
+        - Raises ADCPSimpleAPIError on failures
+
+        For full control over error handling, use client.get_products() instead.
 
         Args:
-            **kwargs: Arguments passed to GetProductsRequest
+            **kwargs: Arguments for GetProductsRequest (brief, brand_manifest, etc.)
 
         Returns:
-            GetProductsResponse with products list
+            GetProductsResponse directly (no TaskResult wrapper)
 
         Raises:
-            Exception: If the request fails
+            ADCPSimpleAPIError: If request fails. Use standard API for detailed error handling.
 
         Example:
             products = await client.simple.get_products(
@@ -96,7 +104,11 @@ class SimpleAPI:
         request = GetProductsRequest(**kwargs)
         result = await self._client.get_products(request)
         if not result.success or not result.data:
-            raise Exception(f"get_products failed: {result.error}")
+            raise ADCPSimpleAPIError(
+                operation="get_products",
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
         return result.data
 
     async def list_creative_formats(
@@ -121,7 +133,11 @@ class SimpleAPI:
         request = ListCreativeFormatsRequest(**kwargs)
         result = await self._client.list_creative_formats(request)
         if not result.success or not result.data:
-            raise Exception(f"list_creative_formats failed: {result.error}")
+            raise ADCPSimpleAPIError(
+                operation="list_creative_formats",
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
         return result.data
 
     async def preview_creative(
@@ -148,7 +164,11 @@ class SimpleAPI:
         request = PreviewCreativeRequest(**kwargs)
         result = await self._client.preview_creative(request)
         if not result.success or not result.data:
-            raise Exception(f"preview_creative failed: {result.error}")
+            raise ADCPSimpleAPIError(
+                operation="preview_creative",
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
         return result.data
 
     async def sync_creatives(
@@ -169,7 +189,11 @@ class SimpleAPI:
         request = SyncCreativesRequest(**kwargs)
         result = await self._client.sync_creatives(request)
         if not result.success or not result.data:
-            raise Exception(f"sync_creatives failed: {result.error}")
+            raise ADCPSimpleAPIError(
+                operation="sync_creatives",
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
         return result.data
 
     async def list_creatives(
@@ -190,7 +214,11 @@ class SimpleAPI:
         request = ListCreativesRequest(**kwargs)
         result = await self._client.list_creatives(request)
         if not result.success or not result.data:
-            raise Exception(f"list_creatives failed: {result.error}")
+            raise ADCPSimpleAPIError(
+                operation="list_creatives",
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
         return result.data
 
     async def get_media_buy_delivery(
@@ -211,7 +239,11 @@ class SimpleAPI:
         request = GetMediaBuyDeliveryRequest(**kwargs)
         result = await self._client.get_media_buy_delivery(request)
         if not result.success or not result.data:
-            raise Exception(f"get_media_buy_delivery failed: {result.error}")
+            raise ADCPSimpleAPIError(
+                operation="get_media_buy_delivery",
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
         return result.data
 
     async def list_authorized_properties(
@@ -232,7 +264,11 @@ class SimpleAPI:
         request = ListAuthorizedPropertiesRequest(**kwargs)
         result = await self._client.list_authorized_properties(request)
         if not result.success or not result.data:
-            raise Exception(f"list_authorized_properties failed: {result.error}")
+            raise ADCPSimpleAPIError(
+                operation="list_authorized_properties",
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
         return result.data
 
     async def get_signals(
@@ -253,7 +289,11 @@ class SimpleAPI:
         request = GetSignalsRequest(**kwargs)
         result = await self._client.get_signals(request)
         if not result.success or not result.data:
-            raise Exception(f"get_signals failed: {result.error}")
+            raise ADCPSimpleAPIError(
+                operation="get_signals",
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
         return result.data
 
     async def activate_signal(
@@ -274,7 +314,11 @@ class SimpleAPI:
         request = ActivateSignalRequest(**kwargs)
         result = await self._client.activate_signal(request)
         if not result.success or not result.data:
-            raise Exception(f"activate_signal failed: {result.error}")
+            raise ADCPSimpleAPIError(
+                operation="activate_signal",
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
         return result.data
 
     async def provide_performance_feedback(
@@ -295,5 +339,9 @@ class SimpleAPI:
         request = ProvidePerformanceFeedbackRequest(**kwargs)
         result = await self._client.provide_performance_feedback(request)
         if not result.success or not result.data:
-            raise Exception(f"provide_performance_feedback failed: {result.error}")
+            raise ADCPSimpleAPIError(
+                operation="provide_performance_feedback",
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
         return result.data

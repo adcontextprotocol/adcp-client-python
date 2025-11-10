@@ -49,14 +49,16 @@ async def test_get_products_simple_api():
 @pytest.mark.asyncio
 async def test_get_products_simple_api_failure():
     """Test client.simple.get_products raises exception on failure."""
+    from adcp.exceptions import ADCPSimpleAPIError
+
     # Create mock failure response
     mock_result = TaskResult[GetProductsResponse](
         status=TaskStatus.FAILED, data=None, success=False, error="Test error"
     )
 
     with patch.object(test_agent, "get_products", new=AsyncMock(return_value=mock_result)):
-        # Should raise exception on failure
-        with pytest.raises(Exception, match="get_products failed"):
+        # Should raise ADCPSimpleAPIError on failure
+        with pytest.raises(ADCPSimpleAPIError, match="get_products failed"):
             await test_agent.simple.get_products(brief="Test")
 
 
@@ -111,6 +113,29 @@ def test_simple_api_exists_on_client():
     assert isinstance(test_agent.simple, SimpleAPI)
     assert isinstance(test_agent_a2a.simple, SimpleAPI)
     assert isinstance(creative_agent.simple, SimpleAPI)
+
+
+def test_simple_api_on_freshly_constructed_client():
+    """Test that .simple accessor works on freshly constructed ADCPClient."""
+    from adcp import ADCPClient, AgentConfig, Protocol
+    from adcp.simple import SimpleAPI
+
+    # Create a new client from scratch
+    client = ADCPClient(
+        AgentConfig(
+            id="test-agent",
+            agent_uri="https://test.example.com/mcp/",
+            protocol=Protocol.MCP,
+            auth_token="test-token",
+        )
+    )
+
+    # Should have .simple accessor
+    assert hasattr(client, "simple")
+    assert isinstance(client.simple, SimpleAPI)
+
+    # Should reference the same client
+    assert client.simple._client is client
 
 
 @pytest.mark.asyncio

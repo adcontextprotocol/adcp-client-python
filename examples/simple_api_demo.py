@@ -110,6 +110,28 @@ async def demo_production_client():
         print(f"  (Expected error for demo: {e})")
 
 
+def demo_sync_usage():
+    """Show how to use simple API in sync contexts."""
+    print("\n=== Using Simple API in Sync Contexts ===\n")
+
+    print("The simple API is async-only, but you can use asyncio.run() for sync contexts:")
+    print()
+    print("  # In a Jupyter notebook or sync function:")
+    print("  import asyncio")
+    print("  from adcp.testing import test_agent")
+    print()
+    print("  products = asyncio.run(test_agent.simple.get_products(brief='Coffee'))")
+    print("  print(f'Found {len(products.products)} products')")
+    print()
+    print("  # Or create an async function and run it:")
+    print("  async def my_function():")
+    print("      products = await test_agent.simple.get_products(brief='Coffee')")
+    print("      return products")
+    print()
+    print("  result = asyncio.run(my_function())")
+    print()
+
+
 async def main():
     """Run all demos."""
     print("\n" + "=" * 60)
@@ -125,6 +147,9 @@ async def main():
     # Show it works on any client
     await demo_production_client()
 
+    # Show sync usage pattern
+    demo_sync_usage()
+
     print("\n" + "=" * 60)
     print("Key Differences:")
     print("=" * 60)
@@ -133,6 +158,7 @@ async def main():
     print("  ✓ Direct data return (no unwrapping)")
     print("  ✓ Raises exceptions on errors")
     print("  ✓ Available on ALL ADCPClient instances")
+    print("  ✓ Use asyncio.run() for sync contexts")
     print("  → Best for: documentation, examples, quick testing, notebooks")
     print("\nStandard API (client.*):")
     print("  ✓ Explicit request objects (type-safe)")
