@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v1.3.1...v1.4.0) (2025-11-10)
+
+
+### Features
+
+* add ergonomic .simple accessor to all ADCPClient instances ([#32](https://github.com/adcontextprotocol/adcp-client-python/issues/32)) ([5404325](https://github.com/adcontextprotocol/adcp-client-python/commit/54043251e86b44264070c37025d5bd9407bb906b))
+
 ## [1.3.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v1.3.0...v1.3.1) (2025-11-10)
 
 
