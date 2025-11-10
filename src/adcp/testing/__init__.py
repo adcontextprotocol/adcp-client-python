@@ -1,6 +1,21 @@
 """Test helpers for AdCP client library.
 
 Provides pre-configured test agents for examples and quick testing.
+
+All test agents include a `.simple` accessor for ergonomic usage:
+
+- **Standard API** (client methods): Full TaskResult with error handling
+- **Simple API** (client.simple methods): Direct returns, raises on error
+
+Example:
+    # Standard API - explicit control
+    result = await test_agent.get_products(GetProductsRequest(brief='Coffee'))
+    if result.success:
+        print(result.data.products)
+
+    # Simple API - ergonomic
+    products = await test_agent.simple.get_products(brief='Coffee')
+    print(products.products)
 """
 
 from __future__ import annotations

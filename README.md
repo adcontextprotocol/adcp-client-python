@@ -26,36 +26,64 @@ pip install adcp
 
 ## Quick Start: Test Helpers
 
-The fastest way to get started is using the pre-configured test agents:
+The fastest way to get started is using pre-configured test agents with the **`.simple` API**:
 
+```python
+from adcp.testing import test_agent
+
+# Zero configuration - just import and call with kwargs!
+products = await test_agent.simple.get_products(
+    brief='Coffee subscription service for busy professionals'
+)
+
+print(f"Found {len(products.products)} products")
+```
+
+### Simple vs. Standard API
+
+**Every ADCPClient** includes both API styles via the `.simple` accessor:
+
+**Simple API** (`client.simple.*`) - Recommended for examples/prototyping:
+```python
+from adcp.testing import test_agent
+
+# Kwargs and direct return - raises on error
+products = await test_agent.simple.get_products(brief='Coffee brands')
+print(products.products[0].name)
+```
+
+**Standard API** (`client.*`) - Recommended for production:
 ```python
 from adcp.testing import test_agent
 from adcp.types.generated import GetProductsRequest
 
-# Zero configuration - just import and use!
-result = await test_agent.get_products(
-    GetProductsRequest(
-        brief="Coffee subscription service",
-        promoted_offering="Premium coffee deliveries"
-    )
-)
+# Explicit request objects and TaskResult wrapper
+request = GetProductsRequest(brief='Coffee brands')
+result = await test_agent.get_products(request)
 
-if result.success:
-    print(f"Found {len(result.data.products)} products")
+if result.success and result.data:
+    print(result.data.products[0].name)
+else:
+    print(f"Error: {result.error}")
 ```
 
-Test helpers include:
-- **`test_agent`**: Pre-configured MCP test agent with authentication
-- **`test_agent_a2a`**: Pre-configured A2A test agent with authentication
-- **`test_agent_no_auth`**: Pre-configured MCP test agent WITHOUT authentication
-- **`test_agent_a2a_no_auth`**: Pre-configured A2A test agent WITHOUT authentication
+**When to use which:**
+- **Simple API** (`.simple`): Quick testing, documentation, examples, notebooks
+- **Standard API**: Production code, complex error handling, webhook workflows
+
+### Available Test Helpers
+
+Pre-configured agents (all include `.simple` accessor):
+- **`test_agent`**: MCP test agent with authentication
+- **`test_agent_a2a`**: A2A test agent with authentication
+- **`test_agent_no_auth`**: MCP test agent without authentication
+- **`test_agent_a2a_no_auth`**: A2A test agent without authentication
 - **`creative_agent`**: Reference creative agent for preview functionality
 - **`test_agent_client`**: Multi-agent client with both protocols
-- **`create_test_agent()`**: Factory for custom test configurations
 
 > **Note**: Test agents are rate-limited and for testing/examples only. DO NOT use in production.
 
-See [examples/test_helpers_demo.py](examples/test_helpers_demo.py) for more examples.
+See [examples/simple_api_demo.py](examples/simple_api_demo.py) for a complete comparison.
 
 ## Quick Start: Distributed Operations
 

@@ -86,6 +86,11 @@ class ADCPClient:
         else:
             raise ValueError(f"Unsupported protocol: {agent_config.protocol}")
 
+        # Initialize simple API accessor (lazy import to avoid circular dependency)
+        from adcp.simple import SimpleAPI
+
+        self.simple = SimpleAPI(self)
+
     def get_webhook_url(self, task_type: str, operation_id: str) -> str:
         """Generate webhook URL for a task."""
         if not self.webhook_url_template:
