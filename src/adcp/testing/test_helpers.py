@@ -30,6 +30,20 @@ TEST_AGENT_A2A_CONFIG = AgentConfig(
     auth_token=TEST_AGENT_TOKEN,
 )
 
+# Public test agent configuration (no auth) - MCP protocol
+TEST_AGENT_MCP_NO_AUTH_CONFIG = AgentConfig(
+    id="test-agent-mcp-no-auth",
+    agent_uri="https://test-agent.adcontextprotocol.org/mcp/",
+    protocol=Protocol.MCP,
+)
+
+# Public test agent configuration (no auth) - A2A protocol
+TEST_AGENT_A2A_NO_AUTH_CONFIG = AgentConfig(
+    id="test-agent-a2a-no-auth",
+    agent_uri="https://test-agent.adcontextprotocol.org",
+    protocol=Protocol.A2A,
+)
+
 # Reference creative agent configuration - MCP protocol
 # No authentication required for the reference creative agent
 CREATIVE_AGENT_CONFIG = AgentConfig(
@@ -65,6 +79,34 @@ def _create_test_agent_a2a_client() -> ADCPClient:
         DO NOT use in production applications.
     """
     return ADCPClient(TEST_AGENT_A2A_CONFIG)
+
+
+def _create_test_agent_no_auth_client() -> ADCPClient:
+    """Create pre-configured test agent client (no auth) using MCP protocol.
+
+    Returns:
+        ADCPClient instance configured for the public test agent without authentication
+
+    Note:
+        This agent is rate-limited and intended for testing scenarios where no auth is provided.
+        Useful for testing behavior differences between authenticated and unauthenticated requests.
+        DO NOT use in production applications.
+    """
+    return ADCPClient(TEST_AGENT_MCP_NO_AUTH_CONFIG)
+
+
+def _create_test_agent_a2a_no_auth_client() -> ADCPClient:
+    """Create pre-configured test agent client (no auth) using A2A protocol.
+
+    Returns:
+        ADCPClient instance configured for the public test agent without authentication
+
+    Note:
+        This agent is rate-limited and intended for testing scenarios where no auth is provided.
+        Useful for testing behavior differences between authenticated and unauthenticated requests.
+        DO NOT use in production applications.
+    """
+    return ADCPClient(TEST_AGENT_A2A_NO_AUTH_CONFIG)
 
 
 def _create_creative_agent_client() -> ADCPClient:
@@ -138,6 +180,50 @@ test_agent: ADCPClient = _create_test_agent_client()
 #     The auth token is public and may be rotated without notice.
 #     DO NOT use in production applications.
 test_agent_a2a: ADCPClient = _create_test_agent_a2a_client()
+
+# Pre-configured test agent client (no auth) using MCP protocol.
+# Useful for testing scenarios where authentication is not provided,
+# such as testing how agents handle unauthenticated requests or
+# comparing behavior between authenticated and unauthenticated calls.
+#
+# Example:
+#     ```python
+#     from adcp.testing import test_agent_no_auth
+#
+#     # Test behavior without authentication
+#     result = await test_agent_no_auth.get_products(
+#         GetProductsRequest(
+#             brief="Coffee subscription service",
+#             promoted_offering="Premium monthly coffee"
+#         )
+#     )
+#     ```
+#
+# Note:
+#     This agent is rate-limited and intended for testing/examples only.
+#     DO NOT use in production applications.
+test_agent_no_auth: ADCPClient = _create_test_agent_no_auth_client()
+
+# Pre-configured test agent client (no auth) using A2A protocol.
+# Identical functionality to test_agent_no_auth but uses A2A instead of MCP.
+#
+# Example:
+#     ```python
+#     from adcp.testing import test_agent_a2a_no_auth
+#
+#     # Test A2A behavior without authentication
+#     result = await test_agent_a2a_no_auth.get_products(
+#         GetProductsRequest(
+#             brief="Sustainable fashion brands",
+#             promoted_offering="Eco-friendly clothing"
+#         )
+#     )
+#     ```
+#
+# Note:
+#     This agent is rate-limited and intended for testing/examples only.
+#     DO NOT use in production applications.
+test_agent_a2a_no_auth: ADCPClient = _create_test_agent_a2a_no_auth_client()
 
 # Pre-configured reference creative agent.
 # Provides creative preview functionality without authentication.

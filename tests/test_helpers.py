@@ -6,13 +6,17 @@ from adcp.client import ADCPClient, ADCPMultiAgentClient
 from adcp.testing import (
     CREATIVE_AGENT_CONFIG,
     TEST_AGENT_A2A_CONFIG,
+    TEST_AGENT_A2A_NO_AUTH_CONFIG,
     TEST_AGENT_MCP_CONFIG,
+    TEST_AGENT_MCP_NO_AUTH_CONFIG,
     TEST_AGENT_TOKEN,
     create_test_agent,
     creative_agent,
     test_agent,
     test_agent_a2a,
+    test_agent_a2a_no_auth,
     test_agent_client,
+    test_agent_no_auth,
 )
 from adcp.types.core import Protocol
 
@@ -22,21 +26,29 @@ def test_exports_from_testing_module():
     # These imports should work without errors
     from adcp.testing import (
         TEST_AGENT_A2A_CONFIG,
+        TEST_AGENT_A2A_NO_AUTH_CONFIG,
         TEST_AGENT_MCP_CONFIG,
+        TEST_AGENT_MCP_NO_AUTH_CONFIG,
         TEST_AGENT_TOKEN,
         create_test_agent,
         test_agent,
         test_agent_a2a,
+        test_agent_a2a_no_auth,
         test_agent_client,
+        test_agent_no_auth,
     )
 
     assert test_agent is not None
     assert test_agent_a2a is not None
+    assert test_agent_no_auth is not None
+    assert test_agent_a2a_no_auth is not None
     assert test_agent_client is not None
     assert callable(create_test_agent)
     assert isinstance(TEST_AGENT_TOKEN, str)
     assert TEST_AGENT_MCP_CONFIG is not None
     assert TEST_AGENT_A2A_CONFIG is not None
+    assert TEST_AGENT_MCP_NO_AUTH_CONFIG is not None
+    assert TEST_AGENT_A2A_NO_AUTH_CONFIG is not None
 
 
 def test_test_agent_token():
@@ -177,3 +189,51 @@ def test_creative_agent_config_match():
     """Test that creative_agent uses CREATIVE_AGENT_CONFIG."""
     assert creative_agent.agent_config.id == CREATIVE_AGENT_CONFIG.id
     assert creative_agent.agent_config.protocol == CREATIVE_AGENT_CONFIG.protocol
+
+
+def test_mcp_no_auth_config_structure():
+    """Test TEST_AGENT_MCP_NO_AUTH_CONFIG has correct structure."""
+    assert TEST_AGENT_MCP_NO_AUTH_CONFIG.id == "test-agent-mcp-no-auth"
+    assert TEST_AGENT_MCP_NO_AUTH_CONFIG.protocol == Protocol.MCP
+    assert TEST_AGENT_MCP_NO_AUTH_CONFIG.agent_uri == "https://test-agent.adcontextprotocol.org/mcp"
+    assert TEST_AGENT_MCP_NO_AUTH_CONFIG.auth_token is None
+
+
+def test_a2a_no_auth_config_structure():
+    """Test TEST_AGENT_A2A_NO_AUTH_CONFIG has correct structure."""
+    assert TEST_AGENT_A2A_NO_AUTH_CONFIG.id == "test-agent-a2a-no-auth"
+    assert TEST_AGENT_A2A_NO_AUTH_CONFIG.protocol == Protocol.A2A
+    assert TEST_AGENT_A2A_NO_AUTH_CONFIG.agent_uri == "https://test-agent.adcontextprotocol.org"
+    assert TEST_AGENT_A2A_NO_AUTH_CONFIG.auth_token is None
+
+
+def test_test_agent_no_auth_is_adcp_client():
+    """Test that test_agent_no_auth is an ADCPClient instance."""
+    assert isinstance(test_agent_no_auth, ADCPClient)
+    assert hasattr(test_agent_no_auth, "get_products")
+    assert hasattr(test_agent_no_auth, "list_creative_formats")
+    assert callable(test_agent_no_auth.get_products)
+    assert callable(test_agent_no_auth.list_creative_formats)
+
+
+def test_test_agent_a2a_no_auth_is_adcp_client():
+    """Test that test_agent_a2a_no_auth is an ADCPClient instance."""
+    assert isinstance(test_agent_a2a_no_auth, ADCPClient)
+    assert hasattr(test_agent_a2a_no_auth, "get_products")
+    assert hasattr(test_agent_a2a_no_auth, "list_creative_formats")
+    assert callable(test_agent_a2a_no_auth.get_products)
+    assert callable(test_agent_a2a_no_auth.list_creative_formats)
+
+
+def test_test_agent_no_auth_config_match():
+    """Test that test_agent_no_auth uses TEST_AGENT_MCP_NO_AUTH_CONFIG."""
+    assert test_agent_no_auth.agent_config.id == TEST_AGENT_MCP_NO_AUTH_CONFIG.id
+    assert test_agent_no_auth.agent_config.protocol == TEST_AGENT_MCP_NO_AUTH_CONFIG.protocol
+    assert test_agent_no_auth.agent_config.auth_token is None
+
+
+def test_test_agent_a2a_no_auth_config_match():
+    """Test that test_agent_a2a_no_auth uses TEST_AGENT_A2A_NO_AUTH_CONFIG."""
+    assert test_agent_a2a_no_auth.agent_config.id == TEST_AGENT_A2A_NO_AUTH_CONFIG.id
+    assert test_agent_a2a_no_auth.agent_config.protocol == TEST_AGENT_A2A_NO_AUTH_CONFIG.protocol
+    assert test_agent_a2a_no_auth.agent_config.auth_token is None
