@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v1.4.0...v1.4.1) (2025-11-11)
+
+
+### Bug Fixes
+
+* handle MCP error responses without structuredContent ([#34](https://github.com/adcontextprotocol/adcp-client-python/issues/34)) ([52956bc](https://github.com/adcontextprotocol/adcp-client-python/commit/52956bccb86c649024c4b111a890ac43e30d321b))
+
 ## [1.4.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v1.3.1...v1.4.0) (2025-11-10)
 
 
