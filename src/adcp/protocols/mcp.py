@@ -245,24 +245,12 @@ class MCPAdapter(ProtocolAdapter):
             # Call the tool using MCP client session
             result = await session.call_tool(tool_name, params)
 
-            # This SDK requires MCP tools to return structuredContent
-            # The content field may contain human-readable messages but the actual
-            # response data must be in structuredContent
-            if not hasattr(result, "structuredContent") or result.structuredContent is None:
-                raise ValueError(
-                    f"MCP tool {tool_name} did not return structuredContent. "
-                    f"This SDK requires MCP tools to provide structured responses. "
-                    f"Got content: {result.content if hasattr(result, 'content') else 'none'}"
-                )
+            # Check if this is an error response
+            is_error = hasattr(result, "isError") and result.isError
 
-            # Extract the structured data (required)
-            data_to_return = result.structuredContent
-
-            # Extract human-readable message from content (optional)
-            # This is typically a status message like "Found 42 creative formats"
+            # Extract human-readable message from content
             message_text = None
             if hasattr(result, "content") and result.content:
-                # Serialize content using the same method used for backward compatibility
                 serialized_content = self._serialize_mcp_content(result.content)
                 if isinstance(serialized_content, list):
                     for item in serialized_content:
@@ -271,6 +259,39 @@ class MCPAdapter(ProtocolAdapter):
                             message_text = item["text"]
                             break
 
+            # Handle error responses
+            if is_error:
+                # For error responses, structuredContent is optional
+                # Use the error message from content as the error
+                error_message = message_text or "Tool execution failed"
+                if self.agent_config.debug and start_time:
+                    duration_ms = (time.time() - start_time) * 1000
+                    debug_info = DebugInfo(
+                        request=debug_request,
+                        response={
+                            "error": error_message,
+                            "is_error": True,
+                        },
+                        duration_ms=duration_ms,
+                    )
+                return TaskResult[Any](
+                    status=TaskStatus.FAILED,
+                    error=error_message,
+                    success=False,
+                    debug_info=debug_info,
+                )
+
+            # For successful responses, structuredContent is required
+            if not hasattr(result, "structuredContent") or result.structuredContent is None:
+                raise ValueError(
+                    f"MCP tool {tool_name} did not return structuredContent. "
+                    f"This SDK requires MCP tools to provide structured responses for successful calls. "
+                    f"Got content: {result.content if hasattr(result, 'content') else 'none'}"
+                )
+
+            # Extract the structured data (required for success)
+            data_to_return = result.structuredContent
+
             if self.agent_config.debug and start_time:
                 duration_ms = (time.time() - start_time) * 1000
                 debug_info = DebugInfo(
@@ -278,7 +299,7 @@ class MCPAdapter(ProtocolAdapter):
                     response={
                         "data": data_to_return,
                         "message": message_text,
-                        "is_error": result.isError if hasattr(result, "isError") else False,
+                        "is_error": False,
                     },
                     duration_ms=duration_ms,
                 )
