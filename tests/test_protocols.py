@@ -164,6 +164,7 @@ class TestMCPAdapter:
         # Mock MCP result with structuredContent (required for AdCP)
         mock_result.content = [{"type": "text", "text": "Success"}]
         mock_result.structuredContent = {"products": [{"id": "prod1"}]}
+        mock_result.isError = False
         mock_session.call_tool.return_value = mock_result
 
         with patch.object(adapter, "_get_session", return_value=mock_session):
@@ -193,6 +194,7 @@ class TestMCPAdapter:
         # Mock MCP result with structuredContent (preferred over content)
         mock_result.content = [{"type": "text", "text": "Found 42 creative formats"}]
         mock_result.structuredContent = {"formats": [{"id": "format1"}, {"id": "format2"}]}
+        mock_result.isError = False
         mock_session.call_tool.return_value = mock_result
 
         with patch.object(adapter, "_get_session", return_value=mock_session):
