@@ -285,7 +285,8 @@ class MCPAdapter(ProtocolAdapter):
             if not hasattr(result, "structuredContent") or result.structuredContent is None:
                 raise ValueError(
                     f"MCP tool {tool_name} did not return structuredContent. "
-                    f"This SDK requires MCP tools to provide structured responses for successful calls. "
+                    f"This SDK requires MCP tools to provide structured responses "
+                    f"for successful calls. "
                     f"Got content: {result.content if hasattr(result, 'content') else 'none'}"
                 )
 
