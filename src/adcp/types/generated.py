@@ -981,7 +981,7 @@ class PreviewCreativeRequest(BaseModel):
 
     # Output format (applies to both modes)
     output_format: Literal["url", "html"] | None = Field(default="url", description="Output format: 'url' for iframe URLs, 'html' for direct embedding")
-
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 class PreviewCreativeResponse(BaseModel):
     """Response containing preview links for one or more creatives. Format matches the request: single preview response for single requests, batch results for batch requests."""
@@ -993,6 +993,7 @@ class PreviewCreativeResponse(BaseModel):
 
     # Batch mode field
     results: list[dict[str, Any]] | None = Field(default=None, description="Array of preview results for batch processing")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 
 # ============================================================================
@@ -1010,13 +1011,13 @@ class ActivateSignalSuccess(BaseModel):
     )
     estimated_activation_duration_minutes: float | None = None
     deployed_at: str | None = None
-
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 class ActivateSignalError(BaseModel):
     """Failed signal activation response"""
 
     errors: list[Error] = Field(description="Task-specific errors and warnings")
-
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 # Override the generated ActivateSignalResponse type alias
 ActivateSignalResponse = ActivateSignalSuccess | ActivateSignalError
@@ -1034,12 +1035,14 @@ class CreateMediaBuySuccess(BaseModel):
         None,
         description="ISO 8601 date when creatives must be provided for launch",
     )
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 
 class CreateMediaBuyError(BaseModel):
     """Failed media buy creation response"""
 
     errors: list[Error] = Field(description="Task-specific errors and warnings")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 
 # Override the generated CreateMediaBuyResponse type alias
@@ -1054,13 +1057,14 @@ class UpdateMediaBuySuccess(BaseModel):
     packages: list[Package] = Field(
         description="Array of updated packages reflecting the changes"
     )
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 
 class UpdateMediaBuyError(BaseModel):
     """Failed media buy update response"""
 
     errors: list[Error] = Field(description="Task-specific errors and warnings")
-
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 # Override the generated UpdateMediaBuyResponse type alias
 UpdateMediaBuyResponse = UpdateMediaBuySuccess | UpdateMediaBuyError
@@ -1072,13 +1076,14 @@ class SyncCreativesSuccess(BaseModel):
     assignments: list[CreativeAssignment] = Field(
         description="Array of creative assignments with updated status"
     )
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 
 class SyncCreativesError(BaseModel):
     """Failed creative sync response"""
 
     errors: list[Error] = Field(description="Task-specific errors and warnings")
-
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 # Override the generated SyncCreativesResponse type alias
 SyncCreativesResponse = SyncCreativesSuccess | SyncCreativesError

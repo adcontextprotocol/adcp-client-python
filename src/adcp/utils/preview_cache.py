@@ -74,7 +74,11 @@ class PreviewURLGenerator:
 
         try:
             request = PreviewCreativeRequest(
-                format_id=format_id, creative_manifest=manifest, inputs=None, template_id=None
+                format_id=format_id,
+                creative_manifest=manifest,
+                inputs=None,
+                template_id=None,
+                context=None
             )
             result = await self.creative_agent_client.preview_creative(request)
 
@@ -164,6 +168,7 @@ class PreviewURLGenerator:
                 batch_request = PreviewCreativeRequest(
                     requests=chunk_requests,
                     output_format=output_format,  # type: ignore[arg-type]
+                    context=None,
                 )
                 result = await self.creative_agent_client.preview_creative(batch_request)
 
