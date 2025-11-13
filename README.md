@@ -424,6 +424,50 @@ auth = index.get_agent_authorizations("https://agent-x.com")
 premium = index.find_agents_by_property_tags(["premium", "ctv"])
 ```
 
+## Publisher Authorization Validation
+
+Verify sales agents are authorized to sell publisher properties via adagents.json:
+
+```python
+from adcp import (
+    fetch_adagents,
+    verify_agent_authorization,
+    verify_agent_for_property,
+)
+
+# Fetch and parse adagents.json from publisher
+adagents_data = await fetch_adagents("publisher.com")
+
+# Verify agent authorization for a property
+is_authorized = verify_agent_authorization(
+    adagents_data=adagents_data,
+    agent_url="https://sales-agent.example.com",
+    property_type="website",
+    property_identifiers=[{"type": "domain", "value": "publisher.com"}]
+)
+
+# Or use convenience wrapper (fetch + verify in one call)
+is_authorized = await verify_agent_for_property(
+    publisher_domain="publisher.com",
+    agent_url="https://sales-agent.example.com",
+    property_identifiers=[{"type": "domain", "value": "publisher.com"}],
+    property_type="website"
+)
+```
+
+**Domain Matching Rules:**
+- Exact match: `example.com` matches `example.com`
+- Common subdomains: `www.example.com` matches `example.com`
+- Wildcards: `api.example.com` matches `*.example.com`
+- Protocol-agnostic: `http://agent.com` matches `https://agent.com`
+
+**Use Cases:**
+- Sales agents verify authorization before accepting media buys
+- Publishers test their adagents.json files
+- Developer tools build authorization validators
+
+See `examples/adagents_validation.py` for complete examples.
+
 ## CLI Tool
 
 The `adcp` command-line tool provides easy interaction with AdCP agents without writing code.
