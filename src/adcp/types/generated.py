@@ -158,6 +158,8 @@ class Targeting(BaseModel):
     geo_region_any_of: list[str] | None = Field(None, description="Restrict delivery to specific regions/states. Use for regulatory compliance or RCT testing.")
     geo_metro_any_of: list[str] | None = Field(None, description="Restrict delivery to specific metro areas (DMA codes). Use for regulatory compliance or RCT testing.")
     geo_postal_code_any_of: list[str] | None = Field(None, description="Restrict delivery to specific postal/ZIP codes. Use for regulatory compliance or RCT testing.")
+    axe_include_segment: str | None = Field(None, description="AXE segment ID to include for targeting")
+    axe_exclude_segment: str | None = Field(None, description="AXE segment ID to exclude from targeting")
     frequency_cap: FrequencyCap | None = None
 
 
@@ -635,6 +637,7 @@ class ActivateSignalRequest(BaseModel):
 
     signal_agent_segment_id: str = Field(description="The universal identifier for the signal to activate")
     destinations: list[Destination] = Field(description="Target destination(s) for activation. If the authenticated caller matches one of these destinations, activation keys will be included in the response.")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.")
 
 
 class BuildCreativeRequest(BaseModel):
@@ -643,6 +646,7 @@ class BuildCreativeRequest(BaseModel):
     message: str | None = Field(None, description="Natural language instructions for the transformation or generation. For pure generation, this is the creative brief. For transformation, this provides guidance on how to adapt the creative.")
     creative_manifest: CreativeManifest | None = Field(None, description="Creative manifest to transform or generate from. For pure generation, this should include the target format_id and any required input assets (e.g., promoted_offerings for generative formats). For transformation (e.g., resizing, reformatting), this is the complete creative to adapt.")
     target_format_id: FormatId = Field(description="Format ID to generate. The format definition specifies required input assets and output structure.")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.")
 
 
 class CreateMediaBuyRequest(BaseModel):
@@ -655,6 +659,7 @@ class CreateMediaBuyRequest(BaseModel):
     start_time: StartTiming
     end_time: str = Field(description="Campaign end date/time in ISO 8601 format")
     reporting_webhook: Any | None = None
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.")
 
 
 class GetMediaBuyDeliveryRequest(BaseModel):
@@ -665,6 +670,7 @@ class GetMediaBuyDeliveryRequest(BaseModel):
     status_filter: Any | None = Field(None, description="Filter by status. Can be a single status or array of statuses")
     start_date: str | None = Field(None, description="Start date for reporting period (YYYY-MM-DD)")
     end_date: str | None = Field(None, description="End date for reporting period (YYYY-MM-DD)")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.")
 
 
 class GetProductsRequest(BaseModel):
@@ -673,6 +679,7 @@ class GetProductsRequest(BaseModel):
     brief: str | None = Field(None, description="Natural language description of campaign requirements")
     brand_manifest: BrandManifestRef | None = Field(None, description="Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest.")
     filters: dict[str, Any] | None = Field(None, description="Structured filters for product discovery")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.")
 
 
 class GetSignalsRequest(BaseModel):
@@ -682,12 +689,14 @@ class GetSignalsRequest(BaseModel):
     deliver_to: dict[str, Any] = Field(description="Destination platforms where signals need to be activated")
     filters: dict[str, Any] | None = Field(None, description="Filters to refine results")
     max_results: int | None = Field(None, description="Maximum number of results to return")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.")
 
 
 class ListAuthorizedPropertiesRequest(BaseModel):
     """Request parameters for discovering which publishers this agent is authorized to represent"""
 
     publisher_domains: list[str] | None = Field(None, description="Filter to specific publisher domains (optional). If omitted, returns all publishers this agent represents.")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.")
 
 
 class ListCreativeFormatsRequest(BaseModel):
@@ -702,6 +711,7 @@ class ListCreativeFormatsRequest(BaseModel):
     min_height: int | None = Field(None, description="Minimum height in pixels (inclusive). Returns formats with height >= this value.")
     is_responsive: bool | None = Field(None, description="Filter for responsive formats that adapt to container size. When true, returns formats without fixed dimensions.")
     name_search: str | None = Field(None, description="Search for formats by name (case-insensitive partial match)")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.")
 
 
 class ListCreativesRequest(BaseModel):
@@ -714,6 +724,7 @@ class ListCreativesRequest(BaseModel):
     include_performance: bool | None = Field(None, description="Include aggregated performance metrics in response")
     include_sub_assets: bool | None = Field(None, description="Include sub-assets (for carousel/native formats) in response")
     fields: list[Literal["creative_id", "name", "format", "status", "created_date", "updated_date", "tags", "assignments", "performance", "sub_assets"]] | None = Field(None, description="Specific fields to include in response (omit for all fields)")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.")
 
 
 class PackageRequest(BaseModel):
@@ -741,6 +752,7 @@ class ProvidePerformanceFeedbackRequest(BaseModel):
     creative_id: str | None = Field(None, description="Specific creative asset (if feedback is creative-specific)")
     metric_type: Literal["overall_performance", "conversion_rate", "brand_lift", "click_through_rate", "completion_rate", "viewability", "brand_safety", "cost_efficiency"] | None = Field(None, description="The business metric being measured")
     feedback_source: Literal["buyer_attribution", "third_party_measurement", "platform_analytics", "verification_partner"] | None = Field(None, description="Source of the performance data")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.")
 
 
 class SyncCreativesRequest(BaseModel):
@@ -753,6 +765,7 @@ class SyncCreativesRequest(BaseModel):
     dry_run: bool | None = Field(None, description="When true, preview changes without applying them. Returns what would be created/updated/deleted.")
     validation_mode: Literal["strict", "lenient"] | None = Field(None, description="Validation strictness. 'strict' fails entire sync on any validation error. 'lenient' processes valid creatives and reports errors.")
     push_notification_config: PushNotificationConfig | None = Field(None, description="Optional webhook configuration for async sync notifications. Publisher will send webhook when sync completes if operation takes longer than immediate response time (typically for large bulk operations or manual approval/HITL).")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.")
 
 
 class TasksGetRequest(BaseModel):
@@ -760,6 +773,7 @@ class TasksGetRequest(BaseModel):
 
     task_id: str = Field(description="Unique identifier of the task to retrieve")
     include_history: bool | None = Field(None, description="Include full conversation history for this task (may increase response size)")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.")
 
 
 class TasksListRequest(BaseModel):
@@ -769,6 +783,7 @@ class TasksListRequest(BaseModel):
     sort: dict[str, Any] | None = Field(None, description="Sorting parameters")
     pagination: dict[str, Any] | None = Field(None, description="Pagination parameters")
     include_history: bool | None = Field(None, description="Include full conversation history for each task (may significantly increase response size)")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.")
 
 
 class UpdateMediaBuyRequest(BaseModel):
@@ -781,6 +796,7 @@ class UpdateMediaBuyRequest(BaseModel):
     end_time: str | None = Field(None, description="New end date/time in ISO 8601 format")
     packages: list[dict[str, Any]] | None = Field(None, description="Package-specific updates")
     push_notification_config: PushNotificationConfig | None = Field(None, description="Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time.")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.")
 
 
 # Response containing the transformed or generated creative manifest, ready for use with preview_creative or sync_creatives. Returns either the complete creative manifest OR error information, never both.
@@ -791,6 +807,7 @@ class BuildCreativeResponseVariant1(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     creative_manifest: CreativeManifest = Field(description="The generated or transformed creative manifest")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 
 class BuildCreativeResponseVariant2(BaseModel):
@@ -799,6 +816,7 @@ class BuildCreativeResponseVariant2(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     errors: list[Error] = Field(description="Array of errors explaining why creative generation failed")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 
 # Union type for Build Creative Response
@@ -818,6 +836,7 @@ class GetMediaBuyDeliveryResponse(BaseModel):
     aggregated_totals: dict[str, Any] | None = Field(None, description="Combined metrics across all returned media buys. Only included in API responses (get_media_buy_delivery), not in webhook notifications.")
     media_buy_deliveries: list[dict[str, Any]] = Field(description="Array of delivery data for media buys. When used in webhook notifications, may contain multiple media buys aggregated by publisher. When used in get_media_buy_delivery API responses, typically contains requested media buys.")
     errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 
 class GetProductsResponse(BaseModel):
@@ -825,6 +844,7 @@ class GetProductsResponse(BaseModel):
 
     products: list[Product] = Field(description="Array of matching products")
     errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., product filtering issues)")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 
 class GetSignalsResponse(BaseModel):
@@ -832,6 +852,7 @@ class GetSignalsResponse(BaseModel):
 
     signals: list[dict[str, Any]] = Field(description="Array of matching signals")
     errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., signal discovery or pricing issues)")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 
 class ListAuthorizedPropertiesResponse(BaseModel):
@@ -844,6 +865,7 @@ class ListAuthorizedPropertiesResponse(BaseModel):
     advertising_policies: str | None = Field(None, description="Publisher's advertising content policies, restrictions, and guidelines in natural language. May include prohibited categories, blocked advertisers, restricted tactics, brand safety requirements, or links to full policy documentation.")
     last_updated: str | None = Field(None, description="ISO 8601 timestamp of when the agent's publisher authorization list was last updated. Buyers can use this to determine if their cached publisher adagents.json files might be stale.")
     errors: list[Error] | None = Field(None, description="Task-specific errors and warnings (e.g., property availability issues)")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 
 class ListCreativeFormatsResponse(BaseModel):
@@ -852,6 +874,7 @@ class ListCreativeFormatsResponse(BaseModel):
     formats: list[Format] = Field(description="Full format definitions for all formats this agent supports. Each format's authoritative source is indicated by its agent_url field.")
     creative_agents: list[dict[str, Any]] | None = Field(None, description="Optional: Creative agents that provide additional formats. Buyers can recursively query these agents to discover more formats. No authentication required for list_creative_formats.")
     errors: list[Error] | None = Field(None, description="Task-specific errors and warnings")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 
 class ListCreativesResponse(BaseModel):
@@ -862,6 +885,7 @@ class ListCreativesResponse(BaseModel):
     creatives: list[dict[str, Any]] = Field(description="Array of creative assets matching the query")
     format_summary: dict[str, Any] | None = Field(None, description="Breakdown of creatives by format type")
     status_summary: dict[str, Any] | None = Field(None, description="Breakdown of creatives by status")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 
 # Response payload for provide_performance_feedback task. Returns either success confirmation OR error information, never both.
@@ -872,6 +896,7 @@ class ProvidePerformanceFeedbackResponseVariant1(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     success: Literal[True] = Field(description="Whether the performance feedback was successfully received")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 
 class ProvidePerformanceFeedbackResponseVariant2(BaseModel):
@@ -880,6 +905,7 @@ class ProvidePerformanceFeedbackResponseVariant2(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     errors: list[Error] = Field(description="Array of errors explaining why feedback was rejected (e.g., invalid measurement period, missing campaign data)")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 
 # Union type for Provide Performance Feedback Response
@@ -900,6 +926,7 @@ class TasksGetResponse(BaseModel):
     progress: dict[str, Any] | None = Field(None, description="Progress information for long-running tasks")
     error: dict[str, Any] | None = Field(None, description="Error details for failed tasks")
     history: list[dict[str, Any]] | None = Field(None, description="Complete conversation history for this task (only included if include_history was true in request)")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 
 class TasksListResponse(BaseModel):
@@ -908,6 +935,7 @@ class TasksListResponse(BaseModel):
     query_summary: dict[str, Any] = Field(description="Summary of the query that was executed")
     tasks: list[dict[str, Any]] = Field(description="Array of tasks matching the query criteria")
     pagination: dict[str, Any] = Field(description="Pagination information")
+    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
 
 
 
