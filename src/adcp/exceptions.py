@@ -153,3 +153,33 @@ class ADCPSimpleAPIError(ADCPError):
             f"         # Handle error with full TaskResult context"
         )
         super().__init__(message, agent_id, None, suggestion)
+
+
+class AdagentsValidationError(ADCPError):
+    """Base error for adagents.json validation issues."""
+
+
+class AdagentsNotFoundError(AdagentsValidationError):
+    """adagents.json file not found (404)."""
+
+    def __init__(self, publisher_domain: str):
+        """Initialize not found error."""
+        message = f"adagents.json not found for domain: {publisher_domain}"
+        suggestion = (
+            "Verify that the publisher has deployed adagents.json to:\n"
+            f"     https://{publisher_domain}/.well-known/adagents.json"
+        )
+        super().__init__(message, None, None, suggestion)
+
+
+class AdagentsTimeoutError(AdagentsValidationError):
+    """Request for adagents.json timed out."""
+
+    def __init__(self, publisher_domain: str, timeout: float):
+        """Initialize timeout error."""
+        message = f"Request to fetch adagents.json timed out after {timeout}s"
+        suggestion = (
+            "The publisher's server may be slow or unresponsive.\n"
+            "     Try increasing the timeout value or check the domain is correct."
+        )
+        super().__init__(message, None, None, suggestion)

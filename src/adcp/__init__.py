@@ -7,6 +7,13 @@ Official Python client for the Ad Context Protocol (AdCP).
 Supports both A2A and MCP protocols with full type safety.
 """
 
+from adcp.adagents import (
+    domain_matches,
+    fetch_adagents,
+    identifiers_match,
+    verify_agent_authorization,
+    verify_agent_for_property,
+)
 from adcp.client import ADCPClient, ADCPMultiAgentClient
 from adcp.exceptions import (
     ADCPAuthenticationError,
@@ -17,6 +24,9 @@ from adcp.exceptions import (
     ADCPToolNotFoundError,
     ADCPWebhookError,
     ADCPWebhookSignatureError,
+    AdagentsNotFoundError,
+    AdagentsTimeoutError,
+    AdagentsValidationError,
 )
 
 # Test helpers
@@ -162,6 +172,12 @@ __all__ = [
     "TaskResult",
     "TaskStatus",
     "WebhookMetadata",
+    # Adagents validation
+    "fetch_adagents",
+    "verify_agent_authorization",
+    "verify_agent_for_property",
+    "domain_matches",
+    "identifiers_match",
     # Test helpers
     "test_agent",
     "test_agent_a2a",
@@ -185,6 +201,9 @@ __all__ = [
     "ADCPToolNotFoundError",
     "ADCPWebhookError",
     "ADCPWebhookSignatureError",
+    "AdagentsValidationError",
+    "AdagentsNotFoundError",
+    "AdagentsTimeoutError",
     # Request/Response types
     "ActivateSignalRequest",
     "ActivateSignalResponse",
