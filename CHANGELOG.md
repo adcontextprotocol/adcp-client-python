@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.6.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v1.6.0...v1.6.1) (2025-11-13)
+
+
+### Bug Fixes
+
+* context field for custom injected types ([e37c095](https://github.com/adcontextprotocol/adcp-client-python/commit/e37c095ffcca8e8586aeea84a854721c64f990d1))
+* context field for custom injected types ([8e96c6e](https://github.com/adcontextprotocol/adcp-client-python/commit/8e96c6e06782eab3c78effbfc2e16f40fd2f7466))
+* mypy failures ([c186472](https://github.com/adcontextprotocol/adcp-client-python/commit/c186472304eb494dda95fd713993a289269a43f2))
+* ruff check ([b8296e5](https://github.com/adcontextprotocol/adcp-client-python/commit/b8296e52da0c3d1d9f4cd524946a47519cfd802a))
+
 ## [1.6.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v1.5.0...v1.6.0) (2025-11-13)
 
 
