@@ -2,22 +2,21 @@ from __future__ import annotations
 
 """Tests for adagents.json validation functionality."""
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from adcp.adagents import (
+    _normalize_domain,
+    _validate_publisher_domain,
     domain_matches,
-    fetch_adagents,
     get_all_properties,
     get_all_tags,
     get_properties_by_agent,
     identifiers_match,
     verify_agent_authorization,
-    verify_agent_for_property,
 )
 from adcp.exceptions import (
-    AdagentsNotFoundError,
-    AdagentsTimeoutError,
     AdagentsValidationError,
 )
 
@@ -30,6 +29,93 @@ def create_mock_httpx_client(mock_response):
     mock_client_instance.__aenter__.return_value = mock_client_instance
     mock_client_instance.__aexit__.return_value = AsyncMock()
     return mock_client_instance
+
+
+class TestDomainNormalization:
+    """Test domain normalization function."""
+
+    def test_normalize_basic(self):
+        """Basic normalization should work."""
+        assert _normalize_domain("Example.COM") == "example.com"
+        assert _normalize_domain("  example.com  ") == "example.com"
+
+    def test_normalize_trailing_slash(self):
+        """Should remove trailing slashes."""
+        assert _normalize_domain("example.com/") == "example.com"
+        assert _normalize_domain("example.com///") == "example.com"
+
+    def test_normalize_trailing_dot(self):
+        """Should remove trailing dots."""
+        assert _normalize_domain("example.com.") == "example.com"
+        assert _normalize_domain("example.com...") == "example.com"
+
+    def test_normalize_both(self):
+        """Should remove both trailing slashes and dots."""
+        assert _normalize_domain("example.com/.") == "example.com"
+
+    def test_normalize_invalid_double_dots(self):
+        """Double dots should raise error."""
+        with pytest.raises(AdagentsValidationError, match="Invalid domain format"):
+            _normalize_domain("example..com")
+
+    def test_normalize_empty(self):
+        """Empty string should raise error."""
+        with pytest.raises(AdagentsValidationError, match="Invalid domain format"):
+            _normalize_domain("")
+        with pytest.raises(AdagentsValidationError, match="Invalid domain format"):
+            _normalize_domain("   ")
+
+
+class TestPublisherDomainValidation:
+    """Test publisher domain validation for security."""
+
+    def test_validate_basic(self):
+        """Basic valid domains should pass."""
+        assert _validate_publisher_domain("example.com") == "example.com"
+        assert _validate_publisher_domain("sub.example.com") == "sub.example.com"
+
+    def test_validate_removes_protocol(self):
+        """Should strip protocol if present."""
+        assert _validate_publisher_domain("https://example.com") == "example.com"
+        assert _validate_publisher_domain("http://example.com") == "example.com"
+
+    def test_validate_removes_path(self):
+        """Should strip path if present."""
+        assert _validate_publisher_domain("example.com/path") == "example.com"
+        assert _validate_publisher_domain("https://example.com/path") == "example.com"
+
+    def test_validate_case_insensitive(self):
+        """Should normalize to lowercase."""
+        assert _validate_publisher_domain("EXAMPLE.COM") == "example.com"
+
+    def test_validate_empty(self):
+        """Empty domain should raise error."""
+        with pytest.raises(AdagentsValidationError, match="cannot be empty"):
+            _validate_publisher_domain("")
+        with pytest.raises(AdagentsValidationError, match="cannot be empty"):
+            _validate_publisher_domain("   ")
+
+    def test_validate_too_long(self):
+        """Domain exceeding DNS max length should raise error."""
+        long_domain = "a" * 254
+        with pytest.raises(AdagentsValidationError, match="too long"):
+            _validate_publisher_domain(long_domain)
+
+    def test_validate_suspicious_chars(self):
+        """Suspicious characters should raise error."""
+        with pytest.raises(AdagentsValidationError, match="Invalid character"):
+            _validate_publisher_domain("example.com\\malicious")
+        with pytest.raises(AdagentsValidationError, match="Invalid character"):
+            _validate_publisher_domain("user@example.com")
+        with pytest.raises(AdagentsValidationError, match="Invalid character"):
+            _validate_publisher_domain("example.com with spaces")
+        with pytest.raises(AdagentsValidationError, match="Invalid character"):
+            _validate_publisher_domain("example.com\n")
+
+    def test_validate_no_dots(self):
+        """Domain without dots should raise error."""
+        with pytest.raises(AdagentsValidationError, match="must contain at least one dot"):
+            _validate_publisher_domain("localhost")
 
 
 class TestDomainMatching:

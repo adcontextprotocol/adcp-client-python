@@ -16,6 +16,84 @@ import httpx
 from adcp.exceptions import AdagentsNotFoundError, AdagentsTimeoutError, AdagentsValidationError
 
 
+def _normalize_domain(domain: str) -> str:
+    """Normalize domain for comparison - strip, lowercase, remove trailing dots/slashes.
+
+    Args:
+        domain: Domain to normalize
+
+    Returns:
+        Normalized domain string
+
+    Raises:
+        AdagentsValidationError: If domain contains invalid patterns
+    """
+    domain = domain.strip().lower()
+    # Remove both trailing slashes and dots iteratively
+    while domain.endswith("/") or domain.endswith("."):
+        domain = domain.rstrip("/").rstrip(".")
+
+    # Check for invalid patterns
+    if not domain or ".." in domain:
+        raise AdagentsValidationError(f"Invalid domain format: {domain!r}")
+
+    return domain
+
+
+def _validate_publisher_domain(domain: str) -> str:
+    """Validate and sanitize publisher domain for security.
+
+    Args:
+        domain: Publisher domain to validate
+
+    Returns:
+        Validated and normalized domain
+
+    Raises:
+        AdagentsValidationError: If domain is invalid or contains suspicious characters
+    """
+    # Check for suspicious characters BEFORE stripping (to catch injection attempts)
+    suspicious_chars = ["\\", "@", "\n", "\r", "\t"]
+    for char in suspicious_chars:
+        if char in domain:
+            raise AdagentsValidationError(
+                f"Invalid character in publisher domain: {char!r}"
+            )
+
+    domain = domain.strip()
+
+    # Check basic constraints
+    if not domain:
+        raise AdagentsValidationError("Publisher domain cannot be empty")
+    if len(domain) > 253:  # DNS maximum length
+        raise AdagentsValidationError(f"Publisher domain too long: {len(domain)} chars (max 253)")
+
+    # Check for spaces after stripping leading/trailing whitespace
+    if " " in domain:
+        raise AdagentsValidationError(
+            "Invalid character in publisher domain: ' '"
+        )
+
+    # Remove protocol if present (common user error) - do this BEFORE checking for slashes
+    if "://" in domain:
+        domain = domain.split("://", 1)[1]
+
+    # Remove path if present (should only be domain) - do this BEFORE checking for slashes
+    if "/" in domain:
+        domain = domain.split("/", 1)[0]
+
+    # Normalize
+    domain = _normalize_domain(domain)
+
+    # Final validation - must look like a domain
+    if "." not in domain:
+        raise AdagentsValidationError(
+            f"Publisher domain must contain at least one dot: {domain!r}"
+        )
+
+    return domain
+
+
 def normalize_url(url: str) -> str:
     """Normalize URL by removing protocol and trailing slash.
 
@@ -46,8 +124,13 @@ def domain_matches(property_domain: str, agent_domain_pattern: str) -> bool:
     Returns:
         True if domains match per AdCP rules
     """
-    property_domain = property_domain.lower().strip()
-    agent_domain_pattern = agent_domain_pattern.lower().strip()
+    # Normalize both domains for comparison
+    try:
+        property_domain = _normalize_domain(property_domain)
+        agent_domain_pattern = _normalize_domain(agent_domain_pattern)
+    except AdagentsValidationError:
+        # Invalid domain format - no match
+        return False
 
     # Exact match
     if property_domain == agent_domain_pattern:
@@ -79,7 +162,8 @@ def identifiers_match(
     """Check if any property identifier matches agent's authorized identifiers.
 
     Args:
-        property_identifiers: Identifiers from property (e.g., [{"type": "domain", "value": "cnn.com"}])
+        property_identifiers: Identifiers from property
+            (e.g., [{"type": "domain", "value": "cnn.com"}])
         agent_identifiers: Identifiers from adagents.json
 
     Returns:
@@ -205,6 +289,7 @@ async def fetch_adagents(
     publisher_domain: str,
     timeout: float = 10.0,
     user_agent: str = "AdCP-Client/1.0",
+    client: httpx.AsyncClient | None = None,
 ) -> dict[str, Any]:
     """Fetch and parse adagents.json from publisher domain.
 
@@ -212,6 +297,9 @@ async def fetch_adagents(
         publisher_domain: Domain hosting the adagents.json file
         timeout: Request timeout in seconds
         user_agent: User-Agent header for HTTP request
+        client: Optional httpx.AsyncClient for connection pooling.
+            If provided, caller is responsible for client lifecycle.
+            If None, a new client is created for this request.
 
     Returns:
         Parsed adagents.json data
@@ -220,46 +308,65 @@ async def fetch_adagents(
         AdagentsNotFoundError: If adagents.json not found (404)
         AdagentsValidationError: If JSON is invalid or malformed
         AdagentsTimeoutError: If request times out
+
+    Notes:
+        For production use with multiple requests, pass a shared httpx.AsyncClient
+        to enable connection pooling and improve performance.
     """
+    # Validate and normalize domain for security
+    publisher_domain = _validate_publisher_domain(publisher_domain)
+
     # Construct URL
     url = f"https://{publisher_domain}/.well-known/adagents.json"
 
     try:
-        async with httpx.AsyncClient() as client:
+        # Use provided client or create a new one
+        if client is not None:
+            # Reuse provided client (connection pooling)
             response = await client.get(
                 url,
                 headers={"User-Agent": user_agent},
                 timeout=timeout,
                 follow_redirects=True,
             )
-
-            if response.status_code == 404:
-                raise AdagentsNotFoundError(publisher_domain)
-
-            if response.status_code != 200:
-                raise AdagentsValidationError(
-                    f"Failed to fetch adagents.json: HTTP {response.status_code}"
+        else:
+            # Create new client for single request
+            async with httpx.AsyncClient() as new_client:
+                response = await new_client.get(
+                    url,
+                    headers={"User-Agent": user_agent},
+                    timeout=timeout,
+                    follow_redirects=True,
                 )
 
-            # Parse JSON
-            try:
-                data = response.json()
-            except Exception as e:
-                raise AdagentsValidationError(f"Invalid JSON in adagents.json: {e}") from e
+        # Process response (same for both paths)
+        if response.status_code == 404:
+            raise AdagentsNotFoundError(publisher_domain)
 
-            # Validate basic structure
-            if not isinstance(data, dict):
-                raise AdagentsValidationError("adagents.json must be a JSON object")
+        if response.status_code != 200:
+            raise AdagentsValidationError(
+                f"Failed to fetch adagents.json: HTTP {response.status_code}"
+            )
 
-            if "authorized_agents" not in data:
-                raise AdagentsValidationError(
-                    "adagents.json must have 'authorized_agents' field"
-                )
+        # Parse JSON
+        try:
+            data = response.json()
+        except Exception as e:
+            raise AdagentsValidationError(f"Invalid JSON in adagents.json: {e}") from e
 
-            if not isinstance(data["authorized_agents"], list):
-                raise AdagentsValidationError("'authorized_agents' must be an array")
+        # Validate basic structure
+        if not isinstance(data, dict):
+            raise AdagentsValidationError("adagents.json must be a JSON object")
 
-            return data
+        if "authorized_agents" not in data:
+            raise AdagentsValidationError(
+                "adagents.json must have 'authorized_agents' field"
+            )
+
+        if not isinstance(data["authorized_agents"], list):
+            raise AdagentsValidationError("'authorized_agents' must be an array")
+
+        return data
 
     except httpx.TimeoutException as e:
         raise AdagentsTimeoutError(publisher_domain, timeout) from e
@@ -273,6 +380,7 @@ async def verify_agent_for_property(
     property_identifiers: list[dict[str, str]],
     property_type: str | None = None,
     timeout: float = 10.0,
+    client: httpx.AsyncClient | None = None,
 ) -> bool:
     """Convenience wrapper to fetch adagents.json and verify authorization in one call.
 
@@ -282,6 +390,7 @@ async def verify_agent_for_property(
         property_identifiers: List of identifiers to match
         property_type: Type of property (website, app, etc.) - optional
         timeout: Request timeout in seconds
+        client: Optional httpx.AsyncClient for connection pooling
 
     Returns:
         True if agent is authorized, False otherwise
@@ -291,7 +400,7 @@ async def verify_agent_for_property(
         AdagentsValidationError: If JSON is invalid or malformed
         AdagentsTimeoutError: If request times out
     """
-    adagents_data = await fetch_adagents(publisher_domain, timeout=timeout)
+    adagents_data = await fetch_adagents(publisher_domain, timeout=timeout, client=client)
     return verify_agent_authorization(
         adagents_data=adagents_data,
         agent_url=agent_url,
