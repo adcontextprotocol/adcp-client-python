@@ -154,10 +154,69 @@ def example_manual_verification():
     print(f"   Result: {result} (protocol ignored)")
 
 
+def example_property_discovery():
+    """Example: Discover all properties and tags from adagents.json."""
+    print("\n\n" + "=" * 60)
+    print("Example 4: Property and Tag Discovery")
+    print("=" * 60)
+
+    from adcp import get_all_properties, get_all_tags, get_properties_by_agent
+
+    # Example adagents.json with tags
+    adagents_data = {
+        "authorized_agents": [
+            {
+                "url": "https://sales-agent-1.example.com",
+                "properties": [
+                    {
+                        "property_type": "website",
+                        "name": "News Site",
+                        "identifiers": [{"type": "domain", "value": "news.example.com"}],
+                        "tags": ["premium", "news", "desktop"],
+                    },
+                    {
+                        "property_type": "mobile_app",
+                        "name": "News App",
+                        "identifiers": [{"type": "bundle_id", "value": "com.example.news"}],
+                        "tags": ["premium", "news", "mobile"],
+                    },
+                ],
+            },
+            {
+                "url": "https://sales-agent-2.example.com",
+                "properties": [
+                    {
+                        "property_type": "website",
+                        "name": "Sports Site",
+                        "identifiers": [{"type": "domain", "value": "sports.example.com"}],
+                        "tags": ["sports", "live-streaming"],
+                    }
+                ],
+            },
+        ]
+    }
+
+    print("\n1. Get all properties across all agents:")
+    all_props = get_all_properties(adagents_data)
+    print(f"   Found {len(all_props)} total properties")
+    for prop in all_props:
+        print(f"   - {prop['name']} ({prop['property_type']}) - Agent: {prop['agent_url']}")
+
+    print("\n2. Get all unique tags:")
+    all_tags = get_all_tags(adagents_data)
+    print(f"   Tags: {', '.join(sorted(all_tags))}")
+
+    print("\n3. Get properties for a specific agent:")
+    agent_props = get_properties_by_agent(adagents_data, "https://sales-agent-1.example.com")
+    print(f"   Agent 1 has {len(agent_props)} properties:")
+    for prop in agent_props:
+        print(f"   - {prop['name']} (tags: {', '.join(prop.get('tags', []))})")
+
+
 def example_domain_matching():
     """Example: Domain matching rules."""
     print("\n\n" + "=" * 60)
-    print("Example 4: Domain Matching Rules")
+    print("Example 5: Domain Matching Rules")
     print("=" * 60)
 
     from adcp import domain_matches
@@ -197,6 +256,7 @@ async def main():
 
     # These examples work with mock data:
     example_manual_verification()
+    example_property_discovery()
     example_domain_matching()
 
     print("\n\n" + "=" * 60)
@@ -207,8 +267,11 @@ Key Functions:
 1. fetch_adagents(domain) - Fetch and validate adagents.json
 2. verify_agent_authorization(data, agent_url, ...) - Check authorization
 3. verify_agent_for_property(domain, agent_url, ...) - Convenience wrapper
-4. domain_matches(prop_domain, pattern) - Domain matching rules
-5. identifiers_match(prop_ids, agent_ids) - Identifier matching
+4. get_all_properties(data) - Extract all properties from all agents
+5. get_all_tags(data) - Get all unique tags across properties
+6. get_properties_by_agent(data, agent_url) - Get properties for specific agent
+7. domain_matches(prop_domain, pattern) - Domain matching rules
+8. identifiers_match(prop_ids, agent_ids) - Identifier matching
 
 Use Cases:
 - Sales agents: Verify authorization before accepting media buys

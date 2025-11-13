@@ -8,6 +8,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from adcp.adagents import (
     domain_matches,
     fetch_adagents,
+    get_all_properties,
+    get_all_tags,
+    get_properties_by_agent,
     identifiers_match,
     verify_agent_authorization,
     verify_agent_for_property,
@@ -306,3 +309,219 @@ class TestVerifyAgentForProperty:
     async def test_verify_success(self):
         """Should fetch and verify authorization successfully."""
         pass
+
+
+class TestGetAllProperties:
+    """Test extracting all properties from adagents.json data."""
+
+    def test_get_all_properties(self):
+        """Should extract all properties from all agents."""
+        adagents_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "properties": [
+                        {
+                            "property_type": "website",
+                            "name": "Site 1",
+                            "identifiers": [{"type": "domain", "value": "site1.com"}],
+                        },
+                        {
+                            "property_type": "mobile_app",
+                            "name": "App 1",
+                            "identifiers": [{"type": "bundle_id", "value": "com.site1.app"}],
+                        },
+                    ],
+                },
+                {
+                    "url": "https://agent2.example.com",
+                    "properties": [
+                        {
+                            "property_type": "website",
+                            "name": "Site 2",
+                            "identifiers": [{"type": "domain", "value": "site2.com"}],
+                        }
+                    ],
+                },
+            ]
+        }
+
+        properties = get_all_properties(adagents_data)
+        assert len(properties) == 3
+        assert properties[0]["name"] == "Site 1"
+        assert properties[0]["agent_url"] == "https://agent1.example.com"
+        assert properties[1]["name"] == "App 1"
+        assert properties[1]["agent_url"] == "https://agent1.example.com"
+        assert properties[2]["name"] == "Site 2"
+        assert properties[2]["agent_url"] == "https://agent2.example.com"
+
+    def test_get_all_properties_with_empty_properties(self):
+        """Should handle agents with empty properties array."""
+        adagents_data = {
+            "authorized_agents": [
+                {"url": "https://agent1.example.com", "properties": []},
+                {
+                    "url": "https://agent2.example.com",
+                    "properties": [
+                        {
+                            "property_type": "website",
+                            "name": "Site",
+                            "identifiers": [{"type": "domain", "value": "site.com"}],
+                        }
+                    ],
+                },
+            ]
+        }
+
+        properties = get_all_properties(adagents_data)
+        assert len(properties) == 1
+        assert properties[0]["name"] == "Site"
+
+    def test_get_all_properties_invalid_data(self):
+        """Should raise error for invalid data."""
+        with pytest.raises(AdagentsValidationError):
+            get_all_properties([])
+
+
+class TestGetAllTags:
+    """Test extracting all unique tags from adagents.json data."""
+
+    def test_get_all_tags(self):
+        """Should extract all unique tags from properties."""
+        adagents_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "properties": [
+                        {
+                            "property_type": "website",
+                            "name": "Site 1",
+                            "identifiers": [{"type": "domain", "value": "site1.com"}],
+                            "tags": ["premium", "news"],
+                        },
+                        {
+                            "property_type": "mobile_app",
+                            "name": "App 1",
+                            "identifiers": [{"type": "bundle_id", "value": "com.site1.app"}],
+                            "tags": ["mobile", "premium"],
+                        },
+                    ],
+                },
+                {
+                    "url": "https://agent2.example.com",
+                    "properties": [
+                        {
+                            "property_type": "website",
+                            "name": "Site 2",
+                            "identifiers": [{"type": "domain", "value": "site2.com"}],
+                            "tags": ["sports"],
+                        }
+                    ],
+                },
+            ]
+        }
+
+        tags = get_all_tags(adagents_data)
+        assert tags == {"premium", "news", "mobile", "sports"}
+
+    def test_get_all_tags_no_tags(self):
+        """Should return empty set when no tags present."""
+        adagents_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "properties": [
+                        {
+                            "property_type": "website",
+                            "name": "Site 1",
+                            "identifiers": [{"type": "domain", "value": "site1.com"}],
+                        }
+                    ],
+                }
+            ]
+        }
+
+        tags = get_all_tags(adagents_data)
+        assert tags == set()
+
+
+class TestGetPropertiesByAgent:
+    """Test getting properties for a specific agent."""
+
+    def test_get_properties_by_agent(self):
+        """Should return properties for specified agent."""
+        adagents_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "properties": [
+                        {
+                            "property_type": "website",
+                            "name": "Site 1",
+                            "identifiers": [{"type": "domain", "value": "site1.com"}],
+                        },
+                        {
+                            "property_type": "mobile_app",
+                            "name": "App 1",
+                            "identifiers": [{"type": "bundle_id", "value": "com.site1.app"}],
+                        },
+                    ],
+                },
+                {
+                    "url": "https://agent2.example.com",
+                    "properties": [
+                        {
+                            "property_type": "website",
+                            "name": "Site 2",
+                            "identifiers": [{"type": "domain", "value": "site2.com"}],
+                        }
+                    ],
+                },
+            ]
+        }
+
+        properties = get_properties_by_agent(adagents_data, "https://agent1.example.com")
+        assert len(properties) == 2
+        assert properties[0]["name"] == "Site 1"
+        assert properties[1]["name"] == "App 1"
+
+    def test_get_properties_by_agent_protocol_agnostic(self):
+        """Should match agent URL regardless of protocol."""
+        adagents_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "properties": [
+                        {
+                            "property_type": "website",
+                            "name": "Site 1",
+                            "identifiers": [{"type": "domain", "value": "site1.com"}],
+                        }
+                    ],
+                }
+            ]
+        }
+
+        properties = get_properties_by_agent(adagents_data, "http://agent1.example.com")
+        assert len(properties) == 1
+        assert properties[0]["name"] == "Site 1"
+
+    def test_get_properties_by_agent_not_found(self):
+        """Should return empty list for unknown agent."""
+        adagents_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "properties": [
+                        {
+                            "property_type": "website",
+                            "name": "Site 1",
+                            "identifiers": [{"type": "domain", "value": "site1.com"}],
+                        }
+                    ],
+                }
+            ]
+        }
+
+        properties = get_properties_by_agent(adagents_data, "https://unknown-agent.com")
+        assert len(properties) == 0

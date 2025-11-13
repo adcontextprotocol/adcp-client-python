@@ -10,6 +10,9 @@ Supports both A2A and MCP protocols with full type safety.
 from adcp.adagents import (
     domain_matches,
     fetch_adagents,
+    get_all_properties,
+    get_all_tags,
+    get_properties_by_agent,
     identifiers_match,
     verify_agent_authorization,
     verify_agent_for_property,
@@ -178,6 +181,9 @@ __all__ = [
     "verify_agent_for_property",
     "domain_matches",
     "identifiers_match",
+    "get_all_properties",
+    "get_all_tags",
+    "get_properties_by_agent",
     # Test helpers
     "test_agent",
     "test_agent_a2a",

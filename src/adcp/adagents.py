@@ -298,3 +298,115 @@ async def verify_agent_for_property(
         property_type=property_type,
         property_identifiers=property_identifiers,
     )
+
+
+def get_all_properties(adagents_data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Extract all properties from adagents.json data.
+
+    Args:
+        adagents_data: Parsed adagents.json data
+
+    Returns:
+        List of all properties across all authorized agents, with agent_url added
+
+    Raises:
+        AdagentsValidationError: If adagents_data is malformed
+    """
+    if not isinstance(adagents_data, dict):
+        raise AdagentsValidationError("adagents_data must be a dictionary")
+
+    authorized_agents = adagents_data.get("authorized_agents")
+    if not isinstance(authorized_agents, list):
+        raise AdagentsValidationError("adagents.json must have 'authorized_agents' array")
+
+    properties = []
+    for agent in authorized_agents:
+        if not isinstance(agent, dict):
+            continue
+
+        agent_url = agent.get("url", "")
+        if not agent_url:
+            continue
+
+        agent_properties = agent.get("properties", [])
+        if not isinstance(agent_properties, list):
+            continue
+
+        # Add each property with the agent URL for reference
+        for prop in agent_properties:
+            if isinstance(prop, dict):
+                # Create a copy and add agent_url
+                prop_with_agent = {**prop, "agent_url": agent_url}
+                properties.append(prop_with_agent)
+
+    return properties
+
+
+def get_all_tags(adagents_data: dict[str, Any]) -> set[str]:
+    """Extract all unique tags from properties in adagents.json data.
+
+    Args:
+        adagents_data: Parsed adagents.json data
+
+    Returns:
+        Set of all unique tags across all properties
+
+    Raises:
+        AdagentsValidationError: If adagents_data is malformed
+    """
+    properties = get_all_properties(adagents_data)
+    tags = set()
+
+    for prop in properties:
+        prop_tags = prop.get("tags", [])
+        if isinstance(prop_tags, list):
+            for tag in prop_tags:
+                if isinstance(tag, str):
+                    tags.add(tag)
+
+    return tags
+
+
+def get_properties_by_agent(adagents_data: dict[str, Any], agent_url: str) -> list[dict[str, Any]]:
+    """Get all properties authorized for a specific agent.
+
+    Args:
+        adagents_data: Parsed adagents.json data
+        agent_url: URL of the agent to filter by
+
+    Returns:
+        List of properties for the specified agent (empty if agent not found or no properties)
+
+    Raises:
+        AdagentsValidationError: If adagents_data is malformed
+    """
+    if not isinstance(adagents_data, dict):
+        raise AdagentsValidationError("adagents_data must be a dictionary")
+
+    authorized_agents = adagents_data.get("authorized_agents")
+    if not isinstance(authorized_agents, list):
+        raise AdagentsValidationError("adagents.json must have 'authorized_agents' array")
+
+    # Normalize the agent URL for comparison
+    normalized_agent_url = normalize_url(agent_url)
+
+    for agent in authorized_agents:
+        if not isinstance(agent, dict):
+            continue
+
+        agent_url_from_json = agent.get("url", "")
+        if not agent_url_from_json:
+            continue
+
+        # Match agent URL (protocol-agnostic)
+        if normalize_url(agent_url_from_json) != normalized_agent_url:
+            continue
+
+        # Found the agent - return their properties
+        properties = agent.get("properties", [])
+        if not isinstance(properties, list):
+            return []
+
+        return [p for p in properties if isinstance(p, dict)]
+
+    return []
