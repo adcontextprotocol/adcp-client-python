@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v1.5.0...v1.6.0) (2025-11-13)
+
+
+### Features
+
+* add adagents.json validation and discovery ([#42](https://github.com/adcontextprotocol/adcp-client-python/issues/42)) ([4ea16a1](https://github.com/adcontextprotocol/adcp-client-python/commit/4ea16a141a52aa1996420b9d8042d3f8d9d8ddd6))
+* add AdCPBaseModel with exclude_none serialization ([#40](https://github.com/adcontextprotocol/adcp-client-python/issues/40)) ([c3cd590](https://github.com/adcontextprotocol/adcp-client-python/commit/c3cd5902d1ea9ad62e3e61b6e843b64e768feead))
+
 ## [1.5.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v1.4.1...v1.5.0) (2025-11-13)
 
 
