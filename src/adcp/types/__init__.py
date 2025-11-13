@@ -2,6 +2,7 @@ from __future__ import annotations
 
 """Type definitions for AdCP client."""
 
+from adcp.types.base import AdCPBaseModel
 from adcp.types.core import (
     Activity,
     ActivityType,
@@ -14,6 +15,7 @@ from adcp.types.core import (
 )
 
 __all__ = [
+    "AdCPBaseModel",
     "AgentConfig",
     "Protocol",
     "TaskResult",

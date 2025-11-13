@@ -501,6 +501,7 @@ def add_custom_implementations(code: str) -> str:
 # The simple code generator produces type aliases (e.g., PreviewCreativeRequest = Any)
 # for complex schemas that use oneOf. We override them here with proper Pydantic classes
 # to maintain type safety and enable batch API support.
+# Note: All classes inherit from BaseModel (which is aliased to AdCPBaseModel for exclude_none).
 
 
 class FormatId(BaseModel):
@@ -723,7 +724,9 @@ def main():
         "import re",
         "from typing import Any, Literal",
         "",
-        "from pydantic import BaseModel, ConfigDict, Field, field_validator",
+        "from pydantic import ConfigDict, Field, field_validator",
+        "",
+        "from adcp.types.base import AdCPBaseModel as BaseModel",
         "",
         "",
         "",
