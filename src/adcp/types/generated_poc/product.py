@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
-from pydantic import AwareDatetime, ConfigDict, Field, RootModel
+from pydantic import AwareDatetime, ConfigDict, Field, RootModel, model_validator
 
 from . import cpc_option, cpcv_option, cpm_auction_option, cpm_fixed_option, cpp_option, cpv_option
 from . import creative_policy as creative_policy_1
@@ -102,6 +102,16 @@ class PublisherProperty(AdCPBaseModel):
             pattern='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$',
         ),
     ]
+
+    @model_validator(mode='after')
+    def validate_mutual_exclusivity(self) -> 'PublisherProperty':
+        """Enforce mutual exclusivity between property_ids and property_tags."""
+        from adcp.validation import validate_publisher_properties_item
+
+        # Convert to dict for validation
+        data = self.model_dump()
+        validate_publisher_properties_item(data)
+        return self
 
 
 class Product(AdCPBaseModel):

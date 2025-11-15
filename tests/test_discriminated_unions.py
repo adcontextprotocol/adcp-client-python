@@ -20,6 +20,7 @@ from adcp.types.generated import (
     Deployment2,  # Agent
     Error,
 )
+from adcp.types.generated_poc.product import PublisherProperty
 
 
 class TestAuthorizationDiscriminatedUnions:
@@ -319,3 +320,54 @@ class TestInvalidDiscriminatorValues:
                 authorization_type="invalid_type",  # Invalid
                 property_ids=["site1"],
             )
+
+
+class TestPublisherPropertyValidation:
+    """Test PublisherProperty mutual exclusivity validation."""
+
+    def test_publisher_property_with_only_property_ids(self):
+        """PublisherProperty should accept only property_ids."""
+        prop = PublisherProperty(
+            publisher_domain="cnn.com",
+            property_ids=["site1", "site2"],
+        )
+        assert prop.publisher_domain == "cnn.com"
+        assert len(prop.property_ids) == 2
+        assert prop.property_tags is None
+
+    def test_publisher_property_with_only_property_tags(self):
+        """PublisherProperty should accept only property_tags."""
+        prop = PublisherProperty(
+            publisher_domain="cnn.com",
+            property_tags=["premium", "news"],
+        )
+        assert prop.publisher_domain == "cnn.com"
+        assert len(prop.property_tags) == 2
+        assert prop.property_ids is None
+
+    def test_publisher_property_mutual_exclusivity_both_fails(self):
+        """PublisherProperty should reject both property_ids and property_tags."""
+        with pytest.raises(ValidationError) as exc_info:
+            PublisherProperty(
+                publisher_domain="cnn.com",
+                property_ids=["site1"],
+                property_tags=["premium"],
+            )
+        error_msg = str(exc_info.value)
+        assert (
+            "mutually exclusive" in error_msg.lower()
+            or "exactly one" in error_msg.lower()
+        )
+
+    def test_publisher_property_mutual_exclusivity_neither_fails(self):
+        """PublisherProperty should reject neither property_ids nor property_tags."""
+        with pytest.raises(ValidationError) as exc_info:
+            PublisherProperty(
+                publisher_domain="cnn.com",
+            )
+        error_msg = str(exc_info.value)
+        assert (
+            "mutually exclusive" in error_msg.lower()
+            or "exactly one" in error_msg.lower()
+            or "at least one is required" in error_msg.lower()
+        )
