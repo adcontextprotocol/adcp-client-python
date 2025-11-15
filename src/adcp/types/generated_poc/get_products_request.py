@@ -26,9 +26,15 @@ class Filters(AdCPBaseModel):
         extra="forbid",
     )
     delivery_type: delivery_type_1.DeliveryType | None = None
-    format_ids: Annotated[list[format_id.FormatId] | None, Field(description="Filter by specific format IDs")] = None
-    format_types: Annotated[list[FormatType] | None, Field(description="Filter by format types")] = None
-    is_fixed_price: Annotated[bool | None, Field(description="Filter for fixed price vs auction products")] = None
+    format_ids: Annotated[
+        list[format_id.FormatId] | None, Field(description="Filter by specific format IDs")
+    ] = None
+    format_types: Annotated[
+        list[FormatType] | None, Field(description="Filter by format types")
+    ] = None
+    is_fixed_price: Annotated[
+        bool | None, Field(description="Filter for fixed price vs auction products")
+    ] = None
     min_exposures: Annotated[
         int | None,
         Field(description="Minimum exposures/impressions needed for measurement validity", ge=1),
@@ -63,11 +69,15 @@ class GetProductsRequest(AdCPBaseModel):
             title="Brand Manifest Reference",
         ),
     ] = None
-    brief: Annotated[str | None, Field(description="Natural language description of campaign requirements")] = None
+    brief: Annotated[
+        str | None, Field(description="Natural language description of campaign requirements")
+    ] = None
     context: Annotated[
         dict[str, Any] | None,
         Field(
             description="Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata."
         ),
     ] = None
-    filters: Annotated[Filters | None, Field(description="Structured filters for product discovery")] = None
+    filters: Annotated[
+        Filters | None, Field(description="Structured filters for product discovery")
+    ] = None

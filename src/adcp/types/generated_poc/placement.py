@@ -28,6 +28,10 @@ class Placement(AdCPBaseModel):
     ] = None
     name: Annotated[
         str,
-        Field(description="Human-readable name for the placement (e.g., 'Homepage Banner', 'Article Sidebar')"),
+        Field(
+            description="Human-readable name for the placement (e.g., 'Homepage Banner', 'Article Sidebar')"
+        ),
     ]
-    placement_id: Annotated[str, Field(description="Unique identifier for the placement within the product")]
+    placement_id: Annotated[
+        str, Field(description="Unique identifier for the placement within the product")
+    ]

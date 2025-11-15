@@ -150,7 +150,9 @@ async def test_agent_connection(name: str, config: AgentConfig) -> dict[str, Any
                     if test_result.success:
                         print_success(f"Tool call succeeded! Status: {test_result.status.value}")
                         if test_result.data:
-                            print_info(f"Response data: {json.dumps(test_result.data, indent=2)[:200]}...")
+                            print_info(
+                                f"Response data: {json.dumps(test_result.data, indent=2)[:200]}..."
+                            )
                     else:
                         print_warning(f"Tool call status: {test_result.status.value}")
                         if test_result.error:

@@ -25,22 +25,32 @@ class Asset(AdCPBaseModel):
     asset_id: Annotated[str, Field(description="Unique identifier for this asset")]
     asset_type: Annotated[AssetType, Field(description="Type of asset")]
     description: Annotated[str | None, Field(description="Asset description or usage notes")] = None
-    duration_seconds: Annotated[float | None, Field(description="Video/audio duration in seconds")] = None
+    duration_seconds: Annotated[
+        float | None, Field(description="Video/audio duration in seconds")
+    ] = None
     file_size_bytes: Annotated[int | None, Field(description="File size in bytes")] = None
-    format: Annotated[str | None, Field(description="File format (e.g., 'jpg', 'mp4', 'mp3')")] = None
+    format: Annotated[str | None, Field(description="File format (e.g., 'jpg', 'mp4', 'mp3')")] = (
+        None
+    )
     height: Annotated[int | None, Field(description="Image/video height in pixels")] = None
-    metadata: Annotated[dict[str, Any] | None, Field(description="Additional asset-specific metadata")] = None
+    metadata: Annotated[
+        dict[str, Any] | None, Field(description="Additional asset-specific metadata")
+    ] = None
     name: Annotated[str | None, Field(description="Human-readable asset name")] = None
     tags: Annotated[
         list[str] | None,
-        Field(description="Tags for asset discovery (e.g., 'holiday', 'lifestyle', 'product_shot')"),
+        Field(
+            description="Tags for asset discovery (e.g., 'holiday', 'lifestyle', 'product_shot')"
+        ),
     ] = None
     url: Annotated[AnyUrl, Field(description="URL to CDN-hosted asset file")]
     width: Annotated[int | None, Field(description="Image/video width in pixels")] = None
 
 
 class Colors(AdCPBaseModel):
-    accent: Annotated[str | None, Field(description="Accent color (hex format)", pattern="^#[0-9A-Fa-f]{6}$")] = None
+    accent: Annotated[
+        str | None, Field(description="Accent color (hex format)", pattern="^#[0-9A-Fa-f]{6}$")
+    ] = None
     background: Annotated[
         str | None, Field(description="Background color (hex format)", pattern="^#[0-9A-Fa-f]{6}$")
     ] = None
@@ -52,7 +62,9 @@ class Colors(AdCPBaseModel):
         str | None,
         Field(description="Secondary brand color (hex format)", pattern="^#[0-9A-Fa-f]{6}$"),
     ] = None
-    text: Annotated[str | None, Field(description="Text color (hex format)", pattern="^#[0-9A-Fa-f]{6}$")] = None
+    text: Annotated[
+        str | None, Field(description="Text color (hex format)", pattern="^#[0-9A-Fa-f]{6}$")
+    ] = None
 
 
 class Contact(AdCPBaseModel):
@@ -63,14 +75,20 @@ class Contact(AdCPBaseModel):
 class Disclaimer(AdCPBaseModel):
     context: Annotated[
         str | None,
-        Field(description="When this disclaimer applies (e.g., 'financial_products', 'health_claims', 'all')"),
+        Field(
+            description="When this disclaimer applies (e.g., 'financial_products', 'health_claims', 'all')"
+        ),
     ] = None
-    required: Annotated[bool | None, Field(description="Whether this disclaimer must appear")] = True
+    required: Annotated[bool | None, Field(description="Whether this disclaimer must appear")] = (
+        True
+    )
     text: Annotated[str, Field(description="Disclaimer text")]
 
 
 class Fonts(AdCPBaseModel):
-    font_urls: Annotated[list[AnyUrl] | None, Field(description="URLs to web font files if using custom fonts")] = None
+    font_urls: Annotated[
+        list[AnyUrl] | None, Field(description="URLs to web font files if using custom fonts")
+    ] = None
     primary: Annotated[str | None, Field(description="Primary font family name")] = None
     secondary: Annotated[str | None, Field(description="Secondary font family name")] = None
 
@@ -88,8 +106,12 @@ class Logo(AdCPBaseModel):
 
 
 class Metadata(AdCPBaseModel):
-    created_date: Annotated[AwareDatetime | None, Field(description="When this brand manifest was created")] = None
-    updated_date: Annotated[AwareDatetime | None, Field(description="When this brand manifest was last updated")] = None
+    created_date: Annotated[
+        AwareDatetime | None, Field(description="When this brand manifest was created")
+    ] = None
+    updated_date: Annotated[
+        AwareDatetime | None, Field(description="When this brand manifest was last updated")
+    ] = None
     version: Annotated[str | None, Field(description="Brand card version number")] = None
 
 
@@ -118,7 +140,9 @@ class ProductCatalog(AdCPBaseModel):
         FeedFormat.google_merchant_center
     )
     feed_url: Annotated[AnyUrl, Field(description="URL to product catalog feed")]
-    last_updated: Annotated[AwareDatetime | None, Field(description="When the product catalog was last updated")] = None
+    last_updated: Annotated[
+        AwareDatetime | None, Field(description="When the product catalog was last updated")
+    ] = None
     update_frequency: Annotated[
         UpdateFrequency | None, Field(description="How frequently the product catalog is updated")
     ] = None
@@ -143,7 +167,9 @@ class BrandManifest1(AdCPBaseModel):
     fonts: Annotated[Fonts | None, Field(description="Brand typography guidelines")] = None
     industry: Annotated[
         str | None,
-        Field(description="Industry or vertical (e.g., 'retail', 'automotive', 'finance', 'healthcare')"),
+        Field(
+            description="Industry or vertical (e.g., 'retail', 'automotive', 'finance', 'healthcare')"
+        ),
     ] = None
     logos: Annotated[
         list[Logo] | None,
@@ -158,7 +184,9 @@ class BrandManifest1(AdCPBaseModel):
         ),
     ] = None
     tagline: Annotated[str | None, Field(description="Brand tagline or slogan")] = None
-    target_audience: Annotated[str | None, Field(description="Primary target audience description")] = None
+    target_audience: Annotated[
+        str | None, Field(description="Primary target audience description")
+    ] = None
     tone: Annotated[
         str | None,
         Field(
@@ -198,7 +226,9 @@ class BrandManifest2(AdCPBaseModel):
     fonts: Annotated[Fonts | None, Field(description="Brand typography guidelines")] = None
     industry: Annotated[
         str | None,
-        Field(description="Industry or vertical (e.g., 'retail', 'automotive', 'finance', 'healthcare')"),
+        Field(
+            description="Industry or vertical (e.g., 'retail', 'automotive', 'finance', 'healthcare')"
+        ),
     ] = None
     logos: Annotated[
         list[Logo] | None,
@@ -213,7 +243,9 @@ class BrandManifest2(AdCPBaseModel):
         ),
     ] = None
     tagline: Annotated[str | None, Field(description="Brand tagline or slogan")] = None
-    target_audience: Annotated[str | None, Field(description="Primary target audience description")] = None
+    target_audience: Annotated[
+        str | None, Field(description="Primary target audience description")
+    ] = None
     tone: Annotated[
         str | None,
         Field(

@@ -36,17 +36,27 @@ class Filters(AdCPBaseModel):
         AwareDatetime | None, Field(description="Filter tasks created before this date (ISO 8601)")
     ] = None
     domain: Annotated[Domain | None, Field(description="Filter by single AdCP domain")] = None
-    domains: Annotated[list[Domain] | None, Field(description="Filter by multiple AdCP domains")] = None
-    has_webhook: Annotated[bool | None, Field(description="Filter tasks that have webhook configuration when true")] = (
-        None
-    )
-    status: Annotated[task_status.TaskStatus | None, Field(description="Filter by single task status")] = None
-    statuses: Annotated[list[task_status.TaskStatus] | None, Field(description="Filter by multiple task statuses")] = (
-        None
-    )
-    task_ids: Annotated[list[str] | None, Field(description="Filter by specific task IDs", max_length=100)] = None
-    task_type: Annotated[task_type_1.TaskType | None, Field(description="Filter by single task type")] = None
-    task_types: Annotated[list[task_type_1.TaskType] | None, Field(description="Filter by multiple task types")] = None
+    domains: Annotated[
+        list[Domain] | None, Field(description="Filter by multiple AdCP domains")
+    ] = None
+    has_webhook: Annotated[
+        bool | None, Field(description="Filter tasks that have webhook configuration when true")
+    ] = None
+    status: Annotated[
+        task_status.TaskStatus | None, Field(description="Filter by single task status")
+    ] = None
+    statuses: Annotated[
+        list[task_status.TaskStatus] | None, Field(description="Filter by multiple task statuses")
+    ] = None
+    task_ids: Annotated[
+        list[str] | None, Field(description="Filter by specific task IDs", max_length=100)
+    ] = None
+    task_type: Annotated[
+        task_type_1.TaskType | None, Field(description="Filter by single task type")
+    ] = None
+    task_types: Annotated[
+        list[task_type_1.TaskType] | None, Field(description="Filter by multiple task types")
+    ] = None
     updated_after: Annotated[
         AwareDatetime | None,
         Field(description="Filter tasks last updated after this date (ISO 8601)"),
@@ -61,7 +71,9 @@ class Pagination(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    limit: Annotated[int | None, Field(description="Maximum number of tasks to return", ge=1, le=100)] = 50
+    limit: Annotated[
+        int | None, Field(description="Maximum number of tasks to return", ge=1, le=100)
+    ] = 50
     offset: Annotated[int | None, Field(description="Number of tasks to skip", ge=0)] = 0
 
 
@@ -96,10 +108,14 @@ class TasksListRequest(AdCPBaseModel):
             description="Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata."
         ),
     ] = None
-    filters: Annotated[Filters | None, Field(description="Filter criteria for querying tasks")] = None
+    filters: Annotated[Filters | None, Field(description="Filter criteria for querying tasks")] = (
+        None
+    )
     include_history: Annotated[
         bool | None,
-        Field(description="Include full conversation history for each task (may significantly increase response size)"),
+        Field(
+            description="Include full conversation history for each task (may significantly increase response size)"
+        ),
     ] = False
     pagination: Annotated[Pagination | None, Field(description="Pagination parameters")] = None
     sort: Annotated[Sort | None, Field(description="Sorting parameters")] = None

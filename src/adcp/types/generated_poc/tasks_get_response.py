@@ -25,7 +25,9 @@ class Details(AdCPBaseModel):
     )
     domain: Annotated[Domain | None, Field(description="AdCP domain where error occurred")] = None
     operation: Annotated[str | None, Field(description="Specific operation that failed")] = None
-    specific_context: Annotated[dict[str, Any] | None, Field(description="Domain-specific error context")] = None
+    specific_context: Annotated[
+        dict[str, Any] | None, Field(description="Domain-specific error context")
+    ] = None
 
 
 class Error(AdCPBaseModel):
@@ -48,17 +50,25 @@ class HistoryItem(AdCPBaseModel):
     )
     data: Annotated[dict[str, Any], Field(description="The full request or response payload")]
     timestamp: Annotated[AwareDatetime, Field(description="When this exchange occurred (ISO 8601)")]
-    type: Annotated[Type, Field(description="Whether this was a request from client or response from server")]
+    type: Annotated[
+        Type, Field(description="Whether this was a request from client or response from server")
+    ]
 
 
 class Progress(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    current_step: Annotated[str | None, Field(description="Current step or phase of the operation")] = None
-    percentage: Annotated[float | None, Field(description="Completion percentage (0-100)", ge=0.0, le=100.0)] = None
+    current_step: Annotated[
+        str | None, Field(description="Current step or phase of the operation")
+    ] = None
+    percentage: Annotated[
+        float | None, Field(description="Completion percentage (0-100)", ge=0.0, le=100.0)
+    ] = None
     step_number: Annotated[int | None, Field(description="Current step number", ge=1)] = None
-    total_steps: Annotated[int | None, Field(description="Total number of steps in the operation", ge=1)] = None
+    total_steps: Annotated[
+        int | None, Field(description="Total number of steps in the operation", ge=1)
+    ] = None
 
 
 class TasksGetResponse(AdCPBaseModel):
@@ -67,7 +77,9 @@ class TasksGetResponse(AdCPBaseModel):
     )
     completed_at: Annotated[
         AwareDatetime | None,
-        Field(description="When the task completed (ISO 8601, only for completed/failed/canceled tasks)"),
+        Field(
+            description="When the task completed (ISO 8601, only for completed/failed/canceled tasks)"
+        ),
     ] = None
     context: Annotated[
         dict[str, Any] | None,
@@ -75,18 +87,26 @@ class TasksGetResponse(AdCPBaseModel):
             description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers."
         ),
     ] = None
-    created_at: Annotated[AwareDatetime, Field(description="When the task was initially created (ISO 8601)")]
+    created_at: Annotated[
+        AwareDatetime, Field(description="When the task was initially created (ISO 8601)")
+    ]
     domain: Annotated[Domain, Field(description="AdCP domain this task belongs to")]
     error: Annotated[Error | None, Field(description="Error details for failed tasks")] = None
-    has_webhook: Annotated[bool | None, Field(description="Whether this task has webhook configuration")] = None
+    has_webhook: Annotated[
+        bool | None, Field(description="Whether this task has webhook configuration")
+    ] = None
     history: Annotated[
         list[HistoryItem] | None,
         Field(
             description="Complete conversation history for this task (only included if include_history was true in request)"
         ),
     ] = None
-    progress: Annotated[Progress | None, Field(description="Progress information for long-running tasks")] = None
+    progress: Annotated[
+        Progress | None, Field(description="Progress information for long-running tasks")
+    ] = None
     status: Annotated[task_status.TaskStatus, Field(description="Current task status")]
     task_id: Annotated[str, Field(description="Unique identifier for this task")]
     task_type: Annotated[task_type_1.TaskType, Field(description="Type of AdCP operation")]
-    updated_at: Annotated[AwareDatetime, Field(description="When the task was last updated (ISO 8601)")]
+    updated_at: Annotated[
+        AwareDatetime, Field(description="When the task was last updated (ISO 8601)")
+    ]

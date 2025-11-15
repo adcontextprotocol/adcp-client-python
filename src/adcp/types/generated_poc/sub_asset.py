@@ -14,14 +14,18 @@ class SubAsset1(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    asset_id: Annotated[str, Field(description="Unique identifier for the asset within the creative")]
+    asset_id: Annotated[
+        str, Field(description="Unique identifier for the asset within the creative")
+    ]
     asset_kind: Annotated[
         Literal["media"],
         Field(description="Discriminator indicating this is a media asset with content_uri"),
     ]
     asset_type: Annotated[
         str,
-        Field(description="Type of asset. Common types: thumbnail_image, product_image, featured_image, logo"),
+        Field(
+            description="Type of asset. Common types: thumbnail_image, product_image, featured_image, logo"
+        ),
     ]
     content_uri: Annotated[AnyUrl, Field(description="URL for media assets (images, videos, etc.)")]
 
@@ -30,7 +34,9 @@ class SubAsset2(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    asset_id: Annotated[str, Field(description="Unique identifier for the asset within the creative")]
+    asset_id: Annotated[
+        str, Field(description="Unique identifier for the asset within the creative")
+    ]
     asset_kind: Annotated[
         Literal["text"],
         Field(description="Discriminator indicating this is a text asset with content"),
@@ -43,5 +49,7 @@ class SubAsset2(AdCPBaseModel):
     ]
     content: Annotated[
         str | list[str],
-        Field(description="Text content for text-based assets like headlines, body text, CTA text, etc."),
+        Field(
+            description="Text content for text-based assets like headlines, body text, CTA text, etc."
+        ),
     ]

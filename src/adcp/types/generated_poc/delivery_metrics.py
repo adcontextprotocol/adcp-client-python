@@ -16,7 +16,9 @@ class VenueBreakdownItem(AdCPBaseModel):
     )
     impressions: Annotated[int, Field(description="Impressions delivered at this venue", ge=0)]
     loop_plays: Annotated[int | None, Field(description="Loop plays at this venue", ge=0)] = None
-    screens_used: Annotated[int | None, Field(description="Number of screens used at this venue", ge=0)] = None
+    screens_used: Annotated[
+        int | None, Field(description="Number of screens used at this venue", ge=0)
+    ] = None
     venue_id: Annotated[str, Field(description="Venue identifier")]
     venue_name: Annotated[str | None, Field(description="Human-readable venue name")] = None
     venue_type: Annotated[
@@ -32,9 +34,15 @@ class DoohMetrics(AdCPBaseModel):
     calculation_notes: Annotated[
         str | None, Field(description="Explanation of how DOOH impressions were calculated")
     ] = None
-    loop_plays: Annotated[int | None, Field(description="Number of times ad played in rotation", ge=0)] = None
-    screen_time_seconds: Annotated[int | None, Field(description="Total display time in seconds", ge=0)] = None
-    screens_used: Annotated[int | None, Field(description="Number of unique screens displaying the ad", ge=0)] = None
+    loop_plays: Annotated[
+        int | None, Field(description="Number of times ad played in rotation", ge=0)
+    ] = None
+    screen_time_seconds: Annotated[
+        int | None, Field(description="Total display time in seconds", ge=0)
+    ] = None
+    screens_used: Annotated[
+        int | None, Field(description="Number of unique screens displaying the ad", ge=0)
+    ] = None
     sov_achieved: Annotated[
         float | None,
         Field(description="Actual share of voice delivered (0.0 to 1.0)", ge=0.0, le=1.0),
@@ -56,7 +64,9 @@ class DeliveryMetrics(AdCPBaseModel):
         extra="allow",
     )
     clicks: Annotated[float | None, Field(description="Total clicks", ge=0.0)] = None
-    completed_views: Annotated[float | None, Field(description="100% completions (for CPCV)", ge=0.0)] = None
+    completed_views: Annotated[
+        float | None, Field(description="100% completions (for CPCV)", ge=0.0)
+    ] = None
     completion_rate: Annotated[
         float | None,
         Field(description="Completion rate (completed_views/impressions)", ge=0.0, le=1.0),
@@ -65,7 +75,9 @@ class DeliveryMetrics(AdCPBaseModel):
         float | None,
         Field(description="Conversions (reserved for future CPA pricing support)", ge=0.0),
     ] = None
-    ctr: Annotated[float | None, Field(description="Click-through rate (clicks/impressions)", ge=0.0, le=1.0)] = None
+    ctr: Annotated[
+        float | None, Field(description="Click-through rate (clicks/impressions)", ge=0.0, le=1.0)
+    ] = None
     dooh_metrics: Annotated[
         DoohMetrics | None,
         Field(description="DOOH-specific metrics (only included for DOOH campaigns)"),
@@ -77,13 +89,17 @@ class DeliveryMetrics(AdCPBaseModel):
             ge=0.0,
         ),
     ] = None
-    grps: Annotated[float | None, Field(description="Gross Rating Points delivered (for CPP)", ge=0.0)] = None
+    grps: Annotated[
+        float | None, Field(description="Gross Rating Points delivered (for CPP)", ge=0.0)
+    ] = None
     impressions: Annotated[float | None, Field(description="Impressions delivered", ge=0.0)] = None
     leads: Annotated[
         float | None,
         Field(description="Leads generated (reserved for future CPL pricing support)", ge=0.0),
     ] = None
-    quartile_data: Annotated[QuartileData | None, Field(description="Video quartile completion data")] = None
+    quartile_data: Annotated[
+        QuartileData | None, Field(description="Video quartile completion data")
+    ] = None
     reach: Annotated[
         float | None,
         Field(

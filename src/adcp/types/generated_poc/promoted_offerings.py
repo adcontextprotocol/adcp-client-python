@@ -35,7 +35,9 @@ class AssetSelectors(AdCPBaseModel):
     asset_types: Annotated[
         list[AssetType] | None, Field(description="Filter by asset type (e.g., ['image', 'video'])")
     ] = None
-    exclude_tags: Annotated[list[str] | None, Field(description="Exclude assets with these tags")] = None
+    exclude_tags: Annotated[
+        list[str] | None, Field(description="Exclude assets with these tags")
+    ] = None
     tags: Annotated[
         list[str] | None,
         Field(description="Select assets with specific tags (e.g., ['holiday', 'premium'])"),
@@ -46,9 +48,15 @@ class Offering(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    assets: Annotated[list[dict[str, Any]] | None, Field(description="Assets specific to this offering")] = None
-    description: Annotated[str | None, Field(description="Description of what's being offered")] = None
-    name: Annotated[str, Field(description="Offering name (e.g., 'Winter Sale', 'New Product Launch')")]
+    assets: Annotated[
+        list[dict[str, Any]] | None, Field(description="Assets specific to this offering")
+    ] = None
+    description: Annotated[str | None, Field(description="Description of what's being offered")] = (
+        None
+    )
+    name: Annotated[
+        str, Field(description="Offering name (e.g., 'Winter Sale', 'New Product Launch')")
+    ]
 
 
 class PromotedOfferings(AdCPBaseModel):

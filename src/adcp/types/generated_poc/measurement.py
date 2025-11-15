@@ -35,4 +35,6 @@ class Measurement(AdCPBaseModel):
             examples=["incremental_sales_lift", "brand_lift", "foot_traffic"],
         ),
     ]
-    window: Annotated[str | None, Field(description="Attribution window", examples=["30_days", "7_days"])] = None
+    window: Annotated[
+        str | None, Field(description="Attribution window", examples=["30_days", "7_days"])
+    ] = None

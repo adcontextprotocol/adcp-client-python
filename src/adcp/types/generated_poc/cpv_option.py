@@ -60,10 +60,14 @@ class CpvPricingOption(AdCPBaseModel):
             ge=0.0,
         ),
     ] = None
-    parameters: Annotated[Parameters, Field(description="CPV-specific parameters defining the view threshold")]
+    parameters: Annotated[
+        Parameters, Field(description="CPV-specific parameters defining the view threshold")
+    ]
     pricing_model: Annotated[Literal["cpv"], Field(description="Cost per view at threshold")]
     pricing_option_id: Annotated[
         str,
-        Field(description="Unique identifier for this pricing option within the product (e.g., 'cpv_usd_50pct')"),
+        Field(
+            description="Unique identifier for this pricing option within the product (e.g., 'cpv_usd_50pct')"
+        ),
     ]
     rate: Annotated[float, Field(description="Fixed CPV rate (cost per view)", ge=0.0)]

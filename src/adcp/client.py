@@ -163,7 +163,9 @@ class ADCPClient:
             )
         )
 
-        result: TaskResult[GetProductsResponse] = self.adapter._parse_response(raw_result, GetProductsResponse)
+        result: TaskResult[GetProductsResponse] = self.adapter._parse_response(
+            raw_result, GetProductsResponse
+        )
 
         if fetch_previews and result.success and result.data and creative_agent_client:
             from adcp.utils.preview_cache import add_preview_urls_to_products
@@ -608,7 +610,9 @@ class ADCPClient:
             return True
 
         payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
-        expected_signature = hmac.new(self.webhook_secret.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
+        expected_signature = hmac.new(
+            self.webhook_secret.encode("utf-8"), payload_bytes, hashlib.sha256
+        ).hexdigest()
 
         return hmac.compare_digest(signature, expected_signature)
 
@@ -719,7 +723,9 @@ class ADCPClient:
         """
         # Verify signature before processing
         if signature and not self._verify_webhook_signature(payload, signature):
-            logger.warning(f"Webhook signature verification failed for agent {self.agent_config.id}")
+            logger.warning(
+                f"Webhook signature verification failed for agent {self.agent_config.id}"
+            )
             raise ADCPWebhookSignatureError("Invalid webhook signature")
 
         # Validate and parse webhook payload

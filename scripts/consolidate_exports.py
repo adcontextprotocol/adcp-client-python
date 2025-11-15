@@ -149,7 +149,11 @@ def main():
 
     print("✓ Successfully generated consolidated exports")
     export_count = len(
-        [name for name in content.split("__all__ = [")[1].split("]")[0].strip("[]").split(",") if name.strip()]
+        [
+            name
+            for name in content.split("__all__ = [")[1].split("]")[0].strip("[]").split(",")
+            if name.strip()
+        ]
     )
     print(f"  Total exports: {export_count}")
 

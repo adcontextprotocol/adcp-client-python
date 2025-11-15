@@ -53,7 +53,9 @@ class PackageRequest(AdCPBaseModel):
     pacing: pacing_1.Pacing | None = None
     pricing_option_id: Annotated[
         str,
-        Field(description="ID of the selected pricing option from the product's pricing_options array"),
+        Field(
+            description="ID of the selected pricing option from the product's pricing_options array"
+        ),
     ]
     product_id: Annotated[str, Field(description="Product ID for this package")]
     targeting_overlay: targeting.TargetingOverlay | None = None

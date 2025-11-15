@@ -13,7 +13,9 @@ from pydantic import ConfigDict, Field
 class PriceGuidance(AdCPBaseModel):
     floor: Annotated[
         float,
-        Field(description="Minimum bid price - publisher will reject bids under this value", ge=0.0),
+        Field(
+            description="Minimum bid price - publisher will reject bids under this value", ge=0.0
+        ),
     ]
     p25: Annotated[float | None, Field(description="25th percentile winning price", ge=0.0)] = None
     p50: Annotated[float | None, Field(description="Median winning price", ge=0.0)] = None
@@ -40,9 +42,13 @@ class CpmAuctionPricingOption(AdCPBaseModel):
             ge=0.0,
         ),
     ] = None
-    price_guidance: Annotated[PriceGuidance, Field(description="Pricing guidance for auction-based CPM bidding")]
+    price_guidance: Annotated[
+        PriceGuidance, Field(description="Pricing guidance for auction-based CPM bidding")
+    ]
     pricing_model: Annotated[Literal["cpm"], Field(description="Cost per 1,000 impressions")]
     pricing_option_id: Annotated[
         str,
-        Field(description="Unique identifier for this pricing option within the product (e.g., 'cpm_usd_auction')"),
+        Field(
+            description="Unique identifier for this pricing option within the product (e.g., 'cpm_usd_auction')"
+        ),
     ]

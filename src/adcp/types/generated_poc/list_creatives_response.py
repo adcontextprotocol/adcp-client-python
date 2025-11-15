@@ -49,20 +49,30 @@ class Assignments(AdCPBaseModel):
         list[AssignedPackage] | None,
         Field(description="List of packages this creative is assigned to"),
     ] = None
-    assignment_count: Annotated[int, Field(description="Total number of active package assignments", ge=0)]
+    assignment_count: Annotated[
+        int, Field(description="Total number of active package assignments", ge=0)
+    ]
 
 
 class Performance(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    clicks: Annotated[int | None, Field(description="Total clicks across all assignments", ge=0)] = None
+    clicks: Annotated[
+        int | None, Field(description="Total clicks across all assignments", ge=0)
+    ] = None
     conversion_rate: Annotated[
         float | None, Field(description="Conversion rate across all assignments", ge=0.0, le=1.0)
     ] = None
-    ctr: Annotated[float | None, Field(description="Click-through rate (clicks/impressions)", ge=0.0, le=1.0)] = None
-    impressions: Annotated[int | None, Field(description="Total impressions across all assignments", ge=0)] = None
-    last_updated: Annotated[AwareDatetime, Field(description="When performance data was last updated")]
+    ctr: Annotated[
+        float | None, Field(description="Click-through rate (clicks/impressions)", ge=0.0, le=1.0)
+    ] = None
+    impressions: Annotated[
+        int | None, Field(description="Total impressions across all assignments", ge=0)
+    ] = None
+    last_updated: Annotated[
+        AwareDatetime, Field(description="When performance data was last updated")
+    ]
     performance_score: Annotated[
         float | None, Field(description="Aggregated performance score (0-100)", ge=0.0, le=100.0)
     ] = None
@@ -72,11 +82,15 @@ class Pagination(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    current_page: Annotated[int | None, Field(description="Current page number (1-based)", ge=1)] = None
+    current_page: Annotated[
+        int | None, Field(description="Current page number (1-based)", ge=1)
+    ] = None
     has_more: Annotated[bool, Field(description="Whether more results are available")]
     limit: Annotated[int, Field(description="Maximum number of results requested", ge=1)]
     offset: Annotated[int, Field(description="Number of results skipped", ge=0)]
-    total_pages: Annotated[int | None, Field(description="Total number of pages available", ge=0)] = None
+    total_pages: Annotated[
+        int | None, Field(description="Total number of pages available", ge=0)
+    ] = None
 
 
 class Direction(Enum):
@@ -96,8 +110,12 @@ class QuerySummary(AdCPBaseModel):
     filters_applied: Annotated[
         list[str] | None, Field(description="List of filters that were applied to the query")
     ] = None
-    returned: Annotated[int, Field(description="Number of creatives returned in this response", ge=0)]
-    sort_applied: Annotated[SortApplied | None, Field(description="Sort order that was applied")] = None
+    returned: Annotated[
+        int, Field(description="Number of creatives returned in this response", ge=0)
+    ]
+    sort_applied: Annotated[
+        SortApplied | None, Field(description="Sort order that was applied")
+    ] = None
     total_matching: Annotated[
         int,
         Field(description="Total number of creatives matching filters (across all pages)", ge=0),
@@ -110,7 +128,9 @@ class StatusSummary(AdCPBaseModel):
     )
     approved: Annotated[int | None, Field(description="Number of approved creatives", ge=0)] = None
     archived: Annotated[int | None, Field(description="Number of archived creatives", ge=0)] = None
-    pending_review: Annotated[int | None, Field(description="Number of creatives pending review", ge=0)] = None
+    pending_review: Annotated[
+        int | None, Field(description="Number of creatives pending review", ge=0)
+    ] = None
     rejected: Annotated[int | None, Field(description="Number of rejected creatives", ge=0)] = None
 
 
@@ -142,29 +162,49 @@ class Creative(AdCPBaseModel):
         Assignments | None,
         Field(description="Current package assignments (included when include_assignments=true)"),
     ] = None
-    click_url: Annotated[AnyUrl | None, Field(description="Landing page URL for the creative")] = None
-    created_date: Annotated[AwareDatetime, Field(description="When the creative was uploaded to the library")]
+    click_url: Annotated[AnyUrl | None, Field(description="Landing page URL for the creative")] = (
+        None
+    )
+    created_date: Annotated[
+        AwareDatetime, Field(description="When the creative was uploaded to the library")
+    ]
     creative_id: Annotated[str, Field(description="Unique identifier for the creative")]
-    duration: Annotated[float | None, Field(description="Duration in milliseconds (for video/audio)", ge=0.0)] = None
+    duration: Annotated[
+        float | None, Field(description="Duration in milliseconds (for video/audio)", ge=0.0)
+    ] = None
     format_id: Annotated[
         format_id_1.FormatId,
         Field(description="Format identifier specifying which format this creative conforms to"),
     ]
-    height: Annotated[float | None, Field(description="Height in pixels (for video/display)", ge=0.0)] = None
-    media_url: Annotated[AnyUrl | None, Field(description="URL of the creative file (for hosted assets)")] = None
+    height: Annotated[
+        float | None, Field(description="Height in pixels (for video/display)", ge=0.0)
+    ] = None
+    media_url: Annotated[
+        AnyUrl | None, Field(description="URL of the creative file (for hosted assets)")
+    ] = None
     name: Annotated[str, Field(description="Human-readable creative name")]
     performance: Annotated[
         Performance | None,
-        Field(description="Aggregated performance metrics (included when include_performance=true)"),
+        Field(
+            description="Aggregated performance metrics (included when include_performance=true)"
+        ),
     ] = None
-    status: Annotated[creative_status.CreativeStatus, Field(description="Current approval status of the creative")]
+    status: Annotated[
+        creative_status.CreativeStatus, Field(description="Current approval status of the creative")
+    ]
     sub_assets: Annotated[
         list[sub_asset.SubAsset1 | sub_asset.SubAsset2] | None,
-        Field(description="Sub-assets for multi-asset formats (included when include_sub_assets=true)"),
+        Field(
+            description="Sub-assets for multi-asset formats (included when include_sub_assets=true)"
+        ),
     ] = None
-    tags: Annotated[list[str] | None, Field(description="User-defined tags for organization and searchability")] = None
+    tags: Annotated[
+        list[str] | None, Field(description="User-defined tags for organization and searchability")
+    ] = None
     updated_date: Annotated[AwareDatetime, Field(description="When the creative was last modified")]
-    width: Annotated[float | None, Field(description="Width in pixels (for video/display)", ge=0.0)] = None
+    width: Annotated[
+        float | None, Field(description="Width in pixels (for video/display)", ge=0.0)
+    ] = None
 
 
 class ListCreativesResponse(AdCPBaseModel):
@@ -177,8 +217,18 @@ class ListCreativesResponse(AdCPBaseModel):
             description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers."
         ),
     ] = None
-    creatives: Annotated[list[Creative], Field(description="Array of creative assets matching the query")]
-    format_summary: Annotated[dict[str, int] | None, Field(description="Breakdown of creatives by format type")] = None
-    pagination: Annotated[Pagination, Field(description="Pagination information for navigating results")]
-    query_summary: Annotated[QuerySummary, Field(description="Summary of the query that was executed")]
-    status_summary: Annotated[StatusSummary | None, Field(description="Breakdown of creatives by status")] = None
+    creatives: Annotated[
+        list[Creative], Field(description="Array of creative assets matching the query")
+    ]
+    format_summary: Annotated[
+        dict[str, int] | None, Field(description="Breakdown of creatives by format type")
+    ] = None
+    pagination: Annotated[
+        Pagination, Field(description="Pagination information for navigating results")
+    ]
+    query_summary: Annotated[
+        QuerySummary, Field(description="Summary of the query that was executed")
+    ]
+    status_summary: Annotated[
+        StatusSummary | None, Field(description="Breakdown of creatives by status")
+    ] = None

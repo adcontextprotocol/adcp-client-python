@@ -15,4 +15,6 @@ class CssAsset(AdCPBaseModel):
         extra="forbid",
     )
     content: Annotated[str, Field(description="CSS content")]
-    media: Annotated[str | None, Field(description="CSS media query context (e.g., 'screen', 'print')")] = None
+    media: Annotated[
+        str | None, Field(description="CSS media query context (e.g., 'screen', 'print')")
+    ] = None

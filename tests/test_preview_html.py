@@ -76,9 +76,13 @@ async def test_preview_creative():
             }
         ],
     )
-    mock_parsed_result = TaskResult(status=TaskStatus.COMPLETED, data=mock_response_data, success=True)
+    mock_parsed_result = TaskResult(
+        status=TaskStatus.COMPLETED, data=mock_response_data, success=True
+    )
 
-    with patch.object(client.adapter, "preview_creative", return_value=mock_raw_result) as mock_call:
+    with patch.object(
+        client.adapter, "preview_creative", return_value=mock_raw_result
+    ) as mock_call:
         with patch.object(client.adapter, "_parse_response", return_value=mock_parsed_result):
             request = PreviewCreativeRequest1(
                 request_type="single",
@@ -90,7 +94,10 @@ async def test_preview_creative():
             assert result.success
             assert result.data
             assert len(result.data.previews) == 1
-            assert str(result.data.previews[0].renders[0].preview_url) == "https://preview.example.com/abc123"
+            assert (
+                str(result.data.previews[0].renders[0].preview_url)
+                == "https://preview.example.com/abc123"
+            )
             mock_call.assert_called_once()
 
 
@@ -134,7 +141,9 @@ async def test_get_preview_data_for_manifest():
             }
         ],
     )
-    mock_parsed_result = TaskResult(status=TaskStatus.COMPLETED, data=mock_preview_response, success=True)
+    mock_parsed_result = TaskResult(
+        status=TaskStatus.COMPLETED, data=mock_preview_response, success=True
+    )
 
     with patch.object(client.adapter, "preview_creative", return_value=mock_raw_result):
         with patch.object(client.adapter, "_parse_response", return_value=mock_parsed_result):
@@ -186,9 +195,13 @@ async def test_preview_data_caching():
             }
         ],
     )
-    mock_parsed_result = TaskResult(status=TaskStatus.COMPLETED, data=mock_preview_response, success=True)
+    mock_parsed_result = TaskResult(
+        status=TaskStatus.COMPLETED, data=mock_preview_response, success=True
+    )
 
-    with patch.object(client.adapter, "preview_creative", return_value=mock_raw_result) as mock_call:
+    with patch.object(
+        client.adapter, "preview_creative", return_value=mock_raw_result
+    ) as mock_call:
         with patch.object(client.adapter, "_parse_response", return_value=mock_parsed_result):
             result1 = await generator.get_preview_data_for_manifest(format_id, manifest)
             result2 = await generator.get_preview_data_for_manifest(format_id, manifest)
@@ -235,10 +248,14 @@ async def test_get_products_with_preview_urls():
 
     # Parsed result from _parse_response
     mock_products_response = GetProductsResponse(products=[product], errors=None)
-    mock_parsed_result = TaskResult(status=TaskStatus.COMPLETED, data=mock_products_response, success=True)
+    mock_parsed_result = TaskResult(
+        status=TaskStatus.COMPLETED, data=mock_products_response, success=True
+    )
 
     # Raw preview result from creative adapter
-    mock_preview_raw_result = TaskResult(status=TaskStatus.COMPLETED, data={"previews": []}, success=True)
+    mock_preview_raw_result = TaskResult(
+        status=TaskStatus.COMPLETED, data={"previews": []}, success=True
+    )
 
     # Parsed preview result
     mock_preview_response = PreviewCreativeResponse1(
@@ -259,7 +276,9 @@ async def test_get_products_with_preview_urls():
             }
         ],
     )
-    mock_preview_parsed_result = TaskResult(status=TaskStatus.COMPLETED, data=mock_preview_response, success=True)
+    mock_preview_parsed_result = TaskResult(
+        status=TaskStatus.COMPLETED, data=mock_preview_response, success=True
+    )
 
     with patch.object(client.adapter, "get_products", return_value=mock_raw_result):
         with patch.object(client.adapter, "_parse_response", return_value=mock_parsed_result):
@@ -333,10 +352,14 @@ async def test_list_creative_formats_with_preview_urls():
 
     # Parsed result from _parse_response
     mock_formats_response = ListCreativeFormatsResponse(formats=[fmt], errors=None)
-    mock_parsed_result = TaskResult(status=TaskStatus.COMPLETED, data=mock_formats_response, success=True)
+    mock_parsed_result = TaskResult(
+        status=TaskStatus.COMPLETED, data=mock_formats_response, success=True
+    )
 
     # Raw preview result from adapter
-    mock_preview_raw_result = TaskResult(status=TaskStatus.COMPLETED, data={"previews": []}, success=True)
+    mock_preview_raw_result = TaskResult(
+        status=TaskStatus.COMPLETED, data={"previews": []}, success=True
+    )
 
     # Parsed preview result
     mock_preview_response = PreviewCreativeResponse1(
@@ -357,7 +380,9 @@ async def test_list_creative_formats_with_preview_urls():
             }
         ],
     )
-    mock_preview_parsed_result = TaskResult(status=TaskStatus.COMPLETED, data=mock_preview_response, success=True)
+    mock_preview_parsed_result = TaskResult(
+        status=TaskStatus.COMPLETED, data=mock_preview_response, success=True
+    )
 
     with patch.object(client.adapter, "list_creative_formats", return_value=mock_raw_result):
         with patch.object(

@@ -44,14 +44,16 @@ class Filters(AdCPBaseModel):
         AwareDatetime | None,
         Field(description="Filter creatives created before this date (ISO 8601)"),
     ] = None
-    creative_ids: Annotated[list[str] | None, Field(description="Filter by specific creative IDs", max_length=100)] = (
-        None
-    )
+    creative_ids: Annotated[
+        list[str] | None, Field(description="Filter by specific creative IDs", max_length=100)
+    ] = None
     format: Annotated[
         str | None,
         Field(description="Filter by creative format type (e.g., video, audio, display)"),
     ] = None
-    formats: Annotated[list[str] | None, Field(description="Filter by multiple creative format types")] = None
+    formats: Annotated[
+        list[str] | None, Field(description="Filter by multiple creative format types")
+    ] = None
     has_performance_data: Annotated[
         bool | None, Field(description="Filter creatives that have performance data when true")
     ] = None
@@ -67,11 +69,17 @@ class Filters(AdCPBaseModel):
         list[creative_status.CreativeStatus] | None,
         Field(description="Filter by multiple creative statuses"),
     ] = None
-    tags: Annotated[list[str] | None, Field(description="Filter by creative tags (all tags must match)")] = None
-    tags_any: Annotated[list[str] | None, Field(description="Filter by creative tags (any tag must match)")] = None
+    tags: Annotated[
+        list[str] | None, Field(description="Filter by creative tags (all tags must match)")
+    ] = None
+    tags_any: Annotated[
+        list[str] | None, Field(description="Filter by creative tags (any tag must match)")
+    ] = None
     unassigned: Annotated[
         bool | None,
-        Field(description="Filter for unassigned creatives when true, assigned creatives when false"),
+        Field(
+            description="Filter for unassigned creatives when true, assigned creatives when false"
+        ),
     ] = None
     updated_after: Annotated[
         AwareDatetime | None,
@@ -87,7 +95,9 @@ class Pagination(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    limit: Annotated[int | None, Field(description="Maximum number of creatives to return", ge=1, le=100)] = 50
+    limit: Annotated[
+        int | None, Field(description="Maximum number of creatives to return", ge=1, le=100)
+    ] = 50
     offset: Annotated[int | None, Field(description="Number of creatives to skip", ge=0)] = 0
 
 
@@ -127,7 +137,9 @@ class ListCreativesRequest(AdCPBaseModel):
         list[FieldModel] | None,
         Field(description="Specific fields to include in response (omit for all fields)"),
     ] = None
-    filters: Annotated[Filters | None, Field(description="Filter criteria for querying creatives")] = None
+    filters: Annotated[
+        Filters | None, Field(description="Filter criteria for querying creatives")
+    ] = None
     include_assignments: Annotated[
         bool | None, Field(description="Include package assignment information in response")
     ] = True

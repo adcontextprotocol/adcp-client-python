@@ -29,9 +29,15 @@ class VcpmFixedRatePricingOption(AdCPBaseModel):
             ge=0.0,
         ),
     ] = None
-    pricing_model: Annotated[Literal["vcpm"], Field(description="Cost per 1,000 viewable impressions (MRC standard)")]
+    pricing_model: Annotated[
+        Literal["vcpm"], Field(description="Cost per 1,000 viewable impressions (MRC standard)")
+    ]
     pricing_option_id: Annotated[
         str,
-        Field(description="Unique identifier for this pricing option within the product (e.g., 'vcpm_usd_guaranteed')"),
+        Field(
+            description="Unique identifier for this pricing option within the product (e.g., 'vcpm_usd_guaranteed')"
+        ),
     ]
-    rate: Annotated[float, Field(description="Fixed vCPM rate (cost per 1,000 viewable impressions)", ge=0.0)]
+    rate: Annotated[
+        float, Field(description="Fixed vCPM rate (cost per 1,000 viewable impressions)", ge=0.0)
+    ]

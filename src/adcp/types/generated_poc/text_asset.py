@@ -15,4 +15,6 @@ class TextAsset(AdCPBaseModel):
         extra="forbid",
     )
     content: Annotated[str, Field(description="Text content")]
-    language: Annotated[str | None, Field(description="Language code (e.g., 'en', 'es', 'fr')")] = None
+    language: Annotated[str | None, Field(description="Language code (e.g., 'en', 'es', 'fr')")] = (
+        None
+    )

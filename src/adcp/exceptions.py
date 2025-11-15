@@ -67,7 +67,9 @@ class ADCPTimeoutError(ADCPError):
         timeout: float | None = None,
     ):
         """Initialize timeout error."""
-        suggestion = f"The request took longer than {timeout}s." if timeout else "The request timed out."
+        suggestion = (
+            f"The request took longer than {timeout}s." if timeout else "The request timed out."
+        )
         suggestion += "\n     Try increasing the timeout value or check if the agent is overloaded."
         super().__init__(message, agent_id, agent_uri, suggestion)
 
@@ -89,7 +91,9 @@ class ADCPProtocolError(ADCPError):
 class ADCPToolNotFoundError(ADCPError):
     """Requested tool not found on agent."""
 
-    def __init__(self, tool_name: str, agent_id: str | None = None, available_tools: list[str] | None = None):
+    def __init__(
+        self, tool_name: str, agent_id: str | None = None, available_tools: list[str] | None = None
+    ):
         """Initialize tool not found error."""
         message = f"Tool '{tool_name}' not found on agent"
         suggestion = "List available tools with: python -m adcp list-tools --config <agent-id>"

@@ -36,11 +36,15 @@ class Parameters(AdCPBaseModel):
     ] = None
     min_plays_per_hour: Annotated[
         int | None,
-        Field(description="Minimum number of times ad plays per hour (DOOH frequency guarantee)", ge=0),
+        Field(
+            description="Minimum number of times ad plays per hour (DOOH frequency guarantee)", ge=0
+        ),
     ] = None
     sov_percentage: Annotated[
         float | None,
-        Field(description="Guaranteed share of voice as percentage (DOOH, 0-100)", ge=0.0, le=100.0),
+        Field(
+            description="Guaranteed share of voice as percentage (DOOH, 0-100)", ge=0.0, le=100.0
+        ),
     ] = None
     venue_package: Annotated[
         str | None,
@@ -77,7 +81,9 @@ class FlatRatePricingOption(AdCPBaseModel):
         Parameters | None,
         Field(description="Flat rate parameters for DOOH and time-based campaigns"),
     ] = None
-    pricing_model: Annotated[Literal["flat_rate"], Field(description="Fixed cost regardless of delivery volume")]
+    pricing_model: Annotated[
+        Literal["flat_rate"], Field(description="Fixed cost regardless of delivery volume")
+    ]
     pricing_option_id: Annotated[
         str,
         Field(

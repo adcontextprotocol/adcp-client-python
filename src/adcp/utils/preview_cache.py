@@ -130,7 +130,8 @@ class PreviewURLGenerator:
 
         # Check cache first
         cache_keys = [
-            _make_manifest_cache_key(fid, manifest.model_dump(exclude_none=True)) for fid, manifest in requests
+            _make_manifest_cache_key(fid, manifest.model_dump(exclude_none=True))
+            for fid, manifest in requests
         ]
 
         # Separate cached vs uncached requests
@@ -247,7 +248,9 @@ async def add_preview_urls_to_formats(
     if use_batch and len(format_requests) > 1:
         # Batch mode - much faster!
         batch_requests = [(fmt.format_id, manifest) for fmt, manifest in format_requests]
-        preview_data_list = await generator.get_preview_data_batch(batch_requests, output_format=output_format)
+        preview_data_list = await generator.get_preview_data_batch(
+            batch_requests, output_format=output_format
+        )
 
         # Merge preview data back with formats
         result = []
@@ -273,7 +276,9 @@ async def add_preview_urls_to_formats(
             try:
                 sample_manifest = _create_sample_manifest_for_format(fmt)
                 if sample_manifest:
-                    preview_data = await generator.get_preview_data_for_manifest(fmt.format_id, sample_manifest)
+                    preview_data = await generator.get_preview_data_for_manifest(
+                        fmt.format_id, sample_manifest
+                    )
                     if preview_data:
                         format_dict["preview_data"] = preview_data
             except Exception as e:
@@ -324,7 +329,9 @@ async def add_preview_urls_to_products(
     if use_batch and len(all_requests) > 1:
         # Batch mode - much faster!
         batch_requests = [(format_id, manifest) for _, format_id, manifest in all_requests]
-        preview_data_list = await generator.get_preview_data_batch(batch_requests, output_format=output_format)
+        preview_data_list = await generator.get_preview_data_batch(
+            batch_requests, output_format=output_format
+        )
 
         # Map results back to products
         # Build a mapping from product_id -> format_id -> preview_data
@@ -356,11 +363,14 @@ async def add_preview_urls_to_products(
                 try:
                     sample_manifest = _create_sample_manifest_for_format_id(format_id, product)
                     if sample_manifest:
-                        preview_data = await generator.get_preview_data_for_manifest(format_id, sample_manifest)
+                        preview_data = await generator.get_preview_data_for_manifest(
+                            format_id, sample_manifest
+                        )
                         return (format_id.id, preview_data)
                 except Exception as e:
                     logger.warning(
-                        f"Failed to generate preview for product {product.product_id}, " f"format {format_id}: {e}"
+                        f"Failed to generate preview for product {product.product_id}, "
+                        f"format {format_id}: {e}"
                     )
                 return (format_id.id, None)
 
@@ -413,7 +423,9 @@ def _create_sample_manifest_for_format(fmt: Format) -> CreativeManifest | None:
     return CreativeManifest(format_id=fmt.format_id, assets=assets, promoted_offering=None)
 
 
-def _create_sample_manifest_for_format_id(format_id: FormatId, product: Product) -> CreativeManifest | None:
+def _create_sample_manifest_for_format_id(
+    format_id: FormatId, product: Product
+) -> CreativeManifest | None:
     """
     Create a sample manifest for a format ID referenced by a product.
 

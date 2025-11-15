@@ -34,7 +34,9 @@ class Creative(AdCPBaseModel):
     ] = None
     assignment_errors: Annotated[
         dict[str, str] | None,
-        Field(description="Assignment errors by package ID (only present when assignment failures occurred)"),
+        Field(
+            description="Assignment errors by package ID (only present when assignment failures occurred)"
+        ),
     ] = None
     changes: Annotated[
         list[str] | None,
@@ -47,14 +49,22 @@ class Creative(AdCPBaseModel):
     ] = None
     expires_at: Annotated[
         AwareDatetime | None,
-        Field(description="ISO 8601 timestamp when preview link expires (only present when preview_url exists)"),
+        Field(
+            description="ISO 8601 timestamp when preview link expires (only present when preview_url exists)"
+        ),
     ] = None
-    platform_id: Annotated[str | None, Field(description="Platform-specific ID assigned to the creative")] = None
+    platform_id: Annotated[
+        str | None, Field(description="Platform-specific ID assigned to the creative")
+    ] = None
     preview_url: Annotated[
         AnyUrl | None,
-        Field(description="Preview URL for generative creatives (only present for generative formats)"),
+        Field(
+            description="Preview URL for generative creatives (only present for generative formats)"
+        ),
     ] = None
-    warnings: Annotated[list[str] | None, Field(description="Non-fatal warnings about this creative")] = None
+    warnings: Annotated[
+        list[str] | None, Field(description="Non-fatal warnings about this creative")
+    ] = None
 
 
 class SyncCreativesResponse1(AdCPBaseModel):
@@ -73,7 +83,9 @@ class SyncCreativesResponse1(AdCPBaseModel):
             description="Results for each creative processed. Items with action='failed' indicate per-item validation/processing failures, not operation-level failures."
         ),
     ]
-    dry_run: Annotated[bool | None, Field(description="Whether this was a dry run (no actual changes made)")] = None
+    dry_run: Annotated[
+        bool | None, Field(description="Whether this was a dry run (no actual changes made)")
+    ] = None
 
 
 class SyncCreativesResponse2(AdCPBaseModel):

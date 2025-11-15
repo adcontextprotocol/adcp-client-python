@@ -228,15 +228,23 @@ def example_domain_matching():
     print(f"   example.com == example.com: {domain_matches('example.com', 'example.com')}")
 
     print("\n2. Common subdomains (www, m) match bare domain:")
-    print(f"   www.example.com matches example.com: {domain_matches('www.example.com', 'example.com')}")
+    print(
+        f"   www.example.com matches example.com: {domain_matches('www.example.com', 'example.com')}"
+    )
     print(f"   m.example.com matches example.com: {domain_matches('m.example.com', 'example.com')}")
 
     print("\n3. Other subdomains DON'T match bare domain:")
-    print(f"   api.example.com matches example.com: {domain_matches('api.example.com', 'example.com')}")
+    print(
+        f"   api.example.com matches example.com: {domain_matches('api.example.com', 'example.com')}"
+    )
 
     print("\n4. Wildcard pattern matches all subdomains:")
-    print(f"   api.example.com matches *.example.com: {domain_matches('api.example.com', '*.example.com')}")
-    print(f"   www.example.com matches *.example.com: {domain_matches('www.example.com', '*.example.com')}")
+    print(
+        f"   api.example.com matches *.example.com: {domain_matches('api.example.com', '*.example.com')}"
+    )
+    print(
+        f"   www.example.com matches *.example.com: {domain_matches('www.example.com', '*.example.com')}"
+    )
 
     print("\n5. Case-insensitive matching:")
     print(f"   Example.COM matches example.com: {domain_matches('Example.COM', 'example.com')}")

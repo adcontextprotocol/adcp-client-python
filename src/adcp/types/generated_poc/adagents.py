@@ -187,7 +187,9 @@ class AuthorizedAgents3(AdCPBaseModel):
     ]
     authorization_type: Annotated[
         Literal["publisher_properties"],
-        Field(description="Discriminator indicating authorization for properties from other publisher domains"),
+        Field(
+            description="Discriminator indicating authorization for properties from other publisher domains"
+        ),
     ]
     publisher_properties: Annotated[
         list[PublisherProperties | PublisherProperties1],

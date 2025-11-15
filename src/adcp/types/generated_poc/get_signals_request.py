@@ -21,7 +21,9 @@ class DeliverTo(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    countries: Annotated[list[Country], Field(description="Countries where signals will be used (ISO codes)")]
+    countries: Annotated[
+        list[Country], Field(description="Countries where signals will be used (ISO codes)")
+    ]
     destinations: Annotated[
         list[destination.Destination1 | destination.Destination2],
         Field(
@@ -41,8 +43,12 @@ class Filters(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    catalog_types: Annotated[list[CatalogType] | None, Field(description="Filter by catalog type")] = None
-    data_providers: Annotated[list[str] | None, Field(description="Filter by specific data providers")] = None
+    catalog_types: Annotated[
+        list[CatalogType] | None, Field(description="Filter by catalog type")
+    ] = None
+    data_providers: Annotated[
+        list[str] | None, Field(description="Filter by specific data providers")
+    ] = None
     max_cpm: Annotated[float | None, Field(description="Maximum CPM price filter", ge=0.0)] = None
     min_coverage_percentage: Annotated[
         float | None, Field(description="Minimum coverage requirement", ge=0.0, le=100.0)
@@ -59,7 +65,13 @@ class GetSignalsRequest(AdCPBaseModel):
             description="Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata."
         ),
     ] = None
-    deliver_to: Annotated[DeliverTo, Field(description="Destination platforms where signals need to be activated")]
+    deliver_to: Annotated[
+        DeliverTo, Field(description="Destination platforms where signals need to be activated")
+    ]
     filters: Annotated[Filters | None, Field(description="Filters to refine results")] = None
-    max_results: Annotated[int | None, Field(description="Maximum number of results to return", ge=1)] = None
-    signal_spec: Annotated[str, Field(description="Natural language description of the desired signals")]
+    max_results: Annotated[
+        int | None, Field(description="Maximum number of results to return", ge=1)
+    ] = None
+    signal_spec: Annotated[
+        str, Field(description="Natural language description of the desired signals")
+    ]

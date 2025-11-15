@@ -22,4 +22,6 @@ class CreativeAssignment(AdCPBaseModel):
             min_length=1,
         ),
     ] = None
-    weight: Annotated[float | None, Field(description="Delivery weight for this creative", ge=0.0, le=100.0)] = None
+    weight: Annotated[
+        float | None, Field(description="Delivery weight for this creative", ge=0.0, le=100.0)
+    ] = None

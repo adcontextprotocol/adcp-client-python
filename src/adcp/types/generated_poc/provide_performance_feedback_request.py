@@ -22,8 +22,12 @@ class MeasurementPeriod(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    end: Annotated[AwareDatetime, Field(description="ISO 8601 end timestamp for measurement period")]
-    start: Annotated[AwareDatetime, Field(description="ISO 8601 start timestamp for measurement period")]
+    end: Annotated[
+        AwareDatetime, Field(description="ISO 8601 end timestamp for measurement period")
+    ]
+    start: Annotated[
+        AwareDatetime, Field(description="ISO 8601 start timestamp for measurement period")
+    ]
 
 
 class MetricType(Enum):
@@ -49,16 +53,22 @@ class ProvidePerformanceFeedbackRequest(AdCPBaseModel):
     ] = None
     creative_id: Annotated[
         str | None,
-        Field(description="Specific creative asset (if feedback is creative-specific)", min_length=1),
+        Field(
+            description="Specific creative asset (if feedback is creative-specific)", min_length=1
+        ),
     ] = None
-    feedback_source: Annotated[FeedbackSource | None, Field(description="Source of the performance data")] = (
-        FeedbackSource.buyer_attribution
-    )
-    measurement_period: Annotated[MeasurementPeriod, Field(description="Time period for performance measurement")]
-    media_buy_id: Annotated[str, Field(description="Publisher's media buy identifier", min_length=1)]
-    metric_type: Annotated[MetricType | None, Field(description="The business metric being measured")] = (
-        MetricType.overall_performance
-    )
+    feedback_source: Annotated[
+        FeedbackSource | None, Field(description="Source of the performance data")
+    ] = FeedbackSource.buyer_attribution
+    measurement_period: Annotated[
+        MeasurementPeriod, Field(description="Time period for performance measurement")
+    ]
+    media_buy_id: Annotated[
+        str, Field(description="Publisher's media buy identifier", min_length=1)
+    ]
+    metric_type: Annotated[
+        MetricType | None, Field(description="The business metric being measured")
+    ] = MetricType.overall_performance
     package_id: Annotated[
         str | None,
         Field(

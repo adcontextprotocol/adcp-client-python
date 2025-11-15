@@ -26,7 +26,9 @@ async def test_get_products_simple_api():
         description="A test product",
     )
     mock_response = GetProductsResponse.model_construct(products=[mock_product])
-    mock_result = TaskResult[GetProductsResponse](status=TaskStatus.COMPLETED, data=mock_response, success=True)
+    mock_result = TaskResult[GetProductsResponse](
+        status=TaskStatus.COMPLETED, data=mock_response, success=True
+    )
 
     # Mock the client's get_products method
     with patch.object(test_agent, "get_products", new=AsyncMock(return_value=mock_result)):
@@ -82,7 +84,9 @@ async def test_list_creative_formats_simple_api():
         description="Standard banner",
     )
     mock_response = ListCreativeFormatsResponse.model_construct(formats=[mock_format])
-    mock_result = TaskResult[ListCreativeFormatsResponse](status=TaskStatus.COMPLETED, data=mock_response, success=True)
+    mock_result = TaskResult[ListCreativeFormatsResponse](
+        status=TaskStatus.COMPLETED, data=mock_response, success=True
+    )
 
     with patch.object(test_agent, "list_creative_formats", new=AsyncMock(return_value=mock_result)):
         # Call simplified API
@@ -158,7 +162,9 @@ async def test_preview_creative_simple_api():
             }
         ],
     )
-    mock_result = TaskResult[PreviewCreativeResponse1](status=TaskStatus.COMPLETED, data=mock_response, success=True)
+    mock_result = TaskResult[PreviewCreativeResponse1](
+        status=TaskStatus.COMPLETED, data=mock_response, success=True
+    )
 
     with patch.object(creative_agent, "preview_creative", new=AsyncMock(return_value=mock_result)):
         # Call simplified API with new schema structure

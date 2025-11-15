@@ -30,8 +30,12 @@ class Method1(Enum):
 
 
 class Security(AdCPBaseModel):
-    api_key_header: Annotated[str | None, Field(description="Header name for API key (e.g., 'X-API-Key')")] = None
-    hmac_header: Annotated[str | None, Field(description="Header name for HMAC signature (e.g., 'X-Signature')")] = None
+    api_key_header: Annotated[
+        str | None, Field(description="Header name for API key (e.g., 'X-API-Key')")
+    ] = None
+    hmac_header: Annotated[
+        str | None, Field(description="Header name for HMAC signature (e.g., 'X-Signature')")
+    ] = None
     method: Annotated[Method1, Field(description="Authentication method")]
 
 
@@ -44,11 +48,15 @@ class WebhookAsset(AdCPBaseModel):
         list[str] | None,
         Field(description="Universal macros that must be provided for webhook to function"),
     ] = None
-    response_type: Annotated[ResponseType, Field(description="Expected content type of webhook response")]
+    response_type: Annotated[
+        ResponseType, Field(description="Expected content type of webhook response")
+    ]
     security: Annotated[Security, Field(description="Security configuration for webhook calls")]
     supported_macros: Annotated[
         list[str] | None,
-        Field(description="Universal macros that can be passed to webhook (e.g., {DEVICE_TYPE}, {COUNTRY})"),
+        Field(
+            description="Universal macros that can be passed to webhook (e.g., {DEVICE_TYPE}, {COUNTRY})"
+        ),
     ] = None
     timeout_ms: Annotated[
         int | None,

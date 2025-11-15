@@ -51,7 +51,9 @@ class Input2(AdCPBaseModel):
         str | None,
         Field(description="Natural language description of the context for AI-generated content"),
     ] = None
-    macros: Annotated[dict[str, str] | None, Field(description="Macro values to use for this preview")] = None
+    macros: Annotated[
+        dict[str, str] | None, Field(description="Macro values to use for this preview")
+    ] = None
     name: Annotated[str, Field(description="Human-readable name for this input set")]
 
 
@@ -71,7 +73,9 @@ class PreviewCreativeRequest1(AdCPBaseModel):
             description="Complete creative manifest with all required assets (including promoted_offerings if required by the format)"
         ),
     ]
-    format_id: Annotated[format_id_1.FormatId, Field(description="Format identifier for rendering the preview")]
+    format_id: Annotated[
+        format_id_1.FormatId, Field(description="Format identifier for rendering the preview")
+    ]
     inputs: Annotated[
         list[Input] | None,
         Field(
@@ -88,7 +92,9 @@ class PreviewCreativeRequest1(AdCPBaseModel):
         Literal["single"],
         Field(description="Discriminator indicating this is a single preview request"),
     ]
-    template_id: Annotated[str | None, Field(description="Specific template ID for custom format rendering")] = None
+    template_id: Annotated[
+        str | None, Field(description="Specific template ID for custom format rendering")
+    ] = None
 
 
 class Request(AdCPBaseModel):
@@ -99,16 +105,22 @@ class Request(AdCPBaseModel):
         creative_manifest_1.CreativeManifest,
         Field(description="Complete creative manifest with all required assets"),
     ]
-    format_id: Annotated[format_id_1.FormatId, Field(description="Format identifier for rendering the preview")]
+    format_id: Annotated[
+        format_id_1.FormatId, Field(description="Format identifier for rendering the preview")
+    ]
     inputs: Annotated[
         list[Input2] | None,
         Field(description="Array of input sets for generating multiple preview variants"),
     ] = None
     output_format: Annotated[
         OutputFormat | None,
-        Field(description="Output format for this preview. 'url' returns preview_url, 'html' returns preview_html."),
+        Field(
+            description="Output format for this preview. 'url' returns preview_url, 'html' returns preview_html."
+        ),
     ] = OutputFormat.url
-    template_id: Annotated[str | None, Field(description="Specific template ID for custom format rendering")] = None
+    template_id: Annotated[
+        str | None, Field(description="Specific template ID for custom format rendering")
+    ] = None
 
 
 class PreviewCreativeRequest2(AdCPBaseModel):

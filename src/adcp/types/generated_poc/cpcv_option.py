@@ -29,9 +29,13 @@ class CpcvPricingOption(AdCPBaseModel):
             ge=0.0,
         ),
     ] = None
-    pricing_model: Annotated[Literal["cpcv"], Field(description="Cost per completed view (100% completion)")]
+    pricing_model: Annotated[
+        Literal["cpcv"], Field(description="Cost per completed view (100% completion)")
+    ]
     pricing_option_id: Annotated[
         str,
-        Field(description="Unique identifier for this pricing option within the product (e.g., 'cpcv_usd_guaranteed')"),
+        Field(
+            description="Unique identifier for this pricing option within the product (e.g., 'cpcv_usd_guaranteed')"
+        ),
     ]
     rate: Annotated[float, Field(description="Fixed CPCV rate (cost per 100% completion)", ge=0.0)]

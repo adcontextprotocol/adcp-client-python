@@ -17,6 +17,8 @@ class ProtocolResponse(AdCPBaseModel):
     context_id: Annotated[str | None, Field(description="Session continuity identifier")] = None
     data: Annotated[
         Any | None,
-        Field(description="AdCP task-specific response data (see individual task response schemas)"),
+        Field(
+            description="AdCP task-specific response data (see individual task response schemas)"
+        ),
     ] = None
     message: Annotated[str, Field(description="Human-readable summary")]

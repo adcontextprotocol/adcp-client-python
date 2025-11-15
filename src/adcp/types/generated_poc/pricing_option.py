@@ -34,7 +34,9 @@ class CpmFixedOption(AdCPBaseModel):
 
 
 class PriceGuidance(AdCPBaseModel):
-    floor: float = Field(..., description="Minimum bid price - publisher will reject bids under this value", ge=0.0)
+    floor: float = Field(
+        ..., description="Minimum bid price - publisher will reject bids under this value", ge=0.0
+    )
     p25: float | None = Field(None, description="25th percentile winning price", ge=0.0)
     p50: float | None = Field(None, description="Median winning price", ge=0.0)
     p75: float | None = Field(None, description="75th percentile winning price", ge=0.0)
@@ -56,7 +58,9 @@ class CpmAuctionOption(AdCPBaseModel):
         examples=["USD", "EUR", "GBP", "JPY"],
         pattern="^[A-Z]{3}$",
     )
-    price_guidance: PriceGuidance = Field(..., description="Pricing guidance for auction-based CPM bidding")
+    price_guidance: PriceGuidance = Field(
+        ..., description="Pricing guidance for auction-based CPM bidding"
+    )
     min_spend_per_package: float | None = Field(
         None,
         description="Minimum spend requirement per package using this pricing option, in the specified currency",
@@ -72,8 +76,12 @@ class VcpmFixedOption(AdCPBaseModel):
         ...,
         description="Unique identifier for this pricing option within the product (e.g., 'vcpm_usd_guaranteed')",
     )
-    pricing_model: Literal["vcpm"] = Field(..., description="Cost per 1,000 viewable impressions (MRC standard)")
-    rate: float = Field(..., description="Fixed vCPM rate (cost per 1,000 viewable impressions)", ge=0.0)
+    pricing_model: Literal["vcpm"] = Field(
+        ..., description="Cost per 1,000 viewable impressions (MRC standard)"
+    )
+    rate: float = Field(
+        ..., description="Fixed vCPM rate (cost per 1,000 viewable impressions)", ge=0.0
+    )
     currency: str = Field(
         ...,
         description="ISO 4217 currency code",
@@ -103,14 +111,18 @@ class VcpmAuctionOption(AdCPBaseModel):
         ...,
         description="Unique identifier for this pricing option within the product (e.g., 'vcpm_usd_auction')",
     )
-    pricing_model: Literal["vcpm"] = Field(..., description="Cost per 1,000 viewable impressions (MRC standard)")
+    pricing_model: Literal["vcpm"] = Field(
+        ..., description="Cost per 1,000 viewable impressions (MRC standard)"
+    )
     currency: str = Field(
         ...,
         description="ISO 4217 currency code",
         examples=["USD", "EUR", "GBP", "JPY"],
         pattern="^[A-Z]{3}$",
     )
-    price_guidance: PriceGuidance1 = Field(..., description="Statistical guidance for auction pricing")
+    price_guidance: PriceGuidance1 = Field(
+        ..., description="Statistical guidance for auction pricing"
+    )
     min_spend_per_package: float | None = Field(
         None,
         description="Minimum spend requirement per package using this pricing option, in the specified currency",
@@ -149,7 +161,9 @@ class CpcvOption(AdCPBaseModel):
         ...,
         description="Unique identifier for this pricing option within the product (e.g., 'cpcv_usd_guaranteed')",
     )
-    pricing_model: Literal["cpcv"] = Field(..., description="Cost per completed view (100% completion)")
+    pricing_model: Literal["cpcv"] = Field(
+        ..., description="Cost per completed view (100% completion)"
+    )
     rate: float = Field(..., description="Fixed CPCV rate (cost per 100% completion)", ge=0.0)
     currency: str = Field(
         ...,
@@ -207,7 +221,9 @@ class CpvOption(AdCPBaseModel):
         examples=["USD", "EUR", "GBP", "JPY"],
         pattern="^[A-Z]{3}$",
     )
-    parameters: Parameters = Field(..., description="CPV-specific parameters defining the view threshold")
+    parameters: Parameters = Field(
+        ..., description="CPV-specific parameters defining the view threshold"
+    )
     min_spend_per_package: float | None = Field(
         None,
         description="Minimum spend requirement per package using this pricing option, in the specified currency",
@@ -224,7 +240,9 @@ class Parameters1(AdCPBaseModel):
         description="Target demographic in Nielsen format: P/M/W/A/C + age range. Examples: P18-49 (Persons 18-49), M25-54 (Men 25-54), W35+ (Women 35+), A18-34 (Adults 18-34), C2-11 (Children 2-11)",
         pattern="^[PMWAC][0-9]{2}(-[0-9]{2}|\\+)$",
     )
-    min_points: float | None = Field(None, description="Minimum GRPs/TRPs required for this pricing option", ge=0.0)
+    min_points: float | None = Field(
+        None, description="Minimum GRPs/TRPs required for this pricing option", ge=0.0
+    )
 
 
 class CppOption(AdCPBaseModel):
@@ -263,7 +281,9 @@ class Parameters2(AdCPBaseModel):
     sov_percentage: float | None = Field(
         None, description="Guaranteed share of voice as percentage (DOOH, 0-100)", ge=0.0, le=100.0
     )
-    loop_duration_seconds: int | None = Field(None, description="Duration of ad loop rotation in seconds (DOOH)", ge=1)
+    loop_duration_seconds: int | None = Field(
+        None, description="Duration of ad loop rotation in seconds (DOOH)", ge=1
+    )
     min_plays_per_hour: int | None = Field(
         None,
         description="Minimum number of times ad plays per hour (DOOH frequency guarantee)",
@@ -292,7 +312,9 @@ class FlatRateOption(AdCPBaseModel):
         ...,
         description="Unique identifier for this pricing option within the product (e.g., 'flat_rate_usd_24h_takeover')",
     )
-    pricing_model: Literal["flat_rate"] = Field(..., description="Fixed cost regardless of delivery volume")
+    pricing_model: Literal["flat_rate"] = Field(
+        ..., description="Fixed cost regardless of delivery volume"
+    )
     rate: float = Field(..., description="Flat rate cost", ge=0.0)
     currency: str = Field(
         ...,
@@ -300,8 +322,12 @@ class FlatRateOption(AdCPBaseModel):
         examples=["USD", "EUR", "GBP", "JPY"],
         pattern="^[A-Z]{3}$",
     )
-    is_fixed: Literal[True] = Field(..., description="Whether this is a fixed rate (true) or auction-based (false)")
-    parameters: Parameters2 | None = Field(None, description="Flat rate parameters for DOOH and time-based campaigns")
+    is_fixed: Literal[True] = Field(
+        ..., description="Whether this is a fixed rate (true) or auction-based (false)"
+    )
+    parameters: Parameters2 | None = Field(
+        None, description="Flat rate parameters for DOOH and time-based campaigns"
+    )
     min_spend_per_package: float | None = Field(
         None,
         description="Minimum spend requirement per package using this pricing option, in the specified currency",

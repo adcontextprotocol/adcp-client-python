@@ -39,7 +39,10 @@ def add_model_validator_to_product():
         return
 
     # Check if validators already exist
-    if "validate_mutual_exclusivity" in content and "validate_publisher_properties_items" in content:
+    if (
+        "validate_mutual_exclusivity" in content
+        and "validate_publisher_properties_items" in content
+    ):
         print("  product.py validators already exist")
         return
 
@@ -70,7 +73,9 @@ def add_model_validator_to_product():
         match = re.search(publisher_property_pattern, content, re.DOTALL)
 
         if not match:
-            print("  product.py PublisherProperty class found but pattern mismatch (skipping validator)")
+            print(
+                "  product.py PublisherProperty class found but pattern mismatch (skipping validator)"
+            )
         else:
             validator_code = '''
 
@@ -86,7 +91,8 @@ def add_model_validator_to_product():
 '''
             # Insert validator at end of PublisherProperty class
             content = content.replace(
-                match.group(0), match.group(1) + validator_code + "\n\nclass Product(AdCPBaseModel):"
+                match.group(0),
+                match.group(1) + validator_code + "\n\nclass Product(AdCPBaseModel):",
             )
 
             # Verify it was added

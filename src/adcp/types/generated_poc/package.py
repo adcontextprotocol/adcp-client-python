@@ -32,7 +32,9 @@ class Package(AdCPBaseModel):
             ge=0.0,
         ),
     ] = None
-    buyer_ref: Annotated[str | None, Field(description="Buyer's reference identifier for this package")] = None
+    buyer_ref: Annotated[
+        str | None, Field(description="Buyer's reference identifier for this package")
+    ] = None
     creative_assignments: Annotated[
         list[creative_assignment.CreativeAssignment] | None,
         Field(description="Creative assets assigned to this package"),
@@ -41,13 +43,19 @@ class Package(AdCPBaseModel):
         list[format_id.FormatId] | None,
         Field(description="Format IDs that creative assets will be provided for this package"),
     ] = None
-    impressions: Annotated[float | None, Field(description="Impression goal for this package", ge=0.0)] = None
+    impressions: Annotated[
+        float | None, Field(description="Impression goal for this package", ge=0.0)
+    ] = None
     pacing: pacing_1.Pacing | None = None
     package_id: Annotated[str, Field(description="Publisher's unique identifier for the package")]
     pricing_option_id: Annotated[
         str | None,
-        Field(description="ID of the selected pricing option from the product's pricing_options array"),
+        Field(
+            description="ID of the selected pricing option from the product's pricing_options array"
+        ),
     ] = None
-    product_id: Annotated[str | None, Field(description="ID of the product this package is based on")] = None
+    product_id: Annotated[
+        str | None, Field(description="ID of the product this package is based on")
+    ] = None
     status: package_status.PackageStatus
     targeting_overlay: targeting.TargetingOverlay | None = None

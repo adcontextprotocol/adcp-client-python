@@ -15,13 +15,15 @@ class Error(AdCPBaseModel):
         extra="forbid",
     )
     code: Annotated[str, Field(description="Error code for programmatic handling")]
-    details: Annotated[Any | None, Field(description="Additional task-specific error details")] = None
+    details: Annotated[Any | None, Field(description="Additional task-specific error details")] = (
+        None
+    )
     field: Annotated[
         str | None,
         Field(description="Field path associated with the error (e.g., 'packages[0].targeting')"),
     ] = None
     message: Annotated[str, Field(description="Human-readable error message")]
-    retry_after: Annotated[float | None, Field(description="Seconds to wait before retrying the operation", ge=0.0)] = (
-        None
-    )
+    retry_after: Annotated[
+        float | None, Field(description="Seconds to wait before retrying the operation", ge=0.0)
+    ] = None
     suggestion: Annotated[str | None, Field(description="Suggested fix for the error")] = None

@@ -25,7 +25,9 @@ class BuildCreativeResponse2(AdCPBaseModel):
     ] = None
     errors: Annotated[
         list[error.Error],
-        Field(description="Array of errors explaining why creative generation failed", min_length=1),
+        Field(
+            description="Array of errors explaining why creative generation failed", min_length=1
+        ),
     ]
 
 

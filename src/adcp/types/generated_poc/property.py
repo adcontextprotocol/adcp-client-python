@@ -53,7 +53,9 @@ class Property(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    identifiers: Annotated[list[Identifier], Field(description="Array of identifiers for this property", min_length=1)]
+    identifiers: Annotated[
+        list[Identifier], Field(description="Array of identifiers for this property", min_length=1)
+    ]
     name: Annotated[str, Field(description="Human-readable property name")]
     property_id: Annotated[
         str | None,
@@ -71,5 +73,7 @@ class Property(AdCPBaseModel):
     ] = None
     tags: Annotated[
         list[Tag] | None,
-        Field(description="Tags for categorization and grouping (e.g., network membership, content categories)"),
+        Field(
+            description="Tags for categorization and grouping (e.g., network membership, content categories)"
+        ),
     ] = None

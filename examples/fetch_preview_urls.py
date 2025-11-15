@@ -34,7 +34,9 @@ async def main():
 
     try:
         # List formats with preview URL generation
-        result = await creative_agent.list_creative_formats(ListCreativeFormatsRequest(), fetch_previews=True)
+        result = await creative_agent.list_creative_formats(
+            ListCreativeFormatsRequest(), fetch_previews=True
+        )
 
         if not result.success:
             print(f"❌ Failed to fetch formats: {result.error}")

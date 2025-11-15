@@ -30,7 +30,9 @@ class ProtocolAdapter(ABC):
     # Helper methods for response parsing
     # ========================================================================
 
-    def _parse_response(self, raw_result: TaskResult[Any], response_type: type[T] | Any) -> TaskResult[T]:
+    def _parse_response(
+        self, raw_result: TaskResult[Any], response_type: type[T] | Any
+    ) -> TaskResult[T]:
         """
         Parse raw TaskResult into typed TaskResult.
 

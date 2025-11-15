@@ -29,4 +29,6 @@ class ActivateSignalRequest(AdCPBaseModel):
             min_length=1,
         ),
     ]
-    signal_agent_segment_id: Annotated[str, Field(description="The universal identifier for the signal to activate")]
+    signal_agent_segment_id: Annotated[
+        str, Field(description="The universal identifier for the signal to activate")
+    ]

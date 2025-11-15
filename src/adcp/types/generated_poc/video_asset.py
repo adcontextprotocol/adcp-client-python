@@ -14,9 +14,15 @@ class VideoAsset(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    bitrate_kbps: Annotated[int | None, Field(description="Video bitrate in kilobits per second", ge=1)] = None
-    duration_ms: Annotated[int | None, Field(description="Video duration in milliseconds", ge=0)] = None
-    format: Annotated[str | None, Field(description="Video file format (mp4, webm, mov, etc.)")] = None
+    bitrate_kbps: Annotated[
+        int | None, Field(description="Video bitrate in kilobits per second", ge=1)
+    ] = None
+    duration_ms: Annotated[
+        int | None, Field(description="Video duration in milliseconds", ge=0)
+    ] = None
+    format: Annotated[str | None, Field(description="Video file format (mp4, webm, mov, etc.)")] = (
+        None
+    )
     height: Annotated[int | None, Field(description="Video height in pixels", ge=1)] = None
     url: Annotated[AnyUrl, Field(description="URL to the video asset")]
     width: Annotated[int | None, Field(description="Video width in pixels", ge=1)] = None

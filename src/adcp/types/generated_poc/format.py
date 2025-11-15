@@ -46,7 +46,9 @@ class AssetsRequired(AdCPBaseModel):
     required: Annotated[bool | None, Field(description="Whether this asset is required")] = None
     requirements: Annotated[
         dict[str, Any] | None,
-        Field(description="Technical requirements for this asset (dimensions, file size, duration, etc.)"),
+        Field(
+            description="Technical requirements for this asset (dimensions, file size, duration, etc.)"
+        ),
     ] = None
 
 
@@ -59,8 +61,12 @@ class Asset(AdCPBaseModel):
         ),
     ] = None
     asset_type: Annotated[AssetType, Field(description="Type of asset")]
-    required: Annotated[bool | None, Field(description="Whether this asset is required in each repetition")] = None
-    requirements: Annotated[dict[str, Any] | None, Field(description="Technical requirements for this asset")] = None
+    required: Annotated[
+        bool | None, Field(description="Whether this asset is required in each repetition")
+    ] = None
+    requirements: Annotated[
+        dict[str, Any] | None, Field(description="Technical requirements for this asset")
+    ] = None
 
 
 class AssetsRequired1(AdCPBaseModel):
@@ -70,7 +76,9 @@ class AssetsRequired1(AdCPBaseModel):
     assets: Annotated[list[Asset], Field(description="Assets within each repetition of this group")]
     max_count: Annotated[int, Field(description="Maximum number of repetitions allowed", ge=1)]
     min_count: Annotated[int, Field(description="Minimum number of repetitions required", ge=1)]
-    repeatable: Annotated[Literal[True], Field(description="Indicates this is a repeatable asset group")]
+    repeatable: Annotated[
+        Literal[True], Field(description="Indicates this is a repeatable asset group")
+    ]
 
 
 class FormatCard(AdCPBaseModel):
@@ -79,7 +87,9 @@ class FormatCard(AdCPBaseModel):
     )
     format_id: Annotated[
         format_id_1.FormatId,
-        Field(description="Creative format defining the card layout (typically format_card_standard)"),
+        Field(
+            description="Creative format defining the card layout (typically format_card_standard)"
+        ),
     ]
     manifest: Annotated[
         dict[str, Any],
@@ -93,11 +103,15 @@ class FormatCardDetailed(AdCPBaseModel):
     )
     format_id: Annotated[
         format_id_1.FormatId,
-        Field(description="Creative format defining the detailed card layout (typically format_card_detailed)"),
+        Field(
+            description="Creative format defining the detailed card layout (typically format_card_detailed)"
+        ),
     ]
     manifest: Annotated[
         dict[str, Any],
-        Field(description="Asset manifest for rendering the detailed card, structure defined by the format"),
+        Field(
+            description="Asset manifest for rendering the detailed card, structure defined by the format"
+        ),
     ]
 
 
@@ -121,23 +135,37 @@ class Dimensions(AdCPBaseModel):
             pattern="^\\d+:\\d+$",
         ),
     ] = None
-    height: Annotated[float | None, Field(description="Fixed height in specified units", ge=0.0)] = None
-    max_height: Annotated[float | None, Field(description="Maximum height for responsive renders", ge=0.0)] = None
-    max_width: Annotated[float | None, Field(description="Maximum width for responsive renders", ge=0.0)] = None
-    min_height: Annotated[float | None, Field(description="Minimum height for responsive renders", ge=0.0)] = None
-    min_width: Annotated[float | None, Field(description="Minimum width for responsive renders", ge=0.0)] = None
-    responsive: Annotated[Responsive | None, Field(description="Indicates which dimensions are responsive/fluid")] = (
+    height: Annotated[
+        float | None, Field(description="Fixed height in specified units", ge=0.0)
+    ] = None
+    max_height: Annotated[
+        float | None, Field(description="Maximum height for responsive renders", ge=0.0)
+    ] = None
+    max_width: Annotated[
+        float | None, Field(description="Maximum width for responsive renders", ge=0.0)
+    ] = None
+    min_height: Annotated[
+        float | None, Field(description="Minimum height for responsive renders", ge=0.0)
+    ] = None
+    min_width: Annotated[
+        float | None, Field(description="Minimum width for responsive renders", ge=0.0)
+    ] = None
+    responsive: Annotated[
+        Responsive | None, Field(description="Indicates which dimensions are responsive/fluid")
+    ] = None
+    unit: Annotated[Unit, Field(description="Unit of measurement for dimensions")]
+    width: Annotated[float | None, Field(description="Fixed width in specified units", ge=0.0)] = (
         None
     )
-    unit: Annotated[Unit, Field(description="Unit of measurement for dimensions")]
-    width: Annotated[float | None, Field(description="Fixed width in specified units", ge=0.0)] = None
 
 
 class Render(AdCPBaseModel):
     dimensions: Annotated[Dimensions, Field(description="Dimensions for this rendered piece")]
     role: Annotated[
         str,
-        Field(description="Semantic role of this rendered piece (e.g., 'primary', 'companion', 'mobile_variant')"),
+        Field(
+            description="Semantic role of this rendered piece (e.g., 'primary', 'companion', 'mobile_variant')"
+        ),
     ]
 
 
@@ -167,11 +195,15 @@ class Format(AdCPBaseModel):
     ] = None
     description: Annotated[
         str | None,
-        Field(description="Plain text explanation of what this format does and what assets it requires"),
+        Field(
+            description="Plain text explanation of what this format does and what assets it requires"
+        ),
     ] = None
     example_url: Annotated[
         AnyUrl | None,
-        Field(description="Optional URL to showcase page with examples and interactive demos of this format"),
+        Field(
+            description="Optional URL to showcase page with examples and interactive demos of this format"
+        ),
     ] = None
     format_card: Annotated[
         FormatCard | None,
@@ -217,5 +249,7 @@ class Format(AdCPBaseModel):
     ] = None
     type: Annotated[
         Type,
-        Field(description="Media type of this format - determines rendering method and asset requirements"),
+        Field(
+            description="Media type of this format - determines rendering method and asset requirements"
+        ),
     ]

@@ -21,16 +21,18 @@ class Capability(Enum):
 
 
 class CreativeAgent(AdCPBaseModel):
-    agent_name: Annotated[str | None, Field(description="Human-readable name for the creative agent")] = None
+    agent_name: Annotated[
+        str | None, Field(description="Human-readable name for the creative agent")
+    ] = None
     agent_url: Annotated[
         AnyUrl,
         Field(
             description="Base URL for the creative agent (e.g., 'https://reference.adcp.org', 'https://dco.example.com'). Call list_creative_formats on this URL to get its formats."
         ),
     ]
-    capabilities: Annotated[list[Capability] | None, Field(description="Capabilities this creative agent provides")] = (
-        None
-    )
+    capabilities: Annotated[
+        list[Capability] | None, Field(description="Capabilities this creative agent provides")
+    ] = None
 
 
 class ListCreativeFormatsResponse(AdCPBaseModel):

@@ -53,7 +53,9 @@ class VastAsset1(AdCPBaseModel):
         list[TrackingEvent] | None, Field(description="Tracking events supported by this VAST tag")
     ] = None
     url: Annotated[AnyUrl, Field(description="URL endpoint that returns VAST XML")]
-    vast_version: Annotated[VastVersion | None, Field(description="VAST specification version")] = None
+    vast_version: Annotated[VastVersion | None, Field(description="VAST specification version")] = (
+        None
+    )
     vpaid_enabled: Annotated[
         bool | None,
         Field(description="Whether VPAID (Video Player-Ad Interface Definition) is supported"),
@@ -75,7 +77,9 @@ class VastAsset2(AdCPBaseModel):
     tracking_events: Annotated[
         list[TrackingEvent] | None, Field(description="Tracking events supported by this VAST tag")
     ] = None
-    vast_version: Annotated[VastVersion | None, Field(description="VAST specification version")] = None
+    vast_version: Annotated[VastVersion | None, Field(description="VAST specification version")] = (
+        None
+    )
     vpaid_enabled: Annotated[
         bool | None,
         Field(description="Whether VPAID (Video Player-Ad Interface Definition) is supported"),

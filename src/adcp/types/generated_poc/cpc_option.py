@@ -32,6 +32,8 @@ class CpcPricingOption(AdCPBaseModel):
     pricing_model: Annotated[Literal["cpc"], Field(description="Cost per click")]
     pricing_option_id: Annotated[
         str,
-        Field(description="Unique identifier for this pricing option within the product (e.g., 'cpc_usd_fixed')"),
+        Field(
+            description="Unique identifier for this pricing option within the product (e.g., 'cpc_usd_fixed')"
+        ),
     ]
     rate: Annotated[float, Field(description="Fixed CPC rate (cost per click)", ge=0.0)]

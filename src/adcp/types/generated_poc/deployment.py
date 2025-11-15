@@ -35,7 +35,9 @@ class Deployment1(AdCPBaseModel):
             ge=0.0,
         ),
     ] = None
-    is_live: Annotated[bool, Field(description="Whether signal is currently active on this destination")]
+    is_live: Annotated[
+        bool, Field(description="Whether signal is currently active on this destination")
+    ]
     platform: Annotated[str, Field(description="Platform identifier for DSPs")]
     type: Annotated[
         Literal["platform"],
@@ -67,7 +69,9 @@ class Deployment2(AdCPBaseModel):
             ge=0.0,
         ),
     ] = None
-    is_live: Annotated[bool, Field(description="Whether signal is currently active on this destination")]
+    is_live: Annotated[
+        bool, Field(description="Whether signal is currently active on this destination")
+    ]
     type: Annotated[
         Literal["agent"],
         Field(description="Discriminator indicating this is an agent URL-based deployment"),

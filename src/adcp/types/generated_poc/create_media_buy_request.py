@@ -80,11 +80,17 @@ class CreateMediaBuyRequest(AdCPBaseModel):
             description="Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata."
         ),
     ] = None
-    end_time: Annotated[AwareDatetime, Field(description="Campaign end date/time in ISO 8601 format")]
-    packages: Annotated[list[package_request.PackageRequest], Field(description="Array of package configurations")]
+    end_time: Annotated[
+        AwareDatetime, Field(description="Campaign end date/time in ISO 8601 format")
+    ]
+    packages: Annotated[
+        list[package_request.PackageRequest], Field(description="Array of package configurations")
+    ]
     po_number: Annotated[str | None, Field(description="Purchase order number for tracking")] = None
     reporting_webhook: ReportingWebhook | None = None
     start_time: Annotated[
         str | AwareDatetime,
-        Field(description="Campaign start timing: 'asap' or ISO 8601 date-time", title="Start Timing"),
+        Field(
+            description="Campaign start timing: 'asap' or ISO 8601 date-time", title="Start Timing"
+        ),
     ]

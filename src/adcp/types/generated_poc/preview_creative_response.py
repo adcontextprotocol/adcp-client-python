@@ -13,15 +13,21 @@ from . import preview_render
 
 
 class Input(AdCPBaseModel):
-    context_description: Annotated[str | None, Field(description="Context description applied to this variant")] = None
-    macros: Annotated[dict[str, str] | None, Field(description="Macro values applied to this variant")] = None
+    context_description: Annotated[
+        str | None, Field(description="Context description applied to this variant")
+    ] = None
+    macros: Annotated[
+        dict[str, str] | None, Field(description="Macro values applied to this variant")
+    ] = None
     name: Annotated[str, Field(description="Human-readable name for this variant")]
 
 
 class Error(AdCPBaseModel):
     code: Annotated[
         str,
-        Field(description="Error code (e.g., 'invalid_manifest', 'unsupported_format', 'missing_assets')"),
+        Field(
+            description="Error code (e.g., 'invalid_manifest', 'unsupported_format', 'missing_assets')"
+        ),
     ]
     details: Annotated[dict[str, Any] | None, Field(description="Additional error context")] = None
     message: Annotated[str, Field(description="Human-readable error message")]
@@ -42,7 +48,11 @@ class Preview(AdCPBaseModel):
     ]
     preview_id: Annotated[str, Field(description="Unique identifier for this preview variant")]
     renders: Annotated[
-        list[preview_render.PreviewRender1 | preview_render.PreviewRender2 | preview_render.PreviewRender3],
+        list[
+            preview_render.PreviewRender1
+            | preview_render.PreviewRender2
+            | preview_render.PreviewRender3
+        ],
         Field(
             description="Array of rendered pieces for this preview variant. Most formats render as a single piece. Companion ad formats (video + banner), multi-placement formats, and adaptive formats render as multiple pieces.",
             min_length=1,
@@ -60,7 +70,9 @@ class PreviewCreativeResponse1(AdCPBaseModel):
             description="Initiator-provided context echoed inside the preview payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers."
         ),
     ] = None
-    expires_at: Annotated[AwareDatetime, Field(description="ISO 8601 timestamp when preview links expire")]
+    expires_at: Annotated[
+        AwareDatetime, Field(description="ISO 8601 timestamp when preview links expire")
+    ]
     interactive_url: Annotated[
         AnyUrl | None,
         Field(
@@ -84,7 +96,11 @@ class Preview1(AdCPBaseModel):
     input: Input4
     preview_id: str
     renders: Annotated[
-        list[preview_render.PreviewRender1 | preview_render.PreviewRender2 | preview_render.PreviewRender3],
+        list[
+            preview_render.PreviewRender1
+            | preview_render.PreviewRender2
+            | preview_render.PreviewRender3
+        ],
         Field(min_length=1),
     ]
 
@@ -99,7 +115,9 @@ class Response(AdCPBaseModel):
 
 
 class Results(AdCPBaseModel):
-    error: Annotated[Error | None, Field(description="Error information for failed requests")] = None
+    error: Annotated[Error | None, Field(description="Error information for failed requests")] = (
+        None
+    )
     response: Annotated[Response, Field(description="Preview response for successful requests")]
     success: Annotated[Literal[True], Field(description="Whether this preview request succeeded")]
 
@@ -118,7 +136,9 @@ class Response1(AdCPBaseModel):
 
 class Results1(AdCPBaseModel):
     error: Annotated[Error, Field(description="Error information for failed requests")]
-    response: Annotated[Response1 | None, Field(description="Preview response for successful requests")] = None
+    response: Annotated[
+        Response1 | None, Field(description="Preview response for successful requests")
+    ] = None
     success: Annotated[Literal[False], Field(description="Whether this preview request succeeded")]
 
 

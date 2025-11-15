@@ -31,7 +31,9 @@ class Signal(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    coverage_percentage: Annotated[float, Field(description="Percentage of audience coverage", ge=0.0, le=100.0)]
+    coverage_percentage: Annotated[
+        float, Field(description="Percentage of audience coverage", ge=0.0, le=100.0)
+    ]
     data_provider: Annotated[str, Field(description="Name of the data provider")]
     deployments: Annotated[
         list[deployment.Deployment1 | deployment.Deployment2],
@@ -56,6 +58,8 @@ class GetSignalsResponse(AdCPBaseModel):
     ] = None
     errors: Annotated[
         list[error.Error] | None,
-        Field(description="Task-specific errors and warnings (e.g., signal discovery or pricing issues)"),
+        Field(
+            description="Task-specific errors and warnings (e.g., signal discovery or pricing issues)"
+        ),
     ] = None
     signals: Annotated[list[Signal], Field(description="Array of matching signals")]

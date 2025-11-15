@@ -22,6 +22,8 @@ class TasksGetRequest(AdCPBaseModel):
     ] = None
     include_history: Annotated[
         bool | None,
-        Field(description="Include full conversation history for this task (may increase response size)"),
+        Field(
+            description="Include full conversation history for this task (may increase response size)"
+        ),
     ] = False
     task_id: Annotated[str, Field(description="Unique identifier of the task to retrieve")]

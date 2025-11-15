@@ -236,7 +236,9 @@ class TestMCPAdapter:
         mock_session = AsyncMock()
         mock_result = MagicMock()
         # Mock MCP error response WITHOUT structuredContent (valid for errors)
-        mock_result.content = [{"type": "text", "text": "brand_manifest must provide brand information"}]
+        mock_result.content = [
+            {"type": "text", "text": "brand_manifest must provide brand information"}
+        ]
         mock_result.structuredContent = None
         mock_result.isError = True
         mock_session.call_tool.return_value = mock_result
@@ -377,7 +379,9 @@ class TestMCPAdapter:
 
         # Mock the exit stack to simulate connection failure
         mock_exit_stack = AsyncMock(spec=AsyncExitStack)
-        mock_exit_stack.enter_async_context = AsyncMock(side_effect=httpcore.ConnectError("Connection refused"))
+        mock_exit_stack.enter_async_context = AsyncMock(
+            side_effect=httpcore.ConnectError("Connection refused")
+        )
         # Simulate the anyio cleanup error that occurs in production
         mock_exit_stack.aclose = AsyncMock(
             side_effect=RuntimeError("Attempted to exit cancel scope in a different task")
@@ -457,7 +461,9 @@ class TestMCPAdapter:
             mock_stack.enter_async_context = AsyncMock(
                 side_effect=ConnectionError(f"Connection attempt {call_count} failed")
             )
-            mock_stack.aclose = AsyncMock(side_effect=RuntimeError("Cancel scope error") if call_count == 1 else None)
+            mock_stack.aclose = AsyncMock(
+                side_effect=RuntimeError("Cancel scope error") if call_count == 1 else None
+            )
             return mock_stack
 
         with patch("adcp.protocols.mcp.AsyncExitStack", side_effect=create_mock_exit_stack):

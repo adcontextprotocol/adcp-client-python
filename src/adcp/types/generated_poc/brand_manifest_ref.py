@@ -22,17 +22,29 @@ class Logo(AdCPBaseModel):
 
 
 class Colors(AdCPBaseModel):
-    primary: str | None = Field(None, description="Primary brand color (hex format)", pattern="^#[0-9A-Fa-f]{6}$")
-    secondary: str | None = Field(None, description="Secondary brand color (hex format)", pattern="^#[0-9A-Fa-f]{6}$")
-    accent: str | None = Field(None, description="Accent color (hex format)", pattern="^#[0-9A-Fa-f]{6}$")
-    background: str | None = Field(None, description="Background color (hex format)", pattern="^#[0-9A-Fa-f]{6}$")
-    text: str | None = Field(None, description="Text color (hex format)", pattern="^#[0-9A-Fa-f]{6}$")
+    primary: str | None = Field(
+        None, description="Primary brand color (hex format)", pattern="^#[0-9A-Fa-f]{6}$"
+    )
+    secondary: str | None = Field(
+        None, description="Secondary brand color (hex format)", pattern="^#[0-9A-Fa-f]{6}$"
+    )
+    accent: str | None = Field(
+        None, description="Accent color (hex format)", pattern="^#[0-9A-Fa-f]{6}$"
+    )
+    background: str | None = Field(
+        None, description="Background color (hex format)", pattern="^#[0-9A-Fa-f]{6}$"
+    )
+    text: str | None = Field(
+        None, description="Text color (hex format)", pattern="^#[0-9A-Fa-f]{6}$"
+    )
 
 
 class Fonts(AdCPBaseModel):
     primary: str | None = Field(None, description="Primary font family name")
     secondary: str | None = Field(None, description="Secondary font family name")
-    font_urls: list[AnyUrl] | None = Field(None, description="URLs to web font files if using custom fonts")
+    font_urls: list[AnyUrl] | None = Field(
+        None, description="URLs to web font files if using custom fonts"
+    )
 
 
 class AssetType(Enum):
@@ -80,12 +92,18 @@ class ProductCatalog(AdCPBaseModel):
         extra="forbid",
     )
     feed_url: AnyUrl = Field(..., description="URL to product catalog feed")
-    feed_format: FeedFormat | None = Field(FeedFormat.google_merchant_center, description="Format of the product feed")
+    feed_format: FeedFormat | None = Field(
+        FeedFormat.google_merchant_center, description="Format of the product feed"
+    )
     categories: list[str] | None = Field(
         None, description="Product categories available in the catalog (for filtering)"
     )
-    last_updated: AwareDatetime | None = Field(None, description="When the product catalog was last updated")
-    update_frequency: UpdateFrequency | None = Field(None, description="How frequently the product catalog is updated")
+    last_updated: AwareDatetime | None = Field(
+        None, description="When the product catalog was last updated"
+    )
+    update_frequency: UpdateFrequency | None = Field(
+        None, description="How frequently the product catalog is updated"
+    )
 
 
 class Disclaimer(AdCPBaseModel):
@@ -103,8 +121,12 @@ class Contact(AdCPBaseModel):
 
 
 class Metadata(AdCPBaseModel):
-    created_date: AwareDatetime | None = Field(None, description="When this brand manifest was created")
-    updated_date: AwareDatetime | None = Field(None, description="When this brand manifest was last updated")
+    created_date: AwareDatetime | None = Field(
+        None, description="When this brand manifest was created"
+    )
+    updated_date: AwareDatetime | None = Field(
+        None, description="When this brand manifest was last updated"
+    )
     version: str | None = Field(None, description="Brand card version number")
 
 
@@ -117,7 +139,9 @@ class BrandManifest1(AdCPBaseModel):
         description="Primary brand URL for context and asset discovery. Creative agents can infer brand information from this URL.",
     )
     name: str | None = Field(None, description="Brand or business name")
-    logos: list[Logo] | None = Field(None, description="Brand logo assets with semantic tags for different use cases")
+    logos: list[Logo] | None = Field(
+        None, description="Brand logo assets with semantic tags for different use cases"
+    )
     colors: Colors | None = Field(None, description="Brand color palette")
     fonts: Fonts | None = Field(None, description="Brand typography guidelines")
     tone: str | None = Field(
@@ -170,12 +194,18 @@ class ProductCatalog1(AdCPBaseModel):
         extra="forbid",
     )
     feed_url: AnyUrl = Field(..., description="URL to product catalog feed")
-    feed_format: FeedFormat | None = Field(FeedFormat.google_merchant_center, description="Format of the product feed")
+    feed_format: FeedFormat | None = Field(
+        FeedFormat.google_merchant_center, description="Format of the product feed"
+    )
     categories: list[str] | None = Field(
         None, description="Product categories available in the catalog (for filtering)"
     )
-    last_updated: AwareDatetime | None = Field(None, description="When the product catalog was last updated")
-    update_frequency: UpdateFrequency | None = Field(None, description="How frequently the product catalog is updated")
+    last_updated: AwareDatetime | None = Field(
+        None, description="When the product catalog was last updated"
+    )
+    update_frequency: UpdateFrequency | None = Field(
+        None, description="How frequently the product catalog is updated"
+    )
 
 
 class BrandManifest2(AdCPBaseModel):
@@ -187,7 +217,9 @@ class BrandManifest2(AdCPBaseModel):
         description="Primary brand URL for context and asset discovery. Creative agents can infer brand information from this URL.",
     )
     name: str = Field(..., description="Brand or business name")
-    logos: list[Logo] | None = Field(None, description="Brand logo assets with semantic tags for different use cases")
+    logos: list[Logo] | None = Field(
+        None, description="Brand logo assets with semantic tags for different use cases"
+    )
     colors: Colors | None = Field(None, description="Brand color palette")
     fonts: Fonts | None = Field(None, description="Brand typography guidelines")
     tone: str | None = Field(

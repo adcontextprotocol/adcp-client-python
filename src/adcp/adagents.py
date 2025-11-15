@@ -339,7 +339,9 @@ async def fetch_adagents(
             raise AdagentsNotFoundError(publisher_domain)
 
         if response.status_code != 200:
-            raise AdagentsValidationError(f"Failed to fetch adagents.json: HTTP {response.status_code}")
+            raise AdagentsValidationError(
+                f"Failed to fetch adagents.json: HTTP {response.status_code}"
+            )
 
         # Parse JSON
         try:

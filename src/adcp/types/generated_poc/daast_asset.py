@@ -34,8 +34,12 @@ class DaastAsset1(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    companion_ads: Annotated[bool | None, Field(description="Whether companion display ads are included")] = None
-    daast_version: Annotated[DaastVersion | None, Field(description="DAAST specification version")] = None
+    companion_ads: Annotated[
+        bool | None, Field(description="Whether companion display ads are included")
+    ] = None
+    daast_version: Annotated[
+        DaastVersion | None, Field(description="DAAST specification version")
+    ] = None
     delivery_type: Annotated[
         Literal["url"],
         Field(description="Discriminator indicating DAAST is delivered via URL endpoint"),
@@ -53,9 +57,13 @@ class DaastAsset2(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    companion_ads: Annotated[bool | None, Field(description="Whether companion display ads are included")] = None
+    companion_ads: Annotated[
+        bool | None, Field(description="Whether companion display ads are included")
+    ] = None
     content: Annotated[str, Field(description="Inline DAAST XML content")]
-    daast_version: Annotated[DaastVersion | None, Field(description="DAAST specification version")] = None
+    daast_version: Annotated[
+        DaastVersion | None, Field(description="DAAST specification version")
+    ] = None
     delivery_type: Annotated[
         Literal["inline"],
         Field(description="Discriminator indicating DAAST is delivered as inline XML content"),

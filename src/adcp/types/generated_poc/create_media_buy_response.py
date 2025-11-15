@@ -34,7 +34,9 @@ class CreateMediaBuyResponse1(AdCPBaseModel):
     creative_deadline: Annotated[
         AwareDatetime | None, Field(description="ISO 8601 timestamp for creative upload deadline")
     ] = None
-    media_buy_id: Annotated[str, Field(description="Publisher's unique identifier for the created media buy")]
+    media_buy_id: Annotated[
+        str, Field(description="Publisher's unique identifier for the created media buy")
+    ]
     packages: Annotated[list[Package], Field(description="Array of created packages")]
 
 

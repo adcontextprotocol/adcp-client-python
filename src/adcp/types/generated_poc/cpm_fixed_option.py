@@ -32,6 +32,8 @@ class CpmFixedRatePricingOption(AdCPBaseModel):
     pricing_model: Annotated[Literal["cpm"], Field(description="Cost per 1,000 impressions")]
     pricing_option_id: Annotated[
         str,
-        Field(description="Unique identifier for this pricing option within the product (e.g., 'cpm_usd_guaranteed')"),
+        Field(
+            description="Unique identifier for this pricing option within the product (e.g., 'cpm_usd_guaranteed')"
+        ),
     ]
     rate: Annotated[float, Field(description="Fixed CPM rate (cost per 1,000 impressions)", ge=0.0)]

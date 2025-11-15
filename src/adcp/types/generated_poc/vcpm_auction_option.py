@@ -12,10 +12,16 @@ from pydantic import ConfigDict, Field
 
 class PriceGuidance(AdCPBaseModel):
     floor: Annotated[float, Field(description="Minimum acceptable bid price", ge=0.0)]
-    p25: Annotated[float | None, Field(description="25th percentile of recent winning bids", ge=0.0)] = None
+    p25: Annotated[
+        float | None, Field(description="25th percentile of recent winning bids", ge=0.0)
+    ] = None
     p50: Annotated[float | None, Field(description="Median of recent winning bids", ge=0.0)] = None
-    p75: Annotated[float | None, Field(description="75th percentile of recent winning bids", ge=0.0)] = None
-    p90: Annotated[float | None, Field(description="90th percentile of recent winning bids", ge=0.0)] = None
+    p75: Annotated[
+        float | None, Field(description="75th percentile of recent winning bids", ge=0.0)
+    ] = None
+    p90: Annotated[
+        float | None, Field(description="90th percentile of recent winning bids", ge=0.0)
+    ] = None
 
 
 class VcpmAuctionPricingOption(AdCPBaseModel):
@@ -37,9 +43,15 @@ class VcpmAuctionPricingOption(AdCPBaseModel):
             ge=0.0,
         ),
     ] = None
-    price_guidance: Annotated[PriceGuidance, Field(description="Statistical guidance for auction pricing")]
-    pricing_model: Annotated[Literal["vcpm"], Field(description="Cost per 1,000 viewable impressions (MRC standard)")]
+    price_guidance: Annotated[
+        PriceGuidance, Field(description="Statistical guidance for auction pricing")
+    ]
+    pricing_model: Annotated[
+        Literal["vcpm"], Field(description="Cost per 1,000 viewable impressions (MRC standard)")
+    ]
     pricing_option_id: Annotated[
         str,
-        Field(description="Unique identifier for this pricing option within the product (e.g., 'vcpm_usd_auction')"),
+        Field(
+            description="Unique identifier for this pricing option within the product (e.g., 'vcpm_usd_auction')"
+        ),
     ]

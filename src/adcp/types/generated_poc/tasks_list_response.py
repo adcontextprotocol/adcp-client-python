@@ -35,7 +35,9 @@ class DomainBreakdown(AdCPBaseModel):
         int | None,
         Field(alias="media-buy", description="Number of media-buy tasks in results", ge=0),
     ] = None
-    signals: Annotated[int | None, Field(description="Number of signals tasks in results", ge=0)] = None
+    signals: Annotated[
+        int | None, Field(description="Number of signals tasks in results", ge=0)
+    ] = None
 
 
 class Direction(Enum):
@@ -55,14 +57,22 @@ class QuerySummary(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    domain_breakdown: Annotated[DomainBreakdown | None, Field(description="Count of tasks by domain")] = None
+    domain_breakdown: Annotated[
+        DomainBreakdown | None, Field(description="Count of tasks by domain")
+    ] = None
     filters_applied: Annotated[
         list[str] | None, Field(description="List of filters that were applied to the query")
     ] = None
     returned: Annotated[int, Field(description="Number of tasks returned in this response", ge=0)]
-    sort_applied: Annotated[SortApplied | None, Field(description="Sort order that was applied")] = None
-    status_breakdown: Annotated[dict[str, int] | None, Field(description="Count of tasks by status")] = None
-    total_matching: Annotated[int, Field(description="Total number of tasks matching filters (across all pages)", ge=0)]
+    sort_applied: Annotated[
+        SortApplied | None, Field(description="Sort order that was applied")
+    ] = None
+    status_breakdown: Annotated[
+        dict[str, int] | None, Field(description="Count of tasks by status")
+    ] = None
+    total_matching: Annotated[
+        int, Field(description="Total number of tasks matching filters (across all pages)", ge=0)
+    ]
 
 
 class Domain(Enum):
@@ -76,15 +86,23 @@ class Task(AdCPBaseModel):
     )
     completed_at: Annotated[
         AwareDatetime | None,
-        Field(description="When the task completed (ISO 8601, only for completed/failed/canceled tasks)"),
+        Field(
+            description="When the task completed (ISO 8601, only for completed/failed/canceled tasks)"
+        ),
     ] = None
-    created_at: Annotated[AwareDatetime, Field(description="When the task was initially created (ISO 8601)")]
+    created_at: Annotated[
+        AwareDatetime, Field(description="When the task was initially created (ISO 8601)")
+    ]
     domain: Annotated[Domain, Field(description="AdCP domain this task belongs to")]
-    has_webhook: Annotated[bool | None, Field(description="Whether this task has webhook configuration")] = None
+    has_webhook: Annotated[
+        bool | None, Field(description="Whether this task has webhook configuration")
+    ] = None
     status: Annotated[task_status.TaskStatus, Field(description="Current task status")]
     task_id: Annotated[str, Field(description="Unique identifier for this task")]
     task_type: Annotated[task_type_1.TaskType, Field(description="Type of AdCP operation")]
-    updated_at: Annotated[AwareDatetime, Field(description="When the task was last updated (ISO 8601)")]
+    updated_at: Annotated[
+        AwareDatetime, Field(description="When the task was last updated (ISO 8601)")
+    ]
 
 
 class TasksListResponse(AdCPBaseModel):
@@ -98,5 +116,7 @@ class TasksListResponse(AdCPBaseModel):
         ),
     ] = None
     pagination: Annotated[Pagination, Field(description="Pagination information")]
-    query_summary: Annotated[QuerySummary, Field(description="Summary of the query that was executed")]
+    query_summary: Annotated[
+        QuerySummary, Field(description="Summary of the query that was executed")
+    ]
     tasks: Annotated[list[Task], Field(description="Array of tasks matching the query criteria")]

@@ -29,4 +29,6 @@ class CreativePolicy(AdCPBaseModel):
     )
     co_branding: Annotated[CoBranding, Field(description="Co-branding requirement")]
     landing_page: Annotated[LandingPage, Field(description="Landing page requirements")]
-    templates_available: Annotated[bool, Field(description="Whether creative templates are provided")]
+    templates_available: Annotated[
+        bool, Field(description="Whether creative templates are provided")
+    ]

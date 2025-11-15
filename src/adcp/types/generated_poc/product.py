@@ -41,7 +41,9 @@ class ProductCard(AdCPBaseModel):
     )
     format_id: Annotated[
         format_id_1.FormatId,
-        Field(description="Creative format defining the card layout (typically product_card_standard)"),
+        Field(
+            description="Creative format defining the card layout (typically product_card_standard)"
+        ),
     ]
     manifest: Annotated[
         dict[str, Any],
@@ -55,11 +57,15 @@ class ProductCardDetailed(AdCPBaseModel):
     )
     format_id: Annotated[
         format_id_1.FormatId,
-        Field(description="Creative format defining the detailed card layout (typically product_card_detailed)"),
+        Field(
+            description="Creative format defining the detailed card layout (typically product_card_detailed)"
+        ),
     ]
     manifest: Annotated[
         dict[str, Any],
-        Field(description="Asset manifest for rendering the detailed card, structure defined by the format"),
+        Field(
+            description="Asset manifest for rendering the detailed card, structure defined by the format"
+        ),
     ]
 
 
@@ -114,7 +120,9 @@ class Product(AdCPBaseModel):
     )
     brief_relevance: Annotated[
         str | None,
-        Field(description="Explanation of why this product matches the brief (only included when brief is provided)"),
+        Field(
+            description="Explanation of why this product matches the brief (only included when brief is provided)"
+        ),
     ] = None
     creative_policy: creative_policy_1.CreativePolicy | None = None
     delivery_measurement: Annotated[
@@ -124,12 +132,16 @@ class Product(AdCPBaseModel):
         ),
     ]
     delivery_type: delivery_type_1.DeliveryType
-    description: Annotated[str, Field(description="Detailed description of the product and its inventory")]
+    description: Annotated[
+        str, Field(description="Detailed description of the product and its inventory")
+    ]
     estimated_exposures: Annotated[
         int | None,
         Field(description="Estimated exposures/impressions for guaranteed products", ge=0),
     ] = None
-    expires_at: Annotated[AwareDatetime | None, Field(description="Expiration timestamp for custom products")] = None
+    expires_at: Annotated[
+        AwareDatetime | None, Field(description="Expiration timestamp for custom products")
+    ] = None
     format_ids: Annotated[
         list[format_id_1.FormatId],
         Field(

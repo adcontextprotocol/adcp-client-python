@@ -33,8 +33,12 @@ class Packages(AdCPBaseModel):
             ge=0.0,
         ),
     ] = None
-    buyer_ref: Annotated[str | None, Field(description="Buyer's reference for the package to update")] = None
-    creative_ids: Annotated[list[str] | None, Field(description="Update creative assignments")] = None
+    buyer_ref: Annotated[
+        str | None, Field(description="Buyer's reference for the package to update")
+    ] = None
+    creative_ids: Annotated[list[str] | None, Field(description="Update creative assignments")] = (
+        None
+    )
     pacing: pacing_1.Pacing | None = None
     package_id: Annotated[str, Field(description="Publisher's ID of package to update")]
     targeting_overlay: targeting.TargetingOverlay | None = None
@@ -60,9 +64,13 @@ class Packages1(AdCPBaseModel):
         ),
     ] = None
     buyer_ref: Annotated[str, Field(description="Buyer's reference for the package to update")]
-    creative_ids: Annotated[list[str] | None, Field(description="Update creative assignments")] = None
+    creative_ids: Annotated[list[str] | None, Field(description="Update creative assignments")] = (
+        None
+    )
     pacing: pacing_1.Pacing | None = None
-    package_id: Annotated[str | None, Field(description="Publisher's ID of package to update")] = None
+    package_id: Annotated[str | None, Field(description="Publisher's ID of package to update")] = (
+        None
+    )
     targeting_overlay: targeting.TargetingOverlay | None = None
 
 
@@ -71,16 +79,22 @@ class UpdateMediaBuyRequest1(AdCPBaseModel):
         extra="forbid",
     )
     active: Annotated[bool | None, Field(description="Pause/resume the entire media buy")] = None
-    buyer_ref: Annotated[str | None, Field(description="Buyer's reference for the media buy to update")] = None
+    buyer_ref: Annotated[
+        str | None, Field(description="Buyer's reference for the media buy to update")
+    ] = None
     context: Annotated[
         dict[str, Any] | None,
         Field(
             description="Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata."
         ),
     ] = None
-    end_time: Annotated[AwareDatetime | None, Field(description="New end date/time in ISO 8601 format")] = None
+    end_time: Annotated[
+        AwareDatetime | None, Field(description="New end date/time in ISO 8601 format")
+    ] = None
     media_buy_id: Annotated[str, Field(description="Publisher's ID of the media buy to update")]
-    packages: Annotated[list[Packages | Packages1] | None, Field(description="Package-specific updates")] = None
+    packages: Annotated[
+        list[Packages | Packages1] | None, Field(description="Package-specific updates")
+    ] = None
     push_notification_config: Annotated[
         push_notification_config_1.PushNotificationConfig | None,
         Field(
@@ -89,7 +103,9 @@ class UpdateMediaBuyRequest1(AdCPBaseModel):
     ] = None
     start_time: Annotated[
         str | AwareDatetime | None,
-        Field(description="Campaign start timing: 'asap' or ISO 8601 date-time", title="Start Timing"),
+        Field(
+            description="Campaign start timing: 'asap' or ISO 8601 date-time", title="Start Timing"
+        ),
     ] = None
 
 
@@ -111,9 +127,15 @@ class UpdateMediaBuyRequest2(AdCPBaseModel):
             description="Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata."
         ),
     ] = None
-    end_time: Annotated[AwareDatetime | None, Field(description="New end date/time in ISO 8601 format")] = None
-    media_buy_id: Annotated[str | None, Field(description="Publisher's ID of the media buy to update")] = None
-    packages: Annotated[list[Packages2 | Packages3] | None, Field(description="Package-specific updates")] = None
+    end_time: Annotated[
+        AwareDatetime | None, Field(description="New end date/time in ISO 8601 format")
+    ] = None
+    media_buy_id: Annotated[
+        str | None, Field(description="Publisher's ID of the media buy to update")
+    ] = None
+    packages: Annotated[
+        list[Packages2 | Packages3] | None, Field(description="Package-specific updates")
+    ] = None
     push_notification_config: Annotated[
         push_notification_config_1.PushNotificationConfig | None,
         Field(
@@ -122,7 +144,9 @@ class UpdateMediaBuyRequest2(AdCPBaseModel):
     ] = None
     start_time: Annotated[
         str | AwareDatetime | None,
-        Field(description="Campaign start timing: 'asap' or ISO 8601 date-time", title="Start Timing"),
+        Field(
+            description="Campaign start timing: 'asap' or ISO 8601 date-time", title="Start Timing"
+        ),
     ] = None
 
 

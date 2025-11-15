@@ -22,7 +22,9 @@ class MarkdownAsset(AdCPBaseModel):
     )
     allow_raw_html: Annotated[
         bool | None,
-        Field(description="Whether raw HTML blocks are allowed in the markdown. False recommended for security."),
+        Field(
+            description="Whether raw HTML blocks are allowed in the markdown. False recommended for security."
+        ),
     ] = False
     content: Annotated[
         str,
@@ -30,7 +32,9 @@ class MarkdownAsset(AdCPBaseModel):
             description="Markdown content following CommonMark spec with optional GitHub Flavored Markdown extensions"
         ),
     ]
-    language: Annotated[str | None, Field(description="Language code (e.g., 'en', 'es', 'fr')")] = None
+    language: Annotated[str | None, Field(description="Language code (e.g., 'en', 'es', 'fr')")] = (
+        None
+    )
     markdown_flavor: Annotated[
         MarkdownFlavor | None,
         Field(

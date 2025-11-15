@@ -20,8 +20,12 @@ class TargetingOverlay(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    axe_exclude_segment: Annotated[str | None, Field(description="AXE segment ID to exclude from targeting")] = None
-    axe_include_segment: Annotated[str | None, Field(description="AXE segment ID to include for targeting")] = None
+    axe_exclude_segment: Annotated[
+        str | None, Field(description="AXE segment ID to exclude from targeting")
+    ] = None
+    axe_include_segment: Annotated[
+        str | None, Field(description="AXE segment ID to include for targeting")
+    ] = None
     frequency_cap: frequency_cap_1.FrequencyCap | None = None
     geo_country_any_of: Annotated[
         list[GeoCountryAnyOfItem] | None,

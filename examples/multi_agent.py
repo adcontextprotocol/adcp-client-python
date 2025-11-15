@@ -39,7 +39,9 @@ async def main():
     async with ADCPMultiAgentClient(
         agents=agents,
         webhook_url_template="https://myapp.com/webhook/{task_type}/{agent_id}/{operation_id}",
-        on_activity=lambda activity: print(f"[{activity.agent_id}] [{activity.type}] {activity.task_type}"),
+        on_activity=lambda activity: print(
+            f"[{activity.agent_id}] [{activity.type}] {activity.task_type}"
+        ),
         handlers={
             "on_get_products_status_change": handle_products_result,
         },

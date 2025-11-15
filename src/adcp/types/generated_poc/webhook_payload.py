@@ -23,10 +23,16 @@ class Progress(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    current_step: Annotated[str | None, Field(description="Current step or phase of the operation")] = None
-    percentage: Annotated[float | None, Field(description="Completion percentage (0-100)", ge=0.0, le=100.0)] = None
+    current_step: Annotated[
+        str | None, Field(description="Current step or phase of the operation")
+    ] = None
+    percentage: Annotated[
+        float | None, Field(description="Completion percentage (0-100)", ge=0.0, le=100.0)
+    ] = None
     step_number: Annotated[int | None, Field(description="Current step number", ge=1)] = None
-    total_steps: Annotated[int | None, Field(description="Total number of steps in the operation", ge=1)] = None
+    total_steps: Annotated[
+        int | None, Field(description="Total number of steps in the operation", ge=1)
+    ] = None
 
 
 class WebhookPayload(AdCPBaseModel):
@@ -41,7 +47,9 @@ class WebhookPayload(AdCPBaseModel):
     ] = None
     domain: Annotated[
         Domain | None,
-        Field(description="AdCP domain this task belongs to. Helps classify the operation type at a high level."),
+        Field(
+            description="AdCP domain this task belongs to. Helps classify the operation type at a high level."
+        ),
     ] = None
     error: Annotated[
         str | None,
@@ -89,4 +97,6 @@ class WebhookPayload(AdCPBaseModel):
             description="Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic."
         ),
     ]
-    timestamp: Annotated[AwareDatetime, Field(description="ISO 8601 timestamp when this webhook was generated.")]
+    timestamp: Annotated[
+        AwareDatetime, Field(description="ISO 8601 timestamp when this webhook was generated.")
+    ]

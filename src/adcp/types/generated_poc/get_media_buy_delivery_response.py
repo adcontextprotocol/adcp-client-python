@@ -23,8 +23,12 @@ class AggregatedTotals(AdCPBaseModel):
         float | None,
         Field(description="Total clicks across all media buys (if applicable)", ge=0.0),
     ] = None
-    impressions: Annotated[float, Field(description="Total impressions delivered across all media buys", ge=0.0)]
-    media_buy_count: Annotated[int, Field(description="Number of media buys included in the response", ge=0)]
+    impressions: Annotated[
+        float, Field(description="Total impressions delivered across all media buys", ge=0.0)
+    ]
+    media_buy_count: Annotated[
+        int, Field(description="Number of media buys included in the response", ge=0)
+    ]
     spend: Annotated[float, Field(description="Total amount spent across all media buys", ge=0.0)]
     video_completions: Annotated[
         float | None,
@@ -82,7 +86,9 @@ class ReportingPeriod(AdCPBaseModel):
 
 
 class ByPackageItem(DeliveryMetrics):
-    buyer_ref: Annotated[str | None, Field(description="Buyer's reference identifier for this package")] = None
+    buyer_ref: Annotated[
+        str | None, Field(description="Buyer's reference identifier for this package")
+    ] = None
     currency: Annotated[
         str,
         Field(
@@ -114,9 +120,13 @@ class MediaBuyDelivery(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    buyer_ref: Annotated[str | None, Field(description="Buyer's reference identifier for this media buy")] = None
+    buyer_ref: Annotated[
+        str | None, Field(description="Buyer's reference identifier for this media buy")
+    ] = None
     by_package: Annotated[list[ByPackageItem], Field(description="Metrics broken down by package")]
-    daily_breakdown: Annotated[list[DailyBreakdownItem] | None, Field(description="Day-by-day delivery")] = None
+    daily_breakdown: Annotated[
+        list[DailyBreakdownItem] | None, Field(description="Day-by-day delivery")
+    ] = None
     expected_availability: Annotated[
         AwareDatetime | None,
         Field(
@@ -162,7 +172,9 @@ class GetMediaBuyDeliveryResponse(AdCPBaseModel):
     currency: Annotated[str, Field(description="ISO 4217 currency code", pattern="^[A-Z]{3}$")]
     errors: Annotated[
         list[error.Error] | None,
-        Field(description="Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)"),
+        Field(
+            description="Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)"
+        ),
     ] = None
     media_buy_deliveries: Annotated[
         list[MediaBuyDelivery],

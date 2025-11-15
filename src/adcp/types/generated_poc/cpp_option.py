@@ -53,6 +53,8 @@ class CppPricingOption(AdCPBaseModel):
     pricing_model: Annotated[Literal["cpp"], Field(description="Cost per Gross Rating Point")]
     pricing_option_id: Annotated[
         str,
-        Field(description="Unique identifier for this pricing option within the product (e.g., 'cpp_usd_p18-49')"),
+        Field(
+            description="Unique identifier for this pricing option within the product (e.g., 'cpp_usd_p18-49')"
+        ),
     ]
     rate: Annotated[float, Field(description="Fixed CPP rate (cost per rating point)", ge=0.0)]

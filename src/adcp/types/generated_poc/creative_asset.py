@@ -31,7 +31,9 @@ class Input(AdCPBaseModel):
         str | None,
         Field(description="Natural language description of the context for AI-generated content"),
     ] = None
-    macros: Annotated[dict[str, str] | None, Field(description="Macro values to apply for this preview")] = None
+    macros: Annotated[
+        dict[str, str] | None, Field(description="Macro values to apply for this preview")
+    ] = None
     name: Annotated[str, Field(description="Human-readable name for this preview variant")]
 
 
@@ -71,7 +73,11 @@ class CreativeAsset(AdCPBaseModel):
     ]
     inputs: Annotated[
         list[Input] | None,
-        Field(description="Preview contexts for generative formats - defines what scenarios to generate previews for"),
+        Field(
+            description="Preview contexts for generative formats - defines what scenarios to generate previews for"
+        ),
     ] = None
     name: Annotated[str, Field(description="Human-readable creative name")]
-    tags: Annotated[list[str] | None, Field(description="User-defined tags for organization and searchability")] = None
+    tags: Annotated[
+        list[str] | None, Field(description="User-defined tags for organization and searchability")
+    ] = None

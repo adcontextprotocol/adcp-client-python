@@ -21,7 +21,9 @@ class UrlAsset(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    description: Annotated[str | None, Field(description="Description of what this URL points to")] = None
+    description: Annotated[
+        str | None, Field(description="Description of what this URL points to")
+    ] = None
     url: Annotated[AnyUrl, Field(description="URL reference")]
     url_type: Annotated[
         UrlType | None,

@@ -48,7 +48,9 @@ class ListCreativeFormatsRequest(AdCPBaseModel):
     ] = None
     format_ids: Annotated[
         list[format_id.FormatId] | None,
-        Field(description="Return only these specific format IDs (e.g., from get_products response)"),
+        Field(
+            description="Return only these specific format IDs (e.g., from get_products response)"
+        ),
     ] = None
     is_responsive: Annotated[
         bool | None,
@@ -85,5 +87,7 @@ class ListCreativeFormatsRequest(AdCPBaseModel):
     ] = None
     type: Annotated[
         Type | None,
-        Field(description="Filter by format type (technical categories with distinct requirements)"),
+        Field(
+            description="Filter by format type (technical categories with distinct requirements)"
+        ),
     ] = None

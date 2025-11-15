@@ -22,8 +22,12 @@ class MeasurementPeriod(AdCPBaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    end: Annotated[AwareDatetime, Field(description="ISO 8601 end timestamp for measurement period")]
-    start: Annotated[AwareDatetime, Field(description="ISO 8601 start timestamp for measurement period")]
+    end: Annotated[
+        AwareDatetime, Field(description="ISO 8601 end timestamp for measurement period")
+    ]
+    start: Annotated[
+        AwareDatetime, Field(description="ISO 8601 start timestamp for measurement period")
+    ]
 
 
 class MetricType(Enum):
@@ -50,19 +54,27 @@ class PerformanceFeedback(AdCPBaseModel):
     )
     applied_at: Annotated[
         AwareDatetime | None,
-        Field(description="ISO 8601 timestamp when feedback was applied to optimization algorithms"),
+        Field(
+            description="ISO 8601 timestamp when feedback was applied to optimization algorithms"
+        ),
     ] = None
     creative_id: Annotated[
         str | None, Field(description="Specific creative asset (if feedback is creative-specific)")
     ] = None
-    feedback_id: Annotated[str, Field(description="Unique identifier for this performance feedback submission")]
+    feedback_id: Annotated[
+        str, Field(description="Unique identifier for this performance feedback submission")
+    ]
     feedback_source: Annotated[FeedbackSource, Field(description="Source of the performance data")]
-    measurement_period: Annotated[MeasurementPeriod, Field(description="Time period for performance measurement")]
+    measurement_period: Annotated[
+        MeasurementPeriod, Field(description="Time period for performance measurement")
+    ]
     media_buy_id: Annotated[str, Field(description="Publisher's media buy identifier")]
     metric_type: Annotated[MetricType, Field(description="The business metric being measured")]
     package_id: Annotated[
         str | None,
-        Field(description="Specific package within the media buy (if feedback is package-specific)"),
+        Field(
+            description="Specific package within the media buy (if feedback is package-specific)"
+        ),
     ] = None
     performance_index: Annotated[
         float,
@@ -72,4 +84,6 @@ class PerformanceFeedback(AdCPBaseModel):
         ),
     ]
     status: Annotated[Status, Field(description="Processing status of the performance feedback")]
-    submitted_at: Annotated[AwareDatetime, Field(description="ISO 8601 timestamp when feedback was submitted")]
+    submitted_at: Annotated[
+        AwareDatetime, Field(description="ISO 8601 timestamp when feedback was submitted")
+    ]

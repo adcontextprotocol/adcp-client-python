@@ -15,7 +15,9 @@ class ImageAsset(AdCPBaseModel):
         extra="forbid",
     )
     alt_text: Annotated[str | None, Field(description="Alternative text for accessibility")] = None
-    format: Annotated[str | None, Field(description="Image file format (jpg, png, gif, webp, etc.)")] = None
+    format: Annotated[
+        str | None, Field(description="Image file format (jpg, png, gif, webp, etc.)")
+    ] = None
     height: Annotated[int | None, Field(description="Image height in pixels", ge=1)] = None
     url: Annotated[AnyUrl, Field(description="URL to the image asset")]
     width: Annotated[int | None, Field(description="Image width in pixels", ge=1)] = None
