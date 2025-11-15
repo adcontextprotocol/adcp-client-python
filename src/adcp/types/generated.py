@@ -16,7 +16,6 @@ from adcp.types.generated_poc.activation_key import ActivationKey1, ActivationKe
 from adcp.types.generated_poc.adagents import AuthorizedAgents, AuthorizedAgents1, AuthorizedAgents2, AuthorizedAgents3, AuthorizedSalesAgents, Contact, PropertyId, PropertyTag, PublisherProperties, PublisherProperties1, Tags
 from adcp.types.generated_poc.asset_type import AssetTypeSchema, ContentLength, Dimensions, Duration, FileSize, Quality, Requirements, Type
 from adcp.types.generated_poc.audio_asset import AudioAsset
-from adcp.types.generated_poc.brand_manifest import Asset, Asset1, AssetType, BrandManifest, BrandManifest1, BrandManifest2, Colors, Contact, Disclaimer, FeedFormat, Fonts, Logo, Metadata, ProductCatalog, ProductCatalog1, UpdateFrequency
 from adcp.types.generated_poc.brand_manifest_ref import Asset, Asset1, AssetType, BrandManifest, BrandManifest1, BrandManifest2, BrandManifestReference, Colors, Contact, Disclaimer, FeedFormat, Fonts, Logo, Metadata, ProductCatalog, ProductCatalog1, UpdateFrequency
 from adcp.types.generated_poc.build_creative_request import BuildCreativeRequest
 from adcp.types.generated_poc.build_creative_response import BuildCreativeResponse, BuildCreativeResponse1, BuildCreativeResponse2
