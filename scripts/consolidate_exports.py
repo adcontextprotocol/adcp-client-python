@@ -71,7 +71,9 @@ def generate_consolidated_exports() -> str:
             if export_name in export_to_module:
                 # Collision detected - skip this duplicate
                 first_module = export_to_module[export_name]
-                collisions.append(f"  {export_name}: defined in both {first_module} and {module_name} (using {first_module})")
+                collisions.append(
+                    f"  {export_name}: defined in both {first_module} and {module_name} (using {first_module})"
+                )
             else:
                 unique_exports.add(export_name)
                 export_to_module[export_name] = module_name
@@ -114,18 +116,20 @@ def generate_consolidated_exports() -> str:
     lines.extend(import_lines)
 
     # Add backward compatibility aliases
-    all_exports_with_aliases = all_exports | {'BrandManifestRef', 'Channels'}
+    all_exports_with_aliases = all_exports | {"BrandManifestRef", "Channels"}
 
-    lines.extend([
-        "",
-        "# Backward compatibility aliases for renamed types",
-        "BrandManifestRef = BrandManifestReference",
-        "Channels = AdvertisingChannels",
-        "",
-        "# Explicit exports",
-        f"__all__ = {sorted(list(all_exports_with_aliases))}",
-        ""
-    ])
+    lines.extend(
+        [
+            "",
+            "# Backward compatibility aliases for renamed types",
+            "BrandManifestRef = BrandManifestReference",
+            "Channels = AdvertisingChannels",
+            "",
+            "# Explicit exports",
+            f"__all__ = {sorted(list(all_exports_with_aliases))}",
+            "",
+        ]
+    )
 
     return "\n".join(lines)
 

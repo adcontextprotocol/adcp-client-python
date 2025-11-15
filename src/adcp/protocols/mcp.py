@@ -34,9 +34,7 @@ class MCPAdapter(ProtocolAdapter):
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         if not MCP_AVAILABLE:
-            raise ImportError(
-                "MCP SDK not installed. Install with: pip install mcp (requires Python 3.10+)"
-            )
+            raise ImportError("MCP SDK not installed. Install with: pip install mcp (requires Python 3.10+)")
         self._session: Any = None
         self._exit_stack: Any = None
 
@@ -64,14 +62,10 @@ class MCPAdapter(ProtocolAdapter):
                 if "cancel scope" in error_msg or "async context" in error_msg:
                     logger.debug(f"Ignoring anyio cleanup error {context}: {cleanup_error}")
                 else:
-                    logger.warning(
-                        f"Unexpected RuntimeError during cleanup {context}: {cleanup_error}"
-                    )
+                    logger.warning(f"Unexpected RuntimeError during cleanup {context}: {cleanup_error}")
             except Exception as cleanup_error:
                 # Log unexpected cleanup errors but don't raise to preserve original error
-                logger.warning(
-                    f"Unexpected error during cleanup {context}: {cleanup_error}", exc_info=True
-                )
+                logger.warning(f"Unexpected error during cleanup {context}: {cleanup_error}", exc_info=True)
 
     async def _get_session(self) -> ClientSession:
         """
@@ -97,9 +91,7 @@ class MCPAdapter(ProtocolAdapter):
             if self.agent_config.auth_token:
                 # Support custom auth headers and types
                 if self.agent_config.auth_type == "bearer":
-                    headers[self.agent_config.auth_header] = (
-                        f"Bearer {self.agent_config.auth_token}"
-                    )
+                    headers[self.agent_config.auth_header] = f"Bearer {self.agent_config.auth_token}"
                 else:
                     headers[self.agent_config.auth_header] = self.agent_config.auth_token
 
@@ -118,19 +110,13 @@ class MCPAdapter(ProtocolAdapter):
                     if self.agent_config.mcp_transport == "streamable_http":
                         # Use streamable HTTP transport (newer, bidirectional)
                         read, write, _get_session_id = await self._exit_stack.enter_async_context(
-                            streamablehttp_client(
-                                url, headers=headers, timeout=self.agent_config.timeout
-                            )
+                            streamablehttp_client(url, headers=headers, timeout=self.agent_config.timeout)
                         )
                     else:
                         # Use SSE transport (legacy, but widely supported)
-                        read, write = await self._exit_stack.enter_async_context(
-                            sse_client(url, headers=headers)
-                        )
+                        read, write = await self._exit_stack.enter_async_context(sse_client(url, headers=headers))
 
-                    self._session = await self._exit_stack.enter_async_context(
-                        _ClientSession(read, write)
-                    )
+                    self._session = await self._exit_stack.enter_async_context(_ClientSession(read, write))
 
                     # Initialize the session
                     await self._session.initialize()
@@ -141,8 +127,7 @@ class MCPAdapter(ProtocolAdapter):
                     )
                     if url != self.agent_config.agent_uri:
                         logger.info(
-                            f"Note: Connected using fallback URL {url} "
-                            f"(configured: {self.agent_config.agent_uri})"
+                            f"Note: Connected using fallback URL {url} " f"(configured: {self.agent_config.agent_uri})"
                         )
 
                     return self._session  # type: ignore[no-any-return]

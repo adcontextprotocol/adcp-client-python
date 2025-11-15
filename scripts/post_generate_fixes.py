@@ -178,6 +178,44 @@ def fix_brand_manifest_references():
             print(f"  {filename} already fixed or doesn't need fixing")
 
 
+def fix_enum_defaults():
+    """Fix enum default values in generated files.
+
+    datamodel-code-generator sometimes creates string defaults for enum fields
+    instead of enum member defaults, causing mypy errors.
+    """
+    brand_manifest_file = OUTPUT_DIR / "brand_manifest_ref.py"
+
+    if not brand_manifest_file.exists():
+        print("  brand_manifest_ref.py not found (skipping)")
+        return
+
+    with open(brand_manifest_file) as f:
+        content = f.read()
+
+    # Check if already fixed
+    if "feed_format: FeedFormat | None = Field(FeedFormat.google_merchant_center" in content:
+        print("  brand_manifest_ref.py enum defaults already fixed")
+        return
+
+    # Fix ProductCatalog.feed_format default (line 83)
+    content = content.replace(
+        'feed_format: FeedFormat | None = Field("google_merchant_center"',
+        "feed_format: FeedFormat | None = Field(FeedFormat.google_merchant_center",
+    )
+
+    # Fix BrandManifest.feed_format default (line 173)
+    content = content.replace(
+        'product_feed_format: FeedFormat | None = Field("google_merchant_center"',
+        "product_feed_format: FeedFormat | None = Field(FeedFormat.google_merchant_center",
+    )
+
+    with open(brand_manifest_file, "w") as f:
+        f.write(content)
+
+    print("  brand_manifest_ref.py enum defaults fixed")
+
+
 def main():
     """Apply all post-generation fixes."""
     print("Applying post-generation fixes...")
@@ -185,6 +223,7 @@ def main():
     add_model_validator_to_product()
     fix_preview_render_self_reference()
     fix_brand_manifest_references()
+    fix_enum_defaults()
 
     print("\n✓ Post-generation fixes complete\n")
 

@@ -9,7 +9,6 @@ import logging
 import os
 from collections.abc import Callable
 from datetime import datetime, timezone
-from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel
@@ -49,6 +48,7 @@ from adcp.types.generated import (
     SyncCreativesResponse,
     WebhookPayload,
 )
+from adcp.types.generated_poc.task_status import TaskStatus as GeneratedTaskStatus
 from adcp.utils.operation_id import create_operation_id
 
 logger = logging.getLogger(__name__)
@@ -163,9 +163,7 @@ class ADCPClient:
             )
         )
 
-        result: TaskResult[GetProductsResponse] = self.adapter._parse_response(
-            raw_result, GetProductsResponse
-        )
+        result: TaskResult[GetProductsResponse] = self.adapter._parse_response(raw_result, GetProductsResponse)
 
         if fetch_previews and result.success and result.data and creative_agent_client:
             from adcp.utils.preview_cache import add_preview_urls_to_products
@@ -610,9 +608,7 @@ class ADCPClient:
             return True
 
         payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
-        expected_signature = hmac.new(
-            self.webhook_secret.encode("utf-8"), payload_bytes, hashlib.sha256
-        ).hexdigest()
+        expected_signature = hmac.new(self.webhook_secret.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
 
         return hmac.compare_digest(signature, expected_signature)
 
@@ -644,8 +640,8 @@ class ADCPClient:
 
         # Handle completed tasks with result parsing
 
-        if webhook.status == TaskStatus.completed and webhook.result is not None:
-            response_type = response_type_map.get(webhook.task_type)
+        if webhook.status == GeneratedTaskStatus.completed and webhook.result is not None:
+            response_type = response_type_map.get(webhook.task_type.value)
             if response_type:
                 try:
                     parsed_result: Any = parse_json_or_text(webhook.result, response_type)
@@ -665,17 +661,21 @@ class ADCPClient:
                     # Fall through to untyped result
 
         # Handle failed, input-required, or unparseable results
-        # Convert webhook status string to TaskStatus enum
-        try:
-            task_status = TaskStatus(webhook.status)
-        except ValueError:
-            # Fallback to FAILED for unknown statuses
-            task_status = TaskStatus.FAILED
+        # Convert webhook status to core TaskStatus enum
+        # Map generated enum values to core enum values
+        status_map = {
+            GeneratedTaskStatus.completed: TaskStatus.COMPLETED,
+            GeneratedTaskStatus.submitted: TaskStatus.SUBMITTED,
+            GeneratedTaskStatus.working: TaskStatus.WORKING,
+            GeneratedTaskStatus.failed: TaskStatus.FAILED,
+            GeneratedTaskStatus.input_required: TaskStatus.NEEDS_INPUT,
+        }
+        task_status = status_map.get(webhook.status, TaskStatus.FAILED)
 
         return TaskResult[Any](
             status=task_status,
             data=webhook.result,
-            success=webhook.status == TaskStatus.completed,
+            success=webhook.status == GeneratedTaskStatus.completed,
             error=webhook.error if isinstance(webhook.error, str) else None,
             metadata={
                 "task_id": webhook.task_id,
@@ -719,9 +719,7 @@ class ADCPClient:
         """
         # Verify signature before processing
         if signature and not self._verify_webhook_signature(payload, signature):
-            logger.warning(
-                f"Webhook signature verification failed for agent {self.agent_config.id}"
-            )
+            logger.warning(f"Webhook signature verification failed for agent {self.agent_config.id}")
             raise ADCPWebhookSignatureError("Invalid webhook signature")
 
         # Validate and parse webhook payload
@@ -733,7 +731,7 @@ class ADCPClient:
                 type=ActivityType.WEBHOOK_RECEIVED,
                 operation_id=webhook.operation_id or "unknown",
                 agent_id=self.agent_config.id,
-                task_type=webhook.task_type.value if isinstance(webhook.task_type, Enum) else webhook.task_type,  # type: ignore[arg-type]
+                task_type=webhook.task_type.value,
                 timestamp=datetime.now(timezone.utc).isoformat(),
                 metadata={"payload": payload},
             )

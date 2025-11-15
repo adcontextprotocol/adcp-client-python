@@ -210,33 +210,23 @@ class TestVerifyAgentAuthorization:
 
     def test_agent_authorized_no_properties_restriction(self):
         """Agent with empty properties array is authorized for all properties."""
-        adagents_data = {
-            "authorized_agents": [{"url": "https://sales-agent.example.com", "properties": []}]
-        }
-        assert verify_agent_authorization(
-            adagents_data, "https://sales-agent.example.com", None, None
-        )
+        adagents_data = {"authorized_agents": [{"url": "https://sales-agent.example.com", "properties": []}]}
+        assert verify_agent_authorization(adagents_data, "https://sales-agent.example.com", None, None)
 
     def test_agent_authorized_no_properties_field(self):
         """Agent without properties field is authorized for all properties."""
         adagents_data = {"authorized_agents": [{"url": "https://sales-agent.example.com"}]}
-        assert verify_agent_authorization(
-            adagents_data, "https://sales-agent.example.com", None, None
-        )
+        assert verify_agent_authorization(adagents_data, "https://sales-agent.example.com", None, None)
 
     def test_agent_url_protocol_agnostic(self):
         """Agent URL matching should ignore protocol."""
         adagents_data = {"authorized_agents": [{"url": "https://sales-agent.example.com"}]}
-        assert verify_agent_authorization(
-            adagents_data, "http://sales-agent.example.com", None, None
-        )
+        assert verify_agent_authorization(adagents_data, "http://sales-agent.example.com", None, None)
 
     def test_agent_url_trailing_slash_ignored(self):
         """Agent URL matching should ignore trailing slash."""
         adagents_data = {"authorized_agents": [{"url": "https://sales-agent.example.com/"}]}
-        assert verify_agent_authorization(
-            adagents_data, "https://sales-agent.example.com", None, None
-        )
+        assert verify_agent_authorization(adagents_data, "https://sales-agent.example.com", None, None)
 
     def test_agent_authorized_specific_property(self):
         """Agent authorized for specific property type and identifiers."""
@@ -307,12 +297,8 @@ class TestVerifyAgentAuthorization:
 
     def test_agent_not_in_list(self):
         """Agent not in authorized_agents list should not be authorized."""
-        adagents_data = {
-            "authorized_agents": [{"url": "https://other-agent.example.com", "properties": []}]
-        }
-        assert not verify_agent_authorization(
-            adagents_data, "https://sales-agent.example.com", None, None
-        )
+        adagents_data = {"authorized_agents": [{"url": "https://other-agent.example.com", "properties": []}]}
+        assert not verify_agent_authorization(adagents_data, "https://sales-agent.example.com", None, None)
 
     def test_multiple_agents(self):
         """Should find correct agent in list."""
@@ -323,9 +309,7 @@ class TestVerifyAgentAuthorization:
                 {"url": "https://sales-agent.example.com", "properties": []},
             ]
         }
-        assert verify_agent_authorization(
-            adagents_data, "https://sales-agent.example.com", None, None
-        )
+        assert verify_agent_authorization(adagents_data, "https://sales-agent.example.com", None, None)
 
     def test_invalid_adagents_data_not_dict(self):
         """Should raise error if adagents_data is not a dict."""
@@ -340,9 +324,7 @@ class TestVerifyAgentAuthorization:
     def test_invalid_authorized_agents_not_list(self):
         """Should raise error if authorized_agents is not a list."""
         with pytest.raises(AdagentsValidationError, match="authorized_agents"):
-            verify_agent_authorization(
-                {"authorized_agents": "not a list"}, "https://agent.example.com", None, None
-            )
+            verify_agent_authorization({"authorized_agents": "not a list"}, "https://agent.example.com", None, None)
 
     def test_property_type_match_without_identifiers(self):
         """Should match property type even without identifier check."""
@@ -360,9 +342,7 @@ class TestVerifyAgentAuthorization:
             ]
         }
         # When property_identifiers is None, just check property_type
-        assert verify_agent_authorization(
-            adagents_data, "https://sales-agent.example.com", "website", None
-        )
+        assert verify_agent_authorization(adagents_data, "https://sales-agent.example.com", "website", None)
 
 
 class TestFetchAdagents:

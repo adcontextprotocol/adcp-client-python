@@ -80,7 +80,7 @@ class ProductCatalog(AdCPBaseModel):
         extra="forbid",
     )
     feed_url: AnyUrl = Field(..., description="URL to product catalog feed")
-    feed_format: FeedFormat | None = Field("google_merchant_center", description="Format of the product feed")
+    feed_format: FeedFormat | None = Field(FeedFormat.google_merchant_center, description="Format of the product feed")
     categories: list[str] | None = Field(
         None, description="Product categories available in the catalog (for filtering)"
     )
@@ -170,7 +170,7 @@ class ProductCatalog1(AdCPBaseModel):
         extra="forbid",
     )
     feed_url: AnyUrl = Field(..., description="URL to product catalog feed")
-    feed_format: FeedFormat | None = Field("google_merchant_center", description="Format of the product feed")
+    feed_format: FeedFormat | None = Field(FeedFormat.google_merchant_center, description="Format of the product feed")
     categories: list[str] | None = Field(
         None, description="Product categories available in the catalog (for filtering)"
     )

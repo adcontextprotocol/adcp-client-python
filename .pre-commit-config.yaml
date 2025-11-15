@@ -19,6 +19,17 @@ repos:
         args: [--fix, --exit-non-zero-on-fix, --ignore=E501]
         exclude: ^src/adcp/types/generated_poc/
 
+  # Mypy type checking (local hook to use project dependencies)
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
+        language: system
+        types: [python]
+        pass_filenames: false
+        args: [src/adcp]
+
   # Basic file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

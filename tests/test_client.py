@@ -103,9 +103,7 @@ async def test_get_products():
 
     with (
         patch.object(client.adapter, "get_products", return_value=mock_raw_result) as mock_get,
-        patch.object(
-            client.adapter, "_parse_response", return_value=mock_parsed_result
-        ) as mock_parse,
+        patch.object(client.adapter, "_parse_response", return_value=mock_parsed_result) as mock_parse,
     ):
         request = GetProductsRequest(brief="test campaign")
         result = await client.get_products(request)
@@ -255,12 +253,8 @@ async def test_multi_agent_parallel_execution():
 
     # Mock both agents' adapters - keep context active during execution
     with (
-        patch.object(
-            client.agents["agent1"].adapter, "get_products", return_value=mock_result
-        ) as mock1,
-        patch.object(
-            client.agents["agent2"].adapter, "get_products", return_value=mock_result
-        ) as mock2,
+        patch.object(client.agents["agent1"].adapter, "get_products", return_value=mock_result) as mock1,
+        patch.object(client.agents["agent2"].adapter, "get_products", return_value=mock_result) as mock2,
     ):
         request = GetProductsRequest(brief="test")
         results = await client.get_products(request)

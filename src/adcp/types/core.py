@@ -26,9 +26,7 @@ class AgentConfig(BaseModel):
     auth_header: str = "x-adcp-auth"  # Header name for authentication
     auth_type: str = "token"  # "token" for direct value, "bearer" for "Bearer {token}"
     timeout: float = 30.0  # Request timeout in seconds
-    mcp_transport: str = (
-        "streamable_http"  # "streamable_http" (default, modern) or "sse" (legacy fallback)
-    )
+    mcp_transport: str = "streamable_http"  # "streamable_http" (default, modern) or "sse" (legacy fallback)
     debug: bool = False  # Enable debug mode to capture request/response details
 
     @field_validator("agent_uri")
@@ -40,8 +38,7 @@ class AgentConfig(BaseModel):
 
         if not v.startswith(("http://", "https://")):
             raise ValueError(
-                f"agent_uri must start with http:// or https://, got: {v}\n"
-                "Example: https://agent.example.com"
+                f"agent_uri must start with http:// or https://, got: {v}\n" "Example: https://agent.example.com"
             )
 
         # Remove trailing slash for consistency
