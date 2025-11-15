@@ -28,7 +28,7 @@
     "format_ids": {
       "description": "Return only these specific format IDs (e.g., from get_products response)",
       "items": {
-        "$ref": "/schemas/v1/core/format-id.json"
+        "$ref": "format-id.json"
       },
       "type": "array"
     },

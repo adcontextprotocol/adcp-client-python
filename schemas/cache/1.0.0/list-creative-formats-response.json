@@ -46,14 +46,14 @@
     "errors": {
       "description": "Task-specific errors and warnings (e.g., format availability issues)",
       "items": {
-        "$ref": "/schemas/v1/core/error.json"
+        "$ref": "error.json"
       },
       "type": "array"
     },
     "formats": {
       "description": "Full format definitions for all formats this agent supports. Each format's authoritative source is indicated by its agent_url field.",
       "items": {
-        "$ref": "/schemas/v1/core/format.json"
+        "$ref": "format.json"
       },
       "type": "array"
     }

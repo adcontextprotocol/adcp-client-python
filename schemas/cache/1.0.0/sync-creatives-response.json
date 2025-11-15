@@ -135,7 +135,7 @@
         "errors": {
           "description": "Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)",
           "items": {
-            "$ref": "/schemas/v1/core/error.json"
+            "$ref": "error.json"
           },
           "minItems": 1,
           "type": "array"

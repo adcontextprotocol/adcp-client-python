@@ -18,7 +18,7 @@
           "type": "object"
         },
         "creative_manifest": {
-          "$ref": "/schemas/v1/core/creative-manifest.json",
+          "$ref": "creative-manifest.json",
           "description": "The generated or transformed creative manifest"
         }
       },
@@ -44,7 +44,7 @@
         "errors": {
           "description": "Array of errors explaining why creative generation failed",
           "items": {
-            "$ref": "/schemas/v1/core/error.json"
+            "$ref": "error.json"
           },
           "minItems": 1,
           "type": "array"

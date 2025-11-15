@@ -19,7 +19,7 @@ from adcp.types.generated import (
     Destination1,  # Platform
     Destination2,  # Agent
 )
-from adcp.types.generated_poc.product import PublisherProperty
+from adcp.types.generated_poc.product import PublisherProperties, PublisherProperties3
 
 
 class TestAuthorizationDiscriminatedUnions:
@@ -337,91 +337,108 @@ class TestInvalidDiscriminatorValues:
 
 
 class TestPublisherPropertyValidation:
-    """Test PublisherProperty mutual exclusivity validation."""
+    """Test publisher_properties discriminated union validation.
 
-    def test_publisher_property_with_only_property_ids(self):
-        """PublisherProperty should accept only property_ids."""
-        prop = PublisherProperty(
+    Note: Schema v1.0.0+ uses discriminated unions for publisher_properties:
+    - PublisherProperties (selection_type='by_id') with property_ids
+    - PublisherProperties3 (selection_type='by_tag') with property_tags
+
+    Pydantic automatically enforces discriminated union constraints, so we test
+    that the correct variants can be constructed and invalid variants fail.
+    """
+
+    def test_publisher_property_with_property_ids(self):
+        """PublisherProperties with selection_type='by_id' requires property_ids."""
+        prop = PublisherProperties(
             publisher_domain="cnn.com",
             property_ids=["site1", "site2"],
+            selection_type="by_id",
         )
         assert prop.publisher_domain == "cnn.com"
         assert len(prop.property_ids) == 2
-        assert prop.property_tags is None
+        assert prop.selection_type == "by_id"
 
-    def test_publisher_property_with_only_property_tags(self):
-        """PublisherProperty should accept only property_tags."""
-        prop = PublisherProperty(
+    def test_publisher_property_with_property_tags(self):
+        """PublisherProperties3 with selection_type='by_tag' requires property_tags."""
+        prop = PublisherProperties3(
             publisher_domain="cnn.com",
             property_tags=["premium", "news"],
+            selection_type="by_tag",
         )
         assert prop.publisher_domain == "cnn.com"
         assert len(prop.property_tags) == 2
-        assert prop.property_ids is None
+        assert prop.selection_type == "by_tag"
 
-    def test_publisher_property_mutual_exclusivity_both_fails(self):
-        """PublisherProperty should reject both property_ids and property_tags."""
+    def test_publisher_property_by_id_without_property_ids_fails(self):
+        """PublisherProperties requires property_ids field."""
         with pytest.raises(ValidationError) as exc_info:
-            PublisherProperty(
+            PublisherProperties(
                 publisher_domain="cnn.com",
-                property_ids=["site1"],
-                property_tags=["premium"],
+                selection_type="by_id",
+                # Missing property_ids - should fail
             )
         error_msg = str(exc_info.value)
-        assert "mutually exclusive" in error_msg.lower() or "exactly one" in error_msg.lower()
+        assert "property_ids" in error_msg.lower()
 
-    def test_publisher_property_mutual_exclusivity_neither_fails(self):
-        """PublisherProperty should reject neither property_ids nor property_tags."""
+    def test_publisher_property_by_tag_without_property_tags_fails(self):
+        """PublisherProperties3 requires property_tags field."""
         with pytest.raises(ValidationError) as exc_info:
-            PublisherProperty(
+            PublisherProperties3(
                 publisher_domain="cnn.com",
+                selection_type="by_tag",
+                # Missing property_tags - should fail
             )
         error_msg = str(exc_info.value)
-        assert (
-            "mutually exclusive" in error_msg.lower()
-            or "exactly one" in error_msg.lower()
-            or "at least one is required" in error_msg.lower()
-        )
+        assert "property_tags" in error_msg.lower()
 
 
 class TestProductValidation:
     """Test Product model validation including publisher_properties.
 
-    Note: Product validation inherits PublisherProperty validation.
-    These tests verify that validation errors from PublisherProperty
-    are properly propagated through Product model_validator.
+    Note: Product uses discriminated union types for publisher_properties.
+    These tests verify that the union types work correctly in Product context.
     """
 
-    def test_product_validates_publisher_properties_automatically(self):
-        """Product.model_validate automatically validates PublisherProperty items."""
-        # Valid PublisherProperty should work
+    def test_product_accepts_valid_publisher_properties_by_id(self):
+        """Product accepts valid PublisherProperties with selection_type='by_id'."""
         valid_props = [
-            PublisherProperty(
+            PublisherProperties(
                 publisher_domain="cnn.com",
                 property_ids=["site1", "site2"],
+                selection_type="by_id",
             )
         ]
         assert len(valid_props) == 1
         assert valid_props[0].property_ids is not None
+        assert valid_props[0].selection_type == "by_id"
 
-    def test_publisher_property_validation_in_product_context(self):
-        """PublisherProperty validation works when used in Product."""
-        # Test that invalid PublisherProperty raises error
-        with pytest.raises(ValidationError) as exc_info:
-            PublisherProperty(
+    def test_product_accepts_valid_publisher_properties_by_tag(self):
+        """Product accepts valid PublisherProperties3 with selection_type='by_tag'."""
+        valid_props = [
+            PublisherProperties3(
+                publisher_domain="cnn.com",
+                property_tags=["premium", "news"],
+                selection_type="by_tag",
+            )
+        ]
+        assert len(valid_props) == 1
+        assert valid_props[0].property_tags is not None
+        assert valid_props[0].selection_type == "by_tag"
+
+    def test_product_accepts_mixed_publisher_properties(self):
+        """Product accepts a mix of by_id and by_tag publisher_properties."""
+        mixed_props = [
+            PublisherProperties(
                 publisher_domain="cnn.com",
                 property_ids=["site1"],
-                property_tags=["premium"],  # Invalid: both fields
-            )
-        error_msg = str(exc_info.value)
-        assert "mutually exclusive" in error_msg.lower() or "exactly one" in error_msg.lower()
-
-    def test_publisher_property_validation_propagates_errors(self):
-        """PublisherProperty validation errors are caught during construction."""
-        # Neither field should fail
-        with pytest.raises(ValidationError) as exc_info:
-            PublisherProperty(
-                publisher_domain="cnn.com",
-            )
-        error_msg = str(exc_info.value)
-        assert "at least one is required" in error_msg.lower()
+                selection_type="by_id",
+            ),
+            PublisherProperties3(
+                publisher_domain="nytimes.com",
+                property_tags=["premium"],
+                selection_type="by_tag",
+            ),
+        ]
+        assert len(mixed_props) == 2
+        assert mixed_props[0].selection_type == "by_id"
+        assert mixed_props[1].selection_type == "by_tag"

@@ -54,7 +54,7 @@
     "errors": {
       "description": "Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)",
       "items": {
-        "$ref": "/schemas/v1/core/error.json"
+        "$ref": "error.json"
       },
       "type": "array"
     },
@@ -72,7 +72,7 @@
             "items": {
               "allOf": [
                 {
-                  "$ref": "/schemas/v1/core/delivery-metrics.json"
+                  "$ref": "delivery-metrics.json"
                 },
                 {
                   "properties": {
@@ -95,7 +95,7 @@
                       "type": "string"
                     },
                     "pricing_model": {
-                      "$ref": "/schemas/v1/enums/pricing-model.json",
+                      "$ref": "pricing-model.json",
                       "description": "The pricing model used for this package (e.g., cpm, cpcv, cpp). Indicates how the package is billed and which metrics are most relevant for optimization."
                     },
                     "rate": {
@@ -161,7 +161,7 @@
             "type": "string"
           },
           "pricing_model": {
-            "$ref": "/schemas/v1/enums/pricing-model.json",
+            "$ref": "pricing-model.json",
             "description": "Pricing model used for this media buy"
           },
           "status": {
@@ -179,7 +179,7 @@
           "totals": {
             "allOf": [
               {
-                "$ref": "/schemas/v1/core/delivery-metrics.json"
+                "$ref": "delivery-metrics.json"
               },
               {
                 "description": "Aggregate metrics for this media buy across all packages",

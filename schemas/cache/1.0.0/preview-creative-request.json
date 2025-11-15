@@ -13,11 +13,11 @@
           "type": "object"
         },
         "creative_manifest": {
-          "$ref": "/schemas/v1/core/creative-manifest.json",
+          "$ref": "creative-manifest.json",
           "description": "Complete creative manifest with all required assets (including promoted_offerings if required by the format)"
         },
         "format_id": {
-          "$ref": "/schemas/v1/core/format-id.json",
+          "$ref": "format-id.json",
           "description": "Format identifier for rendering the preview"
         },
         "inputs": {
@@ -103,11 +103,11 @@
             "additionalProperties": false,
             "properties": {
               "creative_manifest": {
-                "$ref": "/schemas/v1/core/creative-manifest.json",
+                "$ref": "creative-manifest.json",
                 "description": "Complete creative manifest with all required assets"
               },
               "format_id": {
-                "$ref": "/schemas/v1/core/format-id.json",
+                "$ref": "format-id.json",
                 "description": "Format identifier for rendering the preview"
               },
               "inputs": {

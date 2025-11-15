@@ -10,7 +10,7 @@
       "type": "object"
     },
     "creative_manifest": {
-      "$ref": "/schemas/v1/core/creative-manifest.json",
+      "$ref": "creative-manifest.json",
       "description": "Creative manifest to transform or generate from. For pure generation, this should include the target format_id and any required input assets (e.g., promoted_offerings for generative formats). For transformation (e.g., resizing, reformatting), this is the complete creative to adapt."
     },
     "message": {
@@ -18,7 +18,7 @@
       "type": "string"
     },
     "target_format_id": {
-      "$ref": "/schemas/v1/core/format-id.json",
+      "$ref": "format-id.json",
       "description": "Format ID to generate. The format definition specifies required input assets and output structure."
     }
   },

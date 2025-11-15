@@ -5,7 +5,7 @@
   "description": "Request parameters for discovering available advertising products",
   "properties": {
     "brand_manifest": {
-      "$ref": "/schemas/v1/core/brand-manifest-ref.json",
+      "$ref": "brand-manifest-ref.json",
       "description": "Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest."
     },
     "brief": {
@@ -22,12 +22,12 @@
       "description": "Structured filters for product discovery",
       "properties": {
         "delivery_type": {
-          "$ref": "/schemas/v1/enums/delivery-type.json"
+          "$ref": "delivery-type.json"
         },
         "format_ids": {
           "description": "Filter by specific format IDs",
           "items": {
-            "$ref": "/schemas/v1/core/format-id.json"
+            "$ref": "format-id.json"
           },
           "type": "array"
         },

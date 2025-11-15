@@ -57,7 +57,7 @@
               "renders": {
                 "description": "Array of rendered pieces for this preview variant. Most formats render as a single piece. Companion ad formats (video + banner), multi-placement formats, and adaptive formats render as multiple pieces.",
                 "items": {
-                  "$ref": "/schemas/v1/creative/preview-render.json"
+                  "$ref": "preview-render.json"
                 },
                 "minItems": 1,
                 "type": "array"
@@ -191,7 +191,7 @@
                         },
                         "renders": {
                           "items": {
-                            "$ref": "/schemas/v1/creative/preview-render.json"
+                            "$ref": "preview-render.json"
                           },
                           "minItems": 1,
                           "type": "array"

@@ -10,7 +10,7 @@
         "additionalProperties": false,
         "properties": {
           "type": {
-            "$ref": "/schemas/v1/enums/identifier-types.json",
+            "$ref": "identifier-types.json",
             "description": "Type of identifier for this property"
           },
           "value": {

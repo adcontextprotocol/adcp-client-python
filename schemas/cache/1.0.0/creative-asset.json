@@ -15,37 +15,37 @@
         "^[a-zA-Z0-9_-]+$": {
           "oneOf": [
             {
-              "$ref": "/schemas/v1/core/assets/image-asset.json"
+              "$ref": "image-asset.json"
             },
             {
-              "$ref": "/schemas/v1/core/assets/video-asset.json"
+              "$ref": "video-asset.json"
             },
             {
-              "$ref": "/schemas/v1/core/assets/audio-asset.json"
+              "$ref": "audio-asset.json"
             },
             {
-              "$ref": "/schemas/v1/core/assets/text-asset.json"
+              "$ref": "text-asset.json"
             },
             {
-              "$ref": "/schemas/v1/core/assets/html-asset.json"
+              "$ref": "html-asset.json"
             },
             {
-              "$ref": "/schemas/v1/core/assets/css-asset.json"
+              "$ref": "css-asset.json"
             },
             {
-              "$ref": "/schemas/v1/core/assets/javascript-asset.json"
+              "$ref": "javascript-asset.json"
             },
             {
-              "$ref": "/schemas/v1/core/assets/vast-asset.json"
+              "$ref": "vast-asset.json"
             },
             {
-              "$ref": "/schemas/v1/core/assets/daast-asset.json"
+              "$ref": "daast-asset.json"
             },
             {
-              "$ref": "/schemas/v1/core/promoted-offerings.json"
+              "$ref": "promoted-offerings.json"
             },
             {
-              "$ref": "/schemas/v1/core/assets/url-asset.json"
+              "$ref": "url-asset.json"
             }
           ]
         }
@@ -57,7 +57,7 @@
       "type": "string"
     },
     "format_id": {
-      "$ref": "/schemas/v1/core/format-id.json",
+      "$ref": "format-id.json",
       "description": "Format identifier specifying which format this creative conforms to"
     },
     "inputs": {

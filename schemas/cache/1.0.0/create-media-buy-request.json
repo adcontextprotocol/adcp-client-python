@@ -5,7 +5,7 @@
   "description": "Request parameters for creating a media buy",
   "properties": {
     "brand_manifest": {
-      "$ref": "/schemas/v1/core/brand-manifest-ref.json",
+      "$ref": "brand-manifest-ref.json",
       "description": "Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests."
     },
     "buyer_ref": {
@@ -25,7 +25,7 @@
     "packages": {
       "description": "Array of package configurations",
       "items": {
-        "$ref": "/schemas/v1/media-buy/package-request.json"
+        "$ref": "package-request.json"
       },
       "type": "array"
     },
@@ -36,7 +36,7 @@
     "reporting_webhook": {
       "allOf": [
         {
-          "$ref": "/schemas/v1/core/push-notification-config.json"
+          "$ref": "push-notification-config.json"
         },
         {
           "description": "Optional webhook configuration for automated reporting delivery. Uses push_notification_config structure with additional reporting-specific fields.",
@@ -78,7 +78,7 @@
       ]
     },
     "start_time": {
-      "$ref": "/schemas/v1/core/start-timing.json"
+      "$ref": "start-timing.json"
     }
   },
   "required": [

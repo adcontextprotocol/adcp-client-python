@@ -45,7 +45,7 @@
         "errors": {
           "description": "Array of errors explaining why feedback was rejected (e.g., invalid measurement period, missing campaign data)",
           "items": {
-            "$ref": "/schemas/v1/core/error.json"
+            "$ref": "error.json"
           },
           "minItems": 1,
           "type": "array"

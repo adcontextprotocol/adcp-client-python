@@ -12,14 +12,14 @@
     "errors": {
       "description": "Task-specific errors and warnings (e.g., product filtering issues)",
       "items": {
-        "$ref": "/schemas/v1/core/error.json"
+        "$ref": "error.json"
       },
       "type": "array"
     },
     "products": {
       "description": "Array of matching products",
       "items": {
-        "$ref": "/schemas/v1/core/product.json"
+        "$ref": "product.json"
       },
       "type": "array"
     }

@@ -91,7 +91,7 @@
         "errors": {
           "description": "Array of errors explaining why the operation failed",
           "items": {
-            "$ref": "/schemas/v1/core/error.json"
+            "$ref": "error.json"
           },
           "minItems": 1,
           "type": "array"

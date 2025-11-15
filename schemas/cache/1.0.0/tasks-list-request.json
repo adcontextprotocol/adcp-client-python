@@ -102,13 +102,13 @@
           "type": "boolean"
         },
         "status": {
-          "$ref": "/schemas/v1/enums/task-status.json",
+          "$ref": "task-status.json",
           "description": "Filter by single task status"
         },
         "statuses": {
           "description": "Filter by multiple task statuses",
           "items": {
-            "$ref": "/schemas/v1/enums/task-status.json"
+            "$ref": "task-status.json"
           },
           "type": "array"
         },
@@ -121,13 +121,13 @@
           "type": "array"
         },
         "task_type": {
-          "$ref": "/schemas/v1/enums/task-type.json",
+          "$ref": "task-type.json",
           "description": "Filter by single task type"
         },
         "task_types": {
           "description": "Filter by multiple task types",
           "items": {
-            "$ref": "/schemas/v1/enums/task-type.json"
+            "$ref": "task-type.json"
           },
           "type": "array"
         },

@@ -20,7 +20,7 @@
   ],
   "oneOf": [
     {
-      "$ref": "/schemas/v1/core/brand-manifest.json",
+      "$ref": "brand-manifest.json",
       "description": "Inline brand manifest object"
     },
     {

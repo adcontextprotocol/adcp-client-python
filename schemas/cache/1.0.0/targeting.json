@@ -13,7 +13,7 @@
       "type": "string"
     },
     "frequency_cap": {
-      "$ref": "/schemas/v1/core/frequency-cap.json"
+      "$ref": "frequency-cap.json"
     },
     "geo_country_any_of": {
       "description": "Restrict delivery to specific countries (ISO codes). Use for regulatory compliance or RCT testing.",

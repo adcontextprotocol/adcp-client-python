@@ -340,7 +340,7 @@ async def test_list_creative_formats_with_preview_urls():
         name="Display 300x250",
         description="Standard banner",
         type="display",
-        assets_required=[{"asset_id": "image", "asset_type": "image"}],
+        assets_required=[{"asset_id": "image", "asset_type": "image", "item_type": "individual"}],
     )
 
     # Raw result from adapter (unparsed)
@@ -440,8 +440,8 @@ def test_create_sample_manifest_for_format():
         description="Standard banner",
         type="display",
         assets_required=[
-            {"asset_id": "image", "asset_type": "image"},
-            {"asset_id": "clickthrough_url", "asset_type": "url"},
+            {"asset_id": "image", "asset_type": "image", "item_type": "individual"},
+            {"asset_id": "clickthrough_url", "asset_type": "url", "item_type": "individual"},
         ],
     )
 

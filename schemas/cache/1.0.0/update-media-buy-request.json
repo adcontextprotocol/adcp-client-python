@@ -81,14 +81,14 @@
             "type": "array"
           },
           "pacing": {
-            "$ref": "/schemas/v1/enums/pacing.json"
+            "$ref": "pacing.json"
           },
           "package_id": {
             "description": "Publisher's ID of package to update",
             "type": "string"
           },
           "targeting_overlay": {
-            "$ref": "/schemas/v1/core/targeting.json"
+            "$ref": "targeting.json"
           }
         },
         "type": "object"
@@ -96,11 +96,11 @@
       "type": "array"
     },
     "push_notification_config": {
-      "$ref": "/schemas/v1/core/push-notification-config.json",
+      "$ref": "push-notification-config.json",
       "description": "Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time."
     },
     "start_time": {
-      "$ref": "/schemas/v1/core/start-timing.json"
+      "$ref": "start-timing.json"
     }
   },
   "title": "Update Media Buy Request",

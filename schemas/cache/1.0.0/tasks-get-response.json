@@ -135,7 +135,7 @@
       "type": "object"
     },
     "status": {
-      "$ref": "/schemas/v1/enums/task-status.json",
+      "$ref": "task-status.json",
       "description": "Current task status"
     },
     "task_id": {
@@ -143,7 +143,7 @@
       "type": "string"
     },
     "task_type": {
-      "$ref": "/schemas/v1/enums/task-type.json",
+      "$ref": "task-type.json",
       "description": "Type of AdCP operation"
     },
     "updated_at": {

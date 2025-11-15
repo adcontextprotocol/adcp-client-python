@@ -25,7 +25,7 @@
     "packages": {
       "description": "Array of packages within this media buy",
       "items": {
-        "$ref": "/schemas/v1/core/package.json"
+        "$ref": "package.json"
       },
       "type": "array"
     },
@@ -34,7 +34,7 @@
       "type": "string"
     },
     "status": {
-      "$ref": "/schemas/v1/enums/media-buy-status.json"
+      "$ref": "media-buy-status.json"
     },
     "total_budget": {
       "description": "Total budget amount",
