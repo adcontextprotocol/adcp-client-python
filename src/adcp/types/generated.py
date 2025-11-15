@@ -144,8 +144,8 @@ class Format(BaseModel):
     preview_image: str | None = Field(None, description="DEPRECATED: Use format_card instead. Optional preview image URL for format browsing/discovery UI. Should be 400x300px (4:3 aspect ratio) PNG or JPG. Used as thumbnail/card image in format browsers. This field is maintained for backward compatibility but format_card provides a more flexible, structured approach.")
     example_url: str | None = Field(None, description="Optional URL to showcase page with examples and interactive demos of this format")
     type: Literal["audio", "video", "display", "native", "dooh", "rich_media", "universal"] = Field(description="Media type of this format - determines rendering method and asset requirements")
-    renders: list[dict[str, Any]] | None = Field(None, description="Specification of rendered pieces for this format. Most formats produce a single render. Companion ad formats (video + banner), adaptive formats, and multi-placement formats produce multiple renders. Each render specifies its role and dimensions.")
-    assets_required: list[Any] | None = Field(None, description="Array of required assets or asset groups for this format. Each asset is identified by its asset_id, which must be used as the key in creative manifests. Can contain individual assets or repeatable asset sequences (e.g., carousel products, slideshow frames).")
+    renders: list[Render] | None = Field(None, description="Specification of rendered pieces for this format. Most formats produce a single render. Companion ad formats (video + banner), adaptive formats, and multi-placement formats produce multiple renders. Each render specifies its role and dimensions.")
+    assets_required: list[AssetRequired] | None = Field(None, description="Array of required assets or asset groups for this format. Each asset is identified by its asset_id, which must be used as the key in creative manifests. Can contain individual assets or repeatable asset sequences (e.g., carousel products, slideshow frames).")
     delivery: dict[str, Any] | None = Field(None, description="Delivery method specifications (e.g., hosted, VAST, third-party tags)")
     supported_macros: list[str] | None = Field(None, description="List of universal macros supported by this format (e.g., MEDIA_BUY_ID, CACHEBUSTER, DEVICE_ID). Used for validation and developer tooling.")
     output_format_ids: list[FormatId] | None = Field(None, description="For generative formats: array of format IDs that this format can generate. When a format accepts inputs like brand_manifest and message, this specifies what concrete output formats can be produced (e.g., a generative banner format might output standard image banner formats).")
@@ -594,7 +594,7 @@ class UrlPreviewRender(BaseModel):
     output_format: Literal["url"] = Field(description="Discriminator indicating preview_url is provided")
     preview_url: str = Field(description="URL to an HTML page that renders this piece. Can be embedded in an iframe.")
     role: str = Field(description="Semantic role of this rendered piece. Use 'primary' for main content, 'companion' for associated banners, descriptive strings for device variants or custom roles.")
-    dimensions: dict[str, Any] | None = Field(None, description="Dimensions for this rendered piece")
+    dimensions: Dimensions | None = Field(None, description="Dimensions for this rendered piece")
     embedding: dict[str, Any] | None = Field(None, description="Optional security and embedding metadata for safe iframe integration")
 
 
@@ -607,7 +607,7 @@ class HtmlPreviewRender(BaseModel):
     output_format: Literal["html"] = Field(description="Discriminator indicating preview_html is provided")
     preview_html: str = Field(description="Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.")
     role: str = Field(description="Semantic role of this rendered piece. Use 'primary' for main content, 'companion' for associated banners, descriptive strings for device variants or custom roles.")
-    dimensions: dict[str, Any] | None = Field(None, description="Dimensions for this rendered piece")
+    dimensions: Dimensions | None = Field(None, description="Dimensions for this rendered piece")
     embedding: dict[str, Any] | None = Field(None, description="Optional security and embedding metadata")
 
 
@@ -621,7 +621,7 @@ class BothPreviewRender(BaseModel):
     preview_url: str = Field(description="URL to an HTML page that renders this piece. Can be embedded in an iframe.")
     preview_html: str = Field(description="Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.")
     role: str = Field(description="Semantic role of this rendered piece. Use 'primary' for main content, 'companion' for associated banners, descriptive strings for device variants or custom roles.")
-    dimensions: dict[str, Any] | None = Field(None, description="Dimensions for this rendered piece")
+    dimensions: Dimensions | None = Field(None, description="Dimensions for this rendered piece")
     embedding: dict[str, Any] | None = Field(None, description="Optional security and embedding metadata for safe iframe integration")
 
 
@@ -945,9 +945,75 @@ class TasksListResponse(BaseModel):
 # CUSTOM IMPLEMENTATIONS (override type aliases from generator)
 # ============================================================================
 # The simple code generator produces type aliases (e.g., PreviewCreativeRequest = Any)
-# for complex schemas that use oneOf. We override them here with proper Pydantic classes
+# for complex schemas that use oneOf. We override them with proper Pydantic classes
 # to maintain type safety and enable batch API support.
 # Note: All classes inherit from BaseModel (which is aliased to AdCPBaseModel for exclude_none).
+
+
+class ResponsiveDimension(BaseModel):
+    """Indicates which dimensions are responsive/fluid"""
+
+    width: bool = Field(description="Whether width is responsive")
+    height: bool = Field(description="Whether height is responsive")
+
+
+class Dimensions(BaseModel):
+    """Dimensions for rendered pieces with support for fixed and responsive sizing"""
+
+    width: float | None = Field(None, ge=0, description="Fixed width in specified units")
+    height: float | None = Field(None, ge=0, description="Fixed height in specified units")
+    min_width: float | None = Field(None, ge=0, description="Minimum width for responsive renders")
+    min_height: float | None = Field(None, ge=0, description="Minimum height for responsive renders")
+    max_width: float | None = Field(None, ge=0, description="Maximum width for responsive renders")
+    max_height: float | None = Field(None, ge=0, description="Maximum height for responsive renders")
+    responsive: ResponsiveDimension | None = Field(None, description="Indicates which dimensions are responsive/fluid")
+    aspect_ratio: str | None = Field(None, description="Fixed aspect ratio constraint (e.g., '16:9', '4:3', '1:1')", pattern=r"^\d+:\d+$")
+    unit: Literal["px", "dp", "inches", "cm"] = Field(default="px", description="Unit of measurement for dimensions")
+
+
+class Render(BaseModel):
+    """Specification of a rendered piece for a format"""
+
+    role: str = Field(description="Semantic role of this rendered piece (e.g., 'primary', 'companion', 'mobile_variant')")
+    dimensions: Dimensions = Field(description="Dimensions for this rendered piece")
+
+
+class IndividualAssetRequired(BaseModel):
+    """Individual asset requirement"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    asset_id: str = Field(description="Unique identifier for this asset. Creative manifests MUST use this exact value as the key in the assets object.")
+    asset_type: Literal["image", "video", "audio", "vast", "daast", "text", "markdown", "html", "css", "javascript", "url", "webhook", "promoted_offerings"] = Field(description="Type of asset")
+    asset_role: str | None = Field(None, description="Optional descriptive label for this asset's purpose (e.g., 'hero_image', 'logo'). Not used for referencing assets in manifests—use asset_id instead. This field is for human-readable documentation and UI display only.")
+    required: bool | None = Field(None, description="Whether this asset is required")
+    requirements: dict[str, Any] | None = Field(None, description="Technical requirements for this asset (dimensions, file size, duration, etc.)")
+
+
+class RepeatableAssetInGroup(BaseModel):
+    """Asset within a repeatable group"""
+
+    asset_id: str = Field(description="Identifier for this asset within the group")
+    asset_type: Literal["image", "video", "audio", "vast", "daast", "text", "markdown", "html", "css", "javascript", "url", "webhook", "promoted_offerings"] = Field(description="Type of asset")
+    asset_role: str | None = Field(None, description="Optional descriptive label for this asset's purpose (e.g., 'hero_image', 'logo'). Not used for referencing assets in manifests—use asset_id instead. This field is for human-readable documentation and UI display only.")
+    required: bool | None = Field(None, description="Whether this asset is required in each repetition")
+    requirements: dict[str, Any] | None = Field(None, description="Technical requirements for this asset")
+
+
+class RepeatableAssetGroup(BaseModel):
+    """Repeatable asset group (for carousels, slideshows, playlists, etc.)"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    asset_group_id: str = Field(description="Identifier for this asset group (e.g., 'product', 'slide', 'card')")
+    repeatable: Literal[True] = Field(description="Indicates this is a repeatable asset group")
+    min_count: int = Field(ge=1, description="Minimum number of repetitions required")
+    max_count: int = Field(ge=1, description="Maximum number of repetitions allowed")
+    assets: list[RepeatableAssetInGroup] = Field(description="Assets within each repetition of this group")
+
+
+# Union type for Asset Required
+AssetRequired = IndividualAssetRequired | RepeatableAssetGroup
 
 
 class FormatId(BaseModel):
@@ -1098,6 +1164,7 @@ __all__ = [
     "ActivationKey",
     "AgentDeployment",
     "AgentDestination",
+    "AssetRequired",
     "BothPreviewRender",
     "BrandManifest",
     "BrandManifestRef",
@@ -1121,6 +1188,7 @@ __all__ = [
     "DeliveryType",
     "Deployment",
     "Destination",
+    "Dimensions",
     "Error",
     "Format",
     "FormatId",
@@ -1132,6 +1200,7 @@ __all__ = [
     "GetSignalsRequest",
     "GetSignalsResponse",
     "HtmlPreviewRender",
+    "IndividualAssetRequired",
     "InlineDaastAsset",
     "InlineVastAsset",
     "Key_valueActivationKey",
@@ -1176,8 +1245,12 @@ __all__ = [
     "ProvidePerformanceFeedbackResponseVariant1",
     "ProvidePerformanceFeedbackResponseVariant2",
     "PushNotificationConfig",
+    "Render",
+    "RepeatableAssetGroup",
+    "RepeatableAssetInGroup",
     "ReportingCapabilities",
     "Response",
+    "ResponsiveDimension",
     "Segment_idActivationKey",
     "StandardFormatIds",
     "StartTiming",
