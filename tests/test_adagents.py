@@ -366,35 +366,75 @@ class TestVerifyAgentAuthorization:
 
 
 class TestFetchAdagents:
-    """Test fetching adagents.json from publisher domains.
+    """Test fetching adagents.json from publisher domains."""
 
-    Note: These tests would require proper httpx mocking or integration testing.
-    For now, we focus on unit testing the core logic (domain matching,
-    identifier matching, and authorization verification) which are tested above.
-    The fetch_adagents function is straightforward HTTP + JSON parsing that
-    calls verify_agent_authorization with the parsed data.
-    """
-
-    @pytest.mark.skip(reason="Integration test - requires httpx mocking or real HTTP calls")
     @pytest.mark.asyncio
     async def test_fetch_success(self):
         """Should successfully fetch and parse adagents.json."""
-        pass
+        from adcp.adagents import fetch_adagents
+
+        mock_adagents_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example.com",
+                    "authorized_for": "All properties",
+                    "authorization_type": "property_ids",
+                    "property_ids": ["site1", "site2"],
+                }
+            ]
+        }
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = mock_adagents_data
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = create_mock_httpx_client(mock_response)
+
+        result = await fetch_adagents("example.com", client=mock_client)
+
+        assert result == mock_adagents_data
+        mock_client.get.assert_called_once()
+        call_args = mock_client.get.call_args
+        assert "https://example.com/.well-known/adagents.json" in str(call_args)
 
 
 class TestVerifyAgentForProperty:
-    """Test convenience wrapper for fetching and verifying in one call.
+    """Test convenience wrapper for fetching and verifying in one call."""
 
-    Note: These tests would require proper httpx mocking or integration testing.
-    The function is a thin wrapper around fetch_adagents + verify_agent_authorization,
-    both of which are tested separately above.
-    """
-
-    @pytest.mark.skip(reason="Integration test - requires httpx mocking or real HTTP calls")
     @pytest.mark.asyncio
     async def test_verify_success(self):
         """Should fetch and verify authorization successfully."""
-        pass
+        from adcp.adagents import verify_agent_for_property
+
+        mock_adagents_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example.com",
+                    "authorized_for": "All properties",
+                    "authorization_type": "property_ids",
+                    "property_ids": ["site1", "site2"],
+                }
+            ]
+        }
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = mock_adagents_data
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = create_mock_httpx_client(mock_response)
+
+        # Verify authorized agent
+        result = await verify_agent_for_property(
+            publisher_domain="example.com",
+            agent_url="https://agent.example.com",
+            property_identifiers=[{"type": "property_id", "value": "site1"}],
+            client=mock_client,
+        )
+
+        assert result is True
+        mock_client.get.assert_called_once()
 
 
 class TestGetAllProperties:

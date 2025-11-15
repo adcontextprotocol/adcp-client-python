@@ -26,7 +26,8 @@ def extract_exports_from_module(module_path: Path) -> set[str]:
 
     exports = set()
 
-    for node in ast.walk(tree):
+    # Only look at module-level nodes (not inside classes)
+    for node in tree.body:
         # Class definitions
         if isinstance(node, ast.ClassDef):
             if not node.name.startswith("_"):
