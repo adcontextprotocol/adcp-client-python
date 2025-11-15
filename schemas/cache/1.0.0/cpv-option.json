@@ -1,61 +1,51 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/pricing-options/cpv-option.json",
-  "title": "CPV Pricing Option",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
   "description": "Cost Per View (at publisher-defined threshold) fixed-rate pricing for video/audio",
-  "type": "object",
   "properties": {
-    "pricing_option_id": {
-      "type": "string",
-      "description": "Unique identifier for this pricing option within the product (e.g., 'cpv_usd_50pct')"
-    },
-    "pricing_model": {
-      "type": "string",
-      "const": "cpv",
-      "description": "Cost per view at threshold"
-    },
-    "rate": {
-      "type": "number",
-      "description": "Fixed CPV rate (cost per view)",
-      "minimum": 0
-    },
     "currency": {
-      "type": "string",
       "description": "ISO 4217 currency code",
-      "pattern": "^[A-Z]{3}$",
       "examples": [
         "USD",
         "EUR",
         "GBP",
         "JPY"
-      ]
+      ],
+      "pattern": "^[A-Z]{3}$",
+      "type": "string"
+    },
+    "min_spend_per_package": {
+      "description": "Minimum spend requirement per package using this pricing option, in the specified currency",
+      "minimum": 0,
+      "type": "number"
     },
     "parameters": {
-      "type": "object",
+      "additionalProperties": false,
       "description": "CPV-specific parameters defining the view threshold",
       "properties": {
         "view_threshold": {
           "oneOf": [
             {
-              "type": "number",
               "description": "Percentage completion threshold for CPV pricing (0.0 to 1.0, e.g., 0.5 = 50% completion)",
+              "maximum": 1,
               "minimum": 0,
-              "maximum": 1
+              "type": "number"
             },
             {
-              "type": "object",
+              "additionalProperties": false,
               "description": "Time-based view threshold for CPV pricing",
               "properties": {
                 "duration_seconds": {
-                  "type": "integer",
                   "description": "Seconds of viewing required (e.g., 30 for YouTube-style '30 seconds = view')",
-                  "minimum": 1
+                  "minimum": 1,
+                  "type": "integer"
                 }
               },
               "required": [
                 "duration_seconds"
               ],
-              "additionalProperties": false
+              "type": "object"
             }
           ]
         }
@@ -63,12 +53,21 @@
       "required": [
         "view_threshold"
       ],
-      "additionalProperties": false
+      "type": "object"
     },
-    "min_spend_per_package": {
-      "type": "number",
-      "description": "Minimum spend requirement per package using this pricing option, in the specified currency",
-      "minimum": 0
+    "pricing_model": {
+      "const": "cpv",
+      "description": "Cost per view at threshold",
+      "type": "string"
+    },
+    "pricing_option_id": {
+      "description": "Unique identifier for this pricing option within the product (e.g., 'cpv_usd_50pct')",
+      "type": "string"
+    },
+    "rate": {
+      "description": "Fixed CPV rate (cost per view)",
+      "minimum": 0,
+      "type": "number"
     }
   },
   "required": [
@@ -78,5 +77,6 @@
     "currency",
     "parameters"
   ],
-  "additionalProperties": false
+  "title": "CPV Pricing Option",
+  "type": "object"
 }

@@ -1,9 +1,7 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/enums/identifier-types.json",
-  "title": "Property Identifier Types",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Valid identifier types for property identification across different media types",
-  "type": "string",
   "enum": [
     "domain",
     "subdomain",
@@ -30,5 +28,7 @@
     "ios_bundle",
     "venue_id",
     "apple_podcast_id"
-  ]
+  ],
+  "title": "Property Identifier Types",
+  "type": "string"
 }

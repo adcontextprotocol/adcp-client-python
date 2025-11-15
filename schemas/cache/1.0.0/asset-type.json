@@ -1,16 +1,148 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/core/asset-type.json",
-  "title": "Asset Type Schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
   "description": "Schema for describing asset requirements in creative formats",
-  "type": "object",
   "properties": {
     "asset_role": {
-      "type": "string",
-      "description": "Role or purpose of this asset in the creative (e.g., 'hero_image', 'logo', 'cta_button')"
+      "description": "Role or purpose of this asset in the creative (e.g., 'hero_image', 'logo', 'cta_button')",
+      "type": "string"
+    },
+    "constraints": {
+      "description": "Additional constraints or requirements (human-readable)",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "examples": {
+      "description": "Example values or descriptions for this asset",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "required": {
+      "default": true,
+      "description": "Whether this asset is mandatory for the format",
+      "type": "boolean"
+    },
+    "requirements": {
+      "additionalProperties": false,
+      "description": "Technical requirements for this asset type",
+      "properties": {
+        "content_length": {
+          "properties": {
+            "max_characters": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "max_words": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "min_characters": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "min_words": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "dimensions": {
+          "properties": {
+            "aspect_ratio": {
+              "type": "string"
+            },
+            "height": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "max_height": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "max_width": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "min_height": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "min_width": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "width": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "duration": {
+          "properties": {
+            "exact_seconds": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "max_seconds": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "min_seconds": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "file_formats": {
+          "description": "Acceptable file formats (e.g., ['jpg', 'png'] for images)",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "file_size": {
+          "properties": {
+            "max_bytes": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "min_bytes": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "quality": {
+          "properties": {
+            "max_bitrate_kbps": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "min_bitrate_kbps": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "min_resolution_dpi": {
+              "minimum": 72,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
     },
     "type": {
-      "type": "string",
+      "description": "Type of asset",
       "enum": [
         "image",
         "video",
@@ -24,145 +156,13 @@
         "promoted_offerings",
         "url"
       ],
-      "description": "Type of asset"
-    },
-    "required": {
-      "type": "boolean",
-      "default": true,
-      "description": "Whether this asset is mandatory for the format"
-    },
-    "requirements": {
-      "type": "object",
-      "description": "Technical requirements for this asset type",
-      "properties": {
-        "dimensions": {
-          "type": "object",
-          "properties": {
-            "width": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "height": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "aspect_ratio": {
-              "type": "string"
-            },
-            "min_width": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "max_width": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "min_height": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "max_height": {
-              "type": "integer",
-              "minimum": 1
-            }
-          }
-        },
-        "duration": {
-          "type": "object",
-          "properties": {
-            "min_seconds": {
-              "type": "number",
-              "minimum": 0
-            },
-            "max_seconds": {
-              "type": "number",
-              "minimum": 0
-            },
-            "exact_seconds": {
-              "type": "number",
-              "minimum": 0
-            }
-          }
-        },
-        "file_size": {
-          "type": "object",
-          "properties": {
-            "min_bytes": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "max_bytes": {
-              "type": "integer",
-              "minimum": 1
-            }
-          }
-        },
-        "file_formats": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Acceptable file formats (e.g., ['jpg', 'png'] for images)"
-        },
-        "content_length": {
-          "type": "object",
-          "properties": {
-            "min_characters": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "max_characters": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "min_words": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "max_words": {
-              "type": "integer",
-              "minimum": 1
-            }
-          }
-        },
-        "quality": {
-          "type": "object",
-          "properties": {
-            "min_bitrate_kbps": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "max_bitrate_kbps": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "min_resolution_dpi": {
-              "type": "integer",
-              "minimum": 72
-            }
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    "constraints": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "Additional constraints or requirements (human-readable)"
-    },
-    "examples": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "Example values or descriptions for this asset"
+      "type": "string"
     }
   },
   "required": [
     "asset_role",
     "type"
   ],
-  "additionalProperties": false
+  "title": "Asset Type Schema",
+  "type": "object"
 }

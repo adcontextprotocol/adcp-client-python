@@ -45,16 +45,14 @@
           "maxLength": 100
         }
       },
-      "required": [
-        "name"
-      ],
+      "required": ["name"],
       "additionalProperties": false
     },
     "properties": {
       "type": "array",
       "description": "Array of all properties covered by this adagents.json file. Same structure as list_authorized_properties response.",
       "items": {
-        "$ref": "property.json"
+        "$ref": "/schemas/v1/core/property.json"
       },
       "minItems": 1
     },
@@ -73,10 +71,7 @@
             "description": "Description of what this tag represents"
           }
         },
-        "required": [
-          "name",
-          "description"
-        ],
+        "required": ["name", "description"],
         "additionalProperties": false
       }
     },
@@ -84,88 +79,187 @@
       "type": "array",
       "description": "Array of sales agents authorized to sell inventory for properties in this file",
       "items": {
-        "type": "object",
-        "properties": {
-          "url": {
-            "type": "string",
-            "format": "uri",
-            "description": "The authorized agent's API endpoint URL"
-          },
-          "authorized_for": {
-            "type": "string",
-            "description": "Human-readable description of what this agent is authorized to sell",
-            "minLength": 1,
-            "maxLength": 500
-          },
-          "property_ids": {
-            "type": "array",
-            "description": "Property IDs this agent is authorized for. Resolved against the top-level properties array in this file. Mutually exclusive with property_tags and properties fields.",
-            "items": {
-              "type": "string",
-              "pattern": "^[a-z0-9_]+$"
-            },
-            "minItems": 1
-          },
-          "property_tags": {
-            "type": "array",
-            "description": "Tags identifying which properties this agent is authorized for. Resolved against the top-level properties array in this file using tag matching. Mutually exclusive with property_ids and properties fields.",
-            "items": {
-              "type": "string",
-              "pattern": "^[a-z0-9_]+$"
-            },
-            "minItems": 1
-          },
-          "properties": {
-            "type": "array",
-            "description": "Specific properties this agent is authorized for (alternative to property_ids/property_tags). Mutually exclusive with property_ids and property_tags fields.",
-            "items": {
-              "$ref": "property.json"
-            },
-            "minItems": 1
-          },
-          "publisher_properties": {
-            "type": "array",
-            "description": "Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell (by property_id or property_tags). Mutually exclusive with property_ids, property_tags, and properties fields.",
-            "items": {
-              "type": "object",
-              "properties": {
-                "publisher_domain": {
-                  "type": "string",
-                  "description": "Domain where the publisher's adagents.json is hosted (e.g., 'cnn.com')",
-                  "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
-                },
-                "property_ids": {
-                  "type": "array",
-                  "description": "Specific property IDs from the publisher's adagents.json properties array. Mutually exclusive with property_tags.",
-                  "items": {
-                    "type": "string",
-                    "pattern": "^[a-z0-9_]+$"
-                  },
-                  "minItems": 1
-                },
-                "property_tags": {
-                  "type": "array",
-                  "description": "Property tags from the publisher's adagents.json tags. Agent is authorized for all properties with these tags. Mutually exclusive with property_ids.",
-                  "items": {
-                    "type": "string",
-                    "pattern": "^[a-z0-9_]+$"
-                  },
-                  "minItems": 1
-                }
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "description": "The authorized agent's API endpoint URL"
               },
-              "required": [
-                "publisher_domain"
-              ],
-              "additionalProperties": false
+              "authorized_for": {
+                "type": "string",
+                "description": "Human-readable description of what this agent is authorized to sell",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "authorization_type": {
+                "type": "string",
+                "const": "property_ids",
+                "description": "Discriminator indicating authorization by specific property IDs"
+              },
+              "property_ids": {
+                "type": "array",
+                "description": "Property IDs this agent is authorized for. Resolved against the top-level properties array in this file",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_]+$"
+                },
+                "minItems": 1
+              }
             },
-            "minItems": 1
+            "required": ["url", "authorized_for", "authorization_type", "property_ids"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "description": "The authorized agent's API endpoint URL"
+              },
+              "authorized_for": {
+                "type": "string",
+                "description": "Human-readable description of what this agent is authorized to sell",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "authorization_type": {
+                "type": "string",
+                "const": "property_tags",
+                "description": "Discriminator indicating authorization by property tags"
+              },
+              "property_tags": {
+                "type": "array",
+                "description": "Tags identifying which properties this agent is authorized for. Resolved against the top-level properties array in this file using tag matching",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_]+$"
+                },
+                "minItems": 1
+              }
+            },
+            "required": ["url", "authorized_for", "authorization_type", "property_tags"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "description": "The authorized agent's API endpoint URL"
+              },
+              "authorized_for": {
+                "type": "string",
+                "description": "Human-readable description of what this agent is authorized to sell",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "authorization_type": {
+                "type": "string",
+                "const": "inline_properties",
+                "description": "Discriminator indicating authorization by inline property definitions"
+              },
+              "properties": {
+                "type": "array",
+                "description": "Specific properties this agent is authorized for (alternative to property_ids/property_tags)",
+                "items": {
+                  "$ref": "/schemas/v1/core/property.json"
+                },
+                "minItems": 1
+              }
+            },
+            "required": ["url", "authorized_for", "authorization_type", "properties"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "description": "The authorized agent's API endpoint URL"
+              },
+              "authorized_for": {
+                "type": "string",
+                "description": "Human-readable description of what this agent is authorized to sell",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "authorization_type": {
+                "type": "string",
+                "const": "publisher_properties",
+                "description": "Discriminator indicating authorization for properties from other publisher domains"
+              },
+              "publisher_properties": {
+                "type": "array",
+                "description": "Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "publisher_domain": {
+                          "type": "string",
+                          "description": "Domain where the publisher's adagents.json is hosted (e.g., 'cnn.com')",
+                          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
+                        },
+                        "selection_type": {
+                          "type": "string",
+                          "const": "by_id",
+                          "description": "Discriminator indicating selection by specific property IDs"
+                        },
+                        "property_ids": {
+                          "type": "array",
+                          "description": "Specific property IDs from the publisher's adagents.json properties array",
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[a-z0-9_]+$"
+                          },
+                          "minItems": 1
+                        }
+                      },
+                      "required": ["publisher_domain", "selection_type", "property_ids"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "publisher_domain": {
+                          "type": "string",
+                          "description": "Domain where the publisher's adagents.json is hosted (e.g., 'cnn.com')",
+                          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
+                        },
+                        "selection_type": {
+                          "type": "string",
+                          "const": "by_tag",
+                          "description": "Discriminator indicating selection by property tags"
+                        },
+                        "property_tags": {
+                          "type": "array",
+                          "description": "Property tags from the publisher's adagents.json tags. Agent is authorized for all properties with these tags",
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[a-z0-9_]+$"
+                          },
+                          "minItems": 1
+                        }
+                      },
+                      "required": ["publisher_domain", "selection_type", "property_tags"],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "minItems": 1
+              }
+            },
+            "required": ["url", "authorized_for", "authorization_type", "publisher_properties"],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "url",
-          "authorized_for"
-        ],
-        "additionalProperties": false
+        ]
       },
       "minItems": 1
     },
@@ -175,19 +269,35 @@
       "description": "ISO 8601 timestamp indicating when this file was last updated"
     }
   },
-  "required": [
-    "authorized_agents"
-  ],
+  "required": ["authorized_agents"],
   "additionalProperties": false,
   "examples": [
     {
       "$schema": "https://adcontextprotocol.org/schemas/v1/adagents.json",
+      "properties": [
+        {
+          "property_type": "website",
+          "name": "Example Site",
+          "identifiers": [
+            {"type": "domain", "value": "example.com"}
+          ],
+          "publisher_domain": "example.com"
+        }
+      ],
       "authorized_agents": [
         {
           "url": "https://agent.example.com",
-          "authorized_for": "Official sales agent"
+          "authorized_for": "Official sales agent",
+          "authorization_type": "property_tags",
+          "property_tags": ["all"]
         }
       ],
+      "tags": {
+        "all": {
+          "name": "All Properties",
+          "description": "All properties in this file"
+        }
+      },
       "last_updated": "2025-01-10T12:00:00Z"
     },
     {
@@ -204,57 +314,30 @@
           "property_type": "mobile_app",
           "name": "Instagram",
           "identifiers": [
-            {
-              "type": "ios_bundle",
-              "value": "com.burbn.instagram"
-            },
-            {
-              "type": "android_package",
-              "value": "com.instagram.android"
-            }
+            {"type": "ios_bundle", "value": "com.burbn.instagram"},
+            {"type": "android_package", "value": "com.instagram.android"}
           ],
-          "tags": [
-            "meta_network",
-            "social_media"
-          ],
+          "tags": ["meta_network", "social_media"],
           "publisher_domain": "instagram.com"
         },
         {
           "property_type": "mobile_app",
           "name": "Facebook",
           "identifiers": [
-            {
-              "type": "ios_bundle",
-              "value": "com.facebook.Facebook"
-            },
-            {
-              "type": "android_package",
-              "value": "com.facebook.katana"
-            }
+            {"type": "ios_bundle", "value": "com.facebook.Facebook"},
+            {"type": "android_package", "value": "com.facebook.katana"}
           ],
-          "tags": [
-            "meta_network",
-            "social_media"
-          ],
+          "tags": ["meta_network", "social_media"],
           "publisher_domain": "facebook.com"
         },
         {
           "property_type": "mobile_app",
           "name": "WhatsApp",
           "identifiers": [
-            {
-              "type": "ios_bundle",
-              "value": "net.whatsapp.WhatsApp"
-            },
-            {
-              "type": "android_package",
-              "value": "com.whatsapp"
-            }
+            {"type": "ios_bundle", "value": "net.whatsapp.WhatsApp"},
+            {"type": "android_package", "value": "com.whatsapp"}
           ],
-          "tags": [
-            "meta_network",
-            "messaging"
-          ],
+          "tags": ["meta_network", "messaging"],
           "publisher_domain": "whatsapp.com"
         }
       ],
@@ -276,9 +359,8 @@
         {
           "url": "https://meta-ads.com",
           "authorized_for": "All Meta properties",
-          "property_tags": [
-            "meta_network"
-          ]
+          "authorization_type": "property_tags",
+          "property_tags": ["meta_network"]
         }
       ],
       "last_updated": "2025-01-10T15:30:00Z"
@@ -293,14 +375,9 @@
           "property_type": "website",
           "name": "Tumblr Corporate",
           "identifiers": [
-            {
-              "type": "domain",
-              "value": "tumblr.com"
-            }
+            {"type": "domain", "value": "tumblr.com"}
           ],
-          "tags": [
-            "corporate"
-          ],
+          "tags": ["corporate"],
           "publisher_domain": "tumblr.com"
         }
       ],
@@ -314,9 +391,8 @@
         {
           "url": "https://tumblr-sales.com",
           "authorized_for": "Tumblr corporate properties only",
-          "property_tags": [
-            "corporate"
-          ]
+          "authorization_type": "property_tags",
+          "property_tags": ["corporate"]
         }
       ],
       "last_updated": "2025-01-10T16:00:00Z"
@@ -332,30 +408,29 @@
         {
           "url": "https://agent.example/api",
           "authorized_for": "CNN CTV properties via publisher authorization",
+          "authorization_type": "publisher_properties",
           "publisher_properties": [
             {
               "publisher_domain": "cnn.com",
-              "property_ids": [
-                "cnn_ctv_app"
-              ]
+              "selection_type": "by_id",
+              "property_ids": ["cnn_ctv_app"]
             }
           ]
         },
         {
           "url": "https://agent.example/api",
           "authorized_for": "All CTV properties from multiple publishers",
+          "authorization_type": "publisher_properties",
           "publisher_properties": [
             {
               "publisher_domain": "cnn.com",
-              "property_tags": [
-                "ctv"
-              ]
+              "selection_type": "by_tag",
+              "property_tags": ["ctv"]
             },
             {
               "publisher_domain": "espn.com",
-              "property_tags": [
-                "ctv"
-              ]
+              "selection_type": "by_tag",
+              "property_tags": ["ctv"]
             }
           ]
         }

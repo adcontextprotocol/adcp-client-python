@@ -1,18 +1,18 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/core/frequency-cap.json",
-  "title": "Frequency Cap",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
   "description": "Frequency capping settings for package-level application",
-  "type": "object",
   "properties": {
     "suppress_minutes": {
-      "type": "number",
       "description": "Minutes to suppress after impression",
-      "minimum": 0
+      "minimum": 0,
+      "type": "number"
     }
   },
   "required": [
     "suppress_minutes"
   ],
-  "additionalProperties": false
+  "title": "Frequency Cap",
+  "type": "object"
 }

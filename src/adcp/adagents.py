@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 import httpx
 
 from adcp.exceptions import AdagentsNotFoundError, AdagentsTimeoutError, AdagentsValidationError
+from adcp.validation import ValidationError, validate_adagents
 
 
 def _normalize_domain(domain: str) -> str:
@@ -365,6 +366,12 @@ async def fetch_adagents(
 
         if not isinstance(data["authorized_agents"], list):
             raise AdagentsValidationError("'authorized_agents' must be an array")
+
+        # Validate mutual exclusivity constraints
+        try:
+            validate_adagents(data)
+        except ValidationError as e:
+            raise AdagentsValidationError(f"Invalid adagents.json structure: {e}") from e
 
         return data
 

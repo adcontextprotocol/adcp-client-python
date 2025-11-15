@@ -1,28 +1,28 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/core/sub-asset.json",
-  "title": "Sub-Asset",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Sub-asset for multi-asset creative formats, including carousel images and native ad template variables",
   "oneOf": [
     {
-      "type": "object",
+      "additionalProperties": false,
       "properties": {
+        "asset_id": {
+          "description": "Unique identifier for the asset within the creative",
+          "type": "string"
+        },
         "asset_kind": {
           "const": "media",
-          "description": "Discriminator indicating this is a media asset with content_uri"
+          "description": "Discriminator indicating this is a media asset with content_uri",
+          "type": "string"
         },
         "asset_type": {
-          "type": "string",
-          "description": "Type of asset. Common types: thumbnail_image, product_image, featured_image, logo"
-        },
-        "asset_id": {
-          "type": "string",
-          "description": "Unique identifier for the asset within the creative"
+          "description": "Type of asset. Common types: thumbnail_image, product_image, featured_image, logo",
+          "type": "string"
         },
         "content_uri": {
-          "type": "string",
+          "description": "URL for media assets (images, videos, etc.)",
           "format": "uri",
-          "description": "URL for media assets (images, videos, etc.)"
+          "type": "string"
         }
       },
       "required": [
@@ -31,38 +31,39 @@
         "asset_id",
         "content_uri"
       ],
-      "additionalProperties": false
+      "type": "object"
     },
     {
-      "type": "object",
+      "additionalProperties": false,
       "properties": {
+        "asset_id": {
+          "description": "Unique identifier for the asset within the creative",
+          "type": "string"
+        },
         "asset_kind": {
           "const": "text",
-          "description": "Discriminator indicating this is a text asset with content"
+          "description": "Discriminator indicating this is a text asset with content",
+          "type": "string"
         },
         "asset_type": {
-          "type": "string",
-          "description": "Type of asset. Common types: headline, body_text, cta_text, price_text, sponsor_name, author_name, click_url"
-        },
-        "asset_id": {
-          "type": "string",
-          "description": "Unique identifier for the asset within the creative"
+          "description": "Type of asset. Common types: headline, body_text, cta_text, price_text, sponsor_name, author_name, click_url",
+          "type": "string"
         },
         "content": {
+          "description": "Text content for text-based assets like headlines, body text, CTA text, etc.",
           "oneOf": [
             {
-              "type": "string",
-              "description": "Single text content value"
+              "description": "Single text content value",
+              "type": "string"
             },
             {
-              "type": "array",
               "description": "Multiple text content values (for A/B testing or variations)",
               "items": {
                 "type": "string"
-              }
+              },
+              "type": "array"
             }
-          ],
-          "description": "Text content for text-based assets like headlines, body text, CTA text, etc."
+          ]
         }
       },
       "required": [
@@ -71,7 +72,8 @@
         "asset_id",
         "content"
       ],
-      "additionalProperties": false
+      "type": "object"
     }
-  ]
+  ],
+  "title": "Sub-Asset"
 }

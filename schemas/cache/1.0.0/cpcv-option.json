@@ -1,39 +1,38 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/pricing-options/cpcv-option.json",
-  "title": "CPCV Pricing Option",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
   "description": "Cost Per Completed View (100% video/audio completion) fixed-rate pricing",
-  "type": "object",
   "properties": {
-    "pricing_option_id": {
-      "type": "string",
-      "description": "Unique identifier for this pricing option within the product (e.g., 'cpcv_usd_guaranteed')"
-    },
-    "pricing_model": {
-      "type": "string",
-      "const": "cpcv",
-      "description": "Cost per completed view (100% completion)"
-    },
-    "rate": {
-      "type": "number",
-      "description": "Fixed CPCV rate (cost per 100% completion)",
-      "minimum": 0
-    },
     "currency": {
-      "type": "string",
       "description": "ISO 4217 currency code",
-      "pattern": "^[A-Z]{3}$",
       "examples": [
         "USD",
         "EUR",
         "GBP",
         "JPY"
-      ]
+      ],
+      "pattern": "^[A-Z]{3}$",
+      "type": "string"
     },
     "min_spend_per_package": {
-      "type": "number",
       "description": "Minimum spend requirement per package using this pricing option, in the specified currency",
-      "minimum": 0
+      "minimum": 0,
+      "type": "number"
+    },
+    "pricing_model": {
+      "const": "cpcv",
+      "description": "Cost per completed view (100% completion)",
+      "type": "string"
+    },
+    "pricing_option_id": {
+      "description": "Unique identifier for this pricing option within the product (e.g., 'cpcv_usd_guaranteed')",
+      "type": "string"
+    },
+    "rate": {
+      "description": "Fixed CPCV rate (cost per 100% completion)",
+      "minimum": 0,
+      "type": "number"
     }
   },
   "required": [
@@ -42,5 +41,6 @@
     "rate",
     "currency"
   ],
-  "additionalProperties": false
+  "title": "CPCV Pricing Option",
+  "type": "object"
 }

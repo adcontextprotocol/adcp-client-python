@@ -1,54 +1,58 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/core/performance-feedback.json",
-  "title": "Performance Feedback",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
   "description": "Represents performance feedback data for a media buy or package",
-  "type": "object",
   "properties": {
-    "feedback_id": {
-      "type": "string",
-      "description": "Unique identifier for this performance feedback submission"
-    },
-    "media_buy_id": {
-      "type": "string",
-      "description": "Publisher's media buy identifier"
-    },
-    "package_id": {
-      "type": "string",
-      "description": "Specific package within the media buy (if feedback is package-specific)"
+    "applied_at": {
+      "description": "ISO 8601 timestamp when feedback was applied to optimization algorithms",
+      "format": "date-time",
+      "type": "string"
     },
     "creative_id": {
-      "type": "string",
-      "description": "Specific creative asset (if feedback is creative-specific)"
+      "description": "Specific creative asset (if feedback is creative-specific)",
+      "type": "string"
+    },
+    "feedback_id": {
+      "description": "Unique identifier for this performance feedback submission",
+      "type": "string"
+    },
+    "feedback_source": {
+      "description": "Source of the performance data",
+      "enum": [
+        "buyer_attribution",
+        "third_party_measurement",
+        "platform_analytics",
+        "verification_partner"
+      ],
+      "type": "string"
     },
     "measurement_period": {
-      "type": "object",
+      "additionalProperties": false,
       "description": "Time period for performance measurement",
       "properties": {
-        "start": {
-          "type": "string",
-          "format": "date-time",
-          "description": "ISO 8601 start timestamp for measurement period"
-        },
         "end": {
-          "type": "string",
+          "description": "ISO 8601 end timestamp for measurement period",
           "format": "date-time",
-          "description": "ISO 8601 end timestamp for measurement period"
+          "type": "string"
+        },
+        "start": {
+          "description": "ISO 8601 start timestamp for measurement period",
+          "format": "date-time",
+          "type": "string"
         }
       },
       "required": [
         "start",
         "end"
       ],
-      "additionalProperties": false
+      "type": "object"
     },
-    "performance_index": {
-      "type": "number",
-      "description": "Normalized performance score (0.0 = no value, 1.0 = expected, >1.0 = above expected)",
-      "minimum": 0
+    "media_buy_id": {
+      "description": "Publisher's media buy identifier",
+      "type": "string"
     },
     "metric_type": {
-      "type": "string",
       "description": "The business metric being measured",
       "enum": [
         "overall_performance",
@@ -59,37 +63,32 @@
         "viewability",
         "brand_safety",
         "cost_efficiency"
-      ]
+      ],
+      "type": "string"
     },
-    "feedback_source": {
-      "type": "string",
-      "description": "Source of the performance data",
-      "enum": [
-        "buyer_attribution",
-        "third_party_measurement",
-        "platform_analytics",
-        "verification_partner"
-      ]
+    "package_id": {
+      "description": "Specific package within the media buy (if feedback is package-specific)",
+      "type": "string"
+    },
+    "performance_index": {
+      "description": "Normalized performance score (0.0 = no value, 1.0 = expected, >1.0 = above expected)",
+      "minimum": 0,
+      "type": "number"
     },
     "status": {
-      "type": "string",
       "description": "Processing status of the performance feedback",
       "enum": [
         "accepted",
         "queued",
         "applied",
         "rejected"
-      ]
+      ],
+      "type": "string"
     },
     "submitted_at": {
-      "type": "string",
+      "description": "ISO 8601 timestamp when feedback was submitted",
       "format": "date-time",
-      "description": "ISO 8601 timestamp when feedback was submitted"
-    },
-    "applied_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "ISO 8601 timestamp when feedback was applied to optimization algorithms"
+      "type": "string"
     }
   },
   "required": [
@@ -102,5 +101,6 @@
     "status",
     "submitted_at"
   ],
-  "additionalProperties": false
+  "title": "Performance Feedback",
+  "type": "object"
 }

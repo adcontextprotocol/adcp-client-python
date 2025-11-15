@@ -1,9 +1,7 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/enums/package-status.json",
-  "title": "Package Status",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Status of a package",
-  "type": "string",
   "enum": [
     "draft",
     "active",
@@ -11,9 +9,11 @@
     "completed"
   ],
   "enumDescriptions": {
-    "draft": "Package is in draft state",
     "active": "Package is currently active",
-    "paused": "Package is paused",
-    "completed": "Package has completed delivery"
-  }
+    "completed": "Package has completed delivery",
+    "draft": "Package is in draft state",
+    "paused": "Package is paused"
+  },
+  "title": "Package Status",
+  "type": "string"
 }

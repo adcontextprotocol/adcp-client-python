@@ -1,28 +1,42 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/media-buy/get-media-buy-delivery-request.json",
-  "title": "Get Media Buy Delivery Request",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
   "description": "Request parameters for retrieving comprehensive delivery metrics",
-  "type": "object",
   "properties": {
-    "media_buy_ids": {
-      "type": "array",
-      "description": "Array of publisher media buy IDs to get delivery data for",
-      "items": {
-        "type": "string"
-      }
-    },
     "buyer_refs": {
-      "type": "array",
       "description": "Array of buyer reference IDs to get delivery data for",
       "items": {
         "type": "string"
-      }
+      },
+      "type": "array"
+    },
+    "context": {
+      "additionalProperties": true,
+      "description": "Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.",
+      "type": "object"
+    },
+    "end_date": {
+      "description": "End date for reporting period (YYYY-MM-DD)",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "type": "string"
+    },
+    "media_buy_ids": {
+      "description": "Array of publisher media buy IDs to get delivery data for",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "start_date": {
+      "description": "Start date for reporting period (YYYY-MM-DD)",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "type": "string"
     },
     "status_filter": {
+      "description": "Filter by status. Can be a single status or array of statuses",
       "oneOf": [
         {
-          "type": "string",
           "enum": [
             "active",
             "pending",
@@ -30,39 +44,25 @@
             "completed",
             "failed",
             "all"
-          ]
+          ],
+          "type": "string"
         },
         {
-          "type": "array",
           "items": {
-            "type": "string",
             "enum": [
               "active",
               "pending",
               "paused",
               "completed",
               "failed"
-            ]
-          }
+            ],
+            "type": "string"
+          },
+          "type": "array"
         }
-      ],
-      "description": "Filter by status. Can be a single status or array of statuses"
-    },
-    "start_date": {
-      "type": "string",
-      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-      "description": "Start date for reporting period (YYYY-MM-DD)"
-    },
-    "end_date": {
-      "type": "string",
-      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-      "description": "End date for reporting period (YYYY-MM-DD)"
-    },
-    "context": {
-      "type": "object",
-      "description": "Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.",
-      "additionalProperties": true
+      ]
     }
   },
-  "additionalProperties": false
+  "title": "Get Media Buy Delivery Request",
+  "type": "object"
 }
