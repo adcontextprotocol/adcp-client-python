@@ -9,6 +9,7 @@ import logging
 import os
 from collections.abc import Callable
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel
@@ -23,6 +24,7 @@ from adcp.types.core import (
     AgentConfig,
     Protocol,
     TaskResult,
+    TaskStatus,
 )
 from adcp.types.generated import (
     ActivateSignalRequest,
@@ -624,7 +626,6 @@ class ADCPClient:
         Returns:
             TaskResult with task-specific typed response data
         """
-        from adcp.types.core import TaskStatus
         from adcp.utils.response_parser import parse_json_or_text
 
         # Map task types to their response types (using string literals, not enum)
@@ -643,7 +644,7 @@ class ADCPClient:
 
         # Handle completed tasks with result parsing
 
-        if webhook.status == "completed" and webhook.result is not None:
+        if webhook.status == TaskStatus.completed and webhook.result is not None:
             response_type = response_type_map.get(webhook.task_type)
             if response_type:
                 try:
@@ -674,7 +675,7 @@ class ADCPClient:
         return TaskResult[Any](
             status=task_status,
             data=webhook.result,
-            success=webhook.status == "completed",
+            success=webhook.status == TaskStatus.completed,
             error=webhook.error if isinstance(webhook.error, str) else None,
             metadata={
                 "task_id": webhook.task_id,
@@ -732,7 +733,7 @@ class ADCPClient:
                 type=ActivityType.WEBHOOK_RECEIVED,
                 operation_id=webhook.operation_id or "unknown",
                 agent_id=self.agent_config.id,
-                task_type=webhook.task_type,
+                task_type=webhook.task_type.value if isinstance(webhook.task_type, Enum) else webhook.task_type,  # type: ignore[arg-type]
                 timestamp=datetime.now(timezone.utc).isoformat(),
                 metadata={"payload": payload},
             )

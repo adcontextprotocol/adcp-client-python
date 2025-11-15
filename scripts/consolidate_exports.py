@@ -52,8 +52,11 @@ def generate_consolidated_exports() -> str:
     print(f"Found {len(modules)} modules to consolidate")
 
     # Build import statements and collect all exports
+    # Track which module first defined each export name
+    export_to_module: dict[str, str] = {}
     import_lines = []
     all_exports = set()
+    collisions = []
 
     for module_path in modules:
         module_name = module_path.stem
@@ -62,14 +65,34 @@ def generate_consolidated_exports() -> str:
         if not exports:
             continue
 
-        print(f"  {module_name}: {len(exports)} exports")
+        # Filter out names that collide with already-exported names
+        unique_exports = set()
+        for export_name in exports:
+            if export_name in export_to_module:
+                # Collision detected - skip this duplicate
+                first_module = export_to_module[export_name]
+                collisions.append(f"  {export_name}: defined in both {first_module} and {module_name} (using {first_module})")
+            else:
+                unique_exports.add(export_name)
+                export_to_module[export_name] = module_name
 
-        # Create import statement
-        exports_str = ", ".join(sorted(exports))
+        if not unique_exports:
+            print(f"  {module_name}: 0 unique exports (all collisions)")
+            continue
+
+        print(f"  {module_name}: {len(unique_exports)} exports")
+
+        # Create import statement with only unique exports
+        exports_str = ", ".join(sorted(unique_exports))
         import_line = f"from adcp.types.generated_poc.{module_name} import {exports_str}"
         import_lines.append(import_line)
 
-        all_exports.update(exports)
+        all_exports.update(unique_exports)
+
+    if collisions:
+        print("\n⚠️  Name collisions detected (duplicates skipped):")
+        for collision in sorted(collisions):
+            print(collision)
 
     # Generate file content
     generation_date = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -90,7 +113,19 @@ def generate_consolidated_exports() -> str:
 
     lines.extend(import_lines)
 
-    lines.extend(["", "# Explicit exports", f"__all__ = {sorted(list(all_exports))}", ""])
+    # Add backward compatibility aliases
+    all_exports_with_aliases = all_exports | {'BrandManifestRef', 'Channels'}
+
+    lines.extend([
+        "",
+        "# Backward compatibility aliases for renamed types",
+        "BrandManifestRef = BrandManifestReference",
+        "Channels = AdvertisingChannels",
+        "",
+        "# Explicit exports",
+        f"__all__ = {sorted(list(all_exports_with_aliases))}",
+        ""
+    ])
 
     return "\n".join(lines)
 

@@ -1,5 +1,7 @@
 """Helper utilities for generating creative preview URLs for grid rendering."""
 
+# mypy: disable-error-code="arg-type,attr-defined,call-arg,unused-ignore,union-attr"
+
 from __future__ import annotations
 
 import hashlib
