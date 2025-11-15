@@ -44,7 +44,7 @@ dev = [
     "mypy>=1.0.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
-    "datamodel-code-generator[http]>=0.25.0",
+    "datamodel-code-generator[http]>=0.35.0",
     "email-validator>=2.0.0",
 ]
 

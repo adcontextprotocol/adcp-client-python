@@ -249,7 +249,6 @@ from adcp.types.generated_poc.product import (
     Product,
     ProductCard,
     ProductCardDetailed,
-    PublisherProperty,
 )
 from adcp.types.generated_poc.promoted_offerings import AssetSelectors, Offering, PromotedOfferings
 from adcp.types.generated_poc.promoted_products import PromotedProducts
@@ -538,7 +537,6 @@ __all__ = [
     "PublisherIdentifierTypes",
     "PublisherProperties",
     "PublisherProperties1",
-    "PublisherProperty",
     "PushNotificationConfig",
     "Quality",
     "QuartileData",
