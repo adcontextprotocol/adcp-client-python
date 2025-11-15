@@ -22,7 +22,7 @@ OUTPUT_DIR = REPO_ROOT / "src" / "adcp" / "types" / "generated_poc"
 TEMP_DIR = REPO_ROOT / ".schema_temp"
 
 
-def rewrite_refs(obj: dict | list | str, current_file: str) -> dict | list | str:
+def rewrite_refs(obj: dict | list | str) -> dict | list | str:
     """
     Recursively rewrite absolute $ref paths to relative paths.
 
@@ -40,10 +40,10 @@ def rewrite_refs(obj: dict | list | str, current_file: str) -> dict | list | str
                 else:
                     result[key] = value
             else:
-                result[key] = rewrite_refs(value, current_file)
+                result[key] = rewrite_refs(value)
         return result
     elif isinstance(obj, list):
-        return [rewrite_refs(item, current_file) for item in obj]
+        return [rewrite_refs(item) for item in obj]
     else:
         return obj
 
@@ -71,7 +71,7 @@ def flatten_schemas():
                 schema = json.load(f)
 
             # Rewrite $ref paths
-            schema = rewrite_refs(schema, schema_file.name)
+            schema = rewrite_refs(schema)
 
             # Write to temp directory
             output_file = TEMP_DIR / schema_file.name
@@ -187,6 +187,7 @@ def main():
     print(f"\nInput: {SCHEMAS_DIR}")
     print(f"Output: {OUTPUT_DIR}\n")
 
+    temp_schemas = None
     try:
         # Ensure output directory exists
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -201,9 +202,6 @@ def main():
         # Fix forward references
         fix_forward_references()
 
-        # Clean up temp directory
-        shutil.rmtree(temp_schemas)
-
         # Count generated files
         py_files = list(OUTPUT_DIR.glob("*.py"))
         print(f"\n✓ Successfully generated types")
@@ -217,6 +215,10 @@ def main():
         import traceback
         traceback.print_exc()
         return 1
+    finally:
+        # Clean up temp directory
+        if temp_schemas and temp_schemas.exists():
+            shutil.rmtree(temp_schemas)
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ that imports and re-exports all public types, handling naming conflicts appropri
 from __future__ import annotations
 
 import ast
-import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 GENERATED_POC_DIR = Path(__file__).parent.parent / "src" / "adcp" / "types" / "generated_poc"
@@ -37,7 +37,7 @@ def extract_exports_from_module(module_path: Path) -> set[str]:
             for target in node.targets:
                 if isinstance(target, ast.Name) and not target.id.startswith("_"):
                     # Only export if it looks like a type name (starts with capital)
-                    if target.id[0].isupper():
+                    if target.id and target.id[0].isupper():
                         exports.add(target.id)
 
     return exports
@@ -72,6 +72,7 @@ def generate_consolidated_exports() -> str:
         all_exports.update(exports)
 
     # Generate file content
+    generation_date = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     lines = [
         '"""Generated AdCP types.',
         "",
@@ -79,7 +80,7 @@ def generate_consolidated_exports() -> str:
         "DO NOT EDIT MANUALLY.",
         "",
         "Generated from: https://github.com/adcontextprotocol/adcp/tree/main/schemas",
-        f"Generation date: {time.time()}",
+        f"Generation date: {generation_date}",
         '"""',
         "",
         "from __future__ import annotations",
