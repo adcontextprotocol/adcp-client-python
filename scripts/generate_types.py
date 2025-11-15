@@ -179,6 +179,28 @@ def generate_types(input_dir: Path):
     return True
 
 
+def apply_post_generation_fixes():
+    """Apply post-generation fixes using the dedicated script."""
+    print("Running post-generation fixes...")
+
+    post_fix_script = REPO_ROOT / "scripts" / "post_generate_fixes.py"
+    result = subprocess.run(
+        [sys.executable, str(post_fix_script)],
+        capture_output=True,
+        text=True,
+    )
+
+    if result.stdout:
+        print(result.stdout, end="")
+
+    if result.returncode != 0:
+        print(f"\n✗ Post-generation fixes failed:", file=sys.stderr)
+        print(result.stderr, file=sys.stderr)
+        return False
+
+    return True
+
+
 def main():
     """Generate types from schemas."""
     print("=" * 70)
@@ -201,6 +223,10 @@ def main():
 
         # Fix forward references
         fix_forward_references()
+
+        # Apply post-generation fixes
+        if not apply_post_generation_fixes():
+            return 1
 
         # Count generated files
         py_files = list(OUTPUT_DIR.glob("*.py"))

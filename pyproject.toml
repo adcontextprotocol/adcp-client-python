@@ -88,3 +88,8 @@ ignore_errors = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+
+[dependency-groups]
+dev = [
+    "datamodel-code-generator>=0.35.0",
+]
