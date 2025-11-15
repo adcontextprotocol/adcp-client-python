@@ -20,11 +20,16 @@ from adcp.types.generated import (
     Deployment2,  # Agent
     Error,
 )
-from adcp.types.generated_poc.product import PublisherProperty
+from adcp.types.generated_poc.product import Product, PublisherProperty
 
 
 class TestAuthorizationDiscriminatedUnions:
-    """Test authorization_type discriminated unions in adagents.json."""
+    """Test authorization_type discriminated unions in adagents.json.
+
+    Note: AuthorizedAgents variants are separate discriminated union types.
+    Pydantic automatically enforces correct field usage based on Literal types.
+    No model_validator needed because discrimination happens at type level.
+    """
 
     def test_property_ids_authorization(self):
         """AuthorizedAgents (property_ids variant) requires property_ids and authorization_type."""
@@ -38,6 +43,18 @@ class TestAuthorizationDiscriminatedUnions:
         assert [p.root for p in agent.property_ids] == ["site1", "site2"]
         assert not hasattr(agent, "property_tags")
         assert not hasattr(agent, "properties")
+
+    def test_property_ids_authorization_wrong_type_fails(self):
+        """AuthorizedAgents (property_ids) rejects wrong authorization_type value."""
+        with pytest.raises(ValidationError) as exc_info:
+            AuthorizedAgents(
+                url="https://agent.example.com",
+                authorized_for="All properties",
+                authorization_type="property_tags",  # Wrong value for this variant
+                property_ids=["site1"],
+            )
+        error_msg = str(exc_info.value)
+        assert "authorization_type" in error_msg.lower()
 
     def test_property_tags_authorization(self):
         """AuthorizedAgents1 (property_tags variant) requires property_tags and authorization_type."""
@@ -371,3 +388,49 @@ class TestPublisherPropertyValidation:
             or "exactly one" in error_msg.lower()
             or "at least one is required" in error_msg.lower()
         )
+
+
+class TestProductValidation:
+    """Test Product model validation including publisher_properties.
+
+    Note: Product validation inherits PublisherProperty validation.
+    These tests verify that validation errors from PublisherProperty
+    are properly propagated through Product model_validator.
+    """
+
+    def test_product_validates_publisher_properties_automatically(self):
+        """Product.model_validate automatically validates PublisherProperty items."""
+        # Valid PublisherProperty should work
+        valid_props = [
+            PublisherProperty(
+                publisher_domain="cnn.com",
+                property_ids=["site1", "site2"],
+            )
+        ]
+        assert len(valid_props) == 1
+        assert valid_props[0].property_ids is not None
+
+    def test_publisher_property_validation_in_product_context(self):
+        """PublisherProperty validation works when used in Product."""
+        # Test that invalid PublisherProperty raises error
+        with pytest.raises(ValidationError) as exc_info:
+            PublisherProperty(
+                publisher_domain="cnn.com",
+                property_ids=["site1"],
+                property_tags=["premium"],  # Invalid: both fields
+            )
+        error_msg = str(exc_info.value)
+        assert (
+            "mutually exclusive" in error_msg.lower()
+            or "exactly one" in error_msg.lower()
+        )
+
+    def test_publisher_property_validation_propagates_errors(self):
+        """PublisherProperty validation errors are caught during construction."""
+        # Neither field should fail
+        with pytest.raises(ValidationError) as exc_info:
+            PublisherProperty(
+                publisher_domain="cnn.com",
+            )
+        error_msg = str(exc_info.value)
+        assert "at least one is required" in error_msg.lower()

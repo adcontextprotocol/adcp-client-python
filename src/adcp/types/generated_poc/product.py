@@ -193,3 +193,19 @@ class Product(AdCPBaseModel):
         ),
     ]
     reporting_capabilities: reporting_capabilities_1.ReportingCapabilities | None = None
+
+    @model_validator(mode='after')
+    def validate_publisher_properties_items(self) -> 'Product':
+        """Validate all publisher_properties items.
+
+        Note: Individual PublisherProperty objects already have their own
+        model_validator, so this validator is mainly for consistency
+        and to ensure validation happens even if items are constructed
+        with model_construct (bypassing validation).
+        """
+        from adcp.validation import validate_product
+
+        # Convert to dict for validation
+        data = self.model_dump()
+        validate_product(data)
+        return self
