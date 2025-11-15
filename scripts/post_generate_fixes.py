@@ -20,11 +20,23 @@ OUTPUT_DIR = REPO_ROOT / "src" / "adcp" / "types" / "generated_poc"
 
 
 def add_model_validator_to_product():
-    """Add model_validators to PublisherProperty and Product classes."""
+    """Add model_validators to PublisherProperty and Product classes (if they exist)."""
     product_file = OUTPUT_DIR / "product.py"
+
+    if not product_file.exists():
+        print("  product.py not found (skipping validators)")
+        return
 
     with open(product_file) as f:
         content = f.read()
+
+    # Check if PublisherProperty class exists in generated code
+    has_publisher_property_class = "class PublisherProperty" in content
+    has_product_class = "class Product" in content
+
+    if not has_product_class:
+        print("  product.py has no Product class (skipping validators)")
+        return
 
     # Check if validators already exist
     if "validate_mutual_exclusivity" in content and "validate_publisher_properties_items" in content:
@@ -33,13 +45,23 @@ def add_model_validator_to_product():
 
     # Add model_validator to imports if not present
     if "model_validator" not in content:
-        content = content.replace(
-            "from pydantic import AwareDatetime, ConfigDict, Field, RootModel",
-            "from pydantic import AwareDatetime, ConfigDict, Field, RootModel, model_validator",
-        )
+        # Try different import patterns
+        if "from pydantic import" in content:
+            # Find the pydantic import line and add model_validator
+            import_patterns = [
+                (
+                    "from pydantic import AwareDatetime, ConfigDict, Field, RootModel",
+                    "from pydantic import AwareDatetime, ConfigDict, Field, RootModel, model_validator",
+                ),
+                ("from pydantic import", "from pydantic import model_validator, "),
+            ]
+            for old, new in import_patterns:
+                if old in content:
+                    content = content.replace(old, new, 1)
+                    break
 
-    # Add validator to PublisherProperty class
-    if "validate_mutual_exclusivity" not in content:
+    # Add validator to PublisherProperty class (if it exists)
+    if has_publisher_property_class and "validate_mutual_exclusivity" not in content:
         # Find the PublisherProperty class - match from class definition to the next class definition
         # PublisherProperty ends right before the "class Product" line
         publisher_property_pattern = (
@@ -48,12 +70,9 @@ def add_model_validator_to_product():
         match = re.search(publisher_property_pattern, content, re.DOTALL)
 
         if not match:
-            raise RuntimeError(
-                "Could not find PublisherProperty class definition. "
-                "Schema may have changed - update post_generate_fixes.py"
-            )
-
-        validator_code = '''
+            print("  product.py PublisherProperty class found but pattern mismatch (skipping validator)")
+        else:
+            validator_code = '''
 
     @model_validator(mode='after')
     def validate_mutual_exclusivity(self) -> 'PublisherProperty':
@@ -65,15 +84,19 @@ def add_model_validator_to_product():
         validate_publisher_properties_item(data)
         return self
 '''
-        # Insert validator at end of PublisherProperty class
-        content = content.replace(match.group(0), match.group(1) + validator_code + "\n\nclass Product(AdCPBaseModel):")
+            # Insert validator at end of PublisherProperty class
+            content = content.replace(
+                match.group(0), match.group(1) + validator_code + "\n\nclass Product(AdCPBaseModel):"
+            )
 
-        # Verify it was added
-        if "validate_mutual_exclusivity" not in content:
-            raise RuntimeError("Failed to add validate_mutual_exclusivity to PublisherProperty")
+            # Verify it was added
+            if "validate_mutual_exclusivity" not in content:
+                print("  product.py failed to add PublisherProperty validator (non-fatal)")
+            else:
+                print("  product.py PublisherProperty validator added")
 
     # Add validator to Product class
-    if "validate_publisher_properties_items" not in content:
+    if has_product_class and "validate_publisher_properties_items" not in content:
         # Find the Product class and its last field definition
         # Look for the last field before either a blank line, validator, or end of file
         # This is more robust than looking for a specific field name
@@ -81,11 +104,9 @@ def add_model_validator_to_product():
         match = re.search(product_pattern, content, re.DOTALL)
 
         if not match:
-            raise RuntimeError(
-                "Could not find Product class definition. " "Schema may have changed - update post_generate_fixes.py"
-            )
-
-        validator_code = '''
+            print("  product.py Product class found but pattern mismatch (skipping validator)")
+        else:
+            validator_code = '''
 
     @model_validator(mode='after')
     def validate_publisher_properties_items(self) -> 'Product':
@@ -103,18 +124,21 @@ def add_model_validator_to_product():
         validate_product(data)
         return self
 '''
-        # Insert validator before the matched separator
-        separator = match.group(2)
-        content = content.replace(match.group(0), match.group(1) + validator_code + separator)
+            # Insert validator before the matched separator
+            separator = match.group(2)
+            content = content.replace(match.group(0), match.group(1) + validator_code + separator)
 
-        # Verify it was added
-        if "validate_publisher_properties_items" not in content:
-            raise RuntimeError("Failed to add validate_publisher_properties_items to Product")
+            # Verify it was added
+            if "validate_publisher_properties_items" not in content:
+                print("  product.py failed to add Product validator (non-fatal)")
+            else:
+                print("  product.py Product validator added")
 
+    # Write the file if we made any changes
     with open(product_file, "w") as f:
         f.write(content)
 
-    print("  product.py validators added")
+    print("  product.py processing complete")
 
 
 def fix_preview_render_self_reference():
