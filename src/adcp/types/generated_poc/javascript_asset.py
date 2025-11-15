@@ -12,14 +12,14 @@ from pydantic import ConfigDict, Field
 
 
 class ModuleType(Enum):
-    esm = 'esm'
-    commonjs = 'commonjs'
-    script = 'script'
+    esm = "esm"
+    commonjs = "commonjs"
+    script = "script"
 
 
 class JavascriptAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    content: Annotated[str, Field(description='JavaScript content')]
-    module_type: Annotated[ModuleType | None, Field(description='JavaScript module type')] = None
+    content: Annotated[str, Field(description="JavaScript content")]
+    module_type: Annotated[ModuleType | None, Field(description="JavaScript module type")] = None

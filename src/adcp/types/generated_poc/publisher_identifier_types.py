@@ -8,8 +8,8 @@ from enum import Enum
 
 
 class PublisherIdentifierTypes(Enum):
-    tag_id = 'tag_id'
-    duns = 'duns'
-    lei = 'lei'
-    seller_id = 'seller_id'
-    gln = 'gln'
+    tag_id = "tag_id"
+    duns = "duns"
+    lei = "lei"
+    seller_id = "seller_id"
+    gln = "gln"

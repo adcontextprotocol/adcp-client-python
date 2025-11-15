@@ -12,78 +12,64 @@ from pydantic import AwareDatetime, ConfigDict, Field
 
 
 class FeedbackSource(Enum):
-    buyer_attribution = 'buyer_attribution'
-    third_party_measurement = 'third_party_measurement'
-    platform_analytics = 'platform_analytics'
-    verification_partner = 'verification_partner'
+    buyer_attribution = "buyer_attribution"
+    third_party_measurement = "third_party_measurement"
+    platform_analytics = "platform_analytics"
+    verification_partner = "verification_partner"
 
 
 class MeasurementPeriod(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    end: Annotated[
-        AwareDatetime, Field(description='ISO 8601 end timestamp for measurement period')
-    ]
-    start: Annotated[
-        AwareDatetime, Field(description='ISO 8601 start timestamp for measurement period')
-    ]
+    end: Annotated[AwareDatetime, Field(description="ISO 8601 end timestamp for measurement period")]
+    start: Annotated[AwareDatetime, Field(description="ISO 8601 start timestamp for measurement period")]
 
 
 class MetricType(Enum):
-    overall_performance = 'overall_performance'
-    conversion_rate = 'conversion_rate'
-    brand_lift = 'brand_lift'
-    click_through_rate = 'click_through_rate'
-    completion_rate = 'completion_rate'
-    viewability = 'viewability'
-    brand_safety = 'brand_safety'
-    cost_efficiency = 'cost_efficiency'
+    overall_performance = "overall_performance"
+    conversion_rate = "conversion_rate"
+    brand_lift = "brand_lift"
+    click_through_rate = "click_through_rate"
+    completion_rate = "completion_rate"
+    viewability = "viewability"
+    brand_safety = "brand_safety"
+    cost_efficiency = "cost_efficiency"
 
 
 class Status(Enum):
-    accepted = 'accepted'
-    queued = 'queued'
-    applied = 'applied'
-    rejected = 'rejected'
+    accepted = "accepted"
+    queued = "queued"
+    applied = "applied"
+    rejected = "rejected"
 
 
 class PerformanceFeedback(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     applied_at: Annotated[
         AwareDatetime | None,
-        Field(
-            description='ISO 8601 timestamp when feedback was applied to optimization algorithms'
-        ),
+        Field(description="ISO 8601 timestamp when feedback was applied to optimization algorithms"),
     ] = None
     creative_id: Annotated[
-        str | None, Field(description='Specific creative asset (if feedback is creative-specific)')
+        str | None, Field(description="Specific creative asset (if feedback is creative-specific)")
     ] = None
-    feedback_id: Annotated[
-        str, Field(description='Unique identifier for this performance feedback submission')
-    ]
-    feedback_source: Annotated[FeedbackSource, Field(description='Source of the performance data')]
-    measurement_period: Annotated[
-        MeasurementPeriod, Field(description='Time period for performance measurement')
-    ]
+    feedback_id: Annotated[str, Field(description="Unique identifier for this performance feedback submission")]
+    feedback_source: Annotated[FeedbackSource, Field(description="Source of the performance data")]
+    measurement_period: Annotated[MeasurementPeriod, Field(description="Time period for performance measurement")]
     media_buy_id: Annotated[str, Field(description="Publisher's media buy identifier")]
-    metric_type: Annotated[MetricType, Field(description='The business metric being measured')]
+    metric_type: Annotated[MetricType, Field(description="The business metric being measured")]
     package_id: Annotated[
         str | None,
-        Field(
-            description='Specific package within the media buy (if feedback is package-specific)'
-        ),
+        Field(description="Specific package within the media buy (if feedback is package-specific)"),
     ] = None
     performance_index: Annotated[
         float,
         Field(
-            description='Normalized performance score (0.0 = no value, 1.0 = expected, >1.0 = above expected)',
+            description="Normalized performance score (0.0 = no value, 1.0 = expected, >1.0 = above expected)",
             ge=0.0,
         ),
     ]
-    status: Annotated[Status, Field(description='Processing status of the performance feedback')]
-    submitted_at: Annotated[
-        AwareDatetime, Field(description='ISO 8601 timestamp when feedback was submitted')
-    ]
+    status: Annotated[Status, Field(description="Processing status of the performance feedback")]
+    submitted_at: Annotated[AwareDatetime, Field(description="ISO 8601 timestamp when feedback was submitted")]

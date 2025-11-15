@@ -16,46 +16,38 @@ from . import package_status, targeting
 
 class Package(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     bid_price: Annotated[
         float | None,
         Field(
-            description='Bid price for auction-based CPM pricing (present if using cpm-auction-option)',
+            description="Bid price for auction-based CPM pricing (present if using cpm-auction-option)",
             ge=0.0,
         ),
     ] = None
     budget: Annotated[
         float | None,
         Field(
-            description='Budget allocation for this package in the currency specified by the pricing option',
+            description="Budget allocation for this package in the currency specified by the pricing option",
             ge=0.0,
         ),
     ] = None
-    buyer_ref: Annotated[
-        str | None, Field(description="Buyer's reference identifier for this package")
-    ] = None
+    buyer_ref: Annotated[str | None, Field(description="Buyer's reference identifier for this package")] = None
     creative_assignments: Annotated[
         list[creative_assignment.CreativeAssignment] | None,
-        Field(description='Creative assets assigned to this package'),
+        Field(description="Creative assets assigned to this package"),
     ] = None
     format_ids_to_provide: Annotated[
         list[format_id.FormatId] | None,
-        Field(description='Format IDs that creative assets will be provided for this package'),
+        Field(description="Format IDs that creative assets will be provided for this package"),
     ] = None
-    impressions: Annotated[
-        float | None, Field(description='Impression goal for this package', ge=0.0)
-    ] = None
+    impressions: Annotated[float | None, Field(description="Impression goal for this package", ge=0.0)] = None
     pacing: pacing_1.Pacing | None = None
     package_id: Annotated[str, Field(description="Publisher's unique identifier for the package")]
     pricing_option_id: Annotated[
         str | None,
-        Field(
-            description="ID of the selected pricing option from the product's pricing_options array"
-        ),
+        Field(description="ID of the selected pricing option from the product's pricing_options array"),
     ] = None
-    product_id: Annotated[
-        str | None, Field(description='ID of the product this package is based on')
-    ] = None
+    product_id: Annotated[str | None, Field(description="ID of the product this package is based on")] = None
     status: package_status.PackageStatus
     targeting_overlay: targeting.TargetingOverlay | None = None

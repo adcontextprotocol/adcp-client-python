@@ -15,11 +15,11 @@ from . import identifier_types
 
 class Identifier(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     type: Annotated[
         identifier_types.PropertyIdentifierTypes,
-        Field(description='Type of identifier for this property'),
+        Field(description="Type of identifier for this property"),
     ]
     value: Annotated[
         str,
@@ -30,13 +30,13 @@ class Identifier(AdCPBaseModel):
 
 
 class PropertyType(Enum):
-    website = 'website'
-    mobile_app = 'mobile_app'
-    ctv_app = 'ctv_app'
-    dooh = 'dooh'
-    podcast = 'podcast'
-    radio = 'radio'
-    streaming_audio = 'streaming_audio'
+    website = "website"
+    mobile_app = "mobile_app"
+    ctv_app = "ctv_app"
+    dooh = "dooh"
+    podcast = "podcast"
+    radio = "radio"
+    streaming_audio = "streaming_audio"
 
 
 class Tag(RootModel[str]):
@@ -44,36 +44,32 @@ class Tag(RootModel[str]):
         str,
         Field(
             description="Lowercase tag with underscores (e.g., 'conde_nast_network', 'premium_content')",
-            pattern='^[a-z0-9_]+$',
+            pattern="^[a-z0-9_]+$",
         ),
     ]
 
 
 class Property(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    identifiers: Annotated[
-        list[Identifier], Field(description='Array of identifiers for this property', min_length=1)
-    ]
-    name: Annotated[str, Field(description='Human-readable property name')]
+    identifiers: Annotated[list[Identifier], Field(description="Array of identifiers for this property", min_length=1)]
+    name: Annotated[str, Field(description="Human-readable property name")]
     property_id: Annotated[
         str | None,
         Field(
             description="Unique identifier for this property (optional). Enables referencing properties by ID instead of repeating full objects. Recommended format: lowercase with underscores (e.g., 'cnn_ctv_app', 'instagram_mobile')",
-            pattern='^[a-z0-9_]+$',
+            pattern="^[a-z0-9_]+$",
         ),
     ] = None
-    property_type: Annotated[PropertyType, Field(description='Type of advertising property')]
+    property_type: Annotated[PropertyType, Field(description="Type of advertising property")]
     publisher_domain: Annotated[
         str | None,
         Field(
-            description='Domain where adagents.json should be checked for authorization validation. Required for list_authorized_properties response. Optional in adagents.json (file location implies domain).'
+            description="Domain where adagents.json should be checked for authorization validation. Required for list_authorized_properties response. Optional in adagents.json (file location implies domain)."
         ),
     ] = None
     tags: Annotated[
         list[Tag] | None,
-        Field(
-            description='Tags for categorization and grouping (e.g., network membership, content categories)'
-        ),
+        Field(description="Tags for categorization and grouping (e.g., network membership, content categories)"),
     ] = None

@@ -9,5 +9,5 @@ from pydantic import AwareDatetime, Field, RootModel
 
 class StartTiming(RootModel[str | AwareDatetime]):
     root: str | AwareDatetime = Field(
-        ..., description="Campaign start timing: 'asap' or ISO 8601 date-time", title='Start Timing'
+        ..., description="Campaign start timing: 'asap' or ISO 8601 date-time", title="Start Timing"
     )

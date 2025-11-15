@@ -140,7 +140,10 @@ def example_manual_verification():
 
     print("\nScenario 4: Agent with empty properties = authorized for all")
     result = verify_agent_authorization(
-        adagents_data, "https://another-agent.com", "website", [{"type": "domain", "value": "any.com"}]
+        adagents_data,
+        "https://another-agent.com",
+        "website",
+        [{"type": "domain", "value": "any.com"}],
     )
     print(f"   Result: {result}")
 
@@ -229,17 +232,11 @@ def example_domain_matching():
     print(f"   m.example.com matches example.com: {domain_matches('m.example.com', 'example.com')}")
 
     print("\n3. Other subdomains DON'T match bare domain:")
-    print(
-        f"   api.example.com matches example.com: {domain_matches('api.example.com', 'example.com')}"
-    )
+    print(f"   api.example.com matches example.com: {domain_matches('api.example.com', 'example.com')}")
 
     print("\n4. Wildcard pattern matches all subdomains:")
-    print(
-        f"   api.example.com matches *.example.com: {domain_matches('api.example.com', '*.example.com')}"
-    )
-    print(
-        f"   www.example.com matches *.example.com: {domain_matches('www.example.com', '*.example.com')}"
-    )
+    print(f"   api.example.com matches *.example.com: {domain_matches('api.example.com', '*.example.com')}")
+    print(f"   www.example.com matches *.example.com: {domain_matches('www.example.com', '*.example.com')}")
 
     print("\n5. Case-insensitive matching:")
     print(f"   Example.COM matches example.com: {domain_matches('Example.COM', 'example.com')}")
@@ -262,7 +259,8 @@ async def main():
     print("\n\n" + "=" * 60)
     print("Summary")
     print("=" * 60)
-    print("""
+    print(
+        """
 Key Functions:
 1. fetch_adagents(domain) - Fetch and validate adagents.json
 2. verify_agent_authorization(data, agent_url, ...) - Check authorization
@@ -279,7 +277,8 @@ Use Cases:
 - Developer tools: Build validators and testing utilities
 
 See the full API documentation for more details.
-    """)
+    """
+    )
 
 
 if __name__ == "__main__":

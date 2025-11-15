@@ -14,7 +14,7 @@ from . import property
 
 class Contact(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     name: Annotated[
         str,
@@ -27,7 +27,7 @@ class Contact(AdCPBaseModel):
     email: Annotated[
         EmailStr | None,
         Field(
-            description='Contact email for questions or issues with this authorization file',
+            description="Contact email for questions or issues with this authorization file",
             max_length=255,
             min_length=1,
         ),
@@ -35,14 +35,14 @@ class Contact(AdCPBaseModel):
     domain: Annotated[
         str | None,
         Field(
-            description='Primary domain of the entity managing this file',
-            pattern='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$',
+            description="Primary domain of the entity managing this file",
+            pattern="^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
         ),
     ] = None
     seller_id: Annotated[
         str | None,
         Field(
-            description='Seller ID from IAB Tech Lab sellers.json (if applicable)',
+            description="Seller ID from IAB Tech Lab sellers.json (if applicable)",
             max_length=255,
             min_length=1,
         ),
@@ -50,7 +50,7 @@ class Contact(AdCPBaseModel):
     tag_id: Annotated[
         str | None,
         Field(
-            description='TAG Certified Against Fraud ID for verification (if applicable)',
+            description="TAG Certified Against Fraud ID for verification (if applicable)",
             max_length=100,
             min_length=1,
         ),
@@ -59,37 +59,37 @@ class Contact(AdCPBaseModel):
 
 class Tags(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    name: Annotated[str, Field(description='Human-readable name for this tag')]
-    description: Annotated[str, Field(description='Description of what this tag represents')]
+    name: Annotated[str, Field(description="Human-readable name for this tag")]
+    description: Annotated[str, Field(description="Description of what this tag represents")]
 
 
 class PropertyId(RootModel[str]):
-    root: Annotated[str, Field(pattern='^[a-z0-9_]+$')]
+    root: Annotated[str, Field(pattern="^[a-z0-9_]+$")]
 
 
 class AuthorizedAgents(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     url: Annotated[AnyUrl, Field(description="The authorized agent's API endpoint URL")]
     authorized_for: Annotated[
         str,
         Field(
-            description='Human-readable description of what this agent is authorized to sell',
+            description="Human-readable description of what this agent is authorized to sell",
             max_length=500,
             min_length=1,
         ),
     ]
     authorization_type: Annotated[
-        Literal['property_ids'],
-        Field(description='Discriminator indicating authorization by specific property IDs'),
+        Literal["property_ids"],
+        Field(description="Discriminator indicating authorization by specific property IDs"),
     ]
     property_ids: Annotated[
         list[PropertyId],
         Field(
-            description='Property IDs this agent is authorized for. Resolved against the top-level properties array in this file',
+            description="Property IDs this agent is authorized for. Resolved against the top-level properties array in this file",
             min_length=1,
         ),
     ]
@@ -101,25 +101,25 @@ class PropertyTag(PropertyId):
 
 class AuthorizedAgents1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     url: Annotated[AnyUrl, Field(description="The authorized agent's API endpoint URL")]
     authorized_for: Annotated[
         str,
         Field(
-            description='Human-readable description of what this agent is authorized to sell',
+            description="Human-readable description of what this agent is authorized to sell",
             max_length=500,
             min_length=1,
         ),
     ]
     authorization_type: Annotated[
-        Literal['property_tags'],
-        Field(description='Discriminator indicating authorization by property tags'),
+        Literal["property_tags"],
+        Field(description="Discriminator indicating authorization by property tags"),
     ]
     property_tags: Annotated[
         list[PropertyTag],
         Field(
-            description='Tags identifying which properties this agent is authorized for. Resolved against the top-level properties array in this file using tag matching',
+            description="Tags identifying which properties this agent is authorized for. Resolved against the top-level properties array in this file using tag matching",
             min_length=1,
         ),
     ]
@@ -127,18 +127,18 @@ class AuthorizedAgents1(AdCPBaseModel):
 
 class PublisherProperties(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     publisher_domain: Annotated[
         str,
         Field(
             description="Domain where the publisher's adagents.json is hosted (e.g., 'cnn.com')",
-            pattern='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$',
+            pattern="^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
         ),
     ]
     selection_type: Annotated[
-        Literal['by_id'],
-        Field(description='Discriminator indicating selection by specific property IDs'),
+        Literal["by_id"],
+        Field(description="Discriminator indicating selection by specific property IDs"),
     ]
     property_ids: Annotated[
         list[PropertyId],
@@ -151,17 +151,17 @@ class PublisherProperties(AdCPBaseModel):
 
 class PublisherProperties1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     publisher_domain: Annotated[
         str,
         Field(
             description="Domain where the publisher's adagents.json is hosted (e.g., 'cnn.com')",
-            pattern='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$',
+            pattern="^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
         ),
     ]
     selection_type: Annotated[
-        Literal['by_tag'], Field(description='Discriminator indicating selection by property tags')
+        Literal["by_tag"], Field(description="Discriminator indicating selection by property tags")
     ]
     property_tags: Annotated[
         list[PropertyTag],
@@ -174,27 +174,25 @@ class PublisherProperties1(AdCPBaseModel):
 
 class AuthorizedAgents3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     url: Annotated[AnyUrl, Field(description="The authorized agent's API endpoint URL")]
     authorized_for: Annotated[
         str,
         Field(
-            description='Human-readable description of what this agent is authorized to sell',
+            description="Human-readable description of what this agent is authorized to sell",
             max_length=500,
             min_length=1,
         ),
     ]
     authorization_type: Annotated[
-        Literal['publisher_properties'],
-        Field(
-            description='Discriminator indicating authorization for properties from other publisher domains'
-        ),
+        Literal["publisher_properties"],
+        Field(description="Discriminator indicating authorization for properties from other publisher domains"),
     ]
     publisher_properties: Annotated[
         list[PublisherProperties | PublisherProperties1],
         Field(
-            description='Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell',
+            description="Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell",
             min_length=1,
         ),
     ]
@@ -202,25 +200,25 @@ class AuthorizedAgents3(AdCPBaseModel):
 
 class AuthorizedAgents2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     url: Annotated[AnyUrl, Field(description="The authorized agent's API endpoint URL")]
     authorized_for: Annotated[
         str,
         Field(
-            description='Human-readable description of what this agent is authorized to sell',
+            description="Human-readable description of what this agent is authorized to sell",
             max_length=500,
             min_length=1,
         ),
     ]
     authorization_type: Annotated[
-        Literal['inline_properties'],
-        Field(description='Discriminator indicating authorization by inline property definitions'),
+        Literal["inline_properties"],
+        Field(description="Discriminator indicating authorization by inline property definitions"),
     ]
     properties: Annotated[
         list[property.Property],
         Field(
-            description='Specific properties this agent is authorized for (alternative to property_ids/property_tags)',
+            description="Specific properties this agent is authorized for (alternative to property_ids/property_tags)",
             min_length=1,
         ),
     ]
@@ -228,39 +226,39 @@ class AuthorizedAgents2(AdCPBaseModel):
 
 class AuthorizedSalesAgents(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     field_schema: Annotated[
         str | None,
-        Field(alias='$schema', description='JSON Schema identifier for this adagents.json file'),
-    ] = 'https://adcontextprotocol.org/schemas/v1/adagents.json'
+        Field(alias="$schema", description="JSON Schema identifier for this adagents.json file"),
+    ] = "https://adcontextprotocol.org/schemas/v1/adagents.json"
     contact: Annotated[
         Contact | None,
         Field(
-            description='Contact information for the entity managing this adagents.json file (may be publisher or third-party operator)'
+            description="Contact information for the entity managing this adagents.json file (may be publisher or third-party operator)"
         ),
     ] = None
     properties: Annotated[
         list[property.Property] | None,
         Field(
-            description='Array of all properties covered by this adagents.json file. Same structure as list_authorized_properties response.',
+            description="Array of all properties covered by this adagents.json file. Same structure as list_authorized_properties response.",
             min_length=1,
         ),
     ] = None
     tags: Annotated[
         dict[str, Tags] | None,
         Field(
-            description='Metadata for each tag referenced by properties. Same structure as list_authorized_properties response.'
+            description="Metadata for each tag referenced by properties. Same structure as list_authorized_properties response."
         ),
     ] = None
     authorized_agents: Annotated[
         list[AuthorizedAgents | AuthorizedAgents1 | AuthorizedAgents2 | AuthorizedAgents3],
         Field(
-            description='Array of sales agents authorized to sell inventory for properties in this file',
+            description="Array of sales agents authorized to sell inventory for properties in this file",
             min_length=1,
         ),
     ]
     last_updated: Annotated[
         AwareDatetime | None,
-        Field(description='ISO 8601 timestamp indicating when this file was last updated'),
+        Field(description="ISO 8601 timestamp indicating when this file was last updated"),
     ] = None

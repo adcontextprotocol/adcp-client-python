@@ -26,7 +26,7 @@ from . import (
 
 class CreativeManifest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     assets: Annotated[
         dict[
@@ -50,12 +50,10 @@ class CreativeManifest(AdCPBaseModel):
             description="Map of asset IDs to actual asset content. Each key MUST match an asset_id from the format's assets_required array (e.g., 'banner_image', 'clickthrough_url', 'video_file', 'vast_tag'). The asset_id is the technical identifier used to match assets to format requirements.\n\nIMPORTANT: Creative manifest validation MUST be performed in the context of the format specification. The format defines what type each asset_id should be, which eliminates any validation ambiguity."
         ),
     ]
-    format_id: Annotated[
-        format_id_1.FormatId, Field(description='Format identifier this manifest is for')
-    ]
+    format_id: Annotated[format_id_1.FormatId, Field(description="Format identifier this manifest is for")]
     promoted_offering: Annotated[
         str | None,
         Field(
-            description='Product name or offering being advertised. Maps to promoted_offerings in create_media_buy request to associate creative with the product being promoted.'
+            description="Product name or offering being advertised. Maps to promoted_offerings in create_media_buy request to associate creative with the product being promoted."
         ),
     ] = None

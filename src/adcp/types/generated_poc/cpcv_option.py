@@ -12,30 +12,26 @@ from pydantic import ConfigDict, Field
 
 class CpcvPricingOption(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     currency: Annotated[
         str,
         Field(
-            description='ISO 4217 currency code',
-            examples=['USD', 'EUR', 'GBP', 'JPY'],
-            pattern='^[A-Z]{3}$',
+            description="ISO 4217 currency code",
+            examples=["USD", "EUR", "GBP", "JPY"],
+            pattern="^[A-Z]{3}$",
         ),
     ]
     min_spend_per_package: Annotated[
         float | None,
         Field(
-            description='Minimum spend requirement per package using this pricing option, in the specified currency',
+            description="Minimum spend requirement per package using this pricing option, in the specified currency",
             ge=0.0,
         ),
     ] = None
-    pricing_model: Annotated[
-        Literal['cpcv'], Field(description='Cost per completed view (100% completion)')
-    ]
+    pricing_model: Annotated[Literal["cpcv"], Field(description="Cost per completed view (100% completion)")]
     pricing_option_id: Annotated[
         str,
-        Field(
-            description="Unique identifier for this pricing option within the product (e.g., 'cpcv_usd_guaranteed')"
-        ),
+        Field(description="Unique identifier for this pricing option within the product (e.g., 'cpcv_usd_guaranteed')"),
     ]
-    rate: Annotated[float, Field(description='Fixed CPCV rate (cost per 100% completion)', ge=0.0)]
+    rate: Annotated[float, Field(description="Fixed CPCV rate (cost per 100% completion)", ge=0.0)]

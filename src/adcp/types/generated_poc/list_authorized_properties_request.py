@@ -15,25 +15,25 @@ class PublisherDomain(RootModel[str]):
         str,
         Field(
             description="Publisher domain to filter by (e.g., 'cnn.com', 'espn.com')",
-            pattern='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$',
+            pattern="^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
         ),
     ]
 
 
 class ListAuthorizedPropertiesRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     context: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.'
+            description="Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata."
         ),
     ] = None
     publisher_domains: Annotated[
         list[PublisherDomain] | None,
         Field(
-            description='Filter to specific publisher domains (optional). If omitted, returns all publishers this agent represents.',
+            description="Filter to specific publisher domains (optional). If omitted, returns all publishers this agent represents.",
             min_length=1,
         ),
     ] = None

@@ -8,5 +8,5 @@ from enum import Enum
 
 
 class DeliveryType(Enum):
-    guaranteed = 'guaranteed'
-    non_guaranteed = 'non_guaranteed'
+    guaranteed = "guaranteed"
+    non_guaranteed = "non_guaranteed"

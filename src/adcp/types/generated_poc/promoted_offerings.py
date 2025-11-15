@@ -15,29 +15,27 @@ from . import promoted_products
 
 
 class AssetType(Enum):
-    image = 'image'
-    video = 'video'
-    audio = 'audio'
-    vast = 'vast'
-    daast = 'daast'
-    text = 'text'
-    url = 'url'
-    html = 'html'
-    css = 'css'
-    javascript = 'javascript'
-    webhook = 'webhook'
+    image = "image"
+    video = "video"
+    audio = "audio"
+    vast = "vast"
+    daast = "daast"
+    text = "text"
+    url = "url"
+    html = "html"
+    css = "css"
+    javascript = "javascript"
+    webhook = "webhook"
 
 
 class AssetSelectors(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     asset_types: Annotated[
         list[AssetType] | None, Field(description="Filter by asset type (e.g., ['image', 'video'])")
     ] = None
-    exclude_tags: Annotated[
-        list[str] | None, Field(description='Exclude assets with these tags')
-    ] = None
+    exclude_tags: Annotated[list[str] | None, Field(description="Exclude assets with these tags")] = None
     tags: Annotated[
         list[str] | None,
         Field(description="Select assets with specific tags (e.g., ['holiday', 'premium'])"),
@@ -46,57 +44,51 @@ class AssetSelectors(AdCPBaseModel):
 
 class Offering(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    assets: Annotated[
-        list[dict[str, Any]] | None, Field(description='Assets specific to this offering')
-    ] = None
-    description: Annotated[str | None, Field(description="Description of what's being offered")] = (
-        None
-    )
-    name: Annotated[
-        str, Field(description="Offering name (e.g., 'Winter Sale', 'New Product Launch')")
-    ]
+    assets: Annotated[list[dict[str, Any]] | None, Field(description="Assets specific to this offering")] = None
+    description: Annotated[str | None, Field(description="Description of what's being offered")] = None
+    name: Annotated[str, Field(description="Offering name (e.g., 'Winter Sale', 'New Product Launch')")]
 
 
 class PromotedOfferings(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     asset_selectors: Annotated[
         AssetSelectors | None,
-        Field(description='Selectors to choose specific assets from the brand manifest'),
+        Field(description="Selectors to choose specific assets from the brand manifest"),
     ] = None
     brand_manifest: Annotated[
         brand_manifest_1.BrandManifest | AnyUrl,
         Field(
-            description='Brand information manifest containing assets, themes, and guidelines. Can be provided inline or as a URL reference to a hosted manifest.',
+            description="Brand information manifest containing assets, themes, and guidelines. Can be provided inline or as a URL reference to a hosted manifest.",
             examples=[
                 {
-                    'data': {
-                        'colors': {'primary': '#FF6B35'},
-                        'name': 'ACME Corporation',
-                        'url': 'https://acmecorp.com',
+                    "data": {
+                        "colors": {"primary": "#FF6B35"},
+                        "name": "ACME Corporation",
+                        "url": "https://acmecorp.com",
                     },
-                    'description': 'Inline brand manifest',
+                    "description": "Inline brand manifest",
                 },
                 {
-                    'data': 'https://cdn.acmecorp.com/brand-manifest.json',
-                    'description': 'URL string reference to hosted manifest',
+                    "data": "https://cdn.acmecorp.com/brand-manifest.json",
+                    "description": "URL string reference to hosted manifest",
                 },
             ],
-            title='Brand Manifest Reference',
+            title="Brand Manifest Reference",
         ),
     ]
     offerings: Annotated[
         list[Offering] | None,
         Field(
-            description='Inline offerings for campaigns without a product catalog. Each offering has a name, description, and associated assets.'
+            description="Inline offerings for campaigns without a product catalog. Each offering has a name, description, and associated assets."
         ),
     ] = None
     product_selectors: Annotated[
         promoted_products.PromotedProducts | None,
         Field(
-            description='Selectors to choose which products/offerings from the brand manifest product catalog to promote'
+            description="Selectors to choose which products/offerings from the brand manifest product catalog to promote"
         ),
     ] = None

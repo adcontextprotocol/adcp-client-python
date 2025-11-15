@@ -12,15 +12,9 @@ from pydantic import AnyUrl, ConfigDict, Field
 
 class AudioAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    bitrate_kbps: Annotated[
-        int | None, Field(description='Audio bitrate in kilobits per second', ge=1)
-    ] = None
-    duration_ms: Annotated[
-        int | None, Field(description='Audio duration in milliseconds', ge=0)
-    ] = None
-    format: Annotated[str | None, Field(description='Audio file format (mp3, wav, aac, etc.)')] = (
-        None
-    )
-    url: Annotated[AnyUrl, Field(description='URL to the audio asset')]
+    bitrate_kbps: Annotated[int | None, Field(description="Audio bitrate in kilobits per second", ge=1)] = None
+    duration_ms: Annotated[int | None, Field(description="Audio duration in milliseconds", ge=0)] = None
+    format: Annotated[str | None, Field(description="Audio file format (mp3, wav, aac, etc.)")] = None
+    url: Annotated[AnyUrl, Field(description="URL to the audio asset")]

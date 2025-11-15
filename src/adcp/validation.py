@@ -49,17 +49,11 @@ def validate_publisher_properties_item(item: dict[str, Any]) -> None:
     # If selection_type discriminator is present, validate discriminated union
     if selection_type:
         if selection_type == "by_id" and not has_property_ids:
-            raise ValidationError(
-                "publisher_properties item with selection_type='by_id' must have property_ids"
-            )
+            raise ValidationError("publisher_properties item with selection_type='by_id' must have property_ids")
         elif selection_type == "by_tag" and not has_property_tags:
-            raise ValidationError(
-                "publisher_properties item with selection_type='by_tag' must have property_tags"
-            )
+            raise ValidationError("publisher_properties item with selection_type='by_tag' must have property_tags")
         elif selection_type not in ("by_id", "by_tag"):
-            raise ValidationError(
-                f"publisher_properties item has invalid selection_type: {selection_type}"
-            )
+            raise ValidationError(f"publisher_properties item has invalid selection_type: {selection_type}")
 
     # Validate mutual exclusivity (for both old and new formats)
     if has_property_ids and has_property_tags:
@@ -70,8 +64,7 @@ def validate_publisher_properties_item(item: dict[str, Any]) -> None:
 
     if not has_property_ids and not has_property_tags:
         raise ValidationError(
-            "publisher_properties item must have either property_ids or property_tags. "
-            "At least one is required."
+            "publisher_properties item must have either property_ids or property_tags. " "At least one is required."
         )
 
 
@@ -94,34 +87,18 @@ def validate_agent_authorization(agent: dict[str, Any]) -> None:
     """
     authorization_type = agent.get("authorization_type")
     auth_fields = ["properties", "property_ids", "property_tags", "publisher_properties"]
-    present_fields = [
-        field for field in auth_fields if field in agent and agent[field] is not None
-    ]
+    present_fields = [field for field in auth_fields if field in agent and agent[field] is not None]
 
     # If authorization_type discriminator is present, validate discriminated union
     if authorization_type:
         if authorization_type == "property_ids" and "property_ids" not in present_fields:
-            raise ValidationError(
-                "Agent with authorization_type='property_ids' must have property_ids"
-            )
+            raise ValidationError("Agent with authorization_type='property_ids' must have property_ids")
         elif authorization_type == "property_tags" and "property_tags" not in present_fields:
-            raise ValidationError(
-                "Agent with authorization_type='property_tags' must have property_tags"
-            )
-        elif (
-            authorization_type == "inline_properties" and "properties" not in present_fields
-        ):
-            raise ValidationError(
-                "Agent with authorization_type='inline_properties' must have properties"
-            )
-        elif (
-            authorization_type == "publisher_properties"
-            and "publisher_properties" not in present_fields
-        ):
-            msg = (
-                "Agent with authorization_type='publisher_properties' "
-                "must have publisher_properties"
-            )
+            raise ValidationError("Agent with authorization_type='property_tags' must have property_tags")
+        elif authorization_type == "inline_properties" and "properties" not in present_fields:
+            raise ValidationError("Agent with authorization_type='inline_properties' must have properties")
+        elif authorization_type == "publisher_properties" and "publisher_properties" not in present_fields:
+            msg = "Agent with authorization_type='publisher_properties' " "must have publisher_properties"
             raise ValidationError(msg)
         elif authorization_type not in (
             "property_ids",
@@ -129,9 +106,7 @@ def validate_agent_authorization(agent: dict[str, Any]) -> None:
             "inline_properties",
             "publisher_properties",
         ):
-            raise ValidationError(
-                f"Agent has invalid authorization_type: {authorization_type}"
-            )
+            raise ValidationError(f"Agent has invalid authorization_type: {authorization_type}")
 
     # Validate mutual exclusivity (for both old and new formats)
     if len(present_fields) > 1:
@@ -141,9 +116,7 @@ def validate_agent_authorization(agent: dict[str, Any]) -> None:
         )
 
     if len(present_fields) == 0:
-        raise ValidationError(
-            f"Agent authorization must have exactly one of: {', '.join(auth_fields)}."
-        )
+        raise ValidationError(f"Agent authorization must have exactly one of: {', '.join(auth_fields)}.")
 
     # If using publisher_properties, validate each item
     if "publisher_properties" in present_fields:

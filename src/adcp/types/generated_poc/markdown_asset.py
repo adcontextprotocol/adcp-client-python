@@ -12,32 +12,28 @@ from pydantic import ConfigDict, Field
 
 
 class MarkdownFlavor(Enum):
-    commonmark = 'commonmark'
-    gfm = 'gfm'
+    commonmark = "commonmark"
+    gfm = "gfm"
 
 
 class MarkdownAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     allow_raw_html: Annotated[
         bool | None,
-        Field(
-            description='Whether raw HTML blocks are allowed in the markdown. False recommended for security.'
-        ),
+        Field(description="Whether raw HTML blocks are allowed in the markdown. False recommended for security."),
     ] = False
     content: Annotated[
         str,
         Field(
-            description='Markdown content following CommonMark spec with optional GitHub Flavored Markdown extensions'
+            description="Markdown content following CommonMark spec with optional GitHub Flavored Markdown extensions"
         ),
     ]
-    language: Annotated[str | None, Field(description="Language code (e.g., 'en', 'es', 'fr')")] = (
-        None
-    )
+    language: Annotated[str | None, Field(description="Language code (e.g., 'en', 'es', 'fr')")] = None
     markdown_flavor: Annotated[
         MarkdownFlavor | None,
         Field(
-            description='Markdown flavor used. CommonMark for strict compatibility, GFM for tables/task lists/strikethrough.'
+            description="Markdown flavor used. CommonMark for strict compatibility, GFM for tables/task lists/strikethrough."
         ),
     ] = MarkdownFlavor.commonmark

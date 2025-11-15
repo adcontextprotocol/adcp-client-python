@@ -12,9 +12,7 @@ from pydantic import ConfigDict, Field
 
 class TextAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    content: Annotated[str, Field(description='Text content')]
-    language: Annotated[str | None, Field(description="Language code (e.g., 'en', 'es', 'fr')")] = (
-        None
-    )
+    content: Annotated[str, Field(description="Text content")]
+    language: Annotated[str | None, Field(description="Language code (e.g., 'en', 'es', 'fr')")] = None

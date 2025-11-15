@@ -14,16 +14,16 @@ from . import error, product
 
 class GetProductsResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     context: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.'
+            description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers."
         ),
     ] = None
     errors: Annotated[
         list[error.Error] | None,
-        Field(description='Task-specific errors and warnings (e.g., product filtering issues)'),
+        Field(description="Task-specific errors and warnings (e.g., product filtering issues)"),
     ] = None
-    products: Annotated[list[product.Product], Field(description='Array of matching products')]
+    products: Annotated[list[product.Product], Field(description="Array of matching products")]

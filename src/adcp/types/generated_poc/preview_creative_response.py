@@ -13,24 +13,18 @@ from . import preview_render
 
 
 class Input(AdCPBaseModel):
-    context_description: Annotated[
-        str | None, Field(description='Context description applied to this variant')
-    ] = None
-    macros: Annotated[
-        dict[str, str] | None, Field(description='Macro values applied to this variant')
-    ] = None
-    name: Annotated[str, Field(description='Human-readable name for this variant')]
+    context_description: Annotated[str | None, Field(description="Context description applied to this variant")] = None
+    macros: Annotated[dict[str, str] | None, Field(description="Macro values applied to this variant")] = None
+    name: Annotated[str, Field(description="Human-readable name for this variant")]
 
 
 class Error(AdCPBaseModel):
     code: Annotated[
         str,
-        Field(
-            description="Error code (e.g., 'invalid_manifest', 'unsupported_format', 'missing_assets')"
-        ),
+        Field(description="Error code (e.g., 'invalid_manifest', 'unsupported_format', 'missing_assets')"),
     ]
-    details: Annotated[dict[str, Any] | None, Field(description='Additional error context')] = None
-    message: Annotated[str, Field(description='Human-readable error message')]
+    details: Annotated[dict[str, Any] | None, Field(description="Additional error context")] = None
+    message: Annotated[str, Field(description="Human-readable error message")]
 
 
 class Input4(AdCPBaseModel):
@@ -43,18 +37,14 @@ class Preview(AdCPBaseModel):
     input: Annotated[
         Input,
         Field(
-            description='The input parameters that generated this preview variant. Echoes back the request input or shows defaults used.'
+            description="The input parameters that generated this preview variant. Echoes back the request input or shows defaults used."
         ),
     ]
-    preview_id: Annotated[str, Field(description='Unique identifier for this preview variant')]
+    preview_id: Annotated[str, Field(description="Unique identifier for this preview variant")]
     renders: Annotated[
-        list[
-            preview_render.PreviewRender1
-            | preview_render.PreviewRender2
-            | preview_render.PreviewRender3
-        ],
+        list[preview_render.PreviewRender1 | preview_render.PreviewRender2 | preview_render.PreviewRender3],
         Field(
-            description='Array of rendered pieces for this preview variant. Most formats render as a single piece. Companion ad formats (video + banner), multi-placement formats, and adaptive formats render as multiple pieces.',
+            description="Array of rendered pieces for this preview variant. Most formats render as a single piece. Companion ad formats (video + banner), multi-placement formats, and adaptive formats render as multiple pieces.",
             min_length=1,
         ),
     ]
@@ -62,33 +52,31 @@ class Preview(AdCPBaseModel):
 
 class PreviewCreativeResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     context: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Initiator-provided context echoed inside the preview payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.'
+            description="Initiator-provided context echoed inside the preview payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers."
         ),
     ] = None
-    expires_at: Annotated[
-        AwareDatetime, Field(description='ISO 8601 timestamp when preview links expire')
-    ]
+    expires_at: Annotated[AwareDatetime, Field(description="ISO 8601 timestamp when preview links expire")]
     interactive_url: Annotated[
         AnyUrl | None,
         Field(
-            description='Optional URL to an interactive testing page that shows all preview variants with controls to switch between them, modify macro values, and test different scenarios.'
+            description="Optional URL to an interactive testing page that shows all preview variants with controls to switch between them, modify macro values, and test different scenarios."
         ),
     ] = None
     previews: Annotated[
         list[Preview],
         Field(
-            description='Array of preview variants. Each preview corresponds to an input set from the request. If no inputs were provided, returns a single default preview.',
+            description="Array of preview variants. Each preview corresponds to an input set from the request. If no inputs were provided, returns a single default preview.",
             min_length=1,
         ),
     ]
     response_type: Annotated[
-        Literal['single'],
-        Field(description='Discriminator indicating this is a single preview response'),
+        Literal["single"],
+        Field(description="Discriminator indicating this is a single preview response"),
     ]
 
 
@@ -96,11 +84,7 @@ class Preview1(AdCPBaseModel):
     input: Input4
     preview_id: str
     renders: Annotated[
-        list[
-            preview_render.PreviewRender1
-            | preview_render.PreviewRender2
-            | preview_render.PreviewRender3
-        ],
+        list[preview_render.PreviewRender1 | preview_render.PreviewRender2 | preview_render.PreviewRender3],
         Field(min_length=1),
     ]
 
@@ -110,16 +94,14 @@ class Response(AdCPBaseModel):
     interactive_url: AnyUrl | None = None
     previews: Annotated[
         list[Preview1],
-        Field(description='Array of preview variants for this creative', min_length=1),
+        Field(description="Array of preview variants for this creative", min_length=1),
     ]
 
 
 class Results(AdCPBaseModel):
-    error: Annotated[Error | None, Field(description='Error information for failed requests')] = (
-        None
-    )
-    response: Annotated[Response, Field(description='Preview response for successful requests')]
-    success: Annotated[Literal[True], Field(description='Whether this preview request succeeded')]
+    error: Annotated[Error | None, Field(description="Error information for failed requests")] = None
+    response: Annotated[Response, Field(description="Preview response for successful requests")]
+    success: Annotated[Literal[True], Field(description="Whether this preview request succeeded")]
 
 
 Preview2 = Preview1
@@ -130,36 +112,34 @@ class Response1(AdCPBaseModel):
     interactive_url: AnyUrl | None = None
     previews: Annotated[
         list[Preview2],
-        Field(description='Array of preview variants for this creative', min_length=1),
+        Field(description="Array of preview variants for this creative", min_length=1),
     ]
 
 
 class Results1(AdCPBaseModel):
-    error: Annotated[Error, Field(description='Error information for failed requests')]
-    response: Annotated[
-        Response1 | None, Field(description='Preview response for successful requests')
-    ] = None
-    success: Annotated[Literal[False], Field(description='Whether this preview request succeeded')]
+    error: Annotated[Error, Field(description="Error information for failed requests")]
+    response: Annotated[Response1 | None, Field(description="Preview response for successful requests")] = None
+    success: Annotated[Literal[False], Field(description="Whether this preview request succeeded")]
 
 
 class PreviewCreativeResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     context: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Initiator-provided context echoed inside the preview payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.'
+            description="Initiator-provided context echoed inside the preview payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers."
         ),
     ] = None
     response_type: Annotated[
-        Literal['batch'],
-        Field(description='Discriminator indicating this is a batch preview response'),
+        Literal["batch"],
+        Field(description="Discriminator indicating this is a batch preview response"),
     ]
     results: Annotated[
         list[Results | Results1],
         Field(
-            description='Array of preview results corresponding to each request in the same order. results[0] is the result for requests[0], results[1] for requests[1], etc. Order is guaranteed even when some requests fail. Each result contains either a successful preview response or an error.',
+            description="Array of preview results corresponding to each request in the same order. results[0] is the result for requests[0], results[1] for requests[1], etc. Order is guaranteed even when some requests fail. Each result contains either a successful preview response or an error.",
             min_length=1,
         ),
     ]
@@ -169,7 +149,7 @@ class PreviewCreativeResponse(RootModel[PreviewCreativeResponse1 | PreviewCreati
     root: Annotated[
         PreviewCreativeResponse1 | PreviewCreativeResponse2,
         Field(
-            description='Response containing preview links for one or more creatives. Format matches the request: single preview response for single requests, batch results for batch requests.',
-            title='Preview Creative Response',
+            description="Response containing preview links for one or more creatives. Format matches the request: single preview response for single requests, batch results for batch requests.",
+            title="Preview Creative Response",
         ),
     ]

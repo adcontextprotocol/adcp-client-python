@@ -18,8 +18,8 @@ import hashlib
 import json
 import sys
 from pathlib import Path
-from urllib.request import Request, urlopen
 from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 # Use GitHub API and raw content for complete schema discovery
 GITHUB_API_BASE = "https://api.github.com/repos/adcontextprotocol/adcp/contents"
@@ -209,9 +209,7 @@ def main():
         cached_count = 0
 
         for url in schema_urls:
-            was_updated, new_hash = download_schema_file(
-                url, version, hash_cache, force=args.force
-            )
+            was_updated, new_hash = download_schema_file(url, version, hash_cache, force=args.force)
 
             if was_updated:
                 updated_count += 1
@@ -243,6 +241,7 @@ def main():
     except Exception as e:
         print(f"\n✗ Error syncing schemas: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

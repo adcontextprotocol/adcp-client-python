@@ -12,8 +12,6 @@ from pydantic import ConfigDict, Field
 
 class FrequencyCap(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    suppress_minutes: Annotated[
-        float, Field(description='Minutes to suppress after impression', ge=0.0)
-    ]
+    suppress_minutes: Annotated[float, Field(description="Minutes to suppress after impression", ge=0.0)]

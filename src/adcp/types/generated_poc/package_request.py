@@ -16,12 +16,12 @@ from . import targeting
 
 class PackageRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     bid_price: Annotated[
         float | None,
         Field(
-            description='Bid price for auction-based CPM pricing (required if using cpm-auction-option)',
+            description="Bid price for auction-based CPM pricing (required if using cpm-auction-option)",
             ge=0.0,
         ),
     ] = None
@@ -33,29 +33,27 @@ class PackageRequest(AdCPBaseModel):
     creative_ids: Annotated[
         list[str] | None,
         Field(
-            description='Creative IDs to assign to this package at creation time (references existing library creatives)'
+            description="Creative IDs to assign to this package at creation time (references existing library creatives)"
         ),
     ] = None
     creatives: Annotated[
         list[creative_asset.CreativeAsset] | None,
         Field(
-            description='Full creative objects to upload and assign to this package at creation time (alternative to creative_ids - creatives will be added to library). Supports both static and generative creatives.',
+            description="Full creative objects to upload and assign to this package at creation time (alternative to creative_ids - creatives will be added to library). Supports both static and generative creatives.",
             max_length=100,
         ),
     ] = None
     format_ids: Annotated[
         list[format_id.FormatId] | None,
         Field(
-            description='Array of format IDs that will be used for this package - must be supported by the product. If omitted, defaults to all formats supported by the product.',
+            description="Array of format IDs that will be used for this package - must be supported by the product. If omitted, defaults to all formats supported by the product.",
             min_length=1,
         ),
     ] = None
     pacing: pacing_1.Pacing | None = None
     pricing_option_id: Annotated[
         str,
-        Field(
-            description="ID of the selected pricing option from the product's pricing_options array"
-        ),
+        Field(description="ID of the selected pricing option from the product's pricing_options array"),
     ]
-    product_id: Annotated[str, Field(description='Product ID for this package')]
+    product_id: Annotated[str, Field(description="Product ID for this package")]
     targeting_overlay: targeting.TargetingOverlay | None = None

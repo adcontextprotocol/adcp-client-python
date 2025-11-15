@@ -25,26 +25,24 @@ from . import (
 
 class Input(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     context_description: Annotated[
         str | None,
-        Field(description='Natural language description of the context for AI-generated content'),
+        Field(description="Natural language description of the context for AI-generated content"),
     ] = None
-    macros: Annotated[
-        dict[str, str] | None, Field(description='Macro values to apply for this preview')
-    ] = None
-    name: Annotated[str, Field(description='Human-readable name for this preview variant')]
+    macros: Annotated[dict[str, str] | None, Field(description="Macro values to apply for this preview")] = None
+    name: Annotated[str, Field(description="Human-readable name for this preview variant")]
 
 
 class CreativeAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     approved: Annotated[
         bool | None,
         Field(
-            description='For generative creatives: set to true to approve and finalize, false to request regeneration with updated assets/message. Omit for non-generative creatives.'
+            description="For generative creatives: set to true to approve and finalize, false to request regeneration with updated assets/message. Omit for non-generative creatives."
         ),
     ] = None
     assets: Annotated[
@@ -64,20 +62,16 @@ class CreativeAsset(AdCPBaseModel):
             | daast_asset.DaastAsset1
             | daast_asset.DaastAsset2,
         ],
-        Field(description='Assets required by the format, keyed by asset_role'),
+        Field(description="Assets required by the format, keyed by asset_role"),
     ]
-    creative_id: Annotated[str, Field(description='Unique identifier for the creative')]
+    creative_id: Annotated[str, Field(description="Unique identifier for the creative")]
     format_id: Annotated[
         format_id_1.FormatId,
-        Field(description='Format identifier specifying which format this creative conforms to'),
+        Field(description="Format identifier specifying which format this creative conforms to"),
     ]
     inputs: Annotated[
         list[Input] | None,
-        Field(
-            description='Preview contexts for generative formats - defines what scenarios to generate previews for'
-        ),
+        Field(description="Preview contexts for generative formats - defines what scenarios to generate previews for"),
     ] = None
-    name: Annotated[str, Field(description='Human-readable creative name')]
-    tags: Annotated[
-        list[str] | None, Field(description='User-defined tags for organization and searchability')
-    ] = None
+    name: Annotated[str, Field(description="Human-readable creative name")]
+    tags: Annotated[list[str] | None, Field(description="User-defined tags for organization and searchability")] = None

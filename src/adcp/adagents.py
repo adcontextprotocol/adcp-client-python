@@ -57,9 +57,7 @@ def _validate_publisher_domain(domain: str) -> str:
     suspicious_chars = ["\\", "@", "\n", "\r", "\t"]
     for char in suspicious_chars:
         if char in domain:
-            raise AdagentsValidationError(
-                f"Invalid character in publisher domain: {char!r}"
-            )
+            raise AdagentsValidationError(f"Invalid character in publisher domain: {char!r}")
 
     domain = domain.strip()
 
@@ -71,9 +69,7 @@ def _validate_publisher_domain(domain: str) -> str:
 
     # Check for spaces after stripping leading/trailing whitespace
     if " " in domain:
-        raise AdagentsValidationError(
-            "Invalid character in publisher domain: ' '"
-        )
+        raise AdagentsValidationError("Invalid character in publisher domain: ' '")
 
     # Remove protocol if present (common user error) - do this BEFORE checking for slashes
     if "://" in domain:
@@ -88,9 +84,7 @@ def _validate_publisher_domain(domain: str) -> str:
 
     # Final validation - must look like a domain
     if "." not in domain:
-        raise AdagentsValidationError(
-            f"Publisher domain must contain at least one dot: {domain!r}"
-        )
+        raise AdagentsValidationError(f"Publisher domain must contain at least one dot: {domain!r}")
 
     return domain
 
@@ -345,9 +339,7 @@ async def fetch_adagents(
             raise AdagentsNotFoundError(publisher_domain)
 
         if response.status_code != 200:
-            raise AdagentsValidationError(
-                f"Failed to fetch adagents.json: HTTP {response.status_code}"
-            )
+            raise AdagentsValidationError(f"Failed to fetch adagents.json: HTTP {response.status_code}")
 
         # Parse JSON
         try:
@@ -360,9 +352,7 @@ async def fetch_adagents(
             raise AdagentsValidationError("adagents.json must be a JSON object")
 
         if "authorized_agents" not in data:
-            raise AdagentsValidationError(
-                "adagents.json must have 'authorized_agents' field"
-            )
+            raise AdagentsValidationError("adagents.json must have 'authorized_agents' field")
 
         if not isinstance(data["authorized_agents"], list):
             raise AdagentsValidationError("'authorized_agents' must be an array")

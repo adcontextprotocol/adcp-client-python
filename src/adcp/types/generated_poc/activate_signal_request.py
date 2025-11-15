@@ -14,21 +14,19 @@ from . import destination
 
 class ActivateSignalRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     context: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.'
+            description="Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata."
         ),
     ] = None
     destinations: Annotated[
         list[destination.Destination1 | destination.Destination2],
         Field(
-            description='Target destination(s) for activation. If the authenticated caller matches one of these destinations, activation keys will be included in the response.',
+            description="Target destination(s) for activation. If the authenticated caller matches one of these destinations, activation keys will be included in the response.",
             min_length=1,
         ),
     ]
-    signal_agent_segment_id: Annotated[
-        str, Field(description='The universal identifier for the signal to activate')
-    ]
+    signal_agent_segment_id: Annotated[str, Field(description="The universal identifier for the signal to activate")]

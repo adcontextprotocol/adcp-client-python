@@ -47,7 +47,7 @@ class Quality(AdCPBaseModel):
 
 class Requirements(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     content_length: ContentLength | None = None
     dimensions: Dimensions | None = None
@@ -61,40 +61,32 @@ class Requirements(AdCPBaseModel):
 
 
 class Type(Enum):
-    image = 'image'
-    video = 'video'
-    audio = 'audio'
-    text = 'text'
-    html = 'html'
-    css = 'css'
-    javascript = 'javascript'
-    vast = 'vast'
-    daast = 'daast'
-    promoted_offerings = 'promoted_offerings'
-    url = 'url'
+    image = "image"
+    video = "video"
+    audio = "audio"
+    text = "text"
+    html = "html"
+    css = "css"
+    javascript = "javascript"
+    vast = "vast"
+    daast = "daast"
+    promoted_offerings = "promoted_offerings"
+    url = "url"
 
 
 class AssetTypeSchema(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     asset_role: Annotated[
         str,
-        Field(
-            description="Role or purpose of this asset in the creative (e.g., 'hero_image', 'logo', 'cta_button')"
-        ),
+        Field(description="Role or purpose of this asset in the creative (e.g., 'hero_image', 'logo', 'cta_button')"),
     ]
     constraints: Annotated[
         list[str] | None,
-        Field(description='Additional constraints or requirements (human-readable)'),
+        Field(description="Additional constraints or requirements (human-readable)"),
     ] = None
-    examples: Annotated[
-        list[str] | None, Field(description='Example values or descriptions for this asset')
-    ] = None
-    required: Annotated[
-        bool | None, Field(description='Whether this asset is mandatory for the format')
-    ] = True
-    requirements: Annotated[
-        Requirements | None, Field(description='Technical requirements for this asset type')
-    ] = None
-    type: Annotated[Type, Field(description='Type of asset')]
+    examples: Annotated[list[str] | None, Field(description="Example values or descriptions for this asset")] = None
+    required: Annotated[bool | None, Field(description="Whether this asset is mandatory for the format")] = True
+    requirements: Annotated[Requirements | None, Field(description="Technical requirements for this asset type")] = None
+    type: Annotated[Type, Field(description="Type of asset")]

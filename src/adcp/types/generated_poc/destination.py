@@ -12,32 +12,26 @@ from pydantic import AnyUrl, ConfigDict, Field
 
 class Destination1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    account: Annotated[
-        str | None, Field(description='Optional account identifier on the platform')
-    ] = None
+    account: Annotated[str | None, Field(description="Optional account identifier on the platform")] = None
     platform: Annotated[
         str,
         Field(description="Platform identifier for DSPs (e.g., 'the-trade-desk', 'amazon-dsp')"),
     ]
     type: Annotated[
-        Literal['platform'],
-        Field(description='Discriminator indicating this is a platform-based destination'),
+        Literal["platform"],
+        Field(description="Discriminator indicating this is a platform-based destination"),
     ]
 
 
 class Destination2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    account: Annotated[
-        str | None, Field(description='Optional account identifier on the agent')
-    ] = None
-    agent_url: Annotated[
-        AnyUrl, Field(description='URL identifying the destination agent (for sales agents, etc.)')
-    ]
+    account: Annotated[str | None, Field(description="Optional account identifier on the agent")] = None
+    agent_url: Annotated[AnyUrl, Field(description="URL identifying the destination agent (for sales agents, etc.)")]
     type: Annotated[
-        Literal['agent'],
-        Field(description='Discriminator indicating this is an agent URL-based destination'),
+        Literal["agent"],
+        Field(description="Discriminator indicating this is an agent URL-based destination"),
     ]

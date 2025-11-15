@@ -102,7 +102,7 @@ class TestFormatIdValidation:
         data = {"agent_url": "https://creative.example.com", "id": "banner_300x250"}
 
         fid = FormatId.model_validate(data)
-        assert str(fid.agent_url).rstrip('/') == "https://creative.example.com"
+        assert str(fid.agent_url).rstrip("/") == "https://creative.example.com"
         assert fid.id == "banner_300x250"
 
     def test_format_id_invalid_dict_validation(self):

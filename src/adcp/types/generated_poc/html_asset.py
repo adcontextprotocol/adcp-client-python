@@ -12,7 +12,7 @@ from pydantic import ConfigDict, Field
 
 class HtmlAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    content: Annotated[str, Field(description='HTML content')]
+    content: Annotated[str, Field(description="HTML content")]
     version: Annotated[str | None, Field(description="HTML version (e.g., 'HTML5')")] = None

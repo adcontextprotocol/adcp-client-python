@@ -90,12 +90,7 @@ def generate_consolidated_exports() -> str:
 
     lines.extend(import_lines)
 
-    lines.extend([
-        "",
-        "# Explicit exports",
-        f"__all__ = {sorted(list(all_exports))}",
-        ""
-    ])
+    lines.extend(["", "# Explicit exports", f"__all__ = {sorted(list(all_exports))}", ""])
 
     return "\n".join(lines)
 
@@ -113,8 +108,10 @@ def main():
     print(f"\nWriting {OUTPUT_FILE}...")
     OUTPUT_FILE.write_text(content)
 
-    print(f"✓ Successfully generated consolidated exports")
-    export_count = len([name for name in content.split("__all__ = [")[1].split("]")[0].strip("[]").split(",") if name.strip()])
+    print("✓ Successfully generated consolidated exports")
+    export_count = len(
+        [name for name in content.split("__all__ = [")[1].split("]")[0].strip("[]").split(",") if name.strip()]
+    )
     print(f"  Total exports: {export_count}")
 
     return 0

@@ -12,28 +12,26 @@ from pydantic import ConfigDict, Field
 
 class CpmFixedRatePricingOption(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     currency: Annotated[
         str,
         Field(
-            description='ISO 4217 currency code',
-            examples=['USD', 'EUR', 'GBP', 'JPY'],
-            pattern='^[A-Z]{3}$',
+            description="ISO 4217 currency code",
+            examples=["USD", "EUR", "GBP", "JPY"],
+            pattern="^[A-Z]{3}$",
         ),
     ]
     min_spend_per_package: Annotated[
         float | None,
         Field(
-            description='Minimum spend requirement per package using this pricing option, in the specified currency',
+            description="Minimum spend requirement per package using this pricing option, in the specified currency",
             ge=0.0,
         ),
     ] = None
-    pricing_model: Annotated[Literal['cpm'], Field(description='Cost per 1,000 impressions')]
+    pricing_model: Annotated[Literal["cpm"], Field(description="Cost per 1,000 impressions")]
     pricing_option_id: Annotated[
         str,
-        Field(
-            description="Unique identifier for this pricing option within the product (e.g., 'cpm_usd_guaranteed')"
-        ),
+        Field(description="Unique identifier for this pricing option within the product (e.g., 'cpm_usd_guaranteed')"),
     ]
-    rate: Annotated[float, Field(description='Fixed CPM rate (cost per 1,000 impressions)', ge=0.0)]
+    rate: Annotated[float, Field(description="Fixed CPM rate (cost per 1,000 impressions)", ge=0.0)]

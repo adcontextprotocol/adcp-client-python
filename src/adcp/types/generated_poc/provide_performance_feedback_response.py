@@ -14,34 +14,34 @@ from . import error
 
 class ProvidePerformanceFeedbackResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     context: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.'
+            description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers."
         ),
     ] = None
     success: Annotated[
         Literal[True],
-        Field(description='Whether the performance feedback was successfully received'),
+        Field(description="Whether the performance feedback was successfully received"),
     ]
 
 
 class ProvidePerformanceFeedbackResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     context: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.'
+            description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers."
         ),
     ] = None
     errors: Annotated[
         list[error.Error],
         Field(
-            description='Array of errors explaining why feedback was rejected (e.g., invalid measurement period, missing campaign data)',
+            description="Array of errors explaining why feedback was rejected (e.g., invalid measurement period, missing campaign data)",
             min_length=1,
         ),
     ]
@@ -53,7 +53,7 @@ class ProvidePerformanceFeedbackResponse(
     root: Annotated[
         ProvidePerformanceFeedbackResponse1 | ProvidePerformanceFeedbackResponse2,
         Field(
-            description='Response payload for provide_performance_feedback task. Returns either success confirmation OR error information, never both.',
-            title='Provide Performance Feedback Response',
+            description="Response payload for provide_performance_feedback task. Returns either success confirmation OR error information, never both.",
+            title="Provide Performance Feedback Response",
         ),
     ]

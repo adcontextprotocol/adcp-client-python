@@ -14,13 +14,12 @@ from adcp.types.generated import (
     AuthorizedAgents3,  # publisher_properties variant
     CreateMediaBuyResponse1,  # Success
     CreateMediaBuyResponse2,  # Error
-    Destination1,  # Platform
-    Destination2,  # Agent
     Deployment1,  # Platform
     Deployment2,  # Agent
-    Error,
+    Destination1,  # Platform
+    Destination2,  # Agent
 )
-from adcp.types.generated_poc.product import Product, PublisherProperty
+from adcp.types.generated_poc.product import PublisherProperty
 
 
 class TestAuthorizationDiscriminatedUnions:
@@ -297,9 +296,7 @@ class TestSerializationRoundtrips:
 
     def test_agent_destination_roundtrip(self):
         """Destination2 should roundtrip through JSON."""
-        original = Destination2(
-            type="agent", agent_url="https://agent.example.com", account="123"
-        )
+        original = Destination2(type="agent", agent_url="https://agent.example.com", account="123")
         json_str = original.model_dump_json()
         parsed = Destination2.model_validate_json(json_str)
         assert parsed.type == original.type
@@ -371,10 +368,7 @@ class TestPublisherPropertyValidation:
                 property_tags=["premium"],
             )
         error_msg = str(exc_info.value)
-        assert (
-            "mutually exclusive" in error_msg.lower()
-            or "exactly one" in error_msg.lower()
-        )
+        assert "mutually exclusive" in error_msg.lower() or "exactly one" in error_msg.lower()
 
     def test_publisher_property_mutual_exclusivity_neither_fails(self):
         """PublisherProperty should reject neither property_ids nor property_tags."""
@@ -420,10 +414,7 @@ class TestProductValidation:
                 property_tags=["premium"],  # Invalid: both fields
             )
         error_msg = str(exc_info.value)
-        assert (
-            "mutually exclusive" in error_msg.lower()
-            or "exactly one" in error_msg.lower()
-        )
+        assert "mutually exclusive" in error_msg.lower() or "exactly one" in error_msg.lower()
 
     def test_publisher_property_validation_propagates_errors(self):
         """PublisherProperty validation errors are caught during construction."""

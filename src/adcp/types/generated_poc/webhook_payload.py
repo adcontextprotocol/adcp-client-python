@@ -15,41 +15,33 @@ from . import task_type as task_type_1
 
 
 class Domain(Enum):
-    media_buy = 'media-buy'
-    signals = 'signals'
+    media_buy = "media-buy"
+    signals = "signals"
 
 
 class Progress(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    current_step: Annotated[
-        str | None, Field(description='Current step or phase of the operation')
-    ] = None
-    percentage: Annotated[
-        float | None, Field(description='Completion percentage (0-100)', ge=0.0, le=100.0)
-    ] = None
-    step_number: Annotated[int | None, Field(description='Current step number', ge=1)] = None
-    total_steps: Annotated[
-        int | None, Field(description='Total number of steps in the operation', ge=1)
-    ] = None
+    current_step: Annotated[str | None, Field(description="Current step or phase of the operation")] = None
+    percentage: Annotated[float | None, Field(description="Completion percentage (0-100)", ge=0.0, le=100.0)] = None
+    step_number: Annotated[int | None, Field(description="Current step number", ge=1)] = None
+    total_steps: Annotated[int | None, Field(description="Total number of steps in the operation", ge=1)] = None
 
 
 class WebhookPayload(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context_id: Annotated[
         str | None,
         Field(
-            description='Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters.'
+            description="Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters."
         ),
     ] = None
     domain: Annotated[
         Domain | None,
-        Field(
-            description='AdCP domain this task belongs to. Helps classify the operation type at a high level.'
-        ),
+        Field(description="AdCP domain this task belongs to. Helps classify the operation type at a high level."),
     ] = None
     error: Annotated[
         str | None,
@@ -58,13 +50,13 @@ class WebhookPayload(AdCPBaseModel):
     message: Annotated[
         str | None,
         Field(
-            description='Human-readable summary of the current task state. Provides context about what happened and what action may be needed.'
+            description="Human-readable summary of the current task state. Provides context about what happened and what action may be needed."
         ),
     ] = None
     operation_id: Annotated[
         str | None,
         Field(
-            description='Publisher-defined operation identifier correlating a sequence of task updates across webhooks.'
+            description="Publisher-defined operation identifier correlating a sequence of task updates across webhooks."
         ),
     ] = None
     progress: Annotated[
@@ -76,27 +68,25 @@ class WebhookPayload(AdCPBaseModel):
     result: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Task-specific payload for this status update. Validated against the appropriate response schema based on task_type.'
+            description="Task-specific payload for this status update. Validated against the appropriate response schema based on task_type."
         ),
     ] = None
     status: Annotated[
         task_status.TaskStatus,
         Field(
-            description='Current task status. Webhooks are only triggered for status changes after initial submission (e.g., submitted → input-required, submitted → completed, submitted → failed).'
+            description="Current task status. Webhooks are only triggered for status changes after initial submission (e.g., submitted → input-required, submitted → completed, submitted → failed)."
         ),
     ]
     task_id: Annotated[
         str,
         Field(
-            description='Unique identifier for this task. Use this to correlate webhook notifications with the original task submission.'
+            description="Unique identifier for this task. Use this to correlate webhook notifications with the original task submission."
         ),
     ]
     task_type: Annotated[
         task_type_1.TaskType,
         Field(
-            description='Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic.'
+            description="Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic."
         ),
     ]
-    timestamp: Annotated[
-        AwareDatetime, Field(description='ISO 8601 timestamp when this webhook was generated.')
-    ]
+    timestamp: Annotated[AwareDatetime, Field(description="ISO 8601 timestamp when this webhook was generated.")]

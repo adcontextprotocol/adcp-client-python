@@ -11,47 +11,35 @@ from pydantic import ConfigDict, Field
 
 
 class PriceGuidance(AdCPBaseModel):
-    floor: Annotated[float, Field(description='Minimum acceptable bid price', ge=0.0)]
-    p25: Annotated[
-        float | None, Field(description='25th percentile of recent winning bids', ge=0.0)
-    ] = None
-    p50: Annotated[float | None, Field(description='Median of recent winning bids', ge=0.0)] = None
-    p75: Annotated[
-        float | None, Field(description='75th percentile of recent winning bids', ge=0.0)
-    ] = None
-    p90: Annotated[
-        float | None, Field(description='90th percentile of recent winning bids', ge=0.0)
-    ] = None
+    floor: Annotated[float, Field(description="Minimum acceptable bid price", ge=0.0)]
+    p25: Annotated[float | None, Field(description="25th percentile of recent winning bids", ge=0.0)] = None
+    p50: Annotated[float | None, Field(description="Median of recent winning bids", ge=0.0)] = None
+    p75: Annotated[float | None, Field(description="75th percentile of recent winning bids", ge=0.0)] = None
+    p90: Annotated[float | None, Field(description="90th percentile of recent winning bids", ge=0.0)] = None
 
 
 class VcpmAuctionPricingOption(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     currency: Annotated[
         str,
         Field(
-            description='ISO 4217 currency code',
-            examples=['USD', 'EUR', 'GBP', 'JPY'],
-            pattern='^[A-Z]{3}$',
+            description="ISO 4217 currency code",
+            examples=["USD", "EUR", "GBP", "JPY"],
+            pattern="^[A-Z]{3}$",
         ),
     ]
     min_spend_per_package: Annotated[
         float | None,
         Field(
-            description='Minimum spend requirement per package using this pricing option, in the specified currency',
+            description="Minimum spend requirement per package using this pricing option, in the specified currency",
             ge=0.0,
         ),
     ] = None
-    price_guidance: Annotated[
-        PriceGuidance, Field(description='Statistical guidance for auction pricing')
-    ]
-    pricing_model: Annotated[
-        Literal['vcpm'], Field(description='Cost per 1,000 viewable impressions (MRC standard)')
-    ]
+    price_guidance: Annotated[PriceGuidance, Field(description="Statistical guidance for auction pricing")]
+    pricing_model: Annotated[Literal["vcpm"], Field(description="Cost per 1,000 viewable impressions (MRC standard)")]
     pricing_option_id: Annotated[
         str,
-        Field(
-            description="Unique identifier for this pricing option within the product (e.g., 'vcpm_usd_auction')"
-        ),
+        Field(description="Unique identifier for this pricing option within the product (e.g., 'vcpm_usd_auction')"),
     ]

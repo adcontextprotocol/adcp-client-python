@@ -14,7 +14,7 @@ class ViewThreshold(RootModel[float]):
     root: Annotated[
         float,
         Field(
-            description='Percentage completion threshold for CPV pricing (0.0 to 1.0, e.g., 0.5 = 50% completion)',
+            description="Percentage completion threshold for CPV pricing (0.0 to 1.0, e.g., 0.5 = 50% completion)",
             ge=0.0,
             le=1.0,
         ),
@@ -23,7 +23,7 @@ class ViewThreshold(RootModel[float]):
 
 class ViewThreshold1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     duration_seconds: Annotated[
         int,
@@ -36,38 +36,34 @@ class ViewThreshold1(AdCPBaseModel):
 
 class Parameters(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     view_threshold: ViewThreshold | ViewThreshold1
 
 
 class CpvPricingOption(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     currency: Annotated[
         str,
         Field(
-            description='ISO 4217 currency code',
-            examples=['USD', 'EUR', 'GBP', 'JPY'],
-            pattern='^[A-Z]{3}$',
+            description="ISO 4217 currency code",
+            examples=["USD", "EUR", "GBP", "JPY"],
+            pattern="^[A-Z]{3}$",
         ),
     ]
     min_spend_per_package: Annotated[
         float | None,
         Field(
-            description='Minimum spend requirement per package using this pricing option, in the specified currency',
+            description="Minimum spend requirement per package using this pricing option, in the specified currency",
             ge=0.0,
         ),
     ] = None
-    parameters: Annotated[
-        Parameters, Field(description='CPV-specific parameters defining the view threshold')
-    ]
-    pricing_model: Annotated[Literal['cpv'], Field(description='Cost per view at threshold')]
+    parameters: Annotated[Parameters, Field(description="CPV-specific parameters defining the view threshold")]
+    pricing_model: Annotated[Literal["cpv"], Field(description="Cost per view at threshold")]
     pricing_option_id: Annotated[
         str,
-        Field(
-            description="Unique identifier for this pricing option within the product (e.g., 'cpv_usd_50pct')"
-        ),
+        Field(description="Unique identifier for this pricing option within the product (e.g., 'cpv_usd_50pct')"),
     ]
-    rate: Annotated[float, Field(description='Fixed CPV rate (cost per view)', ge=0.0)]
+    rate: Annotated[float, Field(description="Fixed CPV rate (cost per view)", ge=0.0)]

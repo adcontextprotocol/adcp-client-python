@@ -172,7 +172,7 @@ def generate_types(input_dir: Path):
         print(result.stdout)
 
     if result.returncode != 0:
-        print(f"\n✗ Generation failed:", file=sys.stderr)
+        print("\n✗ Generation failed:", file=sys.stderr)
         print(result.stderr, file=sys.stderr)
         return False
 
@@ -194,7 +194,7 @@ def apply_post_generation_fixes():
         print(result.stdout, end="")
 
     if result.returncode != 0:
-        print(f"\n✗ Post-generation fixes failed:", file=sys.stderr)
+        print("\n✗ Post-generation fixes failed:", file=sys.stderr)
         print(result.stderr, file=sys.stderr)
         return False
 
@@ -230,7 +230,7 @@ def main():
 
         # Count generated files
         py_files = list(OUTPUT_DIR.glob("*.py"))
-        print(f"\n✓ Successfully generated types")
+        print("\n✓ Successfully generated types")
         print(f"  Output: {OUTPUT_DIR}")
         print(f"  Files: {len(py_files)}")
 
@@ -239,6 +239,7 @@ def main():
     except Exception as e:
         print(f"\n✗ Error: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         return 1
     finally:

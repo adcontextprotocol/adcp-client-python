@@ -16,29 +16,25 @@ from . import targeting
 
 class Packages(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    active: Annotated[bool | None, Field(description='Pause/resume specific package')] = None
+    active: Annotated[bool | None, Field(description="Pause/resume specific package")] = None
     bid_price: Annotated[
         float | None,
         Field(
-            description='Updated bid price for auction-based pricing options (only applies when pricing_option is auction-based)',
+            description="Updated bid price for auction-based pricing options (only applies when pricing_option is auction-based)",
             ge=0.0,
         ),
     ] = None
     budget: Annotated[
         float | None,
         Field(
-            description='Updated budget allocation for this package in the currency specified by the pricing option',
+            description="Updated budget allocation for this package in the currency specified by the pricing option",
             ge=0.0,
         ),
     ] = None
-    buyer_ref: Annotated[
-        str | None, Field(description="Buyer's reference for the package to update")
-    ] = None
-    creative_ids: Annotated[list[str] | None, Field(description='Update creative assignments')] = (
-        None
-    )
+    buyer_ref: Annotated[str | None, Field(description="Buyer's reference for the package to update")] = None
+    creative_ids: Annotated[list[str] | None, Field(description="Update creative assignments")] = None
     pacing: pacing_1.Pacing | None = None
     package_id: Annotated[str, Field(description="Publisher's ID of package to update")]
     targeting_overlay: targeting.TargetingOverlay | None = None
@@ -46,66 +42,54 @@ class Packages(AdCPBaseModel):
 
 class Packages1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    active: Annotated[bool | None, Field(description='Pause/resume specific package')] = None
+    active: Annotated[bool | None, Field(description="Pause/resume specific package")] = None
     bid_price: Annotated[
         float | None,
         Field(
-            description='Updated bid price for auction-based pricing options (only applies when pricing_option is auction-based)',
+            description="Updated bid price for auction-based pricing options (only applies when pricing_option is auction-based)",
             ge=0.0,
         ),
     ] = None
     budget: Annotated[
         float | None,
         Field(
-            description='Updated budget allocation for this package in the currency specified by the pricing option',
+            description="Updated budget allocation for this package in the currency specified by the pricing option",
             ge=0.0,
         ),
     ] = None
     buyer_ref: Annotated[str, Field(description="Buyer's reference for the package to update")]
-    creative_ids: Annotated[list[str] | None, Field(description='Update creative assignments')] = (
-        None
-    )
+    creative_ids: Annotated[list[str] | None, Field(description="Update creative assignments")] = None
     pacing: pacing_1.Pacing | None = None
-    package_id: Annotated[str | None, Field(description="Publisher's ID of package to update")] = (
-        None
-    )
+    package_id: Annotated[str | None, Field(description="Publisher's ID of package to update")] = None
     targeting_overlay: targeting.TargetingOverlay | None = None
 
 
 class UpdateMediaBuyRequest1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    active: Annotated[bool | None, Field(description='Pause/resume the entire media buy')] = None
-    buyer_ref: Annotated[
-        str | None, Field(description="Buyer's reference for the media buy to update")
-    ] = None
+    active: Annotated[bool | None, Field(description="Pause/resume the entire media buy")] = None
+    buyer_ref: Annotated[str | None, Field(description="Buyer's reference for the media buy to update")] = None
     context: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.'
+            description="Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata."
         ),
     ] = None
-    end_time: Annotated[
-        AwareDatetime | None, Field(description='New end date/time in ISO 8601 format')
-    ] = None
+    end_time: Annotated[AwareDatetime | None, Field(description="New end date/time in ISO 8601 format")] = None
     media_buy_id: Annotated[str, Field(description="Publisher's ID of the media buy to update")]
-    packages: Annotated[
-        list[Packages | Packages1] | None, Field(description='Package-specific updates')
-    ] = None
+    packages: Annotated[list[Packages | Packages1] | None, Field(description="Package-specific updates")] = None
     push_notification_config: Annotated[
         push_notification_config_1.PushNotificationConfig | None,
         Field(
-            description='Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time.'
+            description="Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time."
         ),
     ] = None
     start_time: Annotated[
         str | AwareDatetime | None,
-        Field(
-            description="Campaign start timing: 'asap' or ISO 8601 date-time", title='Start Timing'
-        ),
+        Field(description="Campaign start timing: 'asap' or ISO 8601 date-time", title="Start Timing"),
     ] = None
 
 
@@ -117,36 +101,28 @@ Packages3 = Packages1
 
 class UpdateMediaBuyRequest2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    active: Annotated[bool | None, Field(description='Pause/resume the entire media buy')] = None
+    active: Annotated[bool | None, Field(description="Pause/resume the entire media buy")] = None
     buyer_ref: Annotated[str, Field(description="Buyer's reference for the media buy to update")]
     context: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.'
+            description="Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata."
         ),
     ] = None
-    end_time: Annotated[
-        AwareDatetime | None, Field(description='New end date/time in ISO 8601 format')
-    ] = None
-    media_buy_id: Annotated[
-        str | None, Field(description="Publisher's ID of the media buy to update")
-    ] = None
-    packages: Annotated[
-        list[Packages2 | Packages3] | None, Field(description='Package-specific updates')
-    ] = None
+    end_time: Annotated[AwareDatetime | None, Field(description="New end date/time in ISO 8601 format")] = None
+    media_buy_id: Annotated[str | None, Field(description="Publisher's ID of the media buy to update")] = None
+    packages: Annotated[list[Packages2 | Packages3] | None, Field(description="Package-specific updates")] = None
     push_notification_config: Annotated[
         push_notification_config_1.PushNotificationConfig | None,
         Field(
-            description='Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time.'
+            description="Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time."
         ),
     ] = None
     start_time: Annotated[
         str | AwareDatetime | None,
-        Field(
-            description="Campaign start timing: 'asap' or ISO 8601 date-time", title='Start Timing'
-        ),
+        Field(description="Campaign start timing: 'asap' or ISO 8601 date-time", title="Start Timing"),
     ] = None
 
 
@@ -154,7 +130,7 @@ class UpdateMediaBuyRequest(RootModel[UpdateMediaBuyRequest1 | UpdateMediaBuyReq
     root: Annotated[
         UpdateMediaBuyRequest1 | UpdateMediaBuyRequest2,
         Field(
-            description='Request parameters for updating campaign and package settings',
-            title='Update Media Buy Request',
+            description="Request parameters for updating campaign and package settings",
+            title="Update Media Buy Request",
         ),
     ]

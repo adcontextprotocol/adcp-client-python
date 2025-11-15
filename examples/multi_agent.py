@@ -8,6 +8,7 @@ This example shows how to:
 """
 
 import asyncio
+
 from adcp import ADCPMultiAgentClient
 from adcp.types import AgentConfig, Protocol
 
@@ -38,9 +39,7 @@ async def main():
     async with ADCPMultiAgentClient(
         agents=agents,
         webhook_url_template="https://myapp.com/webhook/{task_type}/{agent_id}/{operation_id}",
-        on_activity=lambda activity: print(
-            f"[{activity.agent_id}] [{activity.type}] {activity.task_type}"
-        ),
+        on_activity=lambda activity: print(f"[{activity.agent_id}] [{activity.type}] {activity.task_type}"),
         handlers={
             "on_get_products_status_change": handle_products_result,
         },
@@ -53,7 +52,7 @@ async def main():
         sync_count = sum(1 for r in results if r.status == "completed")
         async_count = sum(1 for r in results if r.status == "submitted")
 
-        print(f"\n📊 Results:")
+        print("\n📊 Results:")
         print(f"  ✅ Sync completions: {sync_count}")
         print(f"  ⏳ Async (webhooks pending): {async_count}")
 

@@ -12,7 +12,7 @@ from pydantic import AnyUrl, ConfigDict, Field
 
 class FormatId(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     agent_url: Annotated[
         AnyUrl,
@@ -24,6 +24,6 @@ class FormatId(AdCPBaseModel):
         str,
         Field(
             description="Format identifier within the agent's namespace (e.g., 'display_300x250', 'video_standard_30s')",
-            pattern='^[a-zA-Z0-9_-]+$',
+            pattern="^[a-zA-Z0-9_-]+$",
         ),
     ]

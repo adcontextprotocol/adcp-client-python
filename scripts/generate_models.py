@@ -79,7 +79,7 @@ from __future__ import annotations
     # Prepend header
     OUTPUT_FILE.write_text(header + content)
 
-    print(f"\n✓ Successfully generated models")
+    print("\n✓ Successfully generated models")
     print(f"  Output: {OUTPUT_FILE}")
     print(f"  Lines: {len(content.splitlines())}")
 

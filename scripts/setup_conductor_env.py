@@ -10,7 +10,6 @@ Usage:
 """
 
 import json
-import os
 import shutil
 import sys
 from pathlib import Path
@@ -85,7 +84,7 @@ def show_agent_config(env_path: Path):
         agents_json = None
 
         # Parse .env file to extract ADCP_AGENTS (handle multiline)
-        with open(env_path, "r") as f:
+        with open(env_path) as f:
             content = f.read()
 
             # Find ADCP_AGENTS= and extract until the closing quote

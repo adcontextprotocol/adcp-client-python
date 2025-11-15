@@ -12,54 +12,46 @@ from pydantic import AnyUrl, ConfigDict, Field
 
 
 class Method(Enum):
-    GET = 'GET'
-    POST = 'POST'
+    GET = "GET"
+    POST = "POST"
 
 
 class ResponseType(Enum):
-    html = 'html'
-    json = 'json'
-    xml = 'xml'
-    javascript = 'javascript'
+    html = "html"
+    json = "json"
+    xml = "xml"
+    javascript = "javascript"
 
 
 class Method1(Enum):
-    hmac_sha256 = 'hmac_sha256'
-    api_key = 'api_key'
-    none = 'none'
+    hmac_sha256 = "hmac_sha256"
+    api_key = "api_key"
+    none = "none"
 
 
 class Security(AdCPBaseModel):
-    api_key_header: Annotated[
-        str | None, Field(description="Header name for API key (e.g., 'X-API-Key')")
-    ] = None
-    hmac_header: Annotated[
-        str | None, Field(description="Header name for HMAC signature (e.g., 'X-Signature')")
-    ] = None
-    method: Annotated[Method1, Field(description='Authentication method')]
+    api_key_header: Annotated[str | None, Field(description="Header name for API key (e.g., 'X-API-Key')")] = None
+    hmac_header: Annotated[str | None, Field(description="Header name for HMAC signature (e.g., 'X-Signature')")] = None
+    method: Annotated[Method1, Field(description="Authentication method")]
 
 
 class WebhookAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    method: Annotated[Method | None, Field(description='HTTP method')] = Method.POST
+    method: Annotated[Method | None, Field(description="HTTP method")] = Method.POST
     required_macros: Annotated[
         list[str] | None,
-        Field(description='Universal macros that must be provided for webhook to function'),
+        Field(description="Universal macros that must be provided for webhook to function"),
     ] = None
-    response_type: Annotated[
-        ResponseType, Field(description='Expected content type of webhook response')
-    ]
-    security: Annotated[Security, Field(description='Security configuration for webhook calls')]
+    response_type: Annotated[ResponseType, Field(description="Expected content type of webhook response")]
+    security: Annotated[Security, Field(description="Security configuration for webhook calls")]
     supported_macros: Annotated[
         list[str] | None,
-        Field(
-            description='Universal macros that can be passed to webhook (e.g., {DEVICE_TYPE}, {COUNTRY})'
-        ),
+        Field(description="Universal macros that can be passed to webhook (e.g., {DEVICE_TYPE}, {COUNTRY})"),
     ] = None
     timeout_ms: Annotated[
         int | None,
-        Field(description='Maximum time to wait for response in milliseconds', ge=10, le=5000),
+        Field(description="Maximum time to wait for response in milliseconds", ge=10, le=5000),
     ] = 500
-    url: Annotated[AnyUrl, Field(description='Webhook URL to call for dynamic content')]
+    url: Annotated[AnyUrl, Field(description="Webhook URL to call for dynamic content")]

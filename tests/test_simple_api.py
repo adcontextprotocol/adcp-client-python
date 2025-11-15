@@ -26,9 +26,7 @@ async def test_get_products_simple_api():
         description="A test product",
     )
     mock_response = GetProductsResponse.model_construct(products=[mock_product])
-    mock_result = TaskResult[GetProductsResponse](
-        status=TaskStatus.COMPLETED, data=mock_response, success=True
-    )
+    mock_result = TaskResult[GetProductsResponse](status=TaskStatus.COMPLETED, data=mock_response, success=True)
 
     # Mock the client's get_products method
     with patch.object(test_agent, "get_products", new=AsyncMock(return_value=mock_result)):
@@ -84,9 +82,7 @@ async def test_list_creative_formats_simple_api():
         description="Standard banner",
     )
     mock_response = ListCreativeFormatsResponse.model_construct(formats=[mock_format])
-    mock_result = TaskResult[ListCreativeFormatsResponse](
-        status=TaskStatus.COMPLETED, data=mock_response, success=True
-    )
+    mock_result = TaskResult[ListCreativeFormatsResponse](status=TaskStatus.COMPLETED, data=mock_response, success=True)
 
     with patch.object(test_agent, "list_creative_formats", new=AsyncMock(return_value=mock_result)):
         # Call simplified API
@@ -146,25 +142,27 @@ async def test_preview_creative_simple_api():
     mock_response = PreviewCreativeResponse1(
         response_type="single",
         expires_at="2025-12-01T00:00:00Z",
-        previews=[{
-            "preview_id": "prev-1",
-            "input": {"name": "Default"},
-            "renders": [{
-                "render_id": "render-1",
-                "role": "primary",
-                "output_format": "both",
-                "preview_url": "https://preview.example.com/123",
-                "preview_html": "<html>...</html>",
-            }],
-        }],
+        previews=[
+            {
+                "preview_id": "prev-1",
+                "input": {"name": "Default"},
+                "renders": [
+                    {
+                        "render_id": "render-1",
+                        "role": "primary",
+                        "output_format": "both",
+                        "preview_url": "https://preview.example.com/123",
+                        "preview_html": "<html>...</html>",
+                    }
+                ],
+            }
+        ],
     )
-    mock_result = TaskResult[PreviewCreativeResponse1](
-        status=TaskStatus.COMPLETED, data=mock_response, success=True
-    )
+    mock_result = TaskResult[PreviewCreativeResponse1](status=TaskStatus.COMPLETED, data=mock_response, success=True)
 
     with patch.object(creative_agent, "preview_creative", new=AsyncMock(return_value=mock_result)):
         # Call simplified API with new schema structure
-        from adcp.types.generated import FormatId, CreativeManifest
+        from adcp.types.generated import CreativeManifest, FormatId
 
         format_id = FormatId(agent_url="https://creative.example.com", id="banner_300x250")
         creative_manifest = CreativeManifest.model_construct(format_id=format_id, assets={})

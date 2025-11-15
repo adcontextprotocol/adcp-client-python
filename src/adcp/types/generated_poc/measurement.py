@@ -12,29 +12,27 @@ from pydantic import ConfigDict, Field
 
 class Measurement(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     attribution: Annotated[
         str,
         Field(
-            description='Attribution methodology',
-            examples=['deterministic_purchase', 'probabilistic'],
+            description="Attribution methodology",
+            examples=["deterministic_purchase", "probabilistic"],
         ),
     ]
     reporting: Annotated[
         str,
         Field(
-            description='Reporting frequency and format',
-            examples=['weekly_dashboard', 'real_time_api'],
+            description="Reporting frequency and format",
+            examples=["weekly_dashboard", "real_time_api"],
         ),
     ]
     type: Annotated[
         str,
         Field(
-            description='Type of measurement',
-            examples=['incremental_sales_lift', 'brand_lift', 'foot_traffic'],
+            description="Type of measurement",
+            examples=["incremental_sales_lift", "brand_lift", "foot_traffic"],
         ),
     ]
-    window: Annotated[
-        str | None, Field(description='Attribution window', examples=['30_days', '7_days'])
-    ] = None
+    window: Annotated[str | None, Field(description="Attribution window", examples=["30_days", "7_days"])] = None

@@ -8,12 +8,12 @@ from enum import Enum
 
 
 class TaskStatus(Enum):
-    submitted = 'submitted'
-    working = 'working'
-    input_required = 'input-required'
-    completed = 'completed'
-    canceled = 'canceled'
-    failed = 'failed'
-    rejected = 'rejected'
-    auth_required = 'auth-required'
-    unknown = 'unknown'
+    submitted = "submitted"
+    working = "working"
+    input_required = "input-required"
+    completed = "completed"
+    canceled = "canceled"
+    failed = "failed"
+    rejected = "rejected"
+    auth_required = "auth-required"
+    unknown = "unknown"

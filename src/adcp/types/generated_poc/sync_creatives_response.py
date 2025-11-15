@@ -14,67 +14,57 @@ from . import error
 
 
 class Action(Enum):
-    created = 'created'
-    updated = 'updated'
-    unchanged = 'unchanged'
-    failed = 'failed'
-    deleted = 'deleted'
+    created = "created"
+    updated = "updated"
+    unchanged = "unchanged"
+    failed = "failed"
+    deleted = "deleted"
 
 
 class Creative(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    action: Annotated[Action, Field(description='Action taken for this creative')]
+    action: Annotated[Action, Field(description="Action taken for this creative")]
     assigned_to: Annotated[
         list[str] | None,
         Field(
-            description='Package IDs this creative was successfully assigned to (only present when assignments were requested)'
+            description="Package IDs this creative was successfully assigned to (only present when assignments were requested)"
         ),
     ] = None
     assignment_errors: Annotated[
         dict[str, str] | None,
-        Field(
-            description='Assignment errors by package ID (only present when assignment failures occurred)'
-        ),
+        Field(description="Assignment errors by package ID (only present when assignment failures occurred)"),
     ] = None
     changes: Annotated[
         list[str] | None,
         Field(description="Field names that were modified (only present when action='updated')"),
     ] = None
-    creative_id: Annotated[str, Field(description='Creative ID from the request')]
+    creative_id: Annotated[str, Field(description="Creative ID from the request")]
     errors: Annotated[
         list[str] | None,
         Field(description="Validation or processing errors (only present when action='failed')"),
     ] = None
     expires_at: Annotated[
         AwareDatetime | None,
-        Field(
-            description='ISO 8601 timestamp when preview link expires (only present when preview_url exists)'
-        ),
+        Field(description="ISO 8601 timestamp when preview link expires (only present when preview_url exists)"),
     ] = None
-    platform_id: Annotated[
-        str | None, Field(description='Platform-specific ID assigned to the creative')
-    ] = None
+    platform_id: Annotated[str | None, Field(description="Platform-specific ID assigned to the creative")] = None
     preview_url: Annotated[
         AnyUrl | None,
-        Field(
-            description='Preview URL for generative creatives (only present for generative formats)'
-        ),
+        Field(description="Preview URL for generative creatives (only present for generative formats)"),
     ] = None
-    warnings: Annotated[
-        list[str] | None, Field(description='Non-fatal warnings about this creative')
-    ] = None
+    warnings: Annotated[list[str] | None, Field(description="Non-fatal warnings about this creative")] = None
 
 
 class SyncCreativesResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     context: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.'
+            description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers."
         ),
     ] = None
     creatives: Annotated[
@@ -83,25 +73,23 @@ class SyncCreativesResponse1(AdCPBaseModel):
             description="Results for each creative processed. Items with action='failed' indicate per-item validation/processing failures, not operation-level failures."
         ),
     ]
-    dry_run: Annotated[
-        bool | None, Field(description='Whether this was a dry run (no actual changes made)')
-    ] = None
+    dry_run: Annotated[bool | None, Field(description="Whether this was a dry run (no actual changes made)")] = None
 
 
 class SyncCreativesResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     context: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.'
+            description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers."
         ),
     ] = None
     errors: Annotated[
         list[error.Error],
         Field(
-            description='Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)',
+            description="Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)",
             min_length=1,
         ),
     ]
@@ -111,7 +99,7 @@ class SyncCreativesResponse(RootModel[SyncCreativesResponse1 | SyncCreativesResp
     root: Annotated[
         SyncCreativesResponse1 | SyncCreativesResponse2,
         Field(
-            description='Response from creative sync operation. Returns either per-creative results (best-effort processing) OR operation-level errors (complete failure). This enforces atomic semantics at the operation level while allowing per-item failures within successful operations.',
-            title='Sync Creatives Response',
+            description="Response from creative sync operation. Returns either per-creative results (best-effort processing) OR operation-level errors (complete failure). This enforces atomic semantics at the operation level while allowing per-item failures within successful operations.",
+            title="Sync Creatives Response",
         ),
     ]

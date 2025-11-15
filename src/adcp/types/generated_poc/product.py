@@ -37,40 +37,34 @@ class DeliveryMeasurement(AdCPBaseModel):
 
 class ProductCard(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     format_id: Annotated[
         format_id_1.FormatId,
-        Field(
-            description='Creative format defining the card layout (typically product_card_standard)'
-        ),
+        Field(description="Creative format defining the card layout (typically product_card_standard)"),
     ]
     manifest: Annotated[
         dict[str, Any],
-        Field(description='Asset manifest for rendering the card, structure defined by the format'),
+        Field(description="Asset manifest for rendering the card, structure defined by the format"),
     ]
 
 
 class ProductCardDetailed(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     format_id: Annotated[
         format_id_1.FormatId,
-        Field(
-            description='Creative format defining the detailed card layout (typically product_card_detailed)'
-        ),
+        Field(description="Creative format defining the detailed card layout (typically product_card_detailed)"),
     ]
     manifest: Annotated[
         dict[str, Any],
-        Field(
-            description='Asset manifest for rendering the detailed card, structure defined by the format'
-        ),
+        Field(description="Asset manifest for rendering the detailed card, structure defined by the format"),
     ]
 
 
 class PropertyId(RootModel[str]):
-    root: Annotated[str, Field(pattern='^[a-z0-9_]+$')]
+    root: Annotated[str, Field(pattern="^[a-z0-9_]+$")]
 
 
 class PropertyTag(PropertyId):
@@ -79,7 +73,7 @@ class PropertyTag(PropertyId):
 
 class PublisherProperty(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     property_ids: Annotated[
         list[PropertyId] | None,
@@ -99,13 +93,12 @@ class PublisherProperty(AdCPBaseModel):
         str,
         Field(
             description="Domain where publisher's adagents.json is hosted (e.g., 'cnn.com')",
-            pattern='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$',
+            pattern="^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
         ),
     ]
 
-
-    @model_validator(mode='after')
-    def validate_mutual_exclusivity(self) -> 'PublisherProperty':
+    @model_validator(mode="after")
+    def validate_mutual_exclusivity(self) -> "PublisherProperty":
         """Enforce mutual exclusivity between property_ids and property_tags."""
         from adcp.validation import validate_publisher_properties_item
 
@@ -117,45 +110,39 @@ class PublisherProperty(AdCPBaseModel):
 
 class Product(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     brief_relevance: Annotated[
         str | None,
-        Field(
-            description='Explanation of why this product matches the brief (only included when brief is provided)'
-        ),
+        Field(description="Explanation of why this product matches the brief (only included when brief is provided)"),
     ] = None
     creative_policy: creative_policy_1.CreativePolicy | None = None
     delivery_measurement: Annotated[
         DeliveryMeasurement,
         Field(
-            description='Measurement provider and methodology for delivery metrics. The buyer accepts the declared provider as the source of truth for the buy. REQUIRED for all products.'
+            description="Measurement provider and methodology for delivery metrics. The buyer accepts the declared provider as the source of truth for the buy. REQUIRED for all products."
         ),
     ]
     delivery_type: delivery_type_1.DeliveryType
-    description: Annotated[
-        str, Field(description='Detailed description of the product and its inventory')
-    ]
+    description: Annotated[str, Field(description="Detailed description of the product and its inventory")]
     estimated_exposures: Annotated[
         int | None,
-        Field(description='Estimated exposures/impressions for guaranteed products', ge=0),
+        Field(description="Estimated exposures/impressions for guaranteed products", ge=0),
     ] = None
-    expires_at: Annotated[
-        AwareDatetime | None, Field(description='Expiration timestamp for custom products')
-    ] = None
+    expires_at: Annotated[AwareDatetime | None, Field(description="Expiration timestamp for custom products")] = None
     format_ids: Annotated[
         list[format_id_1.FormatId],
         Field(
-            description='Array of supported creative format IDs - structured format_id objects with agent_url and id'
+            description="Array of supported creative format IDs - structured format_id objects with agent_url and id"
         ),
     ]
-    is_custom: Annotated[bool | None, Field(description='Whether this is a custom product')] = None
+    is_custom: Annotated[bool | None, Field(description="Whether this is a custom product")] = None
     measurement: measurement_1.Measurement | None = None
-    name: Annotated[str, Field(description='Human-readable product name')]
+    name: Annotated[str, Field(description="Human-readable product name")]
     placements: Annotated[
         list[placement.Placement] | None,
         Field(
-            description='Optional array of specific placements within this product. When provided, buyers can target specific placements when assigning creatives.',
+            description="Optional array of specific placements within this product. When provided, buyers can target specific placements when assigning creatives.",
             min_length=1,
         ),
     ] = None
@@ -171,21 +158,21 @@ class Product(AdCPBaseModel):
             | cpp_option.CppPricingOption
             | flat_rate_option.FlatRatePricingOption
         ],
-        Field(description='Available pricing models for this product', min_length=1),
+        Field(description="Available pricing models for this product", min_length=1),
     ]
     product_card: Annotated[
         ProductCard | None,
         Field(
-            description='Optional standard visual card (300x400px) for displaying this product in user interfaces. Can be rendered via preview_creative or pre-generated.'
+            description="Optional standard visual card (300x400px) for displaying this product in user interfaces. Can be rendered via preview_creative or pre-generated."
         ),
     ] = None
     product_card_detailed: Annotated[
         ProductCardDetailed | None,
         Field(
-            description='Optional detailed card with carousel and full specifications. Provides rich product presentation similar to media kit pages.'
+            description="Optional detailed card with carousel and full specifications. Provides rich product presentation similar to media kit pages."
         ),
     ] = None
-    product_id: Annotated[str, Field(description='Unique identifier for the product')]
+    product_id: Annotated[str, Field(description="Unique identifier for the product")]
     publisher_properties: Annotated[
         list[PublisherProperty],
         Field(
@@ -195,9 +182,8 @@ class Product(AdCPBaseModel):
     ]
     reporting_capabilities: reporting_capabilities_1.ReportingCapabilities | None = None
 
-
-    @model_validator(mode='after')
-    def validate_publisher_properties_items(self) -> 'Product':
+    @model_validator(mode="after")
+    def validate_publisher_properties_items(self) -> "Product":
         """Validate all publisher_properties items.
 
         Note: Individual PublisherProperty objects already have their own

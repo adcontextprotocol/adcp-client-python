@@ -16,7 +16,7 @@ from . import format_id as format_id_1
 
 class Input(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     context_description: Annotated[
         str | None,
@@ -39,47 +39,43 @@ class Input(AdCPBaseModel):
 
 
 class OutputFormat(Enum):
-    url = 'url'
-    html = 'html'
+    url = "url"
+    html = "html"
 
 
 class Input2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     context_description: Annotated[
         str | None,
-        Field(description='Natural language description of the context for AI-generated content'),
+        Field(description="Natural language description of the context for AI-generated content"),
     ] = None
-    macros: Annotated[
-        dict[str, str] | None, Field(description='Macro values to use for this preview')
-    ] = None
-    name: Annotated[str, Field(description='Human-readable name for this input set')]
+    macros: Annotated[dict[str, str] | None, Field(description="Macro values to use for this preview")] = None
+    name: Annotated[str, Field(description="Human-readable name for this input set")]
 
 
 class PreviewCreativeRequest1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     context: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.'
+            description="Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata."
         ),
     ] = None
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest,
         Field(
-            description='Complete creative manifest with all required assets (including promoted_offerings if required by the format)'
+            description="Complete creative manifest with all required assets (including promoted_offerings if required by the format)"
         ),
     ]
-    format_id: Annotated[
-        format_id_1.FormatId, Field(description='Format identifier for rendering the preview')
-    ]
+    format_id: Annotated[format_id_1.FormatId, Field(description="Format identifier for rendering the preview")]
     inputs: Annotated[
         list[Input] | None,
         Field(
-            description='Array of input sets for generating multiple preview variants. Each input set defines macros and context values for one preview rendering. If not provided, creative agent will generate default previews.'
+            description="Array of input sets for generating multiple preview variants. Each input set defines macros and context values for one preview rendering. If not provided, creative agent will generate default previews."
         ),
     ] = None
     output_format: Annotated[
@@ -89,48 +85,40 @@ class PreviewCreativeRequest1(AdCPBaseModel):
         ),
     ] = OutputFormat.url
     request_type: Annotated[
-        Literal['single'],
-        Field(description='Discriminator indicating this is a single preview request'),
+        Literal["single"],
+        Field(description="Discriminator indicating this is a single preview request"),
     ]
-    template_id: Annotated[
-        str | None, Field(description='Specific template ID for custom format rendering')
-    ] = None
+    template_id: Annotated[str | None, Field(description="Specific template ID for custom format rendering")] = None
 
 
 class Request(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest,
-        Field(description='Complete creative manifest with all required assets'),
+        Field(description="Complete creative manifest with all required assets"),
     ]
-    format_id: Annotated[
-        format_id_1.FormatId, Field(description='Format identifier for rendering the preview')
-    ]
+    format_id: Annotated[format_id_1.FormatId, Field(description="Format identifier for rendering the preview")]
     inputs: Annotated[
         list[Input2] | None,
-        Field(description='Array of input sets for generating multiple preview variants'),
+        Field(description="Array of input sets for generating multiple preview variants"),
     ] = None
     output_format: Annotated[
         OutputFormat | None,
-        Field(
-            description="Output format for this preview. 'url' returns preview_url, 'html' returns preview_html."
-        ),
+        Field(description="Output format for this preview. 'url' returns preview_url, 'html' returns preview_html."),
     ] = OutputFormat.url
-    template_id: Annotated[
-        str | None, Field(description='Specific template ID for custom format rendering')
-    ] = None
+    template_id: Annotated[str | None, Field(description="Specific template ID for custom format rendering")] = None
 
 
 class PreviewCreativeRequest2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     context: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.'
+            description="Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata."
         ),
     ] = None
     output_format: Annotated[
@@ -140,13 +128,13 @@ class PreviewCreativeRequest2(AdCPBaseModel):
         ),
     ] = OutputFormat.url
     request_type: Annotated[
-        Literal['batch'],
-        Field(description='Discriminator indicating this is a batch preview request'),
+        Literal["batch"],
+        Field(description="Discriminator indicating this is a batch preview request"),
     ]
     requests: Annotated[
         list[Request],
         Field(
-            description='Array of preview requests (1-50 items). Each follows the single request structure.',
+            description="Array of preview requests (1-50 items). Each follows the single request structure.",
             max_length=50,
             min_length=1,
         ),
@@ -157,7 +145,7 @@ class PreviewCreativeRequest(RootModel[PreviewCreativeRequest1 | PreviewCreative
     root: Annotated[
         PreviewCreativeRequest1 | PreviewCreativeRequest2,
         Field(
-            description='Request to generate previews of one or more creative manifests. Accepts either a single creative request or an array of requests for batch processing.',
-            title='Preview Creative Request',
+            description="Request to generate previews of one or more creative manifests. Accepts either a single creative request or an array of requests for batch processing.",
+            title="Preview Creative Request",
         ),
     ]

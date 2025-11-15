@@ -35,14 +35,16 @@ def add_model_validator_to_product():
     if "model_validator" not in content:
         content = content.replace(
             "from pydantic import AwareDatetime, ConfigDict, Field, RootModel",
-            "from pydantic import AwareDatetime, ConfigDict, Field, RootModel, model_validator"
+            "from pydantic import AwareDatetime, ConfigDict, Field, RootModel, model_validator",
         )
 
     # Add validator to PublisherProperty class
     if "validate_mutual_exclusivity" not in content:
         # Find the PublisherProperty class - match from class definition to the next class definition
         # PublisherProperty ends right before the "class Product" line
-        publisher_property_pattern = r"(class PublisherProperty\(AdCPBaseModel\):.*?)\n\nclass Product\(AdCPBaseModel\):"
+        publisher_property_pattern = (
+            r"(class PublisherProperty\(AdCPBaseModel\):.*?)\n\nclass Product\(AdCPBaseModel\):"
+        )
         match = re.search(publisher_property_pattern, content, re.DOTALL)
 
         if not match:
@@ -64,10 +66,7 @@ def add_model_validator_to_product():
         return self
 '''
         # Insert validator at end of PublisherProperty class
-        content = content.replace(
-            match.group(0),
-            match.group(1) + validator_code + "\n\nclass Product(AdCPBaseModel):"
-        )
+        content = content.replace(match.group(0), match.group(1) + validator_code + "\n\nclass Product(AdCPBaseModel):")
 
         # Verify it was added
         if "validate_mutual_exclusivity" not in content:
@@ -83,8 +82,7 @@ def add_model_validator_to_product():
 
         if not match:
             raise RuntimeError(
-                "Could not find Product class definition. "
-                "Schema may have changed - update post_generate_fixes.py"
+                "Could not find Product class definition. " "Schema may have changed - update post_generate_fixes.py"
             )
 
         validator_code = '''
@@ -169,7 +167,7 @@ def fix_brand_manifest_references():
             # Replace with correct reference
             content = content.replace(
                 "from . import brand_manifest as brand_manifest_1",
-                "from . import brand_manifest_ref as brand_manifest_1"
+                "from . import brand_manifest_ref as brand_manifest_1",
             )
 
             with open(file_path, "w") as f:

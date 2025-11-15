@@ -16,46 +16,34 @@ class Dimensions(AdCPBaseModel):
 
 
 class Embedding(AdCPBaseModel):
-    csp_policy: Annotated[
-        str | None, Field(description='Content Security Policy requirements for embedding')
-    ] = None
+    csp_policy: Annotated[str | None, Field(description="Content Security Policy requirements for embedding")] = None
     recommended_sandbox: Annotated[
         str | None,
-        Field(
-            description="Recommended iframe sandbox attribute value (e.g., 'allow-scripts allow-same-origin')"
-        ),
+        Field(description="Recommended iframe sandbox attribute value (e.g., 'allow-scripts allow-same-origin')"),
     ] = None
     requires_https: Annotated[
-        bool | None, Field(description='Whether this output requires HTTPS for secure embedding')
+        bool | None, Field(description="Whether this output requires HTTPS for secure embedding")
     ] = None
-    supports_fullscreen: Annotated[
-        bool | None, Field(description='Whether this output supports fullscreen mode')
-    ] = None
+    supports_fullscreen: Annotated[bool | None, Field(description="Whether this output supports fullscreen mode")] = (
+        None
+    )
 
 
 class PreviewRender1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    dimensions: Annotated[
-        Dimensions | None, Field(description='Dimensions for this rendered piece')
-    ] = None
+    dimensions: Annotated[Dimensions | None, Field(description="Dimensions for this rendered piece")] = None
     embedding: Annotated[
         Embedding | None,
-        Field(description='Optional security and embedding metadata for safe iframe integration'),
+        Field(description="Optional security and embedding metadata for safe iframe integration"),
     ] = None
-    output_format: Annotated[
-        Literal['url'], Field(description='Discriminator indicating preview_url is provided')
-    ]
+    output_format: Annotated[Literal["url"], Field(description="Discriminator indicating preview_url is provided")]
     preview_url: Annotated[
         AnyUrl,
-        Field(
-            description='URL to an HTML page that renders this piece. Can be embedded in an iframe.'
-        ),
+        Field(description="URL to an HTML page that renders this piece. Can be embedded in an iframe."),
     ]
-    render_id: Annotated[
-        str, Field(description='Unique identifier for this rendered piece within the variant')
-    ]
+    render_id: Annotated[str, Field(description="Unique identifier for this rendered piece within the variant")]
     role: Annotated[
         str,
         Field(
@@ -66,26 +54,18 @@ class PreviewRender1(AdCPBaseModel):
 
 class PreviewRender2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    dimensions: Annotated[
-        Dimensions | None, Field(description='Dimensions for this rendered piece')
-    ] = None
-    embedding: Annotated[
-        Embedding | None, Field(description='Optional security and embedding metadata')
-    ] = None
-    output_format: Annotated[
-        Literal['html'], Field(description='Discriminator indicating preview_html is provided')
-    ]
+    dimensions: Annotated[Dimensions | None, Field(description="Dimensions for this rendered piece")] = None
+    embedding: Annotated[Embedding | None, Field(description="Optional security and embedding metadata")] = None
+    output_format: Annotated[Literal["html"], Field(description="Discriminator indicating preview_html is provided")]
     preview_html: Annotated[
         str,
         Field(
-            description='Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.'
+            description="Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing."
         ),
     ]
-    render_id: Annotated[
-        str, Field(description='Unique identifier for this rendered piece within the variant')
-    ]
+    render_id: Annotated[str, Field(description="Unique identifier for this rendered piece within the variant")]
     role: Annotated[
         str,
         Field(
@@ -96,36 +76,28 @@ class PreviewRender2(AdCPBaseModel):
 
 class PreviewRender3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    dimensions: Annotated[
-        Dimensions | None, Field(description='Dimensions for this rendered piece')
-    ] = None
+    dimensions: Annotated[Dimensions | None, Field(description="Dimensions for this rendered piece")] = None
     embedding: Annotated[
         Embedding | None,
-        Field(description='Optional security and embedding metadata for safe iframe integration'),
+        Field(description="Optional security and embedding metadata for safe iframe integration"),
     ] = None
     output_format: Annotated[
-        Literal['both'],
-        Field(
-            description='Discriminator indicating both preview_url and preview_html are provided'
-        ),
+        Literal["both"],
+        Field(description="Discriminator indicating both preview_url and preview_html are provided"),
     ]
     preview_html: Annotated[
         str,
         Field(
-            description='Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.'
+            description="Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing."
         ),
     ]
     preview_url: Annotated[
         AnyUrl,
-        Field(
-            description='URL to an HTML page that renders this piece. Can be embedded in an iframe.'
-        ),
+        Field(description="URL to an HTML page that renders this piece. Can be embedded in an iframe."),
     ]
-    render_id: Annotated[
-        str, Field(description='Unique identifier for this rendered piece within the variant')
-    ]
+    render_id: Annotated[str, Field(description="Unique identifier for this rendered piece within the variant")]
     role: Annotated[
         str,
         Field(
@@ -134,19 +106,11 @@ class PreviewRender3(AdCPBaseModel):
     ]
 
 
-class PreviewRender(
-    RootModel[
-        PreviewRender1
-        | PreviewRender2
-        | PreviewRender3
-    ]
-):
+class PreviewRender(RootModel[PreviewRender1 | PreviewRender2 | PreviewRender3]):
     root: Annotated[
-        PreviewRender1
-        | PreviewRender2
-        | PreviewRender3,
+        PreviewRender1 | PreviewRender2 | PreviewRender3,
         Field(
-            description='A single rendered piece of a creative preview with discriminated output format',
-            title='Preview Render',
+            description="A single rendered piece of a creative preview with discriminated output format",
+            title="Preview Render",
         ),
     ]

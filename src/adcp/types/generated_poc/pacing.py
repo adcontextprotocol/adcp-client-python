@@ -8,6 +8,6 @@ from enum import Enum
 
 
 class Pacing(Enum):
-    even = 'even'
-    asap = 'asap'
-    front_loaded = 'front_loaded'
+    even = "even"
+    asap = "asap"
+    front_loaded = "front_loaded"

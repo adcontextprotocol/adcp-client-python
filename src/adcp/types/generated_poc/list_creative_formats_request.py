@@ -14,25 +14,25 @@ from . import format_id
 
 
 class AssetType(Enum):
-    image = 'image'
-    video = 'video'
-    audio = 'audio'
-    text = 'text'
-    html = 'html'
-    javascript = 'javascript'
-    url = 'url'
+    image = "image"
+    video = "video"
+    audio = "audio"
+    text = "text"
+    html = "html"
+    javascript = "javascript"
+    url = "url"
 
 
 class Type(Enum):
-    audio = 'audio'
-    video = 'video'
-    display = 'display'
-    dooh = 'dooh'
+    audio = "audio"
+    video = "video"
+    display = "display"
+    dooh = "dooh"
 
 
 class ListCreativeFormatsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     asset_types: Annotated[
         list[AssetType] | None,
@@ -43,51 +43,47 @@ class ListCreativeFormatsRequest(AdCPBaseModel):
     context: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.'
+            description="Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata."
         ),
     ] = None
     format_ids: Annotated[
         list[format_id.FormatId] | None,
-        Field(
-            description='Return only these specific format IDs (e.g., from get_products response)'
-        ),
+        Field(description="Return only these specific format IDs (e.g., from get_products response)"),
     ] = None
     is_responsive: Annotated[
         bool | None,
         Field(
-            description='Filter for responsive formats that adapt to container size. When true, returns formats without fixed dimensions.'
+            description="Filter for responsive formats that adapt to container size. When true, returns formats without fixed dimensions."
         ),
     ] = None
     max_height: Annotated[
         int | None,
         Field(
-            description='Maximum height in pixels (inclusive). Returns formats where ANY render has height <= this value. For multi-render formats, matches if at least one render fits.'
+            description="Maximum height in pixels (inclusive). Returns formats where ANY render has height <= this value. For multi-render formats, matches if at least one render fits."
         ),
     ] = None
     max_width: Annotated[
         int | None,
         Field(
-            description='Maximum width in pixels (inclusive). Returns formats where ANY render has width <= this value. For multi-render formats, matches if at least one render fits.'
+            description="Maximum width in pixels (inclusive). Returns formats where ANY render has width <= this value. For multi-render formats, matches if at least one render fits."
         ),
     ] = None
     min_height: Annotated[
         int | None,
         Field(
-            description='Minimum height in pixels (inclusive). Returns formats where ANY render has height >= this value.'
+            description="Minimum height in pixels (inclusive). Returns formats where ANY render has height >= this value."
         ),
     ] = None
     min_width: Annotated[
         int | None,
         Field(
-            description='Minimum width in pixels (inclusive). Returns formats where ANY render has width >= this value.'
+            description="Minimum width in pixels (inclusive). Returns formats where ANY render has width >= this value."
         ),
     ] = None
     name_search: Annotated[
-        str | None, Field(description='Search for formats by name (case-insensitive partial match)')
+        str | None, Field(description="Search for formats by name (case-insensitive partial match)")
     ] = None
     type: Annotated[
         Type | None,
-        Field(
-            description='Filter by format type (technical categories with distinct requirements)'
-        ),
+        Field(description="Filter by format type (technical categories with distinct requirements)"),
     ] = None

@@ -12,54 +12,54 @@ from pydantic import ConfigDict, Field
 
 
 class StatusFilter(Enum):
-    active = 'active'
-    pending = 'pending'
-    paused = 'paused'
-    completed = 'completed'
-    failed = 'failed'
-    all = 'all'
+    active = "active"
+    pending = "pending"
+    paused = "paused"
+    completed = "completed"
+    failed = "failed"
+    all = "all"
 
 
 class StatusFilterEnum(Enum):
-    active = 'active'
-    pending = 'pending'
-    paused = 'paused'
-    completed = 'completed'
-    failed = 'failed'
+    active = "active"
+    pending = "pending"
+    paused = "paused"
+    completed = "completed"
+    failed = "failed"
 
 
 class GetMediaBuyDeliveryRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     buyer_refs: Annotated[
-        list[str] | None, Field(description='Array of buyer reference IDs to get delivery data for')
+        list[str] | None, Field(description="Array of buyer reference IDs to get delivery data for")
     ] = None
     context: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.'
+            description="Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata."
         ),
     ] = None
     end_date: Annotated[
         str | None,
         Field(
-            description='End date for reporting period (YYYY-MM-DD)',
-            pattern='^\\d{4}-\\d{2}-\\d{2}$',
+            description="End date for reporting period (YYYY-MM-DD)",
+            pattern="^\\d{4}-\\d{2}-\\d{2}$",
         ),
     ] = None
     media_buy_ids: Annotated[
         list[str] | None,
-        Field(description='Array of publisher media buy IDs to get delivery data for'),
+        Field(description="Array of publisher media buy IDs to get delivery data for"),
     ] = None
     start_date: Annotated[
         str | None,
         Field(
-            description='Start date for reporting period (YYYY-MM-DD)',
-            pattern='^\\d{4}-\\d{2}-\\d{2}$',
+            description="Start date for reporting period (YYYY-MM-DD)",
+            pattern="^\\d{4}-\\d{2}-\\d{2}$",
         ),
     ] = None
     status_filter: Annotated[
         StatusFilter | list[StatusFilterEnum] | None,
-        Field(description='Filter by status. Can be a single status or array of statuses'),
+        Field(description="Filter by status. Can be a single status or array of statuses"),
     ] = None

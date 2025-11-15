@@ -12,18 +12,16 @@ from pydantic import ConfigDict, Field
 
 class TasksGetRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     context: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.'
+            description="Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata."
         ),
     ] = None
     include_history: Annotated[
         bool | None,
-        Field(
-            description='Include full conversation history for this task (may increase response size)'
-        ),
+        Field(description="Include full conversation history for this task (may increase response size)"),
     ] = False
-    task_id: Annotated[str, Field(description='Unique identifier of the task to retrieve')]
+    task_id: Annotated[str, Field(description="Unique identifier of the task to retrieve")]

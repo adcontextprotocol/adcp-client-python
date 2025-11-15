@@ -17,41 +17,37 @@ from .delivery_metrics import DeliveryMetrics
 
 class AggregatedTotals(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     clicks: Annotated[
         float | None,
-        Field(description='Total clicks across all media buys (if applicable)', ge=0.0),
+        Field(description="Total clicks across all media buys (if applicable)", ge=0.0),
     ] = None
-    impressions: Annotated[
-        float, Field(description='Total impressions delivered across all media buys', ge=0.0)
-    ]
-    media_buy_count: Annotated[
-        int, Field(description='Number of media buys included in the response', ge=0)
-    ]
-    spend: Annotated[float, Field(description='Total amount spent across all media buys', ge=0.0)]
+    impressions: Annotated[float, Field(description="Total impressions delivered across all media buys", ge=0.0)]
+    media_buy_count: Annotated[int, Field(description="Number of media buys included in the response", ge=0)]
+    spend: Annotated[float, Field(description="Total amount spent across all media buys", ge=0.0)]
     video_completions: Annotated[
         float | None,
-        Field(description='Total video completions across all media buys (if applicable)', ge=0.0),
+        Field(description="Total video completions across all media buys (if applicable)", ge=0.0),
     ] = None
 
 
 class DailyBreakdownItem(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    date: Annotated[str, Field(description='Date (YYYY-MM-DD)', pattern='^\\d{4}-\\d{2}-\\d{2}$')]
-    impressions: Annotated[float, Field(description='Daily impressions', ge=0.0)]
-    spend: Annotated[float, Field(description='Daily spend', ge=0.0)]
+    date: Annotated[str, Field(description="Date (YYYY-MM-DD)", pattern="^\\d{4}-\\d{2}-\\d{2}$")]
+    impressions: Annotated[float, Field(description="Daily impressions", ge=0.0)]
+    spend: Annotated[float, Field(description="Daily spend", ge=0.0)]
 
 
 class Status(Enum):
-    pending = 'pending'
-    active = 'active'
-    paused = 'paused'
-    completed = 'completed'
-    failed = 'failed'
-    reporting_delayed = 'reporting_delayed'
+    pending = "pending"
+    active = "active"
+    paused = "paused"
+    completed = "completed"
+    failed = "failed"
+    reporting_delayed = "reporting_delayed"
 
 
 class Totals(DeliveryMetrics):
@@ -65,52 +61,50 @@ class Totals(DeliveryMetrics):
 
 
 class NotificationType(Enum):
-    scheduled = 'scheduled'
-    final = 'final'
-    delayed = 'delayed'
-    adjusted = 'adjusted'
+    scheduled = "scheduled"
+    final = "final"
+    delayed = "delayed"
+    adjusted = "adjusted"
 
 
 class ReportingPeriod(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     end: Annotated[
         AwareDatetime,
-        Field(description='ISO 8601 end timestamp in UTC (e.g., 2024-02-05T23:59:59Z)'),
+        Field(description="ISO 8601 end timestamp in UTC (e.g., 2024-02-05T23:59:59Z)"),
     ]
     start: Annotated[
         AwareDatetime,
-        Field(description='ISO 8601 start timestamp in UTC (e.g., 2024-02-05T00:00:00Z)'),
+        Field(description="ISO 8601 start timestamp in UTC (e.g., 2024-02-05T00:00:00Z)"),
     ]
 
 
 class ByPackageItem(DeliveryMetrics):
-    buyer_ref: Annotated[
-        str | None, Field(description="Buyer's reference identifier for this package")
-    ] = None
+    buyer_ref: Annotated[str | None, Field(description="Buyer's reference identifier for this package")] = None
     currency: Annotated[
         str,
         Field(
             description="ISO 4217 currency code (e.g., USD, EUR, GBP) for this package's pricing. Indicates the currency in which the rate and spend values are denominated. Different packages can use different currencies when supported by the publisher.",
-            pattern='^[A-Z]{3}$',
+            pattern="^[A-Z]{3}$",
         ),
     ]
     pacing_index: Annotated[
         float | None,
-        Field(description='Delivery pace (1.0 = on track, <1.0 = behind, >1.0 = ahead)', ge=0.0),
+        Field(description="Delivery pace (1.0 = on track, <1.0 = behind, >1.0 = ahead)", ge=0.0),
     ] = None
     package_id: Annotated[str, Field(description="Publisher's package identifier")]
     pricing_model: Annotated[
         pricing_model_1.PricingModel,
         Field(
-            description='The pricing model used for this package (e.g., cpm, cpcv, cpp). Indicates how the package is billed and which metrics are most relevant for optimization.'
+            description="The pricing model used for this package (e.g., cpm, cpcv, cpp). Indicates how the package is billed and which metrics are most relevant for optimization."
         ),
     ]
     rate: Annotated[
         float,
         Field(
-            description='The pricing rate for this package in the specified currency. For fixed-rate pricing, this is the agreed rate (e.g., CPM rate of 12.50 means $12.50 per 1,000 impressions). For auction-based pricing, this represents the effective rate based on actual delivery.',
+            description="The pricing rate for this package in the specified currency. For fixed-rate pricing, this is the agreed rate (e.g., CPM rate of 12.50 means $12.50 per 1,000 impressions). For auction-based pricing, this represents the effective rate based on actual delivery.",
             ge=0.0,
         ),
     ]
@@ -118,36 +112,32 @@ class ByPackageItem(DeliveryMetrics):
 
 class MediaBuyDelivery(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    buyer_ref: Annotated[
-        str | None, Field(description="Buyer's reference identifier for this media buy")
-    ] = None
-    by_package: Annotated[list[ByPackageItem], Field(description='Metrics broken down by package')]
-    daily_breakdown: Annotated[
-        list[DailyBreakdownItem] | None, Field(description='Day-by-day delivery')
-    ] = None
+    buyer_ref: Annotated[str | None, Field(description="Buyer's reference identifier for this media buy")] = None
+    by_package: Annotated[list[ByPackageItem], Field(description="Metrics broken down by package")]
+    daily_breakdown: Annotated[list[DailyBreakdownItem] | None, Field(description="Day-by-day delivery")] = None
     expected_availability: Annotated[
         AwareDatetime | None,
         Field(
-            description='When delayed data is expected to be available (only present when status is reporting_delayed)'
+            description="When delayed data is expected to be available (only present when status is reporting_delayed)"
         ),
     ] = None
     is_adjusted: Annotated[
         bool | None,
         Field(
-            description='Indicates this delivery contains updated data for a previously reported period. Buyer should replace previous period data with these totals.'
+            description="Indicates this delivery contains updated data for a previously reported period. Buyer should replace previous period data with these totals."
         ),
     ] = None
     media_buy_id: Annotated[str, Field(description="Publisher's media buy identifier")]
     pricing_model: Annotated[
         pricing_model_1.PricingModel | None,
-        Field(description='Pricing model used for this media buy'),
+        Field(description="Pricing model used for this media buy"),
     ] = None
     status: Annotated[
         Status,
         Field(
-            description='Current media buy status. In webhook context, reporting_delayed indicates data temporarily unavailable.'
+            description="Current media buy status. In webhook context, reporting_delayed indicates data temporarily unavailable."
         ),
     ]
     totals: Totals
@@ -155,31 +145,29 @@ class MediaBuyDelivery(AdCPBaseModel):
 
 class GetMediaBuyDeliveryResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     aggregated_totals: Annotated[
         AggregatedTotals | None,
         Field(
-            description='Combined metrics across all returned media buys. Only included in API responses (get_media_buy_delivery), not in webhook notifications.'
+            description="Combined metrics across all returned media buys. Only included in API responses (get_media_buy_delivery), not in webhook notifications."
         ),
     ] = None
     context: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.'
+            description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers."
         ),
     ] = None
-    currency: Annotated[str, Field(description='ISO 4217 currency code', pattern='^[A-Z]{3}$')]
+    currency: Annotated[str, Field(description="ISO 4217 currency code", pattern="^[A-Z]{3}$")]
     errors: Annotated[
         list[error.Error] | None,
-        Field(
-            description='Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)'
-        ),
+        Field(description="Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)"),
     ] = None
     media_buy_deliveries: Annotated[
         list[MediaBuyDelivery],
         Field(
-            description='Array of delivery data for media buys. When used in webhook notifications, may contain multiple media buys aggregated by publisher. When used in get_media_buy_delivery API responses, typically contains requested media buys.'
+            description="Array of delivery data for media buys. When used in webhook notifications, may contain multiple media buys aggregated by publisher. When used in get_media_buy_delivery API responses, typically contains requested media buys."
         ),
     ]
     next_expected_at: Annotated[
@@ -191,30 +179,30 @@ class GetMediaBuyDeliveryResponse(AdCPBaseModel):
     notification_type: Annotated[
         NotificationType | None,
         Field(
-            description='Type of webhook notification (only present in webhook deliveries): scheduled = regular periodic update, final = campaign completed, delayed = data not yet available, adjusted = resending period with updated data'
+            description="Type of webhook notification (only present in webhook deliveries): scheduled = regular periodic update, final = campaign completed, delayed = data not yet available, adjusted = resending period with updated data"
         ),
     ] = None
     partial_data: Annotated[
         bool | None,
         Field(
-            description='Indicates if any media buys in this webhook have missing/delayed data (only present in webhook deliveries)'
+            description="Indicates if any media buys in this webhook have missing/delayed data (only present in webhook deliveries)"
         ),
     ] = None
     reporting_period: Annotated[
         ReportingPeriod,
-        Field(description='Date range for the report. All periods use UTC timezone.'),
+        Field(description="Date range for the report. All periods use UTC timezone."),
     ]
     sequence_number: Annotated[
         int | None,
         Field(
-            description='Sequential notification number (only present in webhook deliveries, starts at 1)',
+            description="Sequential notification number (only present in webhook deliveries, starts at 1)",
             ge=1,
         ),
     ] = None
     unavailable_count: Annotated[
         int | None,
         Field(
-            description='Number of media buys with reporting_delayed or failed status (only present in webhook deliveries when partial_data is true)',
+            description="Number of media buys with reporting_delayed or failed status (only present in webhook deliveries when partial_data is true)",
             ge=0,
         ),
     ] = None

@@ -48,7 +48,11 @@ from adcp.testing import (
     test_agent_client,
     test_agent_no_auth,
 )
+
+# Import all generated types - users can import what they need from adcp.types.generated
+from adcp.types import generated
 from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus, WebhookMetadata
+from adcp.types.generated import TaskStatus as GeneratedTaskStatus
 from adcp.validation import (
     ValidationError,
     validate_adagents,
@@ -56,10 +60,6 @@ from adcp.validation import (
     validate_product,
     validate_publisher_properties_item,
 )
-
-# Import all generated types - users can import what they need from adcp.types.generated
-from adcp.types import generated
-from adcp.types.generated import TaskStatus as GeneratedTaskStatus
 
 __version__ = "2.0.0"
 

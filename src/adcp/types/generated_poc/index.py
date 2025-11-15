@@ -12,6 +12,6 @@ from pydantic import Field, RootModel
 class AdcpAssetTypeRegistry(RootModel[Any]):
     root: Any = Field(
         ...,
-        description='Registry of asset types used in AdCP creative manifests. Each asset type defines the structure of actual content payloads (what you send), not requirements or constraints (which belong in format specifications).',
-        title='AdCP Asset Type Registry',
+        description="Registry of asset types used in AdCP creative manifests. Each asset type defines the structure of actual content payloads (what you send), not requirements or constraints (which belong in format specifications).",
+        title="AdCP Asset Type Registry",
     )

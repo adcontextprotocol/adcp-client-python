@@ -14,7 +14,7 @@ from . import error
 
 class Package(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     buyer_ref: Annotated[str, Field(description="Buyer's reference identifier for the package")]
     package_id: Annotated[str, Field(description="Publisher's unique identifier for the package")]
@@ -22,37 +22,35 @@ class Package(AdCPBaseModel):
 
 class CreateMediaBuyResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     buyer_ref: Annotated[str, Field(description="Buyer's reference identifier for this media buy")]
     context: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.'
+            description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers."
         ),
     ] = None
     creative_deadline: Annotated[
-        AwareDatetime | None, Field(description='ISO 8601 timestamp for creative upload deadline')
+        AwareDatetime | None, Field(description="ISO 8601 timestamp for creative upload deadline")
     ] = None
-    media_buy_id: Annotated[
-        str, Field(description="Publisher's unique identifier for the created media buy")
-    ]
-    packages: Annotated[list[Package], Field(description='Array of created packages')]
+    media_buy_id: Annotated[str, Field(description="Publisher's unique identifier for the created media buy")]
+    packages: Annotated[list[Package], Field(description="Array of created packages")]
 
 
 class CreateMediaBuyResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     context: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.'
+            description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers."
         ),
     ] = None
     errors: Annotated[
         list[error.Error],
-        Field(description='Array of errors explaining why the operation failed', min_length=1),
+        Field(description="Array of errors explaining why the operation failed", min_length=1),
     ]
 
 
@@ -60,7 +58,7 @@ class CreateMediaBuyResponse(RootModel[CreateMediaBuyResponse1 | CreateMediaBuyR
     root: Annotated[
         CreateMediaBuyResponse1 | CreateMediaBuyResponse2,
         Field(
-            description='Response payload for create_media_buy task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - the media buy is either fully created or not created at all.',
-            title='Create Media Buy Response',
+            description="Response payload for create_media_buy task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - the media buy is either fully created or not created at all.",
+            title="Create Media Buy Response",
         ),
     ]

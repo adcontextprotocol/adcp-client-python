@@ -28,10 +28,7 @@ from adcp.utils.preview_cache import (
 
 def make_format_id(id_str: str) -> FormatId:
     """Helper to create FormatId objects for tests."""
-    return FormatId(
-        agent_url="https://creative.adcontextprotocol.org",
-        id=id_str
-    )
+    return FormatId(agent_url="https://creative.adcontextprotocol.org", id=id_str)
 
 
 @pytest.mark.asyncio
@@ -57,31 +54,31 @@ async def test_preview_creative():
     mock_raw_result = TaskResult(
         status=TaskStatus.COMPLETED,
         data={"previews": []},  # Will be replaced by _parse_response mock
-        success=True
+        success=True,
     )
 
     # Parsed result from _parse_response
     mock_response_data = PreviewCreativeResponse1(
         response_type="single",
         expires_at="2025-12-01T00:00:00Z",
-        previews=[{
-            "preview_id": "prev-1",
-            "input": {"name": "Default"},
-            "renders": [{
-                "render_id": "render-1",
-                "role": "primary",
-                "output_format": "url",
-                "preview_url": "https://preview.example.com/abc123",
-            }],
-        }],
+        previews=[
+            {
+                "preview_id": "prev-1",
+                "input": {"name": "Default"},
+                "renders": [
+                    {
+                        "render_id": "render-1",
+                        "role": "primary",
+                        "output_format": "url",
+                        "preview_url": "https://preview.example.com/abc123",
+                    }
+                ],
+            }
+        ],
     )
-    mock_parsed_result = TaskResult(
-        status=TaskStatus.COMPLETED, data=mock_response_data, success=True
-    )
+    mock_parsed_result = TaskResult(status=TaskStatus.COMPLETED, data=mock_response_data, success=True)
 
-    with patch.object(
-        client.adapter, "preview_creative", return_value=mock_raw_result
-    ) as mock_call:
+    with patch.object(client.adapter, "preview_creative", return_value=mock_raw_result) as mock_call:
         with patch.object(client.adapter, "_parse_response", return_value=mock_parsed_result):
             request = PreviewCreativeRequest1(
                 request_type="single",
@@ -116,11 +113,7 @@ async def test_get_preview_data_for_manifest():
     )
 
     # Raw result from adapter (unparsed)
-    mock_raw_result = TaskResult(
-        status=TaskStatus.COMPLETED,
-        data={"previews": []},
-        success=True
-    )
+    mock_raw_result = TaskResult(status=TaskStatus.COMPLETED, data={"previews": []}, success=True)
 
     # Parsed result from _parse_response
     mock_preview_response = PreviewCreativeResponse1(
@@ -141,9 +134,7 @@ async def test_get_preview_data_for_manifest():
             }
         ],
     )
-    mock_parsed_result = TaskResult(
-        status=TaskStatus.COMPLETED, data=mock_preview_response, success=True
-    )
+    mock_parsed_result = TaskResult(status=TaskStatus.COMPLETED, data=mock_preview_response, success=True)
 
     with patch.object(client.adapter, "preview_creative", return_value=mock_raw_result):
         with patch.object(client.adapter, "_parse_response", return_value=mock_parsed_result):
@@ -174,34 +165,30 @@ async def test_preview_data_caching():
     )
 
     # Raw result from adapter (unparsed)
-    mock_raw_result = TaskResult(
-        status=TaskStatus.COMPLETED,
-        data={"previews": []},
-        success=True
-    )
+    mock_raw_result = TaskResult(status=TaskStatus.COMPLETED, data={"previews": []}, success=True)
 
     # Parsed result from _parse_response
     mock_preview_response = PreviewCreativeResponse1(
         response_type="single",
         expires_at="2025-12-01T00:00:00Z",
-        previews=[{
-            "preview_id": "prev-1",
-            "input": {"name": "Default"},
-            "renders": [{
-                "render_id": "render-1",
-                "role": "primary",
-                "output_format": "url",
-                "preview_url": "https://preview.example.com/abc123",
-            }],
-        }],
+        previews=[
+            {
+                "preview_id": "prev-1",
+                "input": {"name": "Default"},
+                "renders": [
+                    {
+                        "render_id": "render-1",
+                        "role": "primary",
+                        "output_format": "url",
+                        "preview_url": "https://preview.example.com/abc123",
+                    }
+                ],
+            }
+        ],
     )
-    mock_parsed_result = TaskResult(
-        status=TaskStatus.COMPLETED, data=mock_preview_response, success=True
-    )
+    mock_parsed_result = TaskResult(status=TaskStatus.COMPLETED, data=mock_preview_response, success=True)
 
-    with patch.object(
-        client.adapter, "preview_creative", return_value=mock_raw_result
-    ) as mock_call:
+    with patch.object(client.adapter, "preview_creative", return_value=mock_raw_result) as mock_call:
         with patch.object(client.adapter, "_parse_response", return_value=mock_parsed_result):
             result1 = await generator.get_preview_data_for_manifest(format_id, manifest)
             result2 = await generator.get_preview_data_for_manifest(format_id, manifest)
@@ -243,40 +230,36 @@ async def test_get_products_with_preview_urls():
     mock_raw_result = TaskResult(
         status=TaskStatus.COMPLETED,
         data={"products": []},  # Will be replaced by _parse_response mock
-        success=True
+        success=True,
     )
 
     # Parsed result from _parse_response
     mock_products_response = GetProductsResponse(products=[product], errors=None)
-    mock_parsed_result = TaskResult(
-        status=TaskStatus.COMPLETED, data=mock_products_response, success=True
-    )
+    mock_parsed_result = TaskResult(status=TaskStatus.COMPLETED, data=mock_products_response, success=True)
 
     # Raw preview result from creative adapter
-    mock_preview_raw_result = TaskResult(
-        status=TaskStatus.COMPLETED,
-        data={"previews": []},
-        success=True
-    )
+    mock_preview_raw_result = TaskResult(status=TaskStatus.COMPLETED, data={"previews": []}, success=True)
 
     # Parsed preview result
     mock_preview_response = PreviewCreativeResponse1(
         response_type="single",
         expires_at="2025-12-01T00:00:00Z",
-        previews=[{
-            "preview_id": "prev-1",
-            "input": {"name": "Default"},
-            "renders": [{
-                "render_id": "render-1",
-                "role": "primary",
-                "output_format": "url",
-                "preview_url": "https://preview.example.com/abc123",
-            }],
-        }],
+        previews=[
+            {
+                "preview_id": "prev-1",
+                "input": {"name": "Default"},
+                "renders": [
+                    {
+                        "render_id": "render-1",
+                        "role": "primary",
+                        "output_format": "url",
+                        "preview_url": "https://preview.example.com/abc123",
+                    }
+                ],
+            }
+        ],
     )
-    mock_preview_parsed_result = TaskResult(
-        status=TaskStatus.COMPLETED, data=mock_preview_response, success=True
-    )
+    mock_preview_parsed_result = TaskResult(status=TaskStatus.COMPLETED, data=mock_preview_response, success=True)
 
     with patch.object(client.adapter, "get_products", return_value=mock_raw_result):
         with patch.object(client.adapter, "_parse_response", return_value=mock_parsed_result):
@@ -345,40 +328,36 @@ async def test_list_creative_formats_with_preview_urls():
     mock_raw_result = TaskResult(
         status=TaskStatus.COMPLETED,
         data={"formats": []},  # Will be replaced by _parse_response mock
-        success=True
+        success=True,
     )
 
     # Parsed result from _parse_response
     mock_formats_response = ListCreativeFormatsResponse(formats=[fmt], errors=None)
-    mock_parsed_result = TaskResult(
-        status=TaskStatus.COMPLETED, data=mock_formats_response, success=True
-    )
+    mock_parsed_result = TaskResult(status=TaskStatus.COMPLETED, data=mock_formats_response, success=True)
 
     # Raw preview result from adapter
-    mock_preview_raw_result = TaskResult(
-        status=TaskStatus.COMPLETED,
-        data={"previews": []},
-        success=True
-    )
+    mock_preview_raw_result = TaskResult(status=TaskStatus.COMPLETED, data={"previews": []}, success=True)
 
     # Parsed preview result
     mock_preview_response = PreviewCreativeResponse1(
         response_type="single",
         expires_at="2025-12-01T00:00:00Z",
-        previews=[{
-            "preview_id": "prev-1",
-            "input": {"name": "Default"},
-            "renders": [{
-                "render_id": "render-1",
-                "role": "primary",
-                "output_format": "url",
-                "preview_url": "https://preview.example.com/abc123",
-            }],
-        }],
+        previews=[
+            {
+                "preview_id": "prev-1",
+                "input": {"name": "Default"},
+                "renders": [
+                    {
+                        "render_id": "render-1",
+                        "role": "primary",
+                        "output_format": "url",
+                        "preview_url": "https://preview.example.com/abc123",
+                    }
+                ],
+            }
+        ],
     )
-    mock_preview_parsed_result = TaskResult(
-        status=TaskStatus.COMPLETED, data=mock_preview_response, success=True
-    )
+    mock_preview_parsed_result = TaskResult(status=TaskStatus.COMPLETED, data=mock_preview_response, success=True)
 
     with patch.object(client.adapter, "list_creative_formats", return_value=mock_raw_result):
         with patch.object(
@@ -404,7 +383,7 @@ async def test_list_creative_formats_with_preview_urls():
 
 def test_create_sample_asset():
     """Test sample asset creation."""
-    from adcp.types.generated import ImageAsset, VideoAsset, TextAsset, UrlAsset, HtmlAsset
+    from adcp.types.generated import HtmlAsset, ImageAsset, TextAsset, UrlAsset, VideoAsset
 
     image_asset = _create_sample_asset("image")
     assert isinstance(image_asset, ImageAsset)

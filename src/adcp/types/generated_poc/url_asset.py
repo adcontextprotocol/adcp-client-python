@@ -12,19 +12,17 @@ from pydantic import AnyUrl, ConfigDict, Field
 
 
 class UrlType(Enum):
-    clickthrough = 'clickthrough'
-    tracker_pixel = 'tracker_pixel'
-    tracker_script = 'tracker_script'
+    clickthrough = "clickthrough"
+    tracker_pixel = "tracker_pixel"
+    tracker_script = "tracker_script"
 
 
 class UrlAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    description: Annotated[
-        str | None, Field(description='Description of what this URL points to')
-    ] = None
-    url: Annotated[AnyUrl, Field(description='URL reference')]
+    description: Annotated[str | None, Field(description="Description of what this URL points to")] = None
+    url: Annotated[AnyUrl, Field(description="URL reference")]
     url_type: Annotated[
         UrlType | None,
         Field(

@@ -12,23 +12,21 @@ from pydantic import ConfigDict, Field
 
 
 class CoBranding(Enum):
-    required = 'required'
-    optional = 'optional'
-    none = 'none'
+    required = "required"
+    optional = "optional"
+    none = "none"
 
 
 class LandingPage(Enum):
-    any = 'any'
-    retailer_site_only = 'retailer_site_only'
-    must_include_retailer = 'must_include_retailer'
+    any = "any"
+    retailer_site_only = "retailer_site_only"
+    must_include_retailer = "must_include_retailer"
 
 
 class CreativePolicy(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    co_branding: Annotated[CoBranding, Field(description='Co-branding requirement')]
-    landing_page: Annotated[LandingPage, Field(description='Landing page requirements')]
-    templates_available: Annotated[
-        bool, Field(description='Whether creative templates are provided')
-    ]
+    co_branding: Annotated[CoBranding, Field(description="Co-branding requirement")]
+    landing_page: Annotated[LandingPage, Field(description="Landing page requirements")]
+    templates_available: Annotated[bool, Field(description="Whether creative templates are provided")]

@@ -13,41 +13,37 @@ from . import frequency_cap as frequency_cap_1
 
 
 class GeoCountryAnyOfItem(RootModel[str]):
-    root: Annotated[str, Field(pattern='^[A-Z]{2}$')]
+    root: Annotated[str, Field(pattern="^[A-Z]{2}$")]
 
 
 class TargetingOverlay(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    axe_exclude_segment: Annotated[
-        str | None, Field(description='AXE segment ID to exclude from targeting')
-    ] = None
-    axe_include_segment: Annotated[
-        str | None, Field(description='AXE segment ID to include for targeting')
-    ] = None
+    axe_exclude_segment: Annotated[str | None, Field(description="AXE segment ID to exclude from targeting")] = None
+    axe_include_segment: Annotated[str | None, Field(description="AXE segment ID to include for targeting")] = None
     frequency_cap: frequency_cap_1.FrequencyCap | None = None
     geo_country_any_of: Annotated[
         list[GeoCountryAnyOfItem] | None,
         Field(
-            description='Restrict delivery to specific countries (ISO codes). Use for regulatory compliance or RCT testing.'
+            description="Restrict delivery to specific countries (ISO codes). Use for regulatory compliance or RCT testing."
         ),
     ] = None
     geo_metro_any_of: Annotated[
         list[str] | None,
         Field(
-            description='Restrict delivery to specific metro areas (DMA codes). Use for regulatory compliance or RCT testing.'
+            description="Restrict delivery to specific metro areas (DMA codes). Use for regulatory compliance or RCT testing."
         ),
     ] = None
     geo_postal_code_any_of: Annotated[
         list[str] | None,
         Field(
-            description='Restrict delivery to specific postal/ZIP codes. Use for regulatory compliance or RCT testing.'
+            description="Restrict delivery to specific postal/ZIP codes. Use for regulatory compliance or RCT testing."
         ),
     ] = None
     geo_region_any_of: Annotated[
         list[str] | None,
         Field(
-            description='Restrict delivery to specific regions/states. Use for regulatory compliance or RCT testing.'
+            description="Restrict delivery to specific regions/states. Use for regulatory compliance or RCT testing."
         ),
     ] = None

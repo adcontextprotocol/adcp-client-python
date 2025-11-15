@@ -8,7 +8,7 @@ from enum import Enum
 
 
 class PackageStatus(Enum):
-    draft = 'draft'
-    active = 'active'
-    paused = 'paused'
-    completed = 'completed'
+    draft = "draft"
+    active = "active"
+    paused = "paused"
+    completed = "completed"
