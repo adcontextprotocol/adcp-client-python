@@ -50,6 +50,3 @@ class SubAsset(RootModel[SubAsset1 | SubAsset2]):
         title='Sub-Asset',
     )
 
-# Aliases for backward compatibility
-MediaSubAsset = SubAsset1
-TextSubAsset = SubAsset2

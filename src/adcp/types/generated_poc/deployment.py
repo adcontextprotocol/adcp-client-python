@@ -92,6 +92,3 @@ class Deployment(RootModel[Deployment1 | Deployment2]):
         title='Deployment',
     )
 
-# Aliases for backward compatibility
-PlatformDeployment = Deployment1
-AgentDeployment = Deployment2

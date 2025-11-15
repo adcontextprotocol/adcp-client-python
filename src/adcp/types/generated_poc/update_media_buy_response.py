@@ -72,6 +72,3 @@ class UpdateMediaBuyResponse(RootModel[UpdateMediaBuyResponse1 | UpdateMediaBuyR
         title='Update Media Buy Response',
     )
 
-# Aliases for backward compatibility
-UpdateMediaBuySuccess = UpdateMediaBuyResponse1
-UpdateMediaBuyError = UpdateMediaBuyResponse2

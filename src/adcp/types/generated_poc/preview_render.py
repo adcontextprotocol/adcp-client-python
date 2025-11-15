@@ -113,8 +113,3 @@ class PreviewRender(RootModel[PreviewRender1 | PreviewRender2 | PreviewRender3])
         description='A single rendered piece of a creative preview with discriminated output format',
         title='Preview Render',
     )
-
-# Aliases for backward compatibility
-UrlPreviewRender = PreviewRender1
-HtmlPreviewRender = PreviewRender2
-BothPreviewRender = PreviewRender3

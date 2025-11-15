@@ -36,6 +36,3 @@ class ActivationKey(RootModel[ActivationKey1 | ActivationKey2]):
         title='Activation Key',
     )
 
-# Aliases for backward compatibility (discriminator-based names)
-Segment_idActivationKey = ActivationKey1
-Key_valueActivationKey = ActivationKey2

@@ -108,6 +108,3 @@ class SyncCreativesResponse(RootModel[SyncCreativesResponse1 | SyncCreativesResp
         title='Sync Creatives Response',
     )
 
-# Aliases for backward compatibility
-SyncCreativesSuccess = SyncCreativesResponse1
-SyncCreativesError = SyncCreativesResponse2
