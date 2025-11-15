@@ -145,3 +145,7 @@ Thumbs.db
 # Environment variables
 .env
 uv.lock
+
+# Generated type files (regenerated from schemas)
+src/adcp/types/generated_poc/
+src/adcp/types/generated.py
