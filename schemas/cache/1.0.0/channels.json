@@ -1,9 +1,7 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/enums/channels.json",
-  "title": "Advertising Channels",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Standard advertising channels supported by AdCP",
-  "type": "string",
   "enum": [
     "display",
     "video",
@@ -14,5 +12,7 @@
     "podcast",
     "retail",
     "social"
-  ]
+  ],
+  "title": "Advertising Channels",
+  "type": "string"
 }

@@ -31,8 +31,7 @@ class TestFormatIdValidation:
         with pytest.raises(ValidationError) as exc_info:
             FormatId(agent_url="https://example.com", id="format with spaces")
 
-        assert "Invalid format ID" in str(exc_info.value)
-        assert "alphanumeric" in str(exc_info.value)
+        assert "pattern" in str(exc_info.value)
 
     def test_invalid_format_id_with_special_chars(self):
         """Test that format IDs with special characters are rejected."""
@@ -60,7 +59,7 @@ class TestFormatIdValidation:
             with pytest.raises(ValidationError) as exc_info:
                 FormatId(agent_url="https://example.com", id=invalid_id)
 
-            assert "Invalid format ID" in str(exc_info.value), f"Should reject: {invalid_id}"
+            assert "pattern" in str(exc_info.value), f"Should reject: {invalid_id}"
 
     def test_empty_format_id(self):
         """Test that empty format ID is rejected."""
@@ -79,7 +78,7 @@ class TestFormatIdValidation:
             with pytest.raises(ValidationError) as exc_info:
                 FormatId(agent_url="https://example.com", id=invalid_id)
 
-            assert "Invalid format ID" in str(exc_info.value)
+            assert "pattern" in str(exc_info.value)
 
     def test_format_id_case_sensitivity(self):
         """Test that format IDs are case-sensitive and accept both upper and lower case."""
@@ -103,7 +102,7 @@ class TestFormatIdValidation:
         data = {"agent_url": "https://creative.example.com", "id": "banner_300x250"}
 
         fid = FormatId.model_validate(data)
-        assert fid.agent_url == "https://creative.example.com"
+        assert str(fid.agent_url).rstrip("/") == "https://creative.example.com"
         assert fid.id == "banner_300x250"
 
     def test_format_id_invalid_dict_validation(self):
@@ -113,4 +112,4 @@ class TestFormatIdValidation:
         with pytest.raises(ValidationError) as exc_info:
             FormatId.model_validate(data)
 
-        assert "Invalid format ID" in str(exc_info.value)
+        assert "pattern" in str(exc_info.value)

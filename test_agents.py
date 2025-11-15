@@ -13,7 +13,7 @@ import asyncio
 import json
 import os
 import sys
-from typing import Any, Dict, List
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -60,7 +60,7 @@ def print_warning(text: str) -> None:
     print(f"{Colors.YELLOW}⚠ {text}{Colors.RESET}")
 
 
-def load_agents_from_env() -> List[tuple[str, AgentConfig]]:
+def load_agents_from_env() -> list[tuple[str, AgentConfig]]:
     """Load agent configurations from environment variables."""
     load_dotenv()
 
@@ -88,7 +88,7 @@ def load_agents_from_env() -> List[tuple[str, AgentConfig]]:
         return []
 
 
-async def test_agent_connection(name: str, config: AgentConfig) -> Dict[str, Any]:
+async def test_agent_connection(name: str, config: AgentConfig) -> dict[str, Any]:
     """Test connection to a single agent."""
     result = {
         "name": name,
@@ -115,6 +115,7 @@ async def test_agent_connection(name: str, config: AgentConfig) -> Dict[str, Any
         except Exception as e:
             print_warning(f"Error listing tools: {e}")
             import traceback
+
             traceback.print_exc()
             tools = []
 
@@ -149,7 +150,9 @@ async def test_agent_connection(name: str, config: AgentConfig) -> Dict[str, Any
                     if test_result.success:
                         print_success(f"Tool call succeeded! Status: {test_result.status.value}")
                         if test_result.data:
-                            print_info(f"Response data: {json.dumps(test_result.data, indent=2)[:200]}...")
+                            print_info(
+                                f"Response data: {json.dumps(test_result.data, indent=2)[:200]}..."
+                            )
                     else:
                         print_warning(f"Tool call status: {test_result.status.value}")
                         if test_result.error:
@@ -174,7 +177,7 @@ async def test_agent_connection(name: str, config: AgentConfig) -> Dict[str, Any
     return result
 
 
-async def test_all_agents() -> List[Dict[str, Any]]:
+async def test_all_agents() -> list[dict[str, Any]]:
     """Test all configured agents."""
     agents = load_agents_from_env()
 
@@ -193,7 +196,7 @@ async def test_all_agents() -> List[Dict[str, Any]]:
     return results
 
 
-def print_summary(results: List[Dict[str, Any]]) -> None:
+def print_summary(results: list[dict[str, Any]]) -> None:
     """Print summary of all tests."""
     print_header("Test Summary")
 

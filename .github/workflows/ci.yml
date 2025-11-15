@@ -113,7 +113,7 @@ jobs:
         run: python scripts/fix_schema_refs.py
 
       - name: Generate models
-        run: python scripts/generate_models_simple.py
+        run: python scripts/generate_types.py
 
       - name: Validate generated code syntax
         run: |

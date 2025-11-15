@@ -1,92 +1,92 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/signals/get-signals-request.json",
-  "title": "Get Signals Request",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
   "description": "Request parameters for discovering signals based on description",
-  "type": "object",
   "properties": {
-    "signal_spec": {
-      "type": "string",
-      "description": "Natural language description of the desired signals"
+    "context": {
+      "additionalProperties": true,
+      "description": "Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.",
+      "type": "object"
     },
     "deliver_to": {
-      "type": "object",
+      "additionalProperties": false,
       "description": "Destination platforms where signals need to be activated",
       "properties": {
+        "countries": {
+          "description": "Countries where signals will be used (ISO codes)",
+          "items": {
+            "pattern": "^[A-Z]{2}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
         "destinations": {
-          "type": "array",
           "description": "List of destination platforms (DSPs, sales agents, etc.). If the authenticated caller matches one of these destinations, activation keys will be included in the response.",
           "items": {
             "$ref": "destination.json"
           },
-          "minItems": 1
-        },
-        "countries": {
-          "type": "array",
-          "description": "Countries where signals will be used (ISO codes)",
-          "items": {
-            "type": "string",
-            "pattern": "^[A-Z]{2}$"
-          }
+          "minItems": 1,
+          "type": "array"
         }
       },
       "required": [
         "destinations",
         "countries"
       ],
-      "additionalProperties": false
+      "type": "object"
     },
     "filters": {
-      "type": "object",
+      "additionalProperties": false,
       "description": "Filters to refine results",
       "properties": {
         "catalog_types": {
-          "type": "array",
           "description": "Filter by catalog type",
           "items": {
-            "type": "string",
             "enum": [
               "marketplace",
               "custom",
               "owned"
-            ]
-          }
+            ],
+            "type": "string"
+          },
+          "type": "array"
         },
         "data_providers": {
-          "type": "array",
           "description": "Filter by specific data providers",
           "items": {
             "type": "string"
-          }
+          },
+          "type": "array"
         },
         "max_cpm": {
-          "type": "number",
           "description": "Maximum CPM price filter",
-          "minimum": 0
+          "minimum": 0,
+          "type": "number"
         },
         "min_coverage_percentage": {
-          "type": "number",
           "description": "Minimum coverage requirement",
+          "maximum": 100,
           "minimum": 0,
-          "maximum": 100
+          "type": "number"
         }
       },
-      "additionalProperties": false
+      "type": "object"
     },
     "max_results": {
-      "type": "integer",
       "description": "Maximum number of results to return",
-      "minimum": 1
+      "minimum": 1,
+      "type": "integer"
     },
-    "context": {
-      "type": "object",
-      "description": "Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.",
-      "additionalProperties": true
+    "signal_spec": {
+      "description": "Natural language description of the desired signals",
+      "type": "string"
     }
   },
   "required": [
     "signal_spec",
     "deliver_to"
   ],
-  "additionalProperties": false
+  "title": "Get Signals Request",
+  "type": "object"
 }

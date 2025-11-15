@@ -1,21 +1,21 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/core/assets/html-asset.json",
-  "title": "HTML Asset",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
   "description": "HTML content asset",
-  "type": "object",
   "properties": {
     "content": {
-      "type": "string",
-      "description": "HTML content"
+      "description": "HTML content",
+      "type": "string"
     },
     "version": {
-      "type": "string",
-      "description": "HTML version (e.g., 'HTML5')"
+      "description": "HTML version (e.g., 'HTML5')",
+      "type": "string"
     }
   },
   "required": [
     "content"
   ],
-  "additionalProperties": false
+  "title": "HTML Asset",
+  "type": "object"
 }

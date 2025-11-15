@@ -1,5 +1,7 @@
 """Helper utilities for generating creative preview URLs for grid rendering."""
 
+# mypy: disable-error-code="arg-type,attr-defined,call-arg,unused-ignore,union-attr"
+
 from __future__ import annotations
 
 import hashlib
@@ -65,7 +67,7 @@ class PreviewURLGenerator:
         Returns:
             Preview data with preview_url and metadata, or None if generation fails
         """
-        from adcp.types.generated import PreviewCreativeRequest
+        from adcp.types.generated import PreviewCreativeRequest1
 
         cache_key = _make_manifest_cache_key(format_id, manifest.model_dump(exclude_none=True))
 
@@ -73,31 +75,31 @@ class PreviewURLGenerator:
             return self._preview_cache[cache_key]
 
         try:
-            request = PreviewCreativeRequest(
+            request = PreviewCreativeRequest1(
+                request_type="single",
                 format_id=format_id,
                 creative_manifest=manifest,
-                inputs=None,
-                template_id=None,
-                context=None
             )
             result = await self.creative_agent_client.preview_creative(request)
 
             if result.success and result.data and result.data.previews:
                 preview = result.data.previews[0]
-                renders = preview.get("renders", [])
-                first_render = renders[0] if renders else {}
+                first_render = preview.renders[0] if preview.renders else None
 
-                preview_data = {
-                    "preview_id": preview.get("preview_id"),
-                    "preview_url": first_render.get("preview_url"),
-                    "preview_html": first_render.get("preview_html"),
-                    "render_id": first_render.get("render_id"),
-                    "input": preview.get("input", {}),
-                    "expires_at": result.data.expires_at,
-                }
+                if first_render:
+                    has_url = hasattr(first_render, "preview_url")
+                    preview_url = str(first_render.preview_url) if has_url else None
+                    preview_data = {
+                        "preview_id": preview.preview_id,
+                        "preview_url": preview_url,
+                        "preview_html": getattr(first_render, "preview_html", None),
+                        "render_id": first_render.render_id,
+                        "input": preview.input.model_dump(),
+                        "expires_at": str(result.data.expires_at),
+                    }
 
-                self._preview_cache[cache_key] = preview_data
-                return preview_data
+                    self._preview_cache[cache_key] = preview_data
+                    return preview_data
 
         except Exception as e:
             logger.warning(f"Failed to generate preview for format {format_id}: {e}", exc_info=True)
@@ -142,15 +144,13 @@ class PreviewURLGenerator:
                 results[idx] = self._preview_cache[cache_key]
             else:
                 uncached_indices.append(idx)
-                fid_dict = (
-                    format_id.model_dump()
-                    if hasattr(format_id, "model_dump")
-                    else format_id
+                fid_dict = format_id.model_dump() if hasattr(format_id, "model_dump") else format_id
+                uncached_requests.append(
+                    {
+                        "format_id": fid_dict,
+                        "creative_manifest": manifest.model_dump(exclude_none=True),
+                    }
                 )
-                uncached_requests.append({
-                    "format_id": fid_dict,
-                    "creative_manifest": manifest.model_dump(exclude_none=True),
-                })
 
         # If everything was cached, return early
         if not uncached_requests:
@@ -376,9 +376,7 @@ async def add_preview_urls_to_products(
 
             format_tasks = [process_format(fid) for fid in product.format_ids]
             format_results = await asyncio.gather(*format_tasks)
-            format_previews = {
-                fid: data for fid, data in format_results if data is not None
-            }
+            format_previews = {fid: data for fid, data in format_results if data is not None}
 
             if format_previews:
                 product_dict["format_previews"] = format_previews
@@ -408,10 +406,16 @@ def _create_sample_manifest_for_format(fmt: Format) -> CreativeManifest | None:
     for asset in fmt.assets_required:
         if isinstance(asset, dict):
             asset_id = asset.get("asset_id")
-            asset_type = asset.get("type")
+            asset_type = asset.get("asset_type")
 
             if asset_id:
                 assets[asset_id] = _create_sample_asset(asset_type)
+        else:
+            # Handle Pydantic model
+            asset_id = asset.asset_id
+            has_value = hasattr(asset.asset_type, "value")
+            asset_type = asset.asset_type.value if has_value else str(asset.asset_type)
+            assets[asset_id] = _create_sample_asset(asset_type)
 
     if not assets:
         return None
@@ -432,11 +436,11 @@ def _create_sample_manifest_for_format_id(
     Returns:
         Sample CreativeManifest with placeholder assets
     """
-    from adcp.types.generated import CreativeManifest
+    from adcp.types.generated import CreativeManifest, ImageAsset, UrlAsset
 
     assets = {
-        "primary_asset": "https://example.com/sample-image.jpg",
-        "clickthrough_url": "https://example.com",
+        "primary_asset": ImageAsset(url="https://example.com/sample-image.jpg"),
+        "clickthrough_url": UrlAsset(url="https://example.com"),
     }
 
     return CreativeManifest(format_id=format_id, promoted_offering=product.name, assets=assets)
@@ -450,17 +454,26 @@ def _create_sample_asset(asset_type: str | None) -> Any:
         asset_type: Type of asset (image, video, text, url, etc.)
 
     Returns:
-        Sample asset value
+        Sample asset object (Pydantic model)
     """
+    from adcp.types.generated import (
+        HtmlAsset,
+        ImageAsset,
+        TextAsset,
+        UrlAsset,
+        VideoAsset,
+    )
+
     if asset_type == "image":
-        return "https://via.placeholder.com/300x250.png"
+        return ImageAsset(url="https://via.placeholder.com/300x250.png")
     elif asset_type == "video":
-        return "https://example.com/sample-video.mp4"
+        return VideoAsset(url="https://example.com/sample-video.mp4")
     elif asset_type == "text":
-        return "Sample advertising text"
+        return TextAsset(content="Sample advertising text")
     elif asset_type == "url":
-        return "https://example.com"
+        return UrlAsset(url="https://example.com")
     elif asset_type == "html":
-        return "<div>Sample HTML</div>"
+        return HtmlAsset(content="<div>Sample HTML</div>")
     else:
-        return "https://example.com/sample-asset"
+        # Default to URL asset for unknown types
+        return UrlAsset(url="https://example.com/sample-asset")

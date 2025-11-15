@@ -1,128 +1,162 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/core/tasks-list-response.json",
-  "title": "Tasks List Response",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
   "description": "Response from task listing query with filtered results and state reconciliation data across all AdCP domains",
-  "type": "object",
   "properties": {
+    "context": {
+      "additionalProperties": true,
+      "description": "Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.",
+      "type": "object"
+    },
+    "pagination": {
+      "additionalProperties": false,
+      "description": "Pagination information",
+      "properties": {
+        "has_more": {
+          "description": "Whether there are more tasks beyond this page",
+          "type": "boolean"
+        },
+        "limit": {
+          "description": "Limit that was applied to this query",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "next_offset": {
+          "description": "Offset to use for next page (only present if has_more is true)",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "offset": {
+          "description": "Offset that was applied to this query",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "limit",
+        "offset",
+        "has_more"
+      ],
+      "type": "object"
+    },
     "query_summary": {
-      "type": "object",
+      "additionalProperties": false,
       "description": "Summary of the query that was executed",
       "properties": {
-        "total_matching": {
-          "type": "integer",
-          "description": "Total number of tasks matching filters (across all pages)",
-          "minimum": 0
-        },
-        "returned": {
-          "type": "integer",
-          "description": "Number of tasks returned in this response",
-          "minimum": 0
-        },
         "domain_breakdown": {
-          "type": "object",
+          "additionalProperties": false,
           "description": "Count of tasks by domain",
           "properties": {
             "media-buy": {
-              "type": "integer",
+              "description": "Number of media-buy tasks in results",
               "minimum": 0,
-              "description": "Number of media-buy tasks in results"
+              "type": "integer"
             },
             "signals": {
-              "type": "integer",
+              "description": "Number of signals tasks in results",
               "minimum": 0,
-              "description": "Number of signals tasks in results"
+              "type": "integer"
             }
           },
-          "additionalProperties": false
-        },
-        "status_breakdown": {
-          "type": "object",
-          "description": "Count of tasks by status",
-          "additionalProperties": {
-            "type": "integer",
-            "minimum": 0
-          }
+          "type": "object"
         },
         "filters_applied": {
-          "type": "array",
           "description": "List of filters that were applied to the query",
           "items": {
             "type": "string"
-          }
+          },
+          "type": "array"
+        },
+        "returned": {
+          "description": "Number of tasks returned in this response",
+          "minimum": 0,
+          "type": "integer"
         },
         "sort_applied": {
-          "type": "object",
+          "additionalProperties": false,
           "description": "Sort order that was applied",
           "properties": {
-            "field": {
-              "type": "string"
-            },
             "direction": {
-              "type": "string",
               "enum": [
                 "asc",
                 "desc"
-              ]
+              ],
+              "type": "string"
+            },
+            "field": {
+              "type": "string"
             }
           },
           "required": [
             "field",
             "direction"
           ],
-          "additionalProperties": false
+          "type": "object"
+        },
+        "status_breakdown": {
+          "additionalProperties": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "description": "Count of tasks by status",
+          "type": "object"
+        },
+        "total_matching": {
+          "description": "Total number of tasks matching filters (across all pages)",
+          "minimum": 0,
+          "type": "integer"
         }
       },
       "required": [
         "total_matching",
         "returned"
       ],
-      "additionalProperties": false
+      "type": "object"
     },
     "tasks": {
-      "type": "array",
       "description": "Array of tasks matching the query criteria",
       "items": {
-        "type": "object",
+        "additionalProperties": false,
         "properties": {
-          "task_id": {
-            "type": "string",
-            "description": "Unique identifier for this task"
+          "completed_at": {
+            "description": "When the task completed (ISO 8601, only for completed/failed/canceled tasks)",
+            "format": "date-time",
+            "type": "string"
           },
-          "task_type": {
-            "$ref": "task-type.json",
-            "description": "Type of AdCP operation"
+          "created_at": {
+            "description": "When the task was initially created (ISO 8601)",
+            "format": "date-time",
+            "type": "string"
           },
           "domain": {
-            "type": "string",
             "description": "AdCP domain this task belongs to",
             "enum": [
               "media-buy",
               "signals"
-            ]
+            ],
+            "type": "string"
+          },
+          "has_webhook": {
+            "description": "Whether this task has webhook configuration",
+            "type": "boolean"
           },
           "status": {
             "$ref": "task-status.json",
             "description": "Current task status"
           },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When the task was initially created (ISO 8601)"
+          "task_id": {
+            "description": "Unique identifier for this task",
+            "type": "string"
+          },
+          "task_type": {
+            "$ref": "task-type.json",
+            "description": "Type of AdCP operation"
           },
           "updated_at": {
-            "type": "string",
+            "description": "When the task was last updated (ISO 8601)",
             "format": "date-time",
-            "description": "When the task was last updated (ISO 8601)"
-          },
-          "completed_at": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When the task completed (ISO 8601, only for completed/failed/canceled tasks)"
-          },
-          "has_webhook": {
-            "type": "boolean",
-            "description": "Whether this task has webhook configuration"
+            "type": "string"
           }
         },
         "required": [
@@ -133,44 +167,9 @@
           "created_at",
           "updated_at"
         ],
-        "additionalProperties": false
-      }
-    },
-    "pagination": {
-      "type": "object",
-      "description": "Pagination information",
-      "properties": {
-        "limit": {
-          "type": "integer",
-          "description": "Limit that was applied to this query",
-          "minimum": 1
-        },
-        "offset": {
-          "type": "integer",
-          "description": "Offset that was applied to this query",
-          "minimum": 0
-        },
-        "has_more": {
-          "type": "boolean",
-          "description": "Whether there are more tasks beyond this page"
-        },
-        "next_offset": {
-          "type": "integer",
-          "description": "Offset to use for next page (only present if has_more is true)",
-          "minimum": 0
-        }
+        "type": "object"
       },
-      "required": [
-        "limit",
-        "offset",
-        "has_more"
-      ],
-      "additionalProperties": false
-    },
-    "context": {
-      "type": "object",
-      "description": "Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.",
-      "additionalProperties": true
+      "type": "array"
     }
   },
   "required": [
@@ -178,5 +177,6 @@
     "tasks",
     "pagination"
   ],
-  "additionalProperties": false
+  "title": "Tasks List Response",
+  "type": "object"
 }

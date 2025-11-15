@@ -62,13 +62,15 @@ async def main():
                 print(f"   Expires: {preview.get('expires_at', 'N/A')}")
                 print()
 
-                preview_data.append({
-                    "format_id": format_id,
-                    "name": name,
-                    "preview_url": preview_url,
-                    "width": 300,
-                    "height": 400,
-                })
+                preview_data.append(
+                    {
+                        "format_id": format_id,
+                        "name": name,
+                        "preview_url": preview_url,
+                        "width": 300,
+                        "height": 400,
+                    }
+                )
 
         # Save to JSON for the web component demo
         output_file = Path(__file__).parent / "preview_urls.json"
@@ -76,7 +78,7 @@ async def main():
             json.dump(preview_data, f, indent=2)
 
         print(f"💾 Saved preview URLs to: {output_file}")
-        print(f"\n🌐 Open examples/web_component_demo.html in a browser to see the previews!")
+        print("\n🌐 Open examples/web_component_demo.html in a browser to see the previews!")
 
     except Exception as e:
         print(f"❌ Error: {e}")

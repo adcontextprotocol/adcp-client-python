@@ -1,30 +1,29 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/media-buy/sync-creatives-response.json",
-  "title": "Sync Creatives Response",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Response from creative sync operation. Returns either per-creative results (best-effort processing) OR operation-level errors (complete failure). This enforces atomic semantics at the operation level while allowing per-item failures within successful operations.",
-  "type": "object",
   "oneOf": [
     {
+      "additionalProperties": false,
       "description": "Success response - sync operation processed creatives (may include per-item failures)",
-      "type": "object",
+      "not": {
+        "required": [
+          "errors"
+        ]
+      },
       "properties": {
-        "dry_run": {
-          "type": "boolean",
-          "description": "Whether this was a dry run (no actual changes made)"
+        "context": {
+          "additionalProperties": true,
+          "description": "Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.",
+          "type": "object"
         },
         "creatives": {
-          "type": "array",
           "description": "Results for each creative processed. Items with action='failed' indicate per-item validation/processing failures, not operation-level failures.",
           "items": {
-            "type": "object",
+            "additionalProperties": false,
             "properties": {
-              "creative_id": {
-                "type": "string",
-                "description": "Creative ID from the request"
-              },
               "action": {
-                "type": "string",
+                "description": "Action taken for this creative",
                 "enum": [
                   "created",
                   "updated",
@@ -32,107 +31,87 @@
                   "failed",
                   "deleted"
                 ],
-                "description": "Action taken for this creative"
-              },
-              "platform_id": {
-                "type": "string",
-                "description": "Platform-specific ID assigned to the creative"
-              },
-              "changes": {
-                "type": "array",
-                "description": "Field names that were modified (only present when action='updated')",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "errors": {
-                "type": "array",
-                "description": "Validation or processing errors (only present when action='failed')",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "warnings": {
-                "type": "array",
-                "description": "Non-fatal warnings about this creative",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "preview_url": {
-                "type": "string",
-                "format": "uri",
-                "description": "Preview URL for generative creatives (only present for generative formats)"
-              },
-              "expires_at": {
-                "type": "string",
-                "format": "date-time",
-                "description": "ISO 8601 timestamp when preview link expires (only present when preview_url exists)"
+                "type": "string"
               },
               "assigned_to": {
-                "type": "array",
                 "description": "Package IDs this creative was successfully assigned to (only present when assignments were requested)",
                 "items": {
                   "type": "string"
-                }
+                },
+                "type": "array"
               },
               "assignment_errors": {
-                "type": "object",
+                "additionalProperties": false,
                 "description": "Assignment errors by package ID (only present when assignment failures occurred)",
                 "patternProperties": {
                   "^[a-zA-Z0-9_-]+$": {
-                    "type": "string",
-                    "description": "Error message for this package assignment"
+                    "description": "Error message for this package assignment",
+                    "type": "string"
                   }
                 },
-                "additionalProperties": false
+                "type": "object"
+              },
+              "changes": {
+                "description": "Field names that were modified (only present when action='updated')",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "creative_id": {
+                "description": "Creative ID from the request",
+                "type": "string"
+              },
+              "errors": {
+                "description": "Validation or processing errors (only present when action='failed')",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "expires_at": {
+                "description": "ISO 8601 timestamp when preview link expires (only present when preview_url exists)",
+                "format": "date-time",
+                "type": "string"
+              },
+              "platform_id": {
+                "description": "Platform-specific ID assigned to the creative",
+                "type": "string"
+              },
+              "preview_url": {
+                "description": "Preview URL for generative creatives (only present for generative formats)",
+                "format": "uri",
+                "type": "string"
+              },
+              "warnings": {
+                "description": "Non-fatal warnings about this creative",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
               }
             },
             "required": [
               "creative_id",
               "action"
             ],
-            "additionalProperties": false
-          }
+            "type": "object"
+          },
+          "type": "array"
         },
-        "context": {
-          "type": "object",
-          "description": "Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.",
-          "additionalProperties": true
+        "dry_run": {
+          "description": "Whether this was a dry run (no actual changes made)",
+          "type": "boolean"
         }
       },
       "required": [
         "creatives"
       ],
-      "additionalProperties": false,
-      "not": {
-        "required": [
-          "errors"
-        ]
-      }
+      "type": "object"
     },
     {
-      "description": "Error response - operation failed completely, no creatives were processed",
-      "type": "object",
-      "properties": {
-        "errors": {
-          "type": "array",
-          "description": "Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)",
-          "items": {
-            "$ref": "error.json"
-          },
-          "minItems": 1
-        },
-        "context": {
-          "type": "object",
-          "description": "Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.",
-          "additionalProperties": true
-        }
-      },
-      "required": [
-        "errors"
-      ],
       "additionalProperties": false,
+      "description": "Error response - operation failed completely, no creatives were processed",
       "not": {
         "anyOf": [
           {
@@ -146,7 +125,28 @@
             ]
           }
         ]
-      }
+      },
+      "properties": {
+        "context": {
+          "additionalProperties": true,
+          "description": "Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.",
+          "type": "object"
+        },
+        "errors": {
+          "description": "Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)",
+          "items": {
+            "$ref": "error.json"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "errors"
+      ],
+      "type": "object"
     }
-  ]
+  ],
+  "title": "Sync Creatives Response",
+  "type": "object"
 }

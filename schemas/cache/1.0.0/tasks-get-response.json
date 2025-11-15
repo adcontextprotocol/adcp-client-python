@@ -1,142 +1,101 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/core/tasks-get-response.json",
-  "title": "Tasks Get Response",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
   "description": "Response containing detailed information about a specific task including status and optional conversation history across all AdCP domains",
-  "type": "object",
   "properties": {
-    "task_id": {
-      "type": "string",
-      "description": "Unique identifier for this task"
+    "completed_at": {
+      "description": "When the task completed (ISO 8601, only for completed/failed/canceled tasks)",
+      "format": "date-time",
+      "type": "string"
     },
-    "task_type": {
-      "$ref": "task-type.json",
-      "description": "Type of AdCP operation"
+    "context": {
+      "additionalProperties": true,
+      "description": "Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.",
+      "type": "object"
+    },
+    "created_at": {
+      "description": "When the task was initially created (ISO 8601)",
+      "format": "date-time",
+      "type": "string"
     },
     "domain": {
-      "type": "string",
       "description": "AdCP domain this task belongs to",
       "enum": [
         "media-buy",
         "signals"
-      ]
-    },
-    "status": {
-      "$ref": "task-status.json",
-      "description": "Current task status"
-    },
-    "created_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "When the task was initially created (ISO 8601)"
-    },
-    "updated_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "When the task was last updated (ISO 8601)"
-    },
-    "completed_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "When the task completed (ISO 8601, only for completed/failed/canceled tasks)"
-    },
-    "has_webhook": {
-      "type": "boolean",
-      "description": "Whether this task has webhook configuration"
-    },
-    "progress": {
-      "type": "object",
-      "description": "Progress information for long-running tasks",
-      "properties": {
-        "percentage": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 100,
-          "description": "Completion percentage (0-100)"
-        },
-        "current_step": {
-          "type": "string",
-          "description": "Current step or phase of the operation"
-        },
-        "total_steps": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Total number of steps in the operation"
-        },
-        "step_number": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Current step number"
-        }
-      },
-      "additionalProperties": false
+      ],
+      "type": "string"
     },
     "error": {
-      "type": "object",
+      "additionalProperties": false,
       "description": "Error details for failed tasks",
       "properties": {
         "code": {
-          "type": "string",
-          "description": "Error code for programmatic handling"
-        },
-        "message": {
-          "type": "string",
-          "description": "Detailed error message"
+          "description": "Error code for programmatic handling",
+          "type": "string"
         },
         "details": {
-          "type": "object",
+          "additionalProperties": true,
           "description": "Additional error context",
           "properties": {
             "domain": {
-              "type": "string",
               "description": "AdCP domain where error occurred",
               "enum": [
                 "media-buy",
                 "signals"
-              ]
+              ],
+              "type": "string"
             },
             "operation": {
-              "type": "string",
-              "description": "Specific operation that failed"
+              "description": "Specific operation that failed",
+              "type": "string"
             },
             "specific_context": {
-              "type": "object",
+              "additionalProperties": true,
               "description": "Domain-specific error context",
-              "additionalProperties": true
+              "type": "object"
             }
           },
-          "additionalProperties": true
+          "type": "object"
+        },
+        "message": {
+          "description": "Detailed error message",
+          "type": "string"
         }
       },
       "required": [
         "code",
         "message"
       ],
-      "additionalProperties": false
+      "type": "object"
+    },
+    "has_webhook": {
+      "description": "Whether this task has webhook configuration",
+      "type": "boolean"
     },
     "history": {
-      "type": "array",
       "description": "Complete conversation history for this task (only included if include_history was true in request)",
       "items": {
-        "type": "object",
+        "additionalProperties": false,
         "properties": {
+          "data": {
+            "additionalProperties": true,
+            "description": "The full request or response payload",
+            "type": "object"
+          },
           "timestamp": {
-            "type": "string",
+            "description": "When this exchange occurred (ISO 8601)",
             "format": "date-time",
-            "description": "When this exchange occurred (ISO 8601)"
+            "type": "string"
           },
           "type": {
-            "type": "string",
+            "description": "Whether this was a request from client or response from server",
             "enum": [
               "request",
               "response"
             ],
-            "description": "Whether this was a request from client or response from server"
-          },
-          "data": {
-            "type": "object",
-            "description": "The full request or response payload",
-            "additionalProperties": true
+            "type": "string"
           }
         },
         "required": [
@@ -144,13 +103,53 @@
           "type",
           "data"
         ],
-        "additionalProperties": false
-      }
+        "type": "object"
+      },
+      "type": "array"
     },
-    "context": {
-      "type": "object",
-      "description": "Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.",
-      "additionalProperties": true
+    "progress": {
+      "additionalProperties": false,
+      "description": "Progress information for long-running tasks",
+      "properties": {
+        "current_step": {
+          "description": "Current step or phase of the operation",
+          "type": "string"
+        },
+        "percentage": {
+          "description": "Completion percentage (0-100)",
+          "maximum": 100,
+          "minimum": 0,
+          "type": "number"
+        },
+        "step_number": {
+          "description": "Current step number",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "total_steps": {
+          "description": "Total number of steps in the operation",
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "status": {
+      "$ref": "task-status.json",
+      "description": "Current task status"
+    },
+    "task_id": {
+      "description": "Unique identifier for this task",
+      "type": "string"
+    },
+    "task_type": {
+      "$ref": "task-type.json",
+      "description": "Type of AdCP operation"
+    },
+    "updated_at": {
+      "description": "When the task was last updated (ISO 8601)",
+      "format": "date-time",
+      "type": "string"
     }
   },
   "required": [
@@ -161,5 +160,6 @@
     "created_at",
     "updated_at"
   ],
-  "additionalProperties": false
+  "title": "Tasks Get Response",
+  "type": "object"
 }

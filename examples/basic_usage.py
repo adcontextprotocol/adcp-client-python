@@ -8,6 +8,7 @@ This example shows how to:
 """
 
 import asyncio
+
 from adcp import ADCPClient
 from adcp.types import AgentConfig, Protocol
 

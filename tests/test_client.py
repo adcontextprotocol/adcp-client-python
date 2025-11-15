@@ -152,7 +152,17 @@ async def test_all_client_methods():
         ("list_creatives", "ListCreativesRequest", {}),
         ("get_media_buy_delivery", "GetMediaBuyDeliveryRequest", {}),
         ("list_authorized_properties", "ListAuthorizedPropertiesRequest", {}),
-        ("get_signals", "GetSignalsRequest", {"signal_spec": "test", "deliver_to": {}}),
+        (
+            "get_signals",
+            "GetSignalsRequest",
+            {
+                "signal_spec": "test",
+                "deliver_to": {
+                    "countries": ["US"],
+                    "destinations": [{"type": "platform", "platform": "test"}],
+                },
+            },
+        ),
         (
             "activate_signal",
             "ActivateSignalRequest",
@@ -164,7 +174,14 @@ async def test_all_client_methods():
         (
             "provide_performance_feedback",
             "ProvidePerformanceFeedbackRequest",
-            {"media_buy_id": "test", "measurement_period": {}, "performance_index": 0.5},
+            {
+                "media_buy_id": "test",
+                "measurement_period": {
+                    "start": "2024-01-01T00:00:00Z",
+                    "end": "2024-01-31T23:59:59Z",
+                },
+                "performance_index": 0.5,
+            },
         ),
     ],
 )

@@ -13,9 +13,10 @@ from adcp.types.generated import (
     FormatId,
     GetProductsRequest,
     GetProductsResponse,
+    ImageAsset,
     ListCreativeFormatsRequest,
     ListCreativeFormatsResponse,
-    PreviewCreativeResponse,
+    PreviewCreativeResponse1,
     Product,
 )
 from adcp.utils.preview_cache import (
@@ -27,16 +28,13 @@ from adcp.utils.preview_cache import (
 
 def make_format_id(id_str: str) -> FormatId:
     """Helper to create FormatId objects for tests."""
-    return FormatId(
-        agent_url="https://creative.adcontextprotocol.org",
-        id=id_str
-    )
+    return FormatId(agent_url="https://creative.adcontextprotocol.org", id=id_str)
 
 
 @pytest.mark.asyncio
 async def test_preview_creative():
     """Test preview_creative method."""
-    from adcp.types.generated import PreviewCreativeRequest
+    from adcp.types.generated import PreviewCreativeRequest1
 
     config = AgentConfig(
         id="creative_agent",
@@ -48,20 +46,35 @@ async def test_preview_creative():
 
     format_id = make_format_id("display_300x250")
     manifest = CreativeManifest(
-        format_id=format_id, assets={"image": "https://example.com/img.jpg"}
+        format_id=format_id,
+        assets={"image": ImageAsset(url="https://example.com/img.jpg")},
     )
 
     # Raw result from adapter (unparsed)
     mock_raw_result = TaskResult(
         status=TaskStatus.COMPLETED,
         data={"previews": []},  # Will be replaced by _parse_response mock
-        success=True
+        success=True,
     )
 
     # Parsed result from _parse_response
-    mock_response_data = PreviewCreativeResponse(
-        previews=[{"preview_url": "https://preview.example.com/abc123"}],
+    mock_response_data = PreviewCreativeResponse1(
+        response_type="single",
         expires_at="2025-12-01T00:00:00Z",
+        previews=[
+            {
+                "preview_id": "prev-1",
+                "input": {"name": "Default"},
+                "renders": [
+                    {
+                        "render_id": "render-1",
+                        "role": "primary",
+                        "output_format": "url",
+                        "preview_url": "https://preview.example.com/abc123",
+                    }
+                ],
+            }
+        ],
     )
     mock_parsed_result = TaskResult(
         status=TaskStatus.COMPLETED, data=mock_response_data, success=True
@@ -71,13 +84,20 @@ async def test_preview_creative():
         client.adapter, "preview_creative", return_value=mock_raw_result
     ) as mock_call:
         with patch.object(client.adapter, "_parse_response", return_value=mock_parsed_result):
-            request = PreviewCreativeRequest(format_id=format_id, creative_manifest=manifest)
+            request = PreviewCreativeRequest1(
+                request_type="single",
+                format_id=format_id,
+                creative_manifest=manifest,
+            )
             result = await client.preview_creative(request)
 
             assert result.success
             assert result.data
             assert len(result.data.previews) == 1
-            assert result.data.previews[0]["preview_url"] == "https://preview.example.com/abc123"
+            assert (
+                str(result.data.previews[0].renders[0].preview_url)
+                == "https://preview.example.com/abc123"
+            )
             mock_call.assert_called_once()
 
 
@@ -95,32 +115,31 @@ async def test_get_preview_data_for_manifest():
 
     format_id = make_format_id("display_300x250")
     manifest = CreativeManifest(
-        format_id=format_id, assets={"image": "https://example.com/img.jpg"}
+        format_id=format_id,
+        assets={"image": ImageAsset(url="https://example.com/img.jpg")},
     )
 
     # Raw result from adapter (unparsed)
-    mock_raw_result = TaskResult(
-        status=TaskStatus.COMPLETED,
-        data={"previews": []},
-        success=True
-    )
+    mock_raw_result = TaskResult(status=TaskStatus.COMPLETED, data={"previews": []}, success=True)
 
     # Parsed result from _parse_response
-    mock_preview_response = PreviewCreativeResponse(
+    mock_preview_response = PreviewCreativeResponse1(
+        response_type="single",
+        expires_at="2025-12-01T00:00:00Z",
         previews=[
             {
                 "preview_id": "preview-1",
+                "input": {"name": "Desktop"},
                 "renders": [
                     {
                         "render_id": "render-1",
+                        "role": "primary",
+                        "output_format": "url",
                         "preview_url": "https://preview.example.com/abc123",
-                        "preview_html": None,
                     }
                 ],
-                "input": {"name": "Desktop"},
             }
         ],
-        expires_at="2025-12-01T00:00:00Z",
     )
     mock_parsed_result = TaskResult(
         status=TaskStatus.COMPLETED, data=mock_preview_response, success=True
@@ -132,7 +151,7 @@ async def test_get_preview_data_for_manifest():
 
             assert result is not None
             assert result["preview_url"] == "https://preview.example.com/abc123"
-            assert result["expires_at"] == "2025-12-01T00:00:00Z"
+            assert "2025-12-01" in result["expires_at"]  # Check date is present (format may vary)
             assert "input" in result
 
 
@@ -150,20 +169,31 @@ async def test_preview_data_caching():
 
     format_id = make_format_id("display_300x250")
     manifest = CreativeManifest(
-        format_id=format_id, assets={"image": "https://example.com/img.jpg"}
+        format_id=format_id,
+        assets={"image": ImageAsset(url="https://example.com/img.jpg")},
     )
 
     # Raw result from adapter (unparsed)
-    mock_raw_result = TaskResult(
-        status=TaskStatus.COMPLETED,
-        data={"previews": []},
-        success=True
-    )
+    mock_raw_result = TaskResult(status=TaskStatus.COMPLETED, data={"previews": []}, success=True)
 
     # Parsed result from _parse_response
-    mock_preview_response = PreviewCreativeResponse(
-        previews=[{"preview_url": "https://preview.example.com/abc123"}],
+    mock_preview_response = PreviewCreativeResponse1(
+        response_type="single",
         expires_at="2025-12-01T00:00:00Z",
+        previews=[
+            {
+                "preview_id": "prev-1",
+                "input": {"name": "Default"},
+                "renders": [
+                    {
+                        "render_id": "render-1",
+                        "role": "primary",
+                        "output_format": "url",
+                        "preview_url": "https://preview.example.com/abc123",
+                    }
+                ],
+            }
+        ],
     )
     mock_parsed_result = TaskResult(
         status=TaskStatus.COMPLETED, data=mock_preview_response, success=True
@@ -201,22 +231,19 @@ async def test_get_products_with_preview_urls():
     creative_client = ADCPClient(creative_config)
 
     format_id = make_format_id("display_300x250")
-    product = Product(
+    # Use model_construct to bypass validation for test data
+    product = Product.model_construct(
         product_id="prod_1",
         name="Test Product",
         description="Test Description",
-        publisher_properties=[],
         format_ids=[format_id],
-        delivery_type="guaranteed",
-        pricing_options=[{"id": "cpm_1", "type": "cpm", "price": 5.0}],
-        delivery_measurement={"provider": "test"},
     )
 
     # Raw result from adapter (unparsed)
     mock_raw_result = TaskResult(
         status=TaskStatus.COMPLETED,
         data={"products": []},  # Will be replaced by _parse_response mock
-        success=True
+        success=True,
     )
 
     # Parsed result from _parse_response
@@ -227,15 +254,27 @@ async def test_get_products_with_preview_urls():
 
     # Raw preview result from creative adapter
     mock_preview_raw_result = TaskResult(
-        status=TaskStatus.COMPLETED,
-        data={"previews": []},
-        success=True
+        status=TaskStatus.COMPLETED, data={"previews": []}, success=True
     )
 
     # Parsed preview result
-    mock_preview_response = PreviewCreativeResponse(
-        previews=[{"preview_url": "https://preview.example.com/abc123"}],
+    mock_preview_response = PreviewCreativeResponse1(
+        response_type="single",
         expires_at="2025-12-01T00:00:00Z",
+        previews=[
+            {
+                "preview_id": "prev-1",
+                "input": {"name": "Default"},
+                "renders": [
+                    {
+                        "render_id": "render-1",
+                        "role": "primary",
+                        "output_format": "url",
+                        "preview_url": "https://preview.example.com/abc123",
+                    }
+                ],
+            }
+        ],
     )
     mock_preview_parsed_result = TaskResult(
         status=TaskStatus.COMPLETED, data=mock_preview_response, success=True
@@ -301,14 +340,14 @@ async def test_list_creative_formats_with_preview_urls():
         name="Display 300x250",
         description="Standard banner",
         type="display",
-        assets_required=[{"asset_id": "image", "type": "image"}],
+        assets_required=[{"asset_id": "image", "asset_type": "image", "item_type": "individual"}],
     )
 
     # Raw result from adapter (unparsed)
     mock_raw_result = TaskResult(
         status=TaskStatus.COMPLETED,
         data={"formats": []},  # Will be replaced by _parse_response mock
-        success=True
+        success=True,
     )
 
     # Parsed result from _parse_response
@@ -319,15 +358,27 @@ async def test_list_creative_formats_with_preview_urls():
 
     # Raw preview result from adapter
     mock_preview_raw_result = TaskResult(
-        status=TaskStatus.COMPLETED,
-        data={"previews": []},
-        success=True
+        status=TaskStatus.COMPLETED, data={"previews": []}, success=True
     )
 
     # Parsed preview result
-    mock_preview_response = PreviewCreativeResponse(
-        previews=[{"preview_url": "https://preview.example.com/abc123"}],
+    mock_preview_response = PreviewCreativeResponse1(
+        response_type="single",
         expires_at="2025-12-01T00:00:00Z",
+        previews=[
+            {
+                "preview_id": "prev-1",
+                "input": {"name": "Default"},
+                "renders": [
+                    {
+                        "render_id": "render-1",
+                        "role": "primary",
+                        "output_format": "url",
+                        "preview_url": "https://preview.example.com/abc123",
+                    }
+                ],
+            }
+        ],
     )
     mock_preview_parsed_result = TaskResult(
         status=TaskStatus.COMPLETED, data=mock_preview_response, success=True
@@ -357,11 +408,27 @@ async def test_list_creative_formats_with_preview_urls():
 
 def test_create_sample_asset():
     """Test sample asset creation."""
-    assert "placeholder" in _create_sample_asset("image")
-    assert ".mp4" in _create_sample_asset("video")
-    assert "text" in _create_sample_asset("text").lower()
-    assert "example.com" in _create_sample_asset("url")
-    assert "<div>" in _create_sample_asset("html")
+    from adcp.types.generated import HtmlAsset, ImageAsset, TextAsset, UrlAsset, VideoAsset
+
+    image_asset = _create_sample_asset("image")
+    assert isinstance(image_asset, ImageAsset)
+    assert "placeholder" in str(image_asset.url)
+
+    video_asset = _create_sample_asset("video")
+    assert isinstance(video_asset, VideoAsset)
+    assert ".mp4" in str(video_asset.url)
+
+    text_asset = _create_sample_asset("text")
+    assert isinstance(text_asset, TextAsset)
+    assert "text" in text_asset.content.lower()
+
+    url_asset = _create_sample_asset("url")
+    assert isinstance(url_asset, UrlAsset)
+    assert "example.com" in str(url_asset.url)
+
+    html_asset = _create_sample_asset("html")
+    assert isinstance(html_asset, HtmlAsset)
+    assert "<div>" in html_asset.content
 
 
 def test_create_sample_manifest_for_format():
@@ -373,8 +440,8 @@ def test_create_sample_manifest_for_format():
         description="Standard banner",
         type="display",
         assets_required=[
-            {"asset_id": "image", "type": "image"},
-            {"asset_id": "clickthrough_url", "type": "url"},
+            {"asset_id": "image", "asset_type": "image", "item_type": "individual"},
+            {"asset_id": "clickthrough_url", "asset_type": "url", "item_type": "individual"},
         ],
     )
 

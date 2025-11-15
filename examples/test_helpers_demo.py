@@ -13,7 +13,6 @@ from adcp.testing import (
     create_test_agent,
     test_agent,
     test_agent_a2a,
-    test_agent_a2a_no_auth,
     test_agent_client,
     test_agent_no_auth,
 )
@@ -219,9 +218,7 @@ async def various_operations() -> None:
 
         # List creative formats
         print("2. Listing creative formats...")
-        formats = await test_agent.list_creative_formats(
-            ListCreativeFormatsRequest()
-        )
+        formats = await test_agent.list_creative_formats(ListCreativeFormatsRequest())
         success = "✅" if formats.success else "❌"
         count = len(formats.data.formats) if formats.data else 0
         print(f"   {success} Formats: {count}")

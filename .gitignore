@@ -145,3 +145,6 @@ Thumbs.db
 # Environment variables
 .env
 uv.lock
+
+# Temporary schema processing directory
+.schema_temp/

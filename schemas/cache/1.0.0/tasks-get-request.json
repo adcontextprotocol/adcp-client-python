@@ -1,42 +1,42 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/core/tasks-get-request.json",
-  "title": "Tasks Get Request",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
   "description": "Request parameters for retrieving a specific task by ID with optional conversation history across all AdCP domains",
-  "type": "object",
+  "examples": [
+    {
+      "data": {
+        "task_id": "task_456"
+      },
+      "description": "Check task status"
+    },
+    {
+      "data": {
+        "include_history": true,
+        "task_id": "task_123"
+      },
+      "description": "Get task with full conversation history"
+    }
+  ],
   "properties": {
-    "task_id": {
-      "type": "string",
-      "description": "Unique identifier of the task to retrieve"
+    "context": {
+      "additionalProperties": true,
+      "description": "Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.",
+      "type": "object"
     },
     "include_history": {
-      "type": "boolean",
       "default": false,
-      "description": "Include full conversation history for this task (may increase response size)"
+      "description": "Include full conversation history for this task (may increase response size)",
+      "type": "boolean"
     },
-    "context": {
-      "type": "object",
-      "description": "Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.",
-      "additionalProperties": true
+    "task_id": {
+      "description": "Unique identifier of the task to retrieve",
+      "type": "string"
     }
   },
   "required": [
     "task_id"
   ],
-  "additionalProperties": false,
-  "examples": [
-    {
-      "description": "Check task status",
-      "data": {
-        "task_id": "task_456"
-      }
-    },
-    {
-      "description": "Get task with full conversation history",
-      "data": {
-        "task_id": "task_123",
-        "include_history": true
-      }
-    }
-  ]
+  "title": "Tasks Get Request",
+  "type": "object"
 }

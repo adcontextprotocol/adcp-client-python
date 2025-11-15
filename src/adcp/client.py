@@ -23,6 +23,7 @@ from adcp.types.core import (
     AgentConfig,
     Protocol,
     TaskResult,
+    TaskStatus,
 )
 from adcp.types.generated import (
     ActivateSignalRequest,
@@ -47,6 +48,7 @@ from adcp.types.generated import (
     SyncCreativesResponse,
     WebhookPayload,
 )
+from adcp.types.generated_poc.task_status import TaskStatus as GeneratedTaskStatus
 from adcp.utils.operation_id import create_operation_id
 
 logger = logging.getLogger(__name__)
@@ -624,7 +626,6 @@ class ADCPClient:
         Returns:
             TaskResult with task-specific typed response data
         """
-        from adcp.types.core import TaskStatus
         from adcp.utils.response_parser import parse_json_or_text
 
         # Map task types to their response types (using string literals, not enum)
@@ -643,8 +644,8 @@ class ADCPClient:
 
         # Handle completed tasks with result parsing
 
-        if webhook.status == "completed" and webhook.result is not None:
-            response_type = response_type_map.get(webhook.task_type)
+        if webhook.status == GeneratedTaskStatus.completed and webhook.result is not None:
+            response_type = response_type_map.get(webhook.task_type.value)
             if response_type:
                 try:
                     parsed_result: Any = parse_json_or_text(webhook.result, response_type)
@@ -664,17 +665,21 @@ class ADCPClient:
                     # Fall through to untyped result
 
         # Handle failed, input-required, or unparseable results
-        # Convert webhook status string to TaskStatus enum
-        try:
-            task_status = TaskStatus(webhook.status)
-        except ValueError:
-            # Fallback to FAILED for unknown statuses
-            task_status = TaskStatus.FAILED
+        # Convert webhook status to core TaskStatus enum
+        # Map generated enum values to core enum values
+        status_map = {
+            GeneratedTaskStatus.completed: TaskStatus.COMPLETED,
+            GeneratedTaskStatus.submitted: TaskStatus.SUBMITTED,
+            GeneratedTaskStatus.working: TaskStatus.WORKING,
+            GeneratedTaskStatus.failed: TaskStatus.FAILED,
+            GeneratedTaskStatus.input_required: TaskStatus.NEEDS_INPUT,
+        }
+        task_status = status_map.get(webhook.status, TaskStatus.FAILED)
 
         return TaskResult[Any](
             status=task_status,
             data=webhook.result,
-            success=webhook.status == "completed",
+            success=webhook.status == GeneratedTaskStatus.completed,
             error=webhook.error if isinstance(webhook.error, str) else None,
             metadata={
                 "task_id": webhook.task_id,
@@ -732,7 +737,7 @@ class ADCPClient:
                 type=ActivityType.WEBHOOK_RECEIVED,
                 operation_id=webhook.operation_id or "unknown",
                 agent_id=self.agent_config.id,
-                task_type=webhook.task_type,
+                task_type=webhook.task_type.value,
                 timestamp=datetime.now(timezone.utc).isoformat(),
                 metadata={"payload": payload},
             )

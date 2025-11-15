@@ -1,53 +1,58 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/media-buy/provide-performance-feedback-request.json",
-  "title": "Provide Performance Feedback Request",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
   "description": "Request payload for provide_performance_feedback task",
-  "type": "object",
   "properties": {
-    "media_buy_id": {
-      "type": "string",
-      "description": "Publisher's media buy identifier",
-      "minLength": 1
+    "context": {
+      "additionalProperties": true,
+      "description": "Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.",
+      "type": "object"
+    },
+    "creative_id": {
+      "description": "Specific creative asset (if feedback is creative-specific)",
+      "minLength": 1,
+      "type": "string"
+    },
+    "feedback_source": {
+      "default": "buyer_attribution",
+      "description": "Source of the performance data",
+      "enum": [
+        "buyer_attribution",
+        "third_party_measurement",
+        "platform_analytics",
+        "verification_partner"
+      ],
+      "type": "string"
     },
     "measurement_period": {
-      "type": "object",
+      "additionalProperties": false,
       "description": "Time period for performance measurement",
       "properties": {
-        "start": {
-          "type": "string",
-          "format": "date-time",
-          "description": "ISO 8601 start timestamp for measurement period"
-        },
         "end": {
-          "type": "string",
+          "description": "ISO 8601 end timestamp for measurement period",
           "format": "date-time",
-          "description": "ISO 8601 end timestamp for measurement period"
+          "type": "string"
+        },
+        "start": {
+          "description": "ISO 8601 start timestamp for measurement period",
+          "format": "date-time",
+          "type": "string"
         }
       },
       "required": [
         "start",
         "end"
       ],
-      "additionalProperties": false
+      "type": "object"
     },
-    "performance_index": {
-      "type": "number",
-      "description": "Normalized performance score (0.0 = no value, 1.0 = expected, >1.0 = above expected)",
-      "minimum": 0
-    },
-    "package_id": {
-      "type": "string",
-      "description": "Specific package within the media buy (if feedback is package-specific)",
-      "minLength": 1
-    },
-    "creative_id": {
-      "type": "string",
-      "description": "Specific creative asset (if feedback is creative-specific)",
-      "minLength": 1
+    "media_buy_id": {
+      "description": "Publisher's media buy identifier",
+      "minLength": 1,
+      "type": "string"
     },
     "metric_type": {
-      "type": "string",
+      "default": "overall_performance",
       "description": "The business metric being measured",
       "enum": [
         "overall_performance",
@@ -59,23 +64,17 @@
         "brand_safety",
         "cost_efficiency"
       ],
-      "default": "overall_performance"
+      "type": "string"
     },
-    "feedback_source": {
-      "type": "string",
-      "description": "Source of the performance data",
-      "enum": [
-        "buyer_attribution",
-        "third_party_measurement",
-        "platform_analytics",
-        "verification_partner"
-      ],
-      "default": "buyer_attribution"
+    "package_id": {
+      "description": "Specific package within the media buy (if feedback is package-specific)",
+      "minLength": 1,
+      "type": "string"
     },
-    "context": {
-      "type": "object",
-      "description": "Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.",
-      "additionalProperties": true
+    "performance_index": {
+      "description": "Normalized performance score (0.0 = no value, 1.0 = expected, >1.0 = above expected)",
+      "minimum": 0,
+      "type": "number"
     }
   },
   "required": [
@@ -83,5 +82,6 @@
     "measurement_period",
     "performance_index"
   ],
-  "additionalProperties": false
+  "title": "Provide Performance Feedback Request",
+  "type": "object"
 }

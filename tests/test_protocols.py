@@ -236,7 +236,9 @@ class TestMCPAdapter:
         mock_session = AsyncMock()
         mock_result = MagicMock()
         # Mock MCP error response WITHOUT structuredContent (valid for errors)
-        mock_result.content = [{"type": "text", "text": "brand_manifest must provide brand information"}]
+        mock_result.content = [
+            {"type": "text", "text": "brand_manifest must provide brand information"}
+        ]
         mock_result.structuredContent = None
         mock_result.isError = True
         mock_session.call_tool.return_value = mock_result

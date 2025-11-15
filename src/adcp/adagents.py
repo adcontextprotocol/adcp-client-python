@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 import httpx
 
 from adcp.exceptions import AdagentsNotFoundError, AdagentsTimeoutError, AdagentsValidationError
+from adcp.validation import ValidationError, validate_adagents
 
 
 def _normalize_domain(domain: str) -> str:
@@ -56,9 +57,7 @@ def _validate_publisher_domain(domain: str) -> str:
     suspicious_chars = ["\\", "@", "\n", "\r", "\t"]
     for char in suspicious_chars:
         if char in domain:
-            raise AdagentsValidationError(
-                f"Invalid character in publisher domain: {char!r}"
-            )
+            raise AdagentsValidationError(f"Invalid character in publisher domain: {char!r}")
 
     domain = domain.strip()
 
@@ -70,9 +69,7 @@ def _validate_publisher_domain(domain: str) -> str:
 
     # Check for spaces after stripping leading/trailing whitespace
     if " " in domain:
-        raise AdagentsValidationError(
-            "Invalid character in publisher domain: ' '"
-        )
+        raise AdagentsValidationError("Invalid character in publisher domain: ' '")
 
     # Remove protocol if present (common user error) - do this BEFORE checking for slashes
     if "://" in domain:
@@ -87,9 +84,7 @@ def _validate_publisher_domain(domain: str) -> str:
 
     # Final validation - must look like a domain
     if "." not in domain:
-        raise AdagentsValidationError(
-            f"Publisher domain must contain at least one dot: {domain!r}"
-        )
+        raise AdagentsValidationError(f"Publisher domain must contain at least one dot: {domain!r}")
 
     return domain
 
@@ -359,12 +354,16 @@ async def fetch_adagents(
             raise AdagentsValidationError("adagents.json must be a JSON object")
 
         if "authorized_agents" not in data:
-            raise AdagentsValidationError(
-                "adagents.json must have 'authorized_agents' field"
-            )
+            raise AdagentsValidationError("adagents.json must have 'authorized_agents' field")
 
         if not isinstance(data["authorized_agents"], list):
             raise AdagentsValidationError("'authorized_agents' must be an array")
+
+        # Validate mutual exclusivity constraints
+        try:
+            validate_adagents(data)
+        except ValidationError as e:
+            raise AdagentsValidationError(f"Invalid adagents.json structure: {e}") from e
 
         return data
 

@@ -1,51 +1,50 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/core/media-buy.json",
-  "title": "Media Buy",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
   "description": "Represents a purchased advertising campaign",
-  "type": "object",
   "properties": {
-    "media_buy_id": {
-      "type": "string",
-      "description": "Publisher's unique identifier for the media buy"
-    },
     "buyer_ref": {
-      "type": "string",
-      "description": "Buyer's reference identifier for this media buy"
+      "description": "Buyer's reference identifier for this media buy",
+      "type": "string"
+    },
+    "created_at": {
+      "description": "Creation timestamp",
+      "format": "date-time",
+      "type": "string"
+    },
+    "creative_deadline": {
+      "description": "ISO 8601 timestamp for creative upload deadline",
+      "format": "date-time",
+      "type": "string"
+    },
+    "media_buy_id": {
+      "description": "Publisher's unique identifier for the media buy",
+      "type": "string"
+    },
+    "packages": {
+      "description": "Array of packages within this media buy",
+      "items": {
+        "$ref": "package.json"
+      },
+      "type": "array"
+    },
+    "promoted_offering": {
+      "description": "Description of advertiser and what is being promoted",
+      "type": "string"
     },
     "status": {
       "$ref": "media-buy-status.json"
     },
-    "promoted_offering": {
-      "type": "string",
-      "description": "Description of advertiser and what is being promoted"
-    },
     "total_budget": {
-      "type": "number",
       "description": "Total budget amount",
-      "minimum": 0
-    },
-    "packages": {
-      "type": "array",
-      "description": "Array of packages within this media buy",
-      "items": {
-        "$ref": "package.json"
-      }
-    },
-    "creative_deadline": {
-      "type": "string",
-      "format": "date-time",
-      "description": "ISO 8601 timestamp for creative upload deadline"
-    },
-    "created_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "Creation timestamp"
+      "minimum": 0,
+      "type": "number"
     },
     "updated_at": {
-      "type": "string",
+      "description": "Last update timestamp",
       "format": "date-time",
-      "description": "Last update timestamp"
+      "type": "string"
     }
   },
   "required": [
@@ -55,5 +54,6 @@
     "total_budget",
     "packages"
   ],
-  "additionalProperties": false
+  "title": "Media Buy",
+  "type": "object"
 }

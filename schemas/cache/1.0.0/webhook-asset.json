@@ -1,80 +1,79 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/core/assets/webhook-asset.json",
-  "title": "Webhook Asset",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
   "description": "Webhook for server-side dynamic content rendering (DCO)",
-  "type": "object",
   "properties": {
-    "url": {
-      "type": "string",
-      "format": "uri",
-      "description": "Webhook URL to call for dynamic content"
-    },
     "method": {
-      "type": "string",
+      "default": "POST",
+      "description": "HTTP method",
       "enum": [
         "GET",
         "POST"
       ],
-      "default": "POST",
-      "description": "HTTP method"
-    },
-    "timeout_ms": {
-      "type": "integer",
-      "minimum": 10,
-      "maximum": 5000,
-      "default": 500,
-      "description": "Maximum time to wait for response in milliseconds"
-    },
-    "supported_macros": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "Universal macros that can be passed to webhook (e.g., {DEVICE_TYPE}, {COUNTRY})"
+      "type": "string"
     },
     "required_macros": {
-      "type": "array",
+      "description": "Universal macros that must be provided for webhook to function",
       "items": {
         "type": "string"
       },
-      "description": "Universal macros that must be provided for webhook to function"
+      "type": "array"
     },
     "response_type": {
-      "type": "string",
+      "description": "Expected content type of webhook response",
       "enum": [
         "html",
         "json",
         "xml",
         "javascript"
       ],
-      "description": "Expected content type of webhook response"
+      "type": "string"
     },
     "security": {
-      "type": "object",
       "description": "Security configuration for webhook calls",
       "properties": {
+        "api_key_header": {
+          "description": "Header name for API key (e.g., 'X-API-Key')",
+          "type": "string"
+        },
+        "hmac_header": {
+          "description": "Header name for HMAC signature (e.g., 'X-Signature')",
+          "type": "string"
+        },
         "method": {
-          "type": "string",
+          "description": "Authentication method",
           "enum": [
             "hmac_sha256",
             "api_key",
             "none"
           ],
-          "description": "Authentication method"
-        },
-        "hmac_header": {
-          "type": "string",
-          "description": "Header name for HMAC signature (e.g., 'X-Signature')"
-        },
-        "api_key_header": {
-          "type": "string",
-          "description": "Header name for API key (e.g., 'X-API-Key')"
+          "type": "string"
         }
       },
       "required": [
         "method"
-      ]
+      ],
+      "type": "object"
+    },
+    "supported_macros": {
+      "description": "Universal macros that can be passed to webhook (e.g., {DEVICE_TYPE}, {COUNTRY})",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "timeout_ms": {
+      "default": 500,
+      "description": "Maximum time to wait for response in milliseconds",
+      "maximum": 5000,
+      "minimum": 10,
+      "type": "integer"
+    },
+    "url": {
+      "description": "Webhook URL to call for dynamic content",
+      "format": "uri",
+      "type": "string"
     }
   },
   "required": [
@@ -82,5 +81,6 @@
     "response_type",
     "security"
   ],
-  "additionalProperties": false
+  "title": "Webhook Asset",
+  "type": "object"
 }

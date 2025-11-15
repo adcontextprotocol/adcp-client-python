@@ -1,157 +1,10 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/core/tasks-list-request.json",
-  "title": "Tasks List Request",
-  "description": "Request parameters for listing and filtering async tasks across all AdCP domains with state reconciliation capabilities",
-  "type": "object",
-  "properties": {
-    "filters": {
-      "type": "object",
-      "description": "Filter criteria for querying tasks",
-      "properties": {
-        "domain": {
-          "type": "string",
-          "description": "Filter by single AdCP domain",
-          "enum": [
-            "media-buy",
-            "signals"
-          ]
-        },
-        "domains": {
-          "type": "array",
-          "description": "Filter by multiple AdCP domains",
-          "items": {
-            "type": "string",
-            "enum": [
-              "media-buy",
-              "signals"
-            ]
-          }
-        },
-        "status": {
-          "$ref": "task-status.json",
-          "description": "Filter by single task status"
-        },
-        "statuses": {
-          "type": "array",
-          "description": "Filter by multiple task statuses",
-          "items": {
-            "$ref": "task-status.json"
-          }
-        },
-        "task_type": {
-          "$ref": "task-type.json",
-          "description": "Filter by single task type"
-        },
-        "task_types": {
-          "type": "array",
-          "description": "Filter by multiple task types",
-          "items": {
-            "$ref": "task-type.json"
-          }
-        },
-        "created_after": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Filter tasks created after this date (ISO 8601)"
-        },
-        "created_before": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Filter tasks created before this date (ISO 8601)"
-        },
-        "updated_after": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Filter tasks last updated after this date (ISO 8601)"
-        },
-        "updated_before": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Filter tasks last updated before this date (ISO 8601)"
-        },
-        "task_ids": {
-          "type": "array",
-          "description": "Filter by specific task IDs",
-          "items": {
-            "type": "string"
-          },
-          "maxItems": 100
-        },
-        "context_contains": {
-          "type": "string",
-          "description": "Filter tasks where context contains this text (searches buyer_ref, media_buy_id, signal_id, etc.)"
-        },
-        "has_webhook": {
-          "type": "boolean",
-          "description": "Filter tasks that have webhook configuration when true"
-        }
-      },
-      "additionalProperties": false
-    },
-    "sort": {
-      "type": "object",
-      "description": "Sorting parameters",
-      "properties": {
-        "field": {
-          "type": "string",
-          "enum": [
-            "created_at",
-            "updated_at",
-            "status",
-            "task_type",
-            "domain"
-          ],
-          "default": "created_at",
-          "description": "Field to sort by"
-        },
-        "direction": {
-          "type": "string",
-          "enum": [
-            "asc",
-            "desc"
-          ],
-          "default": "desc",
-          "description": "Sort direction"
-        }
-      },
-      "additionalProperties": false
-    },
-    "pagination": {
-      "type": "object",
-      "description": "Pagination parameters",
-      "properties": {
-        "limit": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 100,
-          "default": 50,
-          "description": "Maximum number of tasks to return"
-        },
-        "offset": {
-          "type": "integer",
-          "minimum": 0,
-          "default": 0,
-          "description": "Number of tasks to skip"
-        }
-      },
-      "additionalProperties": false
-    },
-    "include_history": {
-      "type": "boolean",
-      "default": false,
-      "description": "Include full conversation history for each task (may significantly increase response size)"
-    },
-    "context": {
-      "type": "object",
-      "description": "Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.",
-      "additionalProperties": true
-    }
-  },
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
+  "description": "Request parameters for listing and filtering async tasks across all AdCP domains with state reconciliation capabilities",
   "examples": [
     {
-      "description": "List all pending tasks across domains",
       "data": {
         "filters": {
           "statuses": [
@@ -160,10 +13,10 @@
             "input-required"
           ]
         }
-      }
+      },
+      "description": "List all pending tasks across domains"
     },
     {
-      "description": "Find media-buy tasks requiring attention",
       "data": {
         "filters": {
           "domain": "media-buy",
@@ -173,31 +26,178 @@
           ]
         },
         "sort": {
-          "field": "updated_at",
-          "direction": "asc"
+          "direction": "asc",
+          "field": "updated_at"
         }
-      }
+      },
+      "description": "Find media-buy tasks requiring attention"
     },
     {
-      "description": "Recent signal operations",
       "data": {
         "filters": {
-          "domain": "signals",
-          "created_after": "2025-01-01T00:00:00Z"
+          "created_after": "2025-01-01T00:00:00Z",
+          "domain": "signals"
         },
         "pagination": {
           "limit": 20
         }
-      }
+      },
+      "description": "Recent signal operations"
     },
     {
-      "description": "State reconciliation for specific campaign",
       "data": {
         "filters": {
           "context_contains": "nike_q1_2025"
         },
         "include_history": true
-      }
+      },
+      "description": "State reconciliation for specific campaign"
     }
-  ]
+  ],
+  "properties": {
+    "context": {
+      "additionalProperties": true,
+      "description": "Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.",
+      "type": "object"
+    },
+    "filters": {
+      "additionalProperties": false,
+      "description": "Filter criteria for querying tasks",
+      "properties": {
+        "context_contains": {
+          "description": "Filter tasks where context contains this text (searches buyer_ref, media_buy_id, signal_id, etc.)",
+          "type": "string"
+        },
+        "created_after": {
+          "description": "Filter tasks created after this date (ISO 8601)",
+          "format": "date-time",
+          "type": "string"
+        },
+        "created_before": {
+          "description": "Filter tasks created before this date (ISO 8601)",
+          "format": "date-time",
+          "type": "string"
+        },
+        "domain": {
+          "description": "Filter by single AdCP domain",
+          "enum": [
+            "media-buy",
+            "signals"
+          ],
+          "type": "string"
+        },
+        "domains": {
+          "description": "Filter by multiple AdCP domains",
+          "items": {
+            "enum": [
+              "media-buy",
+              "signals"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "has_webhook": {
+          "description": "Filter tasks that have webhook configuration when true",
+          "type": "boolean"
+        },
+        "status": {
+          "$ref": "task-status.json",
+          "description": "Filter by single task status"
+        },
+        "statuses": {
+          "description": "Filter by multiple task statuses",
+          "items": {
+            "$ref": "task-status.json"
+          },
+          "type": "array"
+        },
+        "task_ids": {
+          "description": "Filter by specific task IDs",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 100,
+          "type": "array"
+        },
+        "task_type": {
+          "$ref": "task-type.json",
+          "description": "Filter by single task type"
+        },
+        "task_types": {
+          "description": "Filter by multiple task types",
+          "items": {
+            "$ref": "task-type.json"
+          },
+          "type": "array"
+        },
+        "updated_after": {
+          "description": "Filter tasks last updated after this date (ISO 8601)",
+          "format": "date-time",
+          "type": "string"
+        },
+        "updated_before": {
+          "description": "Filter tasks last updated before this date (ISO 8601)",
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "include_history": {
+      "default": false,
+      "description": "Include full conversation history for each task (may significantly increase response size)",
+      "type": "boolean"
+    },
+    "pagination": {
+      "additionalProperties": false,
+      "description": "Pagination parameters",
+      "properties": {
+        "limit": {
+          "default": 50,
+          "description": "Maximum number of tasks to return",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "description": "Number of tasks to skip",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "sort": {
+      "additionalProperties": false,
+      "description": "Sorting parameters",
+      "properties": {
+        "direction": {
+          "default": "desc",
+          "description": "Sort direction",
+          "enum": [
+            "asc",
+            "desc"
+          ],
+          "type": "string"
+        },
+        "field": {
+          "default": "created_at",
+          "description": "Field to sort by",
+          "enum": [
+            "created_at",
+            "updated_at",
+            "status",
+            "task_type",
+            "domain"
+          ],
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "title": "Tasks List Request",
+  "type": "object"
 }

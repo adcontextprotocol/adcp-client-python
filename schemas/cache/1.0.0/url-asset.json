@@ -1,31 +1,31 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/core/assets/url-asset.json",
-  "title": "URL Asset",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
   "description": "URL reference asset",
-  "type": "object",
   "properties": {
+    "description": {
+      "description": "Description of what this URL points to",
+      "type": "string"
+    },
     "url": {
-      "type": "string",
+      "description": "URL reference",
       "format": "uri",
-      "description": "URL reference"
+      "type": "string"
     },
     "url_type": {
-      "type": "string",
+      "description": "Type of URL asset: 'clickthrough' for user click destination (landing page), 'tracker_pixel' for impression/event tracking via HTTP request (fires GET, expects pixel/204 response), 'tracker_script' for measurement SDKs that must load as <script> tag (OMID verification, native event trackers using method:2)",
       "enum": [
         "clickthrough",
         "tracker_pixel",
         "tracker_script"
       ],
-      "description": "Type of URL asset: 'clickthrough' for user click destination (landing page), 'tracker_pixel' for impression/event tracking via HTTP request (fires GET, expects pixel/204 response), 'tracker_script' for measurement SDKs that must load as <script> tag (OMID verification, native event trackers using method:2)"
-    },
-    "description": {
-      "type": "string",
-      "description": "Description of what this URL points to"
+      "type": "string"
     }
   },
   "required": [
     "url"
   ],
-  "additionalProperties": false
+  "title": "URL Asset",
+  "type": "object"
 }

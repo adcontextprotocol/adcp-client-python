@@ -1,61 +1,61 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/media-buy/build-creative-response.json",
-  "title": "Build Creative Response",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Response containing the transformed or generated creative manifest, ready for use with preview_creative or sync_creatives. Returns either the complete creative manifest OR error information, never both.",
-  "type": "object",
   "oneOf": [
     {
+      "additionalProperties": false,
       "description": "Success response - creative manifest generated successfully",
-      "type": "object",
+      "not": {
+        "required": [
+          "errors"
+        ]
+      },
       "properties": {
+        "context": {
+          "additionalProperties": true,
+          "description": "Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.",
+          "type": "object"
+        },
         "creative_manifest": {
           "$ref": "creative-manifest.json",
           "description": "The generated or transformed creative manifest"
-        },
-        "context": {
-          "type": "object",
-          "description": "Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.",
-          "additionalProperties": true
         }
       },
       "required": [
         "creative_manifest"
       ],
-      "additionalProperties": false,
-      "not": {
-        "required": [
-          "errors"
-        ]
-      }
+      "type": "object"
     },
     {
+      "additionalProperties": false,
       "description": "Error response - creative generation failed",
-      "type": "object",
+      "not": {
+        "required": [
+          "creative_manifest"
+        ]
+      },
       "properties": {
+        "context": {
+          "additionalProperties": true,
+          "description": "Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.",
+          "type": "object"
+        },
         "errors": {
-          "type": "array",
           "description": "Array of errors explaining why creative generation failed",
           "items": {
             "$ref": "error.json"
           },
-          "minItems": 1
-        },
-        "context": {
-          "type": "object",
-          "description": "Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.",
-          "additionalProperties": true
+          "minItems": 1,
+          "type": "array"
         }
       },
       "required": [
         "errors"
       ],
-      "additionalProperties": false,
-      "not": {
-        "required": [
-          "creative_manifest"
-        ]
-      }
+      "type": "object"
     }
-  ]
+  ],
+  "title": "Build Creative Response",
+  "type": "object"
 }

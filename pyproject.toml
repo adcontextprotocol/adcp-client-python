@@ -44,6 +44,8 @@ dev = [
     "mypy>=1.0.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
+    "datamodel-code-generator[http]>=0.35.0",
+    "email-validator>=2.0.0",
 ]
 
 [project.urls]
@@ -63,7 +65,11 @@ extend-exclude = "/(generated|tasks)\\.py$"
 [tool.ruff]
 line-length = 100
 target-version = "py310"
-extend-exclude = ["src/adcp/types/generated.py", "src/adcp/types/tasks.py"]
+extend-exclude = [
+    "src/adcp/types/generated.py",
+    "src/adcp/types/tasks.py",
+    "src/adcp/types/generated_poc/",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
@@ -86,3 +92,9 @@ ignore_errors = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+
+[dependency-groups]
+dev = [
+    "datamodel-code-generator>=0.35.0",
+    "pre-commit>=4.4.0",
+]

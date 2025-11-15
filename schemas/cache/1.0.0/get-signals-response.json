@@ -1,74 +1,84 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/signals/get-signals-response.json",
-  "title": "Get Signals Response",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
   "description": "Response payload for get_signals task",
-  "type": "object",
   "properties": {
+    "context": {
+      "additionalProperties": true,
+      "description": "Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.",
+      "type": "object"
+    },
+    "errors": {
+      "description": "Task-specific errors and warnings (e.g., signal discovery or pricing issues)",
+      "items": {
+        "$ref": "error.json"
+      },
+      "type": "array"
+    },
     "signals": {
-      "type": "array",
       "description": "Array of matching signals",
       "items": {
-        "type": "object",
+        "additionalProperties": false,
         "properties": {
-          "signal_agent_segment_id": {
-            "type": "string",
-            "description": "Unique identifier for the signal"
-          },
-          "name": {
-            "type": "string",
-            "description": "Human-readable signal name"
-          },
-          "description": {
-            "type": "string",
-            "description": "Detailed signal description"
-          },
-          "signal_type": {
-            "type": "string",
-            "description": "Type of signal",
-            "enum": [
-              "marketplace",
-              "custom",
-              "owned"
-            ]
+          "coverage_percentage": {
+            "description": "Percentage of audience coverage",
+            "maximum": 100,
+            "minimum": 0,
+            "type": "number"
           },
           "data_provider": {
-            "type": "string",
-            "description": "Name of the data provider"
-          },
-          "coverage_percentage": {
-            "type": "number",
-            "description": "Percentage of audience coverage",
-            "minimum": 0,
-            "maximum": 100
+            "description": "Name of the data provider",
+            "type": "string"
           },
           "deployments": {
-            "type": "array",
             "description": "Array of destination deployments",
             "items": {
               "$ref": "deployment.json"
-            }
+            },
+            "type": "array"
+          },
+          "description": {
+            "description": "Detailed signal description",
+            "type": "string"
+          },
+          "name": {
+            "description": "Human-readable signal name",
+            "type": "string"
           },
           "pricing": {
-            "type": "object",
+            "additionalProperties": false,
             "description": "Pricing information",
             "properties": {
               "cpm": {
-                "type": "number",
                 "description": "Cost per thousand impressions",
-                "minimum": 0
+                "minimum": 0,
+                "type": "number"
               },
               "currency": {
-                "type": "string",
                 "description": "Currency code",
-                "pattern": "^[A-Z]{3}$"
+                "pattern": "^[A-Z]{3}$",
+                "type": "string"
               }
             },
             "required": [
               "cpm",
               "currency"
             ],
-            "additionalProperties": false
+            "type": "object"
+          },
+          "signal_agent_segment_id": {
+            "description": "Unique identifier for the signal",
+            "type": "string"
+          },
+          "signal_type": {
+            "description": "Type of signal",
+            "enum": [
+              "marketplace",
+              "custom",
+              "owned"
+            ],
+            "type": "string"
           }
         },
         "required": [
@@ -81,24 +91,14 @@
           "deployments",
           "pricing"
         ],
-        "additionalProperties": false
-      }
-    },
-    "errors": {
-      "type": "array",
-      "description": "Task-specific errors and warnings (e.g., signal discovery or pricing issues)",
-      "items": {
-        "$ref": "error.json"
-      }
-    },
-    "context": {
-      "type": "object",
-      "description": "Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.",
-      "additionalProperties": true
+        "type": "object"
+      },
+      "type": "array"
     }
   },
   "required": [
     "signals"
   ],
-  "additionalProperties": false
+  "title": "Get Signals Response",
+  "type": "object"
 }

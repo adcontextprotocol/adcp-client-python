@@ -1,31 +1,30 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/core/creative-policy.json",
-  "title": "Creative Policy",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
   "description": "Creative requirements and restrictions for a product",
-  "type": "object",
   "properties": {
     "co_branding": {
-      "type": "string",
       "description": "Co-branding requirement",
       "enum": [
         "required",
         "optional",
         "none"
-      ]
+      ],
+      "type": "string"
     },
     "landing_page": {
-      "type": "string",
       "description": "Landing page requirements",
       "enum": [
         "any",
         "retailer_site_only",
         "must_include_retailer"
-      ]
+      ],
+      "type": "string"
     },
     "templates_available": {
-      "type": "boolean",
-      "description": "Whether creative templates are provided"
+      "description": "Whether creative templates are provided",
+      "type": "boolean"
     }
   },
   "required": [
@@ -33,5 +32,6 @@
     "landing_page",
     "templates_available"
   ],
-  "additionalProperties": false
+  "title": "Creative Policy",
+  "type": "object"
 }

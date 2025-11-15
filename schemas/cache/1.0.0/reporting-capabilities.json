@@ -1,66 +1,11 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/core/reporting-capabilities.json",
-  "title": "Reporting Capabilities",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
   "description": "Reporting capabilities available for a product",
-  "type": "object",
   "properties": {
-    "available_reporting_frequencies": {
-      "type": "array",
-      "description": "Supported reporting frequency options",
-      "items": {
-        "type": "string",
-        "enum": [
-          "hourly",
-          "daily",
-          "monthly"
-        ]
-      },
-      "minItems": 1,
-      "uniqueItems": true
-    },
-    "expected_delay_minutes": {
-      "type": "integer",
-      "description": "Expected delay in minutes before reporting data becomes available (e.g., 240 for 4-hour delay)",
-      "minimum": 0,
-      "examples": [
-        240,
-        300,
-        1440
-      ]
-    },
-    "timezone": {
-      "type": "string",
-      "description": "Timezone for reporting periods. Use 'UTC' or IANA timezone (e.g., 'America/New_York'). Critical for daily/monthly frequency alignment.",
-      "examples": [
-        "UTC",
-        "America/New_York",
-        "Europe/London",
-        "America/Los_Angeles"
-      ]
-    },
-    "supports_webhooks": {
-      "type": "boolean",
-      "description": "Whether this product supports webhook-based reporting notifications"
-    },
     "available_metrics": {
-      "type": "array",
       "description": "Metrics available in reporting. Impressions and spend are always implicitly included.",
-      "items": {
-        "type": "string",
-        "enum": [
-          "impressions",
-          "spend",
-          "clicks",
-          "ctr",
-          "video_completions",
-          "completion_rate",
-          "conversions",
-          "viewability",
-          "engagement_rate"
-        ]
-      },
-      "uniqueItems": true,
       "examples": [
         [
           "impressions",
@@ -73,7 +18,61 @@
           "spend",
           "conversions"
         ]
-      ]
+      ],
+      "items": {
+        "enum": [
+          "impressions",
+          "spend",
+          "clicks",
+          "ctr",
+          "video_completions",
+          "completion_rate",
+          "conversions",
+          "viewability",
+          "engagement_rate"
+        ],
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "available_reporting_frequencies": {
+      "description": "Supported reporting frequency options",
+      "items": {
+        "enum": [
+          "hourly",
+          "daily",
+          "monthly"
+        ],
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "expected_delay_minutes": {
+      "description": "Expected delay in minutes before reporting data becomes available (e.g., 240 for 4-hour delay)",
+      "examples": [
+        240,
+        300,
+        1440
+      ],
+      "minimum": 0,
+      "type": "integer"
+    },
+    "supports_webhooks": {
+      "description": "Whether this product supports webhook-based reporting notifications",
+      "type": "boolean"
+    },
+    "timezone": {
+      "description": "Timezone for reporting periods. Use 'UTC' or IANA timezone (e.g., 'America/New_York'). Critical for daily/monthly frequency alignment.",
+      "examples": [
+        "UTC",
+        "America/New_York",
+        "Europe/London",
+        "America/Los_Angeles"
+      ],
+      "type": "string"
     }
   },
   "required": [
@@ -83,5 +82,6 @@
     "supports_webhooks",
     "available_metrics"
   ],
-  "additionalProperties": false
+  "title": "Reporting Capabilities",
+  "type": "object"
 }
