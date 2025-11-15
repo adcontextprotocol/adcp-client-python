@@ -45,8 +45,13 @@ def add_model_validator_to_product():
         publisher_property_pattern = r"(class PublisherProperty\(AdCPBaseModel\):.*?)\n\nclass Product\(AdCPBaseModel\):"
         match = re.search(publisher_property_pattern, content, re.DOTALL)
 
-        if match:
-            validator_code = '''
+        if not match:
+            raise RuntimeError(
+                "Could not find PublisherProperty class definition. "
+                "Schema may have changed - update post_generate_fixes.py"
+            )
+
+        validator_code = '''
 
     @model_validator(mode='after')
     def validate_mutual_exclusivity(self) -> 'PublisherProperty':
@@ -58,21 +63,31 @@ def add_model_validator_to_product():
         validate_publisher_properties_item(data)
         return self
 '''
-            # Insert validator at end of PublisherProperty class
-            content = content.replace(
-                match.group(0),
-                match.group(1) + validator_code + "\n\nclass Product(AdCPBaseModel):"
-            )
+        # Insert validator at end of PublisherProperty class
+        content = content.replace(
+            match.group(0),
+            match.group(1) + validator_code + "\n\nclass Product(AdCPBaseModel):"
+        )
+
+        # Verify it was added
+        if "validate_mutual_exclusivity" not in content:
+            raise RuntimeError("Failed to add validate_mutual_exclusivity to PublisherProperty")
 
     # Add validator to Product class
     if "validate_publisher_properties_items" not in content:
-        # Find the Product class - match the last field and add validator after it
-        # reporting_capabilities is the last field in Product
-        product_pattern = r"(class Product\(AdCPBaseModel\):.*?reporting_capabilities: reporting_capabilities_1\.ReportingCapabilities \| None = None)\n"
+        # Find the Product class and its last field definition
+        # Look for the last field before either a blank line, validator, or end of file
+        # This is more robust than looking for a specific field name
+        product_pattern = r"(class Product\(AdCPBaseModel\):.*?)(\n\n|\n    @model_validator|\Z)"
         match = re.search(product_pattern, content, re.DOTALL)
 
-        if match:
-            validator_code = '''
+        if not match:
+            raise RuntimeError(
+                "Could not find Product class definition. "
+                "Schema may have changed - update post_generate_fixes.py"
+            )
+
+        validator_code = '''
 
     @model_validator(mode='after')
     def validate_publisher_properties_items(self) -> 'Product':
@@ -90,7 +105,13 @@ def add_model_validator_to_product():
         validate_product(data)
         return self
 '''
-            content = content.replace(match.group(0), match.group(1) + validator_code + "\n")
+        # Insert validator before the matched separator
+        separator = match.group(2)
+        content = content.replace(match.group(0), match.group(1) + validator_code + separator)
+
+        # Verify it was added
+        if "validate_publisher_properties_items" not in content:
+            raise RuntimeError("Failed to add validate_publisher_properties_items to Product")
 
     with open(product_file, "w") as f:
         f.write(content)
