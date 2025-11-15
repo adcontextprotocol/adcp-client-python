@@ -59,9 +59,7 @@ from adcp.validation import (
 
 # Import all generated types - users can import what they need from adcp.types.generated
 from adcp.types import generated
-from adcp.types.generated import (
-    TaskStatus as GeneratedTaskStatus,
-)
+from adcp.types.generated import TaskStatus as GeneratedTaskStatus
 
 __version__ = "2.0.0"
 

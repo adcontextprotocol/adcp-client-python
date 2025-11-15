@@ -118,9 +118,11 @@ def validate_agent_authorization(agent: dict[str, Any]) -> None:
             authorization_type == "publisher_properties"
             and "publisher_properties" not in present_fields
         ):
-            raise ValidationError(
-                "Agent with authorization_type='publisher_properties' must have publisher_properties"
+            msg = (
+                "Agent with authorization_type='publisher_properties' "
+                "must have publisher_properties"
             )
+            raise ValidationError(msg)
         elif authorization_type not in (
             "property_ids",
             "property_tags",

@@ -85,9 +85,11 @@ class PreviewURLGenerator:
                 first_render = preview.renders[0] if preview.renders else None
 
                 if first_render:
+                    has_url = hasattr(first_render, "preview_url")
+                    preview_url = str(first_render.preview_url) if has_url else None
                     preview_data = {
                         "preview_id": preview.preview_id,
-                        "preview_url": str(first_render.preview_url) if hasattr(first_render, "preview_url") else None,
+                        "preview_url": preview_url,
                         "preview_html": getattr(first_render, "preview_html", None),
                         "render_id": first_render.render_id,
                         "input": preview.input.model_dump(),
@@ -413,7 +415,8 @@ def _create_sample_manifest_for_format(fmt: Format) -> CreativeManifest | None:
         else:
             # Handle Pydantic model
             asset_id = asset.asset_id
-            asset_type = asset.asset_type.value if hasattr(asset.asset_type, 'value') else str(asset.asset_type)
+            has_value = hasattr(asset.asset_type, 'value')
+            asset_type = asset.asset_type.value if has_value else str(asset.asset_type)
             assets[asset_id] = _create_sample_asset(asset_type)
 
     if not assets:
