@@ -384,30 +384,14 @@ def validate_imports(output_file: Path) -> tuple[bool, str]:
 
 def fix_format_types(code: str) -> str:
     """
-    Replace dict[str, Any] with proper types in Format class.
+    No longer needed - formats now use proper schema references.
 
-    The Format schema has inline oneOf definitions for renders and assets_required
-    that the generator turns into dict[str, Any]. We fix them to use the proper
-    custom types defined in add_custom_implementations.
+    This function is kept for backwards compatibility but does nothing.
+    The inline schemas have been extracted to separate .json files:
+    - dimensions.json
+    - render.json
+    - asset-required.json
     """
-    # Fix renders field in Format class
-    code = code.replace(
-        'renders: list[dict[str, Any]] | None = Field(None, description="Specification of rendered pieces',
-        'renders: list[Render] | None = Field(None, description="Specification of rendered pieces'
-    )
-
-    # Fix assets_required field in Format class
-    code = code.replace(
-        'assets_required: list[Any] | None = Field(None, description="Array of required assets',
-        'assets_required: list[AssetRequired] | None = Field(None, description="Array of required assets'
-    )
-
-    # Fix dimensions in preview render classes
-    code = code.replace(
-        'dimensions: dict[str, Any] | None = Field(None, description="Dimensions for this rendered piece")',
-        'dimensions: Dimensions | None = Field(None, description="Dimensions for this rendered piece")'
-    )
-
     return code
 
 
@@ -467,72 +451,6 @@ def add_custom_implementations(code: str) -> str:
 # for complex schemas that use oneOf. We override them with proper Pydantic classes
 # to maintain type safety and enable batch API support.
 # Note: All classes inherit from BaseModel (which is aliased to AdCPBaseModel for exclude_none).
-
-
-class ResponsiveDimension(BaseModel):
-    """Indicates which dimensions are responsive/fluid"""
-
-    width: bool = Field(description="Whether width is responsive")
-    height: bool = Field(description="Whether height is responsive")
-
-
-class Dimensions(BaseModel):
-    """Dimensions for rendered pieces with support for fixed and responsive sizing"""
-
-    width: float | None = Field(None, ge=0, description="Fixed width in specified units")
-    height: float | None = Field(None, ge=0, description="Fixed height in specified units")
-    min_width: float | None = Field(None, ge=0, description="Minimum width for responsive renders")
-    min_height: float | None = Field(None, ge=0, description="Minimum height for responsive renders")
-    max_width: float | None = Field(None, ge=0, description="Maximum width for responsive renders")
-    max_height: float | None = Field(None, ge=0, description="Maximum height for responsive renders")
-    responsive: ResponsiveDimension | None = Field(None, description="Indicates which dimensions are responsive/fluid")
-    aspect_ratio: str | None = Field(None, description="Fixed aspect ratio constraint (e.g., '16:9', '4:3', '1:1')", pattern=r"^\d+:\d+$")
-    unit: Literal["px", "dp", "inches", "cm"] = Field(default="px", description="Unit of measurement for dimensions")
-
-
-class Render(BaseModel):
-    """Specification of a rendered piece for a format"""
-
-    role: str = Field(description="Semantic role of this rendered piece (e.g., 'primary', 'companion', 'mobile_variant')")
-    dimensions: Dimensions = Field(description="Dimensions for this rendered piece")
-
-
-class IndividualAssetRequired(BaseModel):
-    """Individual asset requirement"""
-
-    model_config = ConfigDict(extra="forbid")
-
-    asset_id: str = Field(description="Unique identifier for this asset. Creative manifests MUST use this exact value as the key in the assets object.")
-    asset_type: Literal["image", "video", "audio", "vast", "daast", "text", "markdown", "html", "css", "javascript", "url", "webhook", "promoted_offerings"] = Field(description="Type of asset")
-    asset_role: str | None = Field(None, description="Optional descriptive label for this asset's purpose (e.g., 'hero_image', 'logo'). Not used for referencing assets in manifests—use asset_id instead. This field is for human-readable documentation and UI display only.")
-    required: bool | None = Field(None, description="Whether this asset is required")
-    requirements: dict[str, Any] | None = Field(None, description="Technical requirements for this asset (dimensions, file size, duration, etc.)")
-
-
-class RepeatableAssetInGroup(BaseModel):
-    """Asset within a repeatable group"""
-
-    asset_id: str = Field(description="Identifier for this asset within the group")
-    asset_type: Literal["image", "video", "audio", "vast", "daast", "text", "markdown", "html", "css", "javascript", "url", "webhook", "promoted_offerings"] = Field(description="Type of asset")
-    asset_role: str | None = Field(None, description="Optional descriptive label for this asset's purpose (e.g., 'hero_image', 'logo'). Not used for referencing assets in manifests—use asset_id instead. This field is for human-readable documentation and UI display only.")
-    required: bool | None = Field(None, description="Whether this asset is required in each repetition")
-    requirements: dict[str, Any] | None = Field(None, description="Technical requirements for this asset")
-
-
-class RepeatableAssetGroup(BaseModel):
-    """Repeatable asset group (for carousels, slideshows, playlists, etc.)"""
-
-    model_config = ConfigDict(extra="forbid")
-
-    asset_group_id: str = Field(description="Identifier for this asset group (e.g., 'product', 'slide', 'card')")
-    repeatable: Literal[True] = Field(description="Indicates this is a repeatable asset group")
-    min_count: int = Field(ge=1, description="Minimum number of repetitions required")
-    max_count: int = Field(ge=1, description="Maximum number of repetitions allowed")
-    assets: list[RepeatableAssetInGroup] = Field(description="Assets within each repetition of this group")
-
-
-# Union type for Asset Required
-AssetRequired = IndividualAssetRequired | RepeatableAssetGroup
 
 
 class FormatId(BaseModel):
@@ -687,6 +605,9 @@ def main():
     # Core domain types that are referenced by task schemas
     core_types = [
         "format-id.json",  # Must come before format.json (which references it)
+        "dimensions.json",  # Must come before render.json and format.json
+        "render.json",  # Must come before format.json
+        "asset-required.json",  # Must come before format.json
         "product.json",
         "media-buy.json",
         "package.json",

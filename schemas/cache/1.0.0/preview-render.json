@@ -26,22 +26,8 @@
           "description": "Semantic role of this rendered piece. Use 'primary' for main content, 'companion' for associated banners, descriptive strings for device variants or custom roles."
         },
         "dimensions": {
-          "type": "object",
-          "description": "Dimensions for this rendered piece",
-          "properties": {
-            "width": {
-              "type": "number",
-              "minimum": 0
-            },
-            "height": {
-              "type": "number",
-              "minimum": 0
-            }
-          },
-          "required": [
-            "width",
-            "height"
-          ]
+          "$ref": "dimensions.json",
+          "description": "Dimensions for this rendered piece"
         },
         "embedding": {
           "type": "object",
@@ -95,22 +81,8 @@
           "description": "Semantic role of this rendered piece. Use 'primary' for main content, 'companion' for associated banners, descriptive strings for device variants or custom roles."
         },
         "dimensions": {
-          "type": "object",
-          "description": "Dimensions for this rendered piece",
-          "properties": {
-            "width": {
-              "type": "number",
-              "minimum": 0
-            },
-            "height": {
-              "type": "number",
-              "minimum": 0
-            }
-          },
-          "required": [
-            "width",
-            "height"
-          ]
+          "$ref": "dimensions.json",
+          "description": "Dimensions for this rendered piece"
         },
         "embedding": {
           "type": "object",
@@ -169,22 +141,8 @@
           "description": "Semantic role of this rendered piece. Use 'primary' for main content, 'companion' for associated banners, descriptive strings for device variants or custom roles."
         },
         "dimensions": {
-          "type": "object",
-          "description": "Dimensions for this rendered piece",
-          "properties": {
-            "width": {
-              "type": "number",
-              "minimum": 0
-            },
-            "height": {
-              "type": "number",
-              "minimum": 0
-            }
-          },
-          "required": [
-            "width",
-            "height"
-          ]
+          "$ref": "dimensions.json",
+          "description": "Dimensions for this rendered piece"
         },
         "embedding": {
           "type": "object",

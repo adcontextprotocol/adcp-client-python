@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/v1/core/dimensions.json",
+  "title": "Dimensions",
+  "description": "Dimensions for rendered pieces with support for fixed and responsive sizing",
+  "type": "object",
+  "properties": {
+    "width": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Fixed width in specified units"
+    },
+    "height": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Fixed height in specified units"
+    },
+    "min_width": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Minimum width for responsive renders"
+    },
+    "min_height": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Minimum height for responsive renders"
+    },
+    "max_width": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Maximum width for responsive renders"
+    },
+    "max_height": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Maximum height for responsive renders"
+    },
+    "responsive": {
+      "type": "object",
+      "description": "Indicates which dimensions are responsive/fluid",
+      "properties": {
+        "width": {
+          "type": "boolean"
+        },
+        "height": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "width",
+        "height"
+      ]
+    },
+    "aspect_ratio": {
+      "type": "string",
+      "description": "Fixed aspect ratio constraint (e.g., '16:9', '4:3', '1:1')",
+      "pattern": "^\\d+:\\d+$"
+    },
+    "unit": {
+      "type": "string",
+      "enum": [
+        "px",
+        "dp",
+        "inches",
+        "cm"
+      ],
+      "default": "px",
+      "description": "Unit of measurement for dimensions"
+    }
+  },
+  "required": [
+    "unit"
+  ]
+}

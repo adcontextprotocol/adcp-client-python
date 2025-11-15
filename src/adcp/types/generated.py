@@ -24,6 +24,57 @@ from adcp.types.base import AdCPBaseModel as BaseModel
 # CORE DOMAIN TYPES
 # ============================================================================
 
+class Dimensions(BaseModel):
+    """Dimensions for rendered pieces with support for fixed and responsive sizing"""
+
+    width: float | None = Field(None, description="Fixed width in specified units")
+    height: float | None = Field(None, description="Fixed height in specified units")
+    min_width: float | None = Field(None, description="Minimum width for responsive renders")
+    min_height: float | None = Field(None, description="Minimum height for responsive renders")
+    max_width: float | None = Field(None, description="Maximum width for responsive renders")
+    max_height: float | None = Field(None, description="Maximum height for responsive renders")
+    responsive: dict[str, Any] | None = Field(None, description="Indicates which dimensions are responsive/fluid")
+    aspect_ratio: str | None = Field(None, description="Fixed aspect ratio constraint (e.g., '16:9', '4:3', '1:1')")
+    unit: Literal["px", "dp", "inches", "cm"] = Field(description="Unit of measurement for dimensions")
+
+
+class Render(BaseModel):
+    """Specification of a rendered piece for a format"""
+
+    role: str = Field(description="Semantic role of this rendered piece (e.g., 'primary', 'companion', 'mobile_variant')")
+    dimensions: Dimensions = Field(description="Dimensions for this rendered piece")
+
+
+# Asset requirement for a format - either an individual asset or a repeatable asset group
+
+class AssetRequiredVariant1(BaseModel):
+    """Individual asset requirement"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    asset_id: str = Field(description="Unique identifier for this asset. Creative manifests MUST use this exact value as the key in the assets object.")
+    asset_type: Literal["image", "video", "audio", "vast", "daast", "text", "markdown", "html", "css", "javascript", "url", "webhook", "promoted_offerings"] = Field(description="Type of asset")
+    asset_role: str | None = Field(None, description="Optional descriptive label for this asset's purpose (e.g., 'hero_image', 'logo'). Not used for referencing assets in manifests—use asset_id instead. This field is for human-readable documentation and UI display only.")
+    required: bool | None = Field(None, description="Whether this asset is required")
+    requirements: dict[str, Any] | None = Field(None, description="Technical requirements for this asset (dimensions, file size, duration, etc.)")
+
+
+class AssetRequiredVariant2(BaseModel):
+    """Repeatable asset group (for carousels, slideshows, playlists, etc.)"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    asset_group_id: str = Field(description="Identifier for this asset group (e.g., 'product', 'slide', 'card')")
+    repeatable: bool = Field(description="Indicates this is a repeatable asset group")
+    min_count: int = Field(description="Minimum number of repetitions required")
+    max_count: int = Field(description="Maximum number of repetitions allowed")
+    assets: list[dict[str, Any]] = Field(description="Assets within each repetition of this group")
+
+
+# Union type for AssetRequired
+AssetRequired = AssetRequiredVariant1 | AssetRequiredVariant2
+
+
 class Product(BaseModel):
     """Represents available advertising inventory"""
 
@@ -950,72 +1001,6 @@ class TasksListResponse(BaseModel):
 # Note: All classes inherit from BaseModel (which is aliased to AdCPBaseModel for exclude_none).
 
 
-class ResponsiveDimension(BaseModel):
-    """Indicates which dimensions are responsive/fluid"""
-
-    width: bool = Field(description="Whether width is responsive")
-    height: bool = Field(description="Whether height is responsive")
-
-
-class Dimensions(BaseModel):
-    """Dimensions for rendered pieces with support for fixed and responsive sizing"""
-
-    width: float | None = Field(None, ge=0, description="Fixed width in specified units")
-    height: float | None = Field(None, ge=0, description="Fixed height in specified units")
-    min_width: float | None = Field(None, ge=0, description="Minimum width for responsive renders")
-    min_height: float | None = Field(None, ge=0, description="Minimum height for responsive renders")
-    max_width: float | None = Field(None, ge=0, description="Maximum width for responsive renders")
-    max_height: float | None = Field(None, ge=0, description="Maximum height for responsive renders")
-    responsive: ResponsiveDimension | None = Field(None, description="Indicates which dimensions are responsive/fluid")
-    aspect_ratio: str | None = Field(None, description="Fixed aspect ratio constraint (e.g., '16:9', '4:3', '1:1')", pattern=r"^\d+:\d+$")
-    unit: Literal["px", "dp", "inches", "cm"] = Field(default="px", description="Unit of measurement for dimensions")
-
-
-class Render(BaseModel):
-    """Specification of a rendered piece for a format"""
-
-    role: str = Field(description="Semantic role of this rendered piece (e.g., 'primary', 'companion', 'mobile_variant')")
-    dimensions: Dimensions = Field(description="Dimensions for this rendered piece")
-
-
-class IndividualAssetRequired(BaseModel):
-    """Individual asset requirement"""
-
-    model_config = ConfigDict(extra="forbid")
-
-    asset_id: str = Field(description="Unique identifier for this asset. Creative manifests MUST use this exact value as the key in the assets object.")
-    asset_type: Literal["image", "video", "audio", "vast", "daast", "text", "markdown", "html", "css", "javascript", "url", "webhook", "promoted_offerings"] = Field(description="Type of asset")
-    asset_role: str | None = Field(None, description="Optional descriptive label for this asset's purpose (e.g., 'hero_image', 'logo'). Not used for referencing assets in manifests—use asset_id instead. This field is for human-readable documentation and UI display only.")
-    required: bool | None = Field(None, description="Whether this asset is required")
-    requirements: dict[str, Any] | None = Field(None, description="Technical requirements for this asset (dimensions, file size, duration, etc.)")
-
-
-class RepeatableAssetInGroup(BaseModel):
-    """Asset within a repeatable group"""
-
-    asset_id: str = Field(description="Identifier for this asset within the group")
-    asset_type: Literal["image", "video", "audio", "vast", "daast", "text", "markdown", "html", "css", "javascript", "url", "webhook", "promoted_offerings"] = Field(description="Type of asset")
-    asset_role: str | None = Field(None, description="Optional descriptive label for this asset's purpose (e.g., 'hero_image', 'logo'). Not used for referencing assets in manifests—use asset_id instead. This field is for human-readable documentation and UI display only.")
-    required: bool | None = Field(None, description="Whether this asset is required in each repetition")
-    requirements: dict[str, Any] | None = Field(None, description="Technical requirements for this asset")
-
-
-class RepeatableAssetGroup(BaseModel):
-    """Repeatable asset group (for carousels, slideshows, playlists, etc.)"""
-
-    model_config = ConfigDict(extra="forbid")
-
-    asset_group_id: str = Field(description="Identifier for this asset group (e.g., 'product', 'slide', 'card')")
-    repeatable: Literal[True] = Field(description="Indicates this is a repeatable asset group")
-    min_count: int = Field(ge=1, description="Minimum number of repetitions required")
-    max_count: int = Field(ge=1, description="Maximum number of repetitions allowed")
-    assets: list[RepeatableAssetInGroup] = Field(description="Assets within each repetition of this group")
-
-
-# Union type for Asset Required
-AssetRequired = IndividualAssetRequired | RepeatableAssetGroup
-
-
 class FormatId(BaseModel):
     """Structured format identifier with agent URL and format name"""
 
@@ -1165,6 +1150,8 @@ __all__ = [
     "AgentDeployment",
     "AgentDestination",
     "AssetRequired",
+    "AssetRequiredVariant1",
+    "AssetRequiredVariant2",
     "BothPreviewRender",
     "BrandManifest",
     "BrandManifestRef",
@@ -1200,7 +1187,6 @@ __all__ = [
     "GetSignalsRequest",
     "GetSignalsResponse",
     "HtmlPreviewRender",
-    "IndividualAssetRequired",
     "InlineDaastAsset",
     "InlineVastAsset",
     "Key_valueActivationKey",
@@ -1246,11 +1232,8 @@ __all__ = [
     "ProvidePerformanceFeedbackResponseVariant2",
     "PushNotificationConfig",
     "Render",
-    "RepeatableAssetGroup",
-    "RepeatableAssetInGroup",
     "ReportingCapabilities",
     "Response",
-    "ResponsiveDimension",
     "Segment_idActivationKey",
     "StandardFormatIds",
     "StartTiming",
