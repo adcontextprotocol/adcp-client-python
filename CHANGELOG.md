@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v1.6.1...v2.0.0) (2025-11-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* 
+
+### Features
+
+* Migrate to datamodel-code-generator for type generation ([#45](https://github.com/adcontextprotocol/adcp-client-python/issues/45)) ([8844d69](https://github.com/adcontextprotocol/adcp-client-python/commit/8844d694e758c47a670fd9fcd8c1eeaaee7b6b29))
+
 ## [1.6.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v1.6.0...v1.6.1) (2025-11-13)
 
 
