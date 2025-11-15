@@ -42,7 +42,3 @@ class Destination(RootModel[Destination1 | Destination2]):
         description='A destination platform where signals can be activated (DSP, sales agent, etc.)',
         title='Destination',
     )
-
-# Aliases for backward compatibility
-PlatformDestination = Destination1
-AgentDestination = Destination2

@@ -275,7 +275,3 @@ class ListCreativeFormatsResponseCreativeAgent(AdCPBaseModel):
         None,
         description='Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.',
     )
-
-
-# Alias for backward compatibility
-ListCreativeFormatsResponse = ListCreativeFormatsResponseCreativeAgent

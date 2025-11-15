@@ -144,6 +144,3 @@ class ActivateSignalResponse(RootModel[ActivateSignalResponse1 | ActivateSignalR
         title='Activate Signal Response',
     )
 
-# Aliases for backward compatibility
-ActivateSignalSuccess = ActivateSignalResponse1
-ActivateSignalError = ActivateSignalResponse2

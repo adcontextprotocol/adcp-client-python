@@ -85,6 +85,3 @@ class VastAsset(RootModel[VastAsset1 | VastAsset2]):
         title='VAST Asset',
     )
 
-# Aliases for backward compatibility
-UrlVastAsset = VastAsset1
-InlineVastAsset = VastAsset2

@@ -84,7 +84,3 @@ class ListCreativeFormatsRequestCreativeAgent(AdCPBaseModel):
         None,
         description='Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.',
     )
-
-
-# Alias for backward compatibility
-ListCreativeFormatsRequest = ListCreativeFormatsRequestCreativeAgent

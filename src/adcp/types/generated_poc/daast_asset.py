@@ -77,6 +77,3 @@ class DaastAsset(RootModel[DaastAsset1 | DaastAsset2]):
         title='DAAST Asset',
     )
 
-# Aliases for backward compatibility
-UrlDaastAsset = DaastAsset1
-InlineDaastAsset = DaastAsset2

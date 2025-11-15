@@ -72,6 +72,3 @@ class CreateMediaBuyResponse(RootModel[CreateMediaBuyResponse1 | CreateMediaBuyR
         title='Create Media Buy Response',
     )
 
-# Aliases for backward compatibility
-CreateMediaBuySuccess = CreateMediaBuyResponse1
-CreateMediaBuyError = CreateMediaBuyResponse2
