@@ -1,60 +1,59 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/media-buy/package-request.json",
-  "title": "Package Request",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
   "description": "Package configuration for media buy creation",
-  "type": "object",
   "properties": {
-    "buyer_ref": {
-      "type": "string",
-      "description": "Buyer's reference identifier for this package"
+    "bid_price": {
+      "description": "Bid price for auction-based CPM pricing (required if using cpm-auction-option)",
+      "minimum": 0,
+      "type": "number"
     },
-    "product_id": {
-      "type": "string",
-      "description": "Product ID for this package"
+    "budget": {
+      "description": "Budget allocation for this package in the media buy's currency",
+      "minimum": 0,
+      "type": "number"
+    },
+    "buyer_ref": {
+      "description": "Buyer's reference identifier for this package",
+      "type": "string"
+    },
+    "creative_ids": {
+      "description": "Creative IDs to assign to this package at creation time (references existing library creatives)",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "creatives": {
+      "description": "Full creative objects to upload and assign to this package at creation time (alternative to creative_ids - creatives will be added to library). Supports both static and generative creatives.",
+      "items": {
+        "$ref": "/schemas/v1/core/creative-asset.json"
+      },
+      "maxItems": 100,
+      "type": "array"
     },
     "format_ids": {
-      "type": "array",
       "description": "Array of format IDs that will be used for this package - must be supported by the product. If omitted, defaults to all formats supported by the product.",
       "items": {
         "$ref": "/schemas/v1/core/format-id.json"
       },
-      "minItems": 1
-    },
-    "budget": {
-      "type": "number",
-      "description": "Budget allocation for this package in the media buy's currency",
-      "minimum": 0
+      "minItems": 1,
+      "type": "array"
     },
     "pacing": {
       "$ref": "/schemas/v1/enums/pacing.json"
     },
     "pricing_option_id": {
-      "type": "string",
-      "description": "ID of the selected pricing option from the product's pricing_options array"
+      "description": "ID of the selected pricing option from the product's pricing_options array",
+      "type": "string"
     },
-    "bid_price": {
-      "type": "number",
-      "description": "Bid price for auction-based CPM pricing (required if using cpm-auction-option)",
-      "minimum": 0
+    "product_id": {
+      "description": "Product ID for this package",
+      "type": "string"
     },
     "targeting_overlay": {
       "$ref": "/schemas/v1/core/targeting.json"
-    },
-    "creative_ids": {
-      "type": "array",
-      "description": "Creative IDs to assign to this package at creation time (references existing library creatives)",
-      "items": {
-        "type": "string"
-      }
-    },
-    "creatives": {
-      "type": "array",
-      "description": "Full creative objects to upload and assign to this package at creation time (alternative to creative_ids - creatives will be added to library). Supports both static and generative creatives.",
-      "items": {
-        "$ref": "/schemas/v1/core/creative-asset.json"
-      },
-      "maxItems": 100
     }
   },
   "required": [
@@ -63,5 +62,6 @@
     "budget",
     "pricing_option_id"
   ],
-  "additionalProperties": false
+  "title": "Package Request",
+  "type": "object"
 }

@@ -1,53 +1,56 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/media-buy/create-media-buy-response.json",
-  "title": "Create Media Buy Response",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Response payload for create_media_buy task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - the media buy is either fully created or not created at all.",
-  "type": "object",
   "oneOf": [
     {
+      "additionalProperties": false,
       "description": "Success response - media buy created successfully",
-      "type": "object",
+      "not": {
+        "required": [
+          "errors"
+        ]
+      },
       "properties": {
-        "media_buy_id": {
-          "type": "string",
-          "description": "Publisher's unique identifier for the created media buy"
-        },
         "buyer_ref": {
-          "type": "string",
-          "description": "Buyer's reference identifier for this media buy"
+          "description": "Buyer's reference identifier for this media buy",
+          "type": "string"
+        },
+        "context": {
+          "additionalProperties": true,
+          "description": "Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.",
+          "type": "object"
         },
         "creative_deadline": {
-          "type": "string",
+          "description": "ISO 8601 timestamp for creative upload deadline",
           "format": "date-time",
-          "description": "ISO 8601 timestamp for creative upload deadline"
+          "type": "string"
+        },
+        "media_buy_id": {
+          "description": "Publisher's unique identifier for the created media buy",
+          "type": "string"
         },
         "packages": {
-          "type": "array",
           "description": "Array of created packages",
           "items": {
-            "type": "object",
+            "additionalProperties": false,
             "properties": {
-              "package_id": {
-                "type": "string",
-                "description": "Publisher's unique identifier for the package"
-              },
               "buyer_ref": {
-                "type": "string",
-                "description": "Buyer's reference identifier for the package"
+                "description": "Buyer's reference identifier for the package",
+                "type": "string"
+              },
+              "package_id": {
+                "description": "Publisher's unique identifier for the package",
+                "type": "string"
               }
             },
             "required": [
               "package_id",
               "buyer_ref"
             ],
-            "additionalProperties": false
-          }
-        },
-        "context": {
-          "type": "object",
-          "description": "Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.",
-          "additionalProperties": true
+            "type": "object"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -55,35 +58,11 @@
         "buyer_ref",
         "packages"
       ],
-      "additionalProperties": false,
-      "not": {
-        "required": [
-          "errors"
-        ]
-      }
+      "type": "object"
     },
     {
-      "description": "Error response - operation failed, no media buy created",
-      "type": "object",
-      "properties": {
-        "errors": {
-          "type": "array",
-          "description": "Array of errors explaining why the operation failed",
-          "items": {
-            "$ref": "/schemas/v1/core/error.json"
-          },
-          "minItems": 1
-        },
-        "context": {
-          "type": "object",
-          "description": "Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.",
-          "additionalProperties": true
-        }
-      },
-      "required": [
-        "errors"
-      ],
       "additionalProperties": false,
+      "description": "Error response - operation failed, no media buy created",
       "not": {
         "anyOf": [
           {
@@ -102,7 +81,28 @@
             ]
           }
         ]
-      }
+      },
+      "properties": {
+        "context": {
+          "additionalProperties": true,
+          "description": "Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.",
+          "type": "object"
+        },
+        "errors": {
+          "description": "Array of errors explaining why the operation failed",
+          "items": {
+            "$ref": "/schemas/v1/core/error.json"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "errors"
+      ],
+      "type": "object"
     }
-  ]
+  ],
+  "title": "Create Media Buy Response",
+  "type": "object"
 }

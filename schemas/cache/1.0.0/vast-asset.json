@@ -1,46 +1,24 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/core/assets/vast-asset.json",
-  "title": "VAST Asset",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "VAST (Video Ad Serving Template) tag for third-party video ad serving",
   "oneOf": [
     {
-      "type": "object",
+      "additionalProperties": false,
       "properties": {
         "delivery_type": {
-          "type": "string",
           "const": "url",
-          "description": "Discriminator indicating VAST is delivered via URL endpoint"
-        },
-        "url": {
-          "type": "string",
-          "format": "uri",
-          "description": "URL endpoint that returns VAST XML"
-        },
-        "vast_version": {
-          "type": "string",
-          "enum": [
-            "2.0",
-            "3.0",
-            "4.0",
-            "4.1",
-            "4.2"
-          ],
-          "description": "VAST specification version"
-        },
-        "vpaid_enabled": {
-          "type": "boolean",
-          "description": "Whether VPAID (Video Player-Ad Interface Definition) is supported"
+          "description": "Discriminator indicating VAST is delivered via URL endpoint",
+          "type": "string"
         },
         "duration_ms": {
-          "type": "integer",
           "description": "Expected video duration in milliseconds (if known)",
-          "minimum": 0
+          "minimum": 0,
+          "type": "integer"
         },
         "tracking_events": {
-          "type": "array",
+          "description": "Tracking events supported by this VAST tag",
           "items": {
-            "type": "string",
             "enum": [
               "start",
               "firstQuartile",
@@ -58,53 +36,58 @@
               "exitFullscreen",
               "playerExpand",
               "playerCollapse"
-            ]
+            ],
+            "type": "string"
           },
-          "description": "Tracking events supported by this VAST tag"
+          "type": "array"
+        },
+        "url": {
+          "description": "URL endpoint that returns VAST XML",
+          "format": "uri",
+          "type": "string"
+        },
+        "vast_version": {
+          "description": "VAST specification version",
+          "enum": [
+            "2.0",
+            "3.0",
+            "4.0",
+            "4.1",
+            "4.2"
+          ],
+          "type": "string"
+        },
+        "vpaid_enabled": {
+          "description": "Whether VPAID (Video Player-Ad Interface Definition) is supported",
+          "type": "boolean"
         }
       },
       "required": [
         "delivery_type",
         "url"
       ],
-      "additionalProperties": false
+      "type": "object"
     },
     {
-      "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "delivery_type": {
-          "type": "string",
-          "const": "inline",
-          "description": "Discriminator indicating VAST is delivered as inline XML content"
-        },
         "content": {
-          "type": "string",
-          "description": "Inline VAST XML content"
+          "description": "Inline VAST XML content",
+          "type": "string"
         },
-        "vast_version": {
-          "type": "string",
-          "enum": [
-            "2.0",
-            "3.0",
-            "4.0",
-            "4.1",
-            "4.2"
-          ],
-          "description": "VAST specification version"
-        },
-        "vpaid_enabled": {
-          "type": "boolean",
-          "description": "Whether VPAID (Video Player-Ad Interface Definition) is supported"
+        "delivery_type": {
+          "const": "inline",
+          "description": "Discriminator indicating VAST is delivered as inline XML content",
+          "type": "string"
         },
         "duration_ms": {
-          "type": "integer",
           "description": "Expected video duration in milliseconds (if known)",
-          "minimum": 0
+          "minimum": 0,
+          "type": "integer"
         },
         "tracking_events": {
-          "type": "array",
+          "description": "Tracking events supported by this VAST tag",
           "items": {
-            "type": "string",
             "enum": [
               "start",
               "firstQuartile",
@@ -122,16 +105,33 @@
               "exitFullscreen",
               "playerExpand",
               "playerCollapse"
-            ]
+            ],
+            "type": "string"
           },
-          "description": "Tracking events supported by this VAST tag"
+          "type": "array"
+        },
+        "vast_version": {
+          "description": "VAST specification version",
+          "enum": [
+            "2.0",
+            "3.0",
+            "4.0",
+            "4.1",
+            "4.2"
+          ],
+          "type": "string"
+        },
+        "vpaid_enabled": {
+          "description": "Whether VPAID (Video Player-Ad Interface Definition) is supported",
+          "type": "boolean"
         }
       },
       "required": [
         "delivery_type",
         "content"
       ],
-      "additionalProperties": false
+      "type": "object"
     }
-  ]
+  ],
+  "title": "VAST Asset"
 }

@@ -1,71 +1,70 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/creative/preview-creative-request.json",
-  "title": "Preview Creative Request",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Request to generate previews of one or more creative manifests. Accepts either a single creative request or an array of requests for batch processing.",
   "oneOf": [
     {
-      "type": "object",
+      "additionalProperties": false,
       "description": "Single creative preview request",
       "properties": {
-        "request_type": {
-          "type": "string",
-          "const": "single",
-          "description": "Discriminator indicating this is a single preview request"
-        },
-        "format_id": {
-          "$ref": "/schemas/v1/core/format-id.json",
-          "description": "Format identifier for rendering the preview"
+        "context": {
+          "additionalProperties": true,
+          "description": "Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.",
+          "type": "object"
         },
         "creative_manifest": {
           "$ref": "/schemas/v1/core/creative-manifest.json",
           "description": "Complete creative manifest with all required assets (including promoted_offerings if required by the format)"
         },
+        "format_id": {
+          "$ref": "/schemas/v1/core/format-id.json",
+          "description": "Format identifier for rendering the preview"
+        },
         "inputs": {
-          "type": "array",
           "description": "Array of input sets for generating multiple preview variants. Each input set defines macros and context values for one preview rendering. If not provided, creative agent will generate default previews.",
           "items": {
-            "type": "object",
+            "additionalProperties": false,
             "properties": {
-              "name": {
-                "type": "string",
-                "description": "Human-readable name for this input set (e.g., 'Sunny morning on mobile', 'Evening podcast ad', 'Desktop dark mode')"
+              "context_description": {
+                "description": "Natural language description of the context for AI-generated content (e.g., 'User just searched for running shoes', 'Podcast discussing weather patterns', 'Article about electric vehicles')",
+                "type": "string"
               },
               "macros": {
-                "type": "object",
-                "description": "Macro values to use for this preview. Supports all universal macros from the format's supported_macros list. See docs/media-buy/creatives/universal-macros.md for available macros.",
                 "additionalProperties": {
                   "type": "string"
-                }
+                },
+                "description": "Macro values to use for this preview. Supports all universal macros from the format's supported_macros list. See docs/media-buy/creatives/universal-macros.md for available macros.",
+                "type": "object"
               },
-              "context_description": {
-                "type": "string",
-                "description": "Natural language description of the context for AI-generated content (e.g., 'User just searched for running shoes', 'Podcast discussing weather patterns', 'Article about electric vehicles')"
+              "name": {
+                "description": "Human-readable name for this input set (e.g., 'Sunny morning on mobile', 'Evening podcast ad', 'Desktop dark mode')",
+                "type": "string"
               }
             },
             "required": [
               "name"
             ],
-            "additionalProperties": false
-          }
-        },
-        "template_id": {
-          "type": "string",
-          "description": "Specific template ID for custom format rendering"
+            "type": "object"
+          },
+          "type": "array"
         },
         "output_format": {
-          "type": "string",
+          "default": "url",
+          "description": "Output format for previews. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding). Default: 'url' for backward compatibility.",
           "enum": [
             "url",
             "html"
           ],
-          "default": "url",
-          "description": "Output format for previews. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding). Default: 'url' for backward compatibility."
+          "type": "string"
         },
-        "context": {
-          "type": "object",
-          "description": "Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.",
-          "additionalProperties": true
+        "request_type": {
+          "const": "single",
+          "description": "Discriminator indicating this is a single preview request",
+          "type": "string"
+        },
+        "template_id": {
+          "description": "Specific template ID for custom format rendering",
+          "type": "string"
         }
       },
       "required": [
@@ -73,102 +72,103 @@
         "format_id",
         "creative_manifest"
       ],
-      "additionalProperties": false
+      "type": "object"
     },
     {
-      "type": "object",
+      "additionalProperties": false,
       "description": "Batch preview request for multiple creatives (5-10x faster than individual calls)",
       "properties": {
+        "context": {
+          "additionalProperties": true,
+          "description": "Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.",
+          "type": "object"
+        },
+        "output_format": {
+          "default": "url",
+          "description": "Default output format for all requests in this batch. Individual requests can override this. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding).",
+          "enum": [
+            "url",
+            "html"
+          ],
+          "type": "string"
+        },
         "request_type": {
-          "type": "string",
           "const": "batch",
-          "description": "Discriminator indicating this is a batch preview request"
+          "description": "Discriminator indicating this is a batch preview request",
+          "type": "string"
         },
         "requests": {
-          "type": "array",
           "description": "Array of preview requests (1-50 items). Each follows the single request structure.",
           "items": {
-            "type": "object",
+            "additionalProperties": false,
             "properties": {
-              "format_id": {
-                "$ref": "/schemas/v1/core/format-id.json",
-                "description": "Format identifier for rendering the preview"
-              },
               "creative_manifest": {
                 "$ref": "/schemas/v1/core/creative-manifest.json",
                 "description": "Complete creative manifest with all required assets"
               },
+              "format_id": {
+                "$ref": "/schemas/v1/core/format-id.json",
+                "description": "Format identifier for rendering the preview"
+              },
               "inputs": {
-                "type": "array",
                 "description": "Array of input sets for generating multiple preview variants",
                 "items": {
-                  "type": "object",
+                  "additionalProperties": false,
                   "properties": {
-                    "name": {
-                      "type": "string",
-                      "description": "Human-readable name for this input set"
+                    "context_description": {
+                      "description": "Natural language description of the context for AI-generated content",
+                      "type": "string"
                     },
                     "macros": {
-                      "type": "object",
-                      "description": "Macro values to use for this preview",
                       "additionalProperties": {
                         "type": "string"
-                      }
+                      },
+                      "description": "Macro values to use for this preview",
+                      "type": "object"
                     },
-                    "context_description": {
-                      "type": "string",
-                      "description": "Natural language description of the context for AI-generated content"
+                    "name": {
+                      "description": "Human-readable name for this input set",
+                      "type": "string"
                     }
                   },
                   "required": [
                     "name"
                   ],
-                  "additionalProperties": false
-                }
-              },
-              "template_id": {
-                "type": "string",
-                "description": "Specific template ID for custom format rendering"
+                  "type": "object"
+                },
+                "type": "array"
               },
               "output_format": {
-                "type": "string",
+                "default": "url",
+                "description": "Output format for this preview. 'url' returns preview_url, 'html' returns preview_html.",
                 "enum": [
                   "url",
                   "html"
                 ],
-                "default": "url",
-                "description": "Output format for this preview. 'url' returns preview_url, 'html' returns preview_html."
+                "type": "string"
+              },
+              "template_id": {
+                "description": "Specific template ID for custom format rendering",
+                "type": "string"
               }
             },
             "required": [
               "format_id",
               "creative_manifest"
             ],
-            "additionalProperties": false
+            "type": "object"
           },
+          "maxItems": 50,
           "minItems": 1,
-          "maxItems": 50
-        },
-        "output_format": {
-          "type": "string",
-          "enum": [
-            "url",
-            "html"
-          ],
-          "default": "url",
-          "description": "Default output format for all requests in this batch. Individual requests can override this. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding)."
-        },
-        "context": {
-          "type": "object",
-          "description": "Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.",
-          "additionalProperties": true
+          "type": "array"
         }
       },
       "required": [
         "request_type",
         "requests"
       ],
-      "additionalProperties": false
+      "type": "object"
     }
-  ]
+  ],
+  "title": "Preview Creative Request"
 }

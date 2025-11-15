@@ -1,9 +1,7 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/enums/delivery-type.json",
-  "title": "Delivery Type",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Type of inventory delivery",
-  "type": "string",
   "enum": [
     "guaranteed",
     "non_guaranteed"
@@ -11,5 +9,7 @@
   "enumDescriptions": {
     "guaranteed": "Reserved inventory with guaranteed delivery",
     "non_guaranteed": "Auction-based inventory without delivery guarantees"
-  }
+  },
+  "title": "Delivery Type",
+  "type": "string"
 }

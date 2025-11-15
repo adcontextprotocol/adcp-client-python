@@ -1,20 +1,11 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "/schemas/v1/core/creative-manifest.json",
-  "title": "Creative Manifest",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
   "description": "Complete specification of a creative with all assets needed for rendering in a specific format. Each asset is typed according to its asset_role from the format specification and contains the actual content/URL that fulfills the format requirements.",
-  "type": "object",
   "properties": {
-    "format_id": {
-      "$ref": "/schemas/v1/core/format-id.json",
-      "description": "Format identifier this manifest is for"
-    },
-    "promoted_offering": {
-      "type": "string",
-      "description": "Product name or offering being advertised. Maps to promoted_offerings in create_media_buy request to associate creative with the product being promoted."
-    },
     "assets": {
-      "type": "object",
+      "additionalProperties": false,
       "description": "Map of asset IDs to actual asset content. Each key MUST match an asset_id from the format's assets_required array (e.g., 'banner_image', 'clickthrough_url', 'video_file', 'vast_tag'). The asset_id is the technical identifier used to match assets to format requirements.\n\nIMPORTANT: Creative manifest validation MUST be performed in the context of the format specification. The format defines what type each asset_id should be, which eliminates any validation ambiguity.",
       "patternProperties": {
         "^[a-z0-9_]+$": {
@@ -58,12 +49,21 @@
           ]
         }
       },
-      "additionalProperties": false
+      "type": "object"
+    },
+    "format_id": {
+      "$ref": "/schemas/v1/core/format-id.json",
+      "description": "Format identifier this manifest is for"
+    },
+    "promoted_offering": {
+      "description": "Product name or offering being advertised. Maps to promoted_offerings in create_media_buy request to associate creative with the product being promoted.",
+      "type": "string"
     }
   },
   "required": [
     "format_id",
     "assets"
   ],
-  "additionalProperties": false
+  "title": "Creative Manifest",
+  "type": "object"
 }

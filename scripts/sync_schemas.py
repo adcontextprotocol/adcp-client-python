@@ -7,13 +7,14 @@ not just those listed in index.json. This ensures we get all schemas including
 asset types (vast-asset.json, daast-asset.json) with discriminators from PR #189.
 
 Usage:
-    python scripts/sync_schemas.py          # Normal sync (uses ETags)
+    python scripts/sync_schemas.py          # Normal sync (uses content hashing)
     python scripts/sync_schemas.py --force  # Force re-download all schemas
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -25,49 +26,46 @@ GITHUB_API_BASE = "https://api.github.com/repos/adcontextprotocol/adcp/contents"
 ADCP_BASE_URL = "https://raw.githubusercontent.com/adcontextprotocol/adcp/main"
 SCHEMA_INDEX_URL = f"{ADCP_BASE_URL}/static/schemas/v1/index.json"
 CACHE_DIR = Path(__file__).parent.parent / "schemas" / "cache"
-ETAG_CACHE_FILE = CACHE_DIR / ".etags.json"
+HASH_CACHE_FILE = CACHE_DIR / ".hashes.json"
 
 
-def load_etag_cache() -> dict[str, str]:
-    """Load cached ETags from disk."""
-    if ETAG_CACHE_FILE.exists():
+def compute_hash(content: str) -> str:
+    """Compute SHA-256 hash of content."""
+    return hashlib.sha256(content.encode()).hexdigest()
+
+
+def load_hash_cache() -> dict[str, str]:
+    """Load cached hashes from disk."""
+    if HASH_CACHE_FILE.exists():
         try:
-            with open(ETAG_CACHE_FILE) as f:
+            with open(HASH_CACHE_FILE) as f:
                 return json.load(f)
         except (json.JSONDecodeError, OSError):
             return {}
     return {}
 
 
-def save_etag_cache(etag_cache: dict[str, str]) -> None:
-    """Save ETags to disk."""
+def save_hash_cache(hash_cache: dict[str, str]) -> None:
+    """Save content hashes to disk."""
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    with open(ETAG_CACHE_FILE, "w") as f:
-        json.dump(etag_cache, f, indent=2)
+    with open(HASH_CACHE_FILE, "w") as f:
+        json.dump(hash_cache, f, indent=2)
 
 
-def download_schema(url: str, etag: str | None = None) -> tuple[dict, str | None]:
+def download_schema(url: str) -> dict:
     """
-    Download a JSON schema from URL with ETag support.
+    Download a JSON schema from URL.
 
     Returns:
-        Tuple of (schema_data, new_etag)
-        If not modified (304), returns (None, cached_etag)
+        Schema data as dict
     """
     try:
         req = Request(url)
-        if etag:
-            req.add_header("If-None-Match", etag)
-
         with urlopen(req) as response:
-            new_etag = response.headers.get("ETag")
             data = json.loads(response.read().decode())
-            return data, new_etag
+            return data
 
     except URLError as e:
-        # Check if it's a 304 Not Modified
-        if hasattr(e, "code") and e.code == 304:
-            return None, etag
         print(f"Error downloading {url}: {e}", file=sys.stderr)
         raise
 
@@ -107,13 +105,13 @@ def discover_all_schemas(api_path: str = "static/schemas/v1") -> list[str]:
 
 
 def download_schema_file(
-    url: str, version: str, etag_cache: dict[str, str], force: bool = False
+    url: str, version: str, hash_cache: dict[str, str], force: bool = False
 ) -> tuple[bool, str | None]:
     """
-    Download a schema and save it to cache.
+    Download a schema and save it to cache, using content hashing for change detection.
 
     Returns:
-        Tuple of (was_updated, new_etag)
+        Tuple of (was_updated, new_hash)
     """
     # Extract filename from URL
     filename = url.split("/")[-1]
@@ -126,44 +124,36 @@ def download_schema_file(
 
     output_path = version_dir / filename
 
-    # Check ETag if not forcing and file exists
-    if not force and output_path.exists():
-        cached_etag = etag_cache.get(url)
-
-        if cached_etag:
-            # Try to download with ETag check
-            try:
-                schema, new_etag = download_schema(url, cached_etag)
-
-                if schema is None:
-                    # 304 Not Modified
-                    print(f"  ✓ {filename} (not modified)")
-                    return False, cached_etag
-
-                # Content changed - save it
-                with open(output_path, "w") as f:
-                    json.dump(schema, f, indent=2)
-                print(f"  ↻ {filename} (updated)")
-                return True, new_etag
-
-            except Exception as e:
-                # Fall back to simple download
-                print(f"  ⚠ {filename} (ETag check failed: {e})")
-        else:
-            # No ETag cached, but file exists - skip
-            print(f"  ✓ {filename} (cached, no ETag)")
-            return False, None
-
-    # Force download or file doesn't exist
+    # Download schema
     try:
-        schema, new_etag = download_schema(url)
+        schema = download_schema(url)
 
+        # Normalize JSON output for consistent hashing
+        content = json.dumps(schema, indent=2, sort_keys=True)
+        new_hash = compute_hash(content)
+
+        # Check if content changed
+        if not force and output_path.exists():
+            cached_hash = hash_cache.get(url)
+
+            if cached_hash == new_hash:
+                # Content unchanged
+                print(f"  ✓ {filename} (unchanged)")
+                return False, new_hash
+
+            # Content changed
+            with open(output_path, "w") as f:
+                f.write(content)
+            print(f"  ↻ {filename} (updated)")
+            return True, new_hash
+
+        # New file or forced download
         with open(output_path, "w") as f:
-            json.dump(schema, f, indent=2)
+            f.write(content)
 
         status = "downloaded" if not output_path.exists() else "forced update"
         print(f"  ✓ {filename} ({status})")
-        return True, new_etag
+        return True, new_hash
 
     except Exception as e:
         print(f"  ✗ {filename} (failed: {e})", file=sys.stderr)
@@ -179,25 +169,29 @@ def main():
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Force re-download all schemas, ignoring ETags",
+        help="Force re-download all schemas, ignoring content hashes",
     )
     args = parser.parse_args()
 
     print("Syncing AdCP schemas from GitHub main branch...")
     print(f"Cache directory: {CACHE_DIR}")
-    print(f"Mode: {'FORCE' if args.force else 'NORMAL (using ETags)'}\n")
+    print(f"Mode: {'FORCE' if args.force else 'NORMAL (using content hashing)'}\n")
 
     try:
-        # Load ETag cache
-        etag_cache = {} if args.force else load_etag_cache()
-        updated_etags = {}
+        # Load hash cache
+        hash_cache = {} if args.force else load_hash_cache()
+        updated_hashes = {}
 
         # Download index to get version
         print("Fetching schema index for version info...")
-        index_schema, index_etag = download_schema(SCHEMA_INDEX_URL)
+        index_schema = download_schema(SCHEMA_INDEX_URL)
         version = index_schema.get("version", "unknown")
-        if index_etag:
-            updated_etags[SCHEMA_INDEX_URL] = index_etag
+
+        # Compute hash for index
+        index_content = json.dumps(index_schema, indent=2, sort_keys=True)
+        index_hash = compute_hash(index_content)
+        updated_hashes[SCHEMA_INDEX_URL] = index_hash
+
         print(f"Schema version: {version}\n")
 
         # Discover ALL schemas by crawling the directory structure
@@ -215,8 +209,8 @@ def main():
         cached_count = 0
 
         for url in schema_urls:
-            was_updated, new_etag = download_schema_file(
-                url, version, etag_cache, force=args.force
+            was_updated, new_hash = download_schema_file(
+                url, version, hash_cache, force=args.force
             )
 
             if was_updated:
@@ -224,12 +218,12 @@ def main():
             else:
                 cached_count += 1
 
-            if new_etag:
-                updated_etags[url] = new_etag
+            if new_hash:
+                updated_hashes[url] = new_hash
 
-        # Save updated ETag cache
-        if updated_etags:
-            save_etag_cache(updated_etags)
+        # Save updated hash cache
+        if updated_hashes:
+            save_hash_cache(updated_hashes)
 
         # Create latest symlink
         latest_link = CACHE_DIR / "latest"
