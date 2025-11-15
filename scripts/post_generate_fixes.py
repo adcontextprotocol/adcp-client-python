@@ -20,131 +20,124 @@ OUTPUT_DIR = REPO_ROOT / "src" / "adcp" / "types" / "generated_poc"
 
 
 def add_model_validator_to_product():
-    """Add model_validators to PublisherProperty and Product classes (if they exist)."""
+    """Add model_validators to Product class.
+
+    Note: As of schema v1.0.0, publisher_properties uses inline object definitions
+    rather than separate PublisherProperty class. This function handles both structures
+    but FAILS LOUDLY if patterns don't match - we control code generation so failures
+    indicate bugs we must fix, not edge cases to handle gracefully.
+    """
     product_file = OUTPUT_DIR / "product.py"
 
     if not product_file.exists():
-        print("  product.py not found (skipping validators)")
+        # Product schema missing entirely - this is OK, schema may have removed it
+        print("  product.py not found (schema may have changed)")
         return
 
     with open(product_file) as f:
         content = f.read()
 
-    # Check if PublisherProperty class exists in generated code
-    has_publisher_property_class = "class PublisherProperty" in content
-    has_product_class = "class Product" in content
-
-    if not has_product_class:
-        print("  product.py has no Product class (skipping validators)")
-        return
-
     # Check if validators already exist
-    if (
-        "validate_mutual_exclusivity" in content
-        and "validate_publisher_properties_items" in content
-    ):
+    if "validate_publisher_properties_items" in content:
         print("  product.py validators already exist")
         return
 
-    # Add model_validator to imports if not present
+    # Check if Product class exists
+    if "class Product" not in content:
+        # No Product class means schema changed significantly - this is OK
+        print("  product.py has no Product class (schema changed)")
+        return
+
+    # Check if publisher_properties field exists
+    if "publisher_properties" not in content:
+        # No publisher_properties means validation not needed - this is OK
+        print("  product.py has no publisher_properties field (validation not needed)")
+        return
+
+    # At this point: Product class exists with publisher_properties field
+    # We MUST add validation successfully or fail loudly
+
+    # Add model_validator to imports
     if "model_validator" not in content:
-        # Try different import patterns
-        if "from pydantic import" in content:
-            # Find the pydantic import line and add model_validator
-            import_patterns = [
-                (
-                    "from pydantic import AwareDatetime, ConfigDict, Field, RootModel",
-                    "from pydantic import AwareDatetime, ConfigDict, Field, RootModel, model_validator",
-                ),
-                ("from pydantic import", "from pydantic import model_validator, "),
-            ]
-            for old, new in import_patterns:
-                if old in content:
-                    content = content.replace(old, new, 1)
-                    break
-
-    # Add validator to PublisherProperty class (if it exists)
-    if has_publisher_property_class and "validate_mutual_exclusivity" not in content:
-        # Find the PublisherProperty class - match from class definition to the next class definition
-        # PublisherProperty ends right before the "class Product" line
-        publisher_property_pattern = (
-            r"(class PublisherProperty\(AdCPBaseModel\):.*?)\n\nclass Product\(AdCPBaseModel\):"
-        )
-        match = re.search(publisher_property_pattern, content, re.DOTALL)
-
-        if not match:
-            print(
-                "  product.py PublisherProperty class found but pattern mismatch (skipping validator)"
+        if "from pydantic import AwareDatetime, ConfigDict, Field, RootModel" in content:
+            content = content.replace(
+                "from pydantic import AwareDatetime, ConfigDict, Field, RootModel",
+                "from pydantic import AwareDatetime, ConfigDict, Field, RootModel, model_validator",
             )
         else:
-            validator_code = '''
+            raise RuntimeError(
+                "Cannot add model_validator import - pydantic import pattern changed. "
+                "Update post_generate_fixes.py to match new pattern."
+            )
+
+    # Check for separate PublisherProperty class (old schema structure)
+    if "class PublisherProperty" in content:
+        # Old structure - add validator to PublisherProperty class
+        pattern = (
+            r"(class PublisherProperty\(AdCPBaseModel\):.*?)\n\nclass Product\(AdCPBaseModel\):"
+        )
+        match = re.search(pattern, content, re.DOTALL)
+
+        if not match:
+            raise RuntimeError(
+                "Found PublisherProperty class but pattern match failed. "
+                "Update post_generate_fixes.py regex to match generated structure."
+            )
+
+        validator = '''
 
     @model_validator(mode='after')
     def validate_mutual_exclusivity(self) -> 'PublisherProperty':
         """Enforce mutual exclusivity between property_ids and property_tags."""
         from adcp.validation import validate_publisher_properties_item
 
-        # Convert to dict for validation
         data = self.model_dump()
         validate_publisher_properties_item(data)
         return self
 '''
-            # Insert validator at end of PublisherProperty class
-            content = content.replace(
-                match.group(0),
-                match.group(1) + validator_code + "\n\nclass Product(AdCPBaseModel):",
+        content = content.replace(
+            match.group(0), match.group(1) + validator + "\n\nclass Product(AdCPBaseModel):"
+        )
+
+        if "validate_mutual_exclusivity" not in content:
+            raise RuntimeError(
+                "PublisherProperty validator injection failed (string replace unsuccessful)"
             )
 
-            # Verify it was added
-            if "validate_mutual_exclusivity" not in content:
-                print("  product.py failed to add PublisherProperty validator (non-fatal)")
-            else:
-                print("  product.py PublisherProperty validator added")
+        print("  product.py PublisherProperty validator added")
 
-    # Add validator to Product class
-    if has_product_class and "validate_publisher_properties_items" not in content:
-        # Find the Product class and its last field definition
-        # Look for the last field before either a blank line, validator, or end of file
-        # This is more robust than looking for a specific field name
-        product_pattern = r"(class Product\(AdCPBaseModel\):.*?)(\n\n|\n    @model_validator|\Z)"
-        match = re.search(product_pattern, content, re.DOTALL)
+    # Add validator to Product class (required for both old and new structures)
+    pattern = r"(class Product\(AdCPBaseModel\):.*?)(\n\n|\n    @model_validator|\Z)"
+    match = re.search(pattern, content, re.DOTALL)
 
-        if not match:
-            print("  product.py Product class found but pattern mismatch (skipping validator)")
-        else:
-            validator_code = '''
+    if not match:
+        raise RuntimeError(
+            "Cannot find Product class boundaries for validator injection. "
+            "Update post_generate_fixes.py regex to match generated structure."
+        )
+
+    validator = '''
 
     @model_validator(mode='after')
     def validate_publisher_properties_items(self) -> 'Product':
-        """Validate all publisher_properties items.
-
-        Note: Individual PublisherProperty objects already have their own
-        model_validator, so this validator is mainly for consistency
-        and to ensure validation happens even if items are constructed
-        with model_construct (bypassing validation).
-        """
+        """Validate all publisher_properties items."""
         from adcp.validation import validate_product
 
-        # Convert to dict for validation
         data = self.model_dump()
         validate_product(data)
         return self
 '''
-            # Insert validator before the matched separator
-            separator = match.group(2)
-            content = content.replace(match.group(0), match.group(1) + validator_code + separator)
+    separator = match.group(2)
+    content = content.replace(match.group(0), match.group(1) + validator + separator)
 
-            # Verify it was added
-            if "validate_publisher_properties_items" not in content:
-                print("  product.py failed to add Product validator (non-fatal)")
-            else:
-                print("  product.py Product validator added")
+    if "validate_publisher_properties_items" not in content:
+        raise RuntimeError("Product validator injection failed (string replace unsuccessful)")
 
-    # Write the file if we made any changes
+    print("  product.py Product validator added")
+
+    # Write the modified content
     with open(product_file, "w") as f:
         f.write(content)
-
-    print("  product.py processing complete")
 
 
 def fix_preview_render_self_reference():
