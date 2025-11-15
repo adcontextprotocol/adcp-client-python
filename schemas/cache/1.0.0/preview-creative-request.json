@@ -8,12 +8,17 @@
       "type": "object",
       "description": "Single creative preview request",
       "properties": {
+        "request_type": {
+          "type": "string",
+          "const": "single",
+          "description": "Discriminator indicating this is a single preview request"
+        },
         "format_id": {
-          "$ref": "format-id.json",
+          "$ref": "/schemas/v1/core/format-id.json",
           "description": "Format identifier for rendering the preview"
         },
         "creative_manifest": {
-          "$ref": "creative-manifest.json",
+          "$ref": "/schemas/v1/core/creative-manifest.json",
           "description": "Complete creative manifest with all required assets (including promoted_offerings if required by the format)"
         },
         "inputs": {
@@ -64,6 +69,7 @@
         }
       },
       "required": [
+        "request_type",
         "format_id",
         "creative_manifest"
       ],
@@ -73,6 +79,11 @@
       "type": "object",
       "description": "Batch preview request for multiple creatives (5-10x faster than individual calls)",
       "properties": {
+        "request_type": {
+          "type": "string",
+          "const": "batch",
+          "description": "Discriminator indicating this is a batch preview request"
+        },
         "requests": {
           "type": "array",
           "description": "Array of preview requests (1-50 items). Each follows the single request structure.",
@@ -80,11 +91,11 @@
             "type": "object",
             "properties": {
               "format_id": {
-                "$ref": "format-id.json",
+                "$ref": "/schemas/v1/core/format-id.json",
                 "description": "Format identifier for rendering the preview"
               },
               "creative_manifest": {
-                "$ref": "creative-manifest.json",
+                "$ref": "/schemas/v1/core/creative-manifest.json",
                 "description": "Complete creative manifest with all required assets"
               },
               "inputs": {
@@ -154,6 +165,7 @@
         }
       },
       "required": [
+        "request_type",
         "requests"
       ],
       "additionalProperties": false

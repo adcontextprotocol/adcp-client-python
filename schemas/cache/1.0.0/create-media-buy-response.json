@@ -70,7 +70,7 @@
           "type": "array",
           "description": "Array of errors explaining why the operation failed",
           "items": {
-            "$ref": "error.json"
+            "$ref": "/schemas/v1/core/error.json"
           },
           "minItems": 1
         },

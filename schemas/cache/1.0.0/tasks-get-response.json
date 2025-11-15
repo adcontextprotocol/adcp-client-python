@@ -10,7 +10,7 @@
       "description": "Unique identifier for this task"
     },
     "task_type": {
-      "$ref": "task-type.json",
+      "$ref": "/schemas/v1/enums/task-type.json",
       "description": "Type of AdCP operation"
     },
     "domain": {
@@ -22,7 +22,7 @@
       ]
     },
     "status": {
-      "$ref": "task-status.json",
+      "$ref": "/schemas/v1/enums/task-status.json",
       "description": "Current task status"
     },
     "created_at": {

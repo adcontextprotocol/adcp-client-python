@@ -41,7 +41,7 @@ class TestResponseUnions:
     def test_create_media_buy_error_variant(self):
         """CreateMediaBuyError should validate with errors field."""
         error = CreateMediaBuyError(
-            errors=[Error(code="invalid_budget", message="Budget too low")]
+            errors=[{"code": "invalid_budget", "message": "Budget too low"}]
         )
         assert len(error.errors) == 1
         assert error.errors[0].code == "invalid_budget"
@@ -52,7 +52,6 @@ class TestResponseUnions:
         success = UpdateMediaBuySuccess(
             media_buy_id="mb_123",
             buyer_ref="ref_456",
-            packages=[],
         )
         assert success.media_buy_id == "mb_123"
         assert success.buyer_ref == "ref_456"
@@ -61,7 +60,7 @@ class TestResponseUnions:
     def test_update_media_buy_error_variant(self):
         """UpdateMediaBuyError should validate with errors field."""
         error = UpdateMediaBuyError(
-            errors=[Error(code="not_found", message="Media buy not found")]
+            errors=[{"code": "not_found", "message": "Media buy not found"}]
         )
         assert len(error.errors) == 1
         assert not hasattr(error, "media_buy_id")
@@ -69,31 +68,31 @@ class TestResponseUnions:
     def test_activate_signal_success_variant(self):
         """ActivateSignalSuccess should validate with required fields."""
         success = ActivateSignalSuccess(
-            decisioning_platform_segment_id="seg_123",
+            deployments=[],
         )
-        assert success.decisioning_platform_segment_id == "seg_123"
+        assert success.deployments == []
         assert not hasattr(success, "errors")
 
     def test_activate_signal_error_variant(self):
         """ActivateSignalError should validate with errors field."""
         error = ActivateSignalError(
-            errors=[Error(code="unauthorized", message="Not authorized")]
+            errors=[{"code": "unauthorized", "message": "Not authorized"}]
         )
         assert len(error.errors) == 1
-        assert not hasattr(error, "decisioning_platform_segment_id")
+        assert not hasattr(error, "deployments")
 
     def test_sync_creatives_success_variant(self):
         """SyncCreativesSuccess should validate with required fields."""
         success = SyncCreativesSuccess(
-            assignments=[],
+            creatives=[],
         )
-        assert len(success.assignments) == 0
+        assert len(success.creatives) == 0
         assert not hasattr(success, "errors")
 
     def test_sync_creatives_error_variant(self):
         """SyncCreativesError should validate with errors field."""
         error = SyncCreativesError(
-            errors=[Error(code="sync_failed", message="Sync failed")]
+            errors=[{"code": "sync_failed", "message": "Sync failed"}]
         )
         assert len(error.errors) == 1
         assert not hasattr(error, "assignments")
@@ -111,7 +110,7 @@ class TestAssetDiscriminators:
             content_uri="https://example.com/image.jpg",
         )
         assert asset.asset_kind == "media"
-        assert asset.content_uri == "https://example.com/image.jpg"
+        assert str(asset.content_uri) == "https://example.com/image.jpg"
         assert not hasattr(asset, "content")
 
     def test_media_sub_asset_missing_content_uri_fails(self):
@@ -189,7 +188,7 @@ class TestDestinationDiscriminators:
             account="123",
         )
         assert dest.type == "agent"
-        assert dest.agent_url == "https://agent.example.com"
+        assert str(dest.agent_url).rstrip('/') == "https://agent.example.com"
         assert not hasattr(dest, "platform")
 
     def test_agent_destination_missing_agent_url_fails(self):
@@ -227,7 +226,7 @@ class TestDeploymentDiscriminators:
             is_live=True,
         )
         assert deployment.type == "agent"
-        assert deployment.agent_url == "https://agent.example.com"
+        assert str(deployment.agent_url).rstrip('/') == "https://agent.example.com"
         assert deployment.is_live is True
         assert not hasattr(deployment, "platform")
 
@@ -314,7 +313,7 @@ class TestSerializationRoundtrips:
     def test_error_response_roundtrip(self):
         """CreateMediaBuyError should roundtrip through JSON."""
         original = CreateMediaBuyError(
-            errors=[Error(code="invalid", message="Invalid")]
+            errors=[{"code": "invalid", "message": "Invalid"}]
         )
         json_str = original.model_dump_json()
         parsed = CreateMediaBuyError.model_validate_json(json_str)
@@ -400,5 +399,5 @@ class TestInvalidDiscriminatorValues:
                 type="platform",  # Invalid for AgentDeployment
                 agent_url="https://agent.example.com",
                 account="123",
-                media_buy_id="mb_123",
+                is_live=True,
             )

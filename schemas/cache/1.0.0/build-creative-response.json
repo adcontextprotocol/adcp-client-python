@@ -10,7 +10,7 @@
       "type": "object",
       "properties": {
         "creative_manifest": {
-          "$ref": "creative-manifest.json",
+          "$ref": "/schemas/v1/core/creative-manifest.json",
           "description": "The generated or transformed creative manifest"
         },
         "context": {
@@ -37,7 +37,7 @@
           "type": "array",
           "description": "Array of errors explaining why creative generation failed",
           "items": {
-            "$ref": "error.json"
+            "$ref": "/schemas/v1/core/error.json"
           },
           "minItems": 1
         },

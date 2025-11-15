@@ -29,25 +29,25 @@
           }
         },
         "status": {
-          "$ref": "task-status.json",
+          "$ref": "/schemas/v1/enums/task-status.json",
           "description": "Filter by single task status"
         },
         "statuses": {
           "type": "array",
           "description": "Filter by multiple task statuses",
           "items": {
-            "$ref": "task-status.json"
+            "$ref": "/schemas/v1/enums/task-status.json"
           }
         },
         "task_type": {
-          "$ref": "task-type.json",
+          "$ref": "/schemas/v1/enums/task-type.json",
           "description": "Filter by single task type"
         },
         "task_types": {
           "type": "array",
           "description": "Filter by multiple task types",
           "items": {
-            "$ref": "task-type.json"
+            "$ref": "/schemas/v1/enums/task-type.json"
           }
         },
         "created_after": {

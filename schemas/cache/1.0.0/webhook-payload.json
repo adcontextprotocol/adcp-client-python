@@ -14,7 +14,7 @@
       "description": "Unique identifier for this task. Use this to correlate webhook notifications with the original task submission."
     },
     "task_type": {
-      "$ref": "task-type.json",
+      "$ref": "/schemas/v1/enums/task-type.json",
       "description": "Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic."
     },
     "domain": {
@@ -26,7 +26,7 @@
       ]
     },
     "status": {
-      "$ref": "task-status.json",
+      "$ref": "/schemas/v1/enums/task-status.json",
       "description": "Current task status. Webhooks are only triggered for status changes after initial submission (e.g., submitted \u2192 input-required, submitted \u2192 completed, submitted \u2192 failed)."
     },
     "timestamp": {
@@ -102,7 +102,7 @@
       "then": {
         "properties": {
           "result": {
-            "$ref": "create-media-buy-response.json"
+            "$ref": "/schemas/v1/media-buy/create-media-buy-response.json"
           }
         }
       }
@@ -118,7 +118,7 @@
       "then": {
         "properties": {
           "result": {
-            "$ref": "update-media-buy-response.json"
+            "$ref": "/schemas/v1/media-buy/update-media-buy-response.json"
           }
         }
       }
@@ -134,7 +134,7 @@
       "then": {
         "properties": {
           "result": {
-            "$ref": "sync-creatives-response.json"
+            "$ref": "/schemas/v1/media-buy/sync-creatives-response.json"
           }
         }
       }
@@ -150,7 +150,7 @@
       "then": {
         "properties": {
           "result": {
-            "$ref": "activate-signal-response.json"
+            "$ref": "/schemas/v1/signals/activate-signal-response.json"
           }
         }
       }
@@ -166,7 +166,7 @@
       "then": {
         "properties": {
           "result": {
-            "$ref": "get-signals-response.json"
+            "$ref": "/schemas/v1/signals/get-signals-response.json"
           }
         }
       }

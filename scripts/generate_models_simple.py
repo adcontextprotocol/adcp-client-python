@@ -195,6 +195,112 @@ def generate_discriminated_union(schema: dict, base_name: str) -> str:
     return "\n".join(lines)
 
 
+def generate_inline_object_type(prop_name: str, prop_schema: dict, parent_name: str) -> tuple[str, str]:
+    """
+    Generate a Pydantic model for an inline object schema.
+
+    Returns:
+        Tuple of (generated_code, type_name)
+    """
+    # Generate type name from parent and property name
+    # e.g., "publisher_properties" in Product -> PublisherProperty
+    # Simple pluralization rules for English:
+    # - words ending in "ies" -> "y" (properties -> property)
+    # - words ending in "ses", "ches", "shes", "xes", "zes" -> remove "es"
+    # - words ending in "s" -> remove "s"
+    if prop_name.endswith('ies') and len(prop_name) > 3:
+        singular = prop_name[:-3] + 'y'
+    elif any(prop_name.endswith(suffix) for suffix in ['ses', 'ches', 'shes', 'xes', 'zes']) and len(prop_name) > 2:
+        singular = prop_name[:-2]
+    elif prop_name.endswith('s') and len(prop_name) > 1:
+        singular = prop_name[:-1]
+    else:
+        singular = prop_name
+
+    # Convert snake_case to PascalCase (split on underscores, not hyphens)
+    pascal_singular = "".join(word.capitalize() for word in singular.split("_"))
+    type_name = f"{parent_name}{pascal_singular}"
+
+    lines = [f"class {type_name}(BaseModel):"]
+
+    # Add description if available
+    if "description" in prop_schema:
+        desc = prop_schema["description"].replace("\\", "\\\\").replace('"""', '\\"\\"\\"')
+        desc = desc.replace("\n", " ").replace("\r", "")
+        desc = re.sub(r"\s+", " ", desc).strip()
+        lines.append(f'    """{desc}"""')
+        lines.append("")
+
+    # Add model_config if additionalProperties is false
+    if prop_schema.get("additionalProperties") is False:
+        lines.append('    model_config = ConfigDict(extra="forbid")')
+        lines.append("")
+
+    # Add properties
+    if "properties" in prop_schema and prop_schema["properties"]:
+        for field_name, field_schema in prop_schema["properties"].items():
+            safe_name, needs_alias = sanitize_field_name(field_name)
+            field_type = get_python_type(field_schema)
+            desc = field_schema.get("description", "")
+            if desc:
+                desc = escape_string_for_python(desc)
+
+            is_required = field_name in prop_schema.get("required", [])
+
+            # Check for pattern constraint
+            pattern = field_schema.get("pattern")
+
+            # Build field definition with pattern if present
+            if is_required:
+                if pattern and desc and needs_alias:
+                    lines.append(
+                        f'    {safe_name}: {field_type} = Field(alias="{field_name}", description="{desc}", pattern=r"{pattern}")'
+                    )
+                elif pattern and desc:
+                    lines.append(f'    {safe_name}: {field_type} = Field(description="{desc}", pattern=r"{pattern}")')
+                elif pattern and needs_alias:
+                    lines.append(f'    {safe_name}: {field_type} = Field(alias="{field_name}", pattern=r"{pattern}")')
+                elif pattern:
+                    lines.append(f'    {safe_name}: {field_type} = Field(pattern=r"{pattern}")')
+                elif desc and needs_alias:
+                    lines.append(f'    {safe_name}: {field_type} = Field(alias="{field_name}", description="{desc}")')
+                elif desc:
+                    lines.append(f'    {safe_name}: {field_type} = Field(description="{desc}")')
+                elif needs_alias:
+                    lines.append(f'    {safe_name}: {field_type} = Field(alias="{field_name}")')
+                else:
+                    lines.append(f"    {safe_name}: {field_type}")
+            else:
+                if pattern and desc and needs_alias:
+                    lines.append(
+                        f'    {safe_name}: {field_type} | None = Field(None, alias="{field_name}", description="{desc}", pattern=r"{pattern}")'
+                    )
+                elif pattern and desc:
+                    lines.append(
+                        f'    {safe_name}: {field_type} | None = Field(None, description="{desc}", pattern=r"{pattern}")'
+                    )
+                elif pattern and needs_alias:
+                    lines.append(
+                        f'    {safe_name}: {field_type} | None = Field(None, alias="{field_name}", pattern=r"{pattern}")'
+                    )
+                elif pattern:
+                    lines.append(f'    {safe_name}: {field_type} | None = Field(None, pattern=r"{pattern}")')
+                elif desc and needs_alias:
+                    lines.append(
+                        f'    {safe_name}: {field_type} | None = Field(None, alias="{field_name}", description="{desc}")'
+                    )
+                elif desc:
+                    lines.append(f'    {safe_name}: {field_type} | None = Field(None, description="{desc}")')
+                elif needs_alias:
+                    lines.append(f'    {safe_name}: {field_type} | None = Field(None, alias="{field_name}")')
+                else:
+                    lines.append(f"    {safe_name}: {field_type} | None = None")
+    else:
+        lines.append("    pass")
+
+    return "\n".join(lines), type_name
+
+
 def generate_model_for_schema(schema_file: Path) -> str:
     """Generate Pydantic model code for a single schema inline."""
     with open(schema_file) as f:
@@ -218,8 +324,38 @@ def generate_model_for_schema(schema_file: Path) -> str:
         lines.append(f"{model_name} = {python_type}")
         return "\n".join(lines)
 
+    # Detect inline object types in array properties and generate them first
+    inline_types = []
+    inline_type_map = {}  # prop_name -> type_name mapping
+
+    if "properties" in schema:
+        for prop_name, prop_schema in schema["properties"].items():
+            # Check if this is an array of inline objects
+            if (prop_schema.get("type") == "array" and
+                "items" in prop_schema and
+                prop_schema["items"].get("type") == "object" and
+                "properties" in prop_schema["items"] and
+                "$ref" not in prop_schema["items"]):
+
+                # Generate inline type
+                inline_code, type_name = generate_inline_object_type(
+                    prop_name,
+                    prop_schema["items"],
+                    model_name
+                )
+                inline_types.append(inline_code)
+                inline_type_map[prop_name] = type_name
+
     # Regular BaseModel class
-    lines = [f"class {model_name}(BaseModel):"]
+    lines = []
+
+    # Add inline types first
+    for inline_type in inline_types:
+        lines.append(inline_type)
+        lines.append("")
+        lines.append("")
+
+    lines.append(f"class {model_name}(BaseModel):")
 
     # Add description if available
     if "description" in schema:
@@ -239,20 +375,36 @@ def generate_model_for_schema(schema_file: Path) -> str:
         # Sanitize field name to avoid keyword collisions
         safe_name, needs_alias = sanitize_field_name(prop_name)
 
-        # Get type
-        prop_type = get_python_type(prop_schema)
+        # Check if this property has an inline type we generated
+        if prop_name in inline_type_map:
+            prop_type = f"list[{inline_type_map[prop_name]}]"
+        else:
+            prop_type = get_python_type(prop_schema)
 
         # Get description and escape it properly
         desc = prop_schema.get("description", "")
         if desc:
             desc = escape_string_for_python(desc)
 
+        # Check for pattern constraint
+        pattern = prop_schema.get("pattern")
+
         # Check if required
         is_required = prop_name in schema.get("required", [])
 
-        # Build field definition
+        # Build field definition with pattern support
         if is_required:
-            if desc and needs_alias:
+            if pattern and desc and needs_alias:
+                lines.append(
+                    f'    {safe_name}: {prop_type} = Field(alias="{prop_name}", description="{desc}", pattern=r"{pattern}")'
+                )
+            elif pattern and desc:
+                lines.append(f'    {safe_name}: {prop_type} = Field(description="{desc}", pattern=r"{pattern}")')
+            elif pattern and needs_alias:
+                lines.append(f'    {safe_name}: {prop_type} = Field(alias="{prop_name}", pattern=r"{pattern}")')
+            elif pattern:
+                lines.append(f'    {safe_name}: {prop_type} = Field(pattern=r"{pattern}")')
+            elif desc and needs_alias:
                 lines.append(
                     f'    {safe_name}: {prop_type} = Field(alias="{prop_name}", description="{desc}")'
                 )
@@ -263,7 +415,21 @@ def generate_model_for_schema(schema_file: Path) -> str:
             else:
                 lines.append(f"    {safe_name}: {prop_type}")
         else:
-            if desc and needs_alias:
+            if pattern and desc and needs_alias:
+                lines.append(
+                    f'    {safe_name}: {prop_type} | None = Field(None, alias="{prop_name}", description="{desc}", pattern=r"{pattern}")'
+                )
+            elif pattern and desc:
+                lines.append(
+                    f'    {safe_name}: {prop_type} | None = Field(None, description="{desc}", pattern=r"{pattern}")'
+                )
+            elif pattern and needs_alias:
+                lines.append(
+                    f'    {safe_name}: {prop_type} | None = Field(None, alias="{prop_name}", pattern=r"{pattern}")'
+                )
+            elif pattern:
+                lines.append(f'    {safe_name}: {prop_type} | None = Field(None, pattern=r"{pattern}")')
+            elif desc and needs_alias:
                 lines.append(
                     f'    {safe_name}: {prop_type} | None = Field(None, alias="{prop_name}", description="{desc}")'
                 )
@@ -453,143 +619,7 @@ def add_custom_implementations(code: str) -> str:
 # Note: All classes inherit from BaseModel (which is aliased to AdCPBaseModel for exclude_none).
 
 
-class FormatId(BaseModel):
-    """Structured format identifier with agent URL and format name"""
-
-    agent_url: str = Field(description="URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)")
-    id: str = Field(description="Format identifier within the agent's namespace (e.g., 'display_300x250', 'video_standard_30s')")
-
-    @field_validator("id")
-    @classmethod
-    def validate_id_pattern(cls, v: str) -> str:
-        """Validate format ID contains only alphanumeric characters, hyphens, and underscores."""
-        if not re.match(r"^[a-zA-Z0-9_-]+$", v):
-            raise ValueError(
-                f"Invalid format ID: {v!r}. Must contain only alphanumeric characters, hyphens, and underscores"
-            )
-        return v
-
-
-class PreviewCreativeRequest(BaseModel):
-    """Request to generate a preview of a creative manifest. Supports single or batch mode."""
-
-    # Single mode fields
-    format_id: FormatId | None = Field(default=None, description="Format identifier for rendering the preview (single mode)")
-    creative_manifest: CreativeManifest | None = Field(default=None, description="Complete creative manifest with all required assets (single mode)")
-    inputs: list[dict[str, Any]] | None = Field(default=None, description="Array of input sets for generating multiple preview variants")
-    template_id: str | None = Field(default=None, description="Specific template ID for custom format rendering")
-
-    # Batch mode field
-    requests: list[dict[str, Any]] | None = Field(default=None, description="Array of preview requests for batch processing (1-50 items)")
-
-    # Output format (applies to both modes)
-    output_format: Literal["url", "html"] | None = Field(default="url", description="Output format: 'url' for iframe URLs, 'html' for direct embedding")
-    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
-
-class PreviewCreativeResponse(BaseModel):
-    """Response containing preview links for one or more creatives. Format matches the request: single preview response for single requests, batch results for batch requests."""
-
-    # Single mode fields
-    previews: list[dict[str, Any]] | None = Field(default=None, description="Array of preview variants (single mode)")
-    interactive_url: str | None = Field(default=None, description="Optional URL to interactive testing page (single mode)")
-    expires_at: str | None = Field(default=None, description="ISO 8601 timestamp when preview links expire (single mode)")
-
-    # Batch mode field
-    results: list[dict[str, Any]] | None = Field(default=None, description="Array of preview results for batch processing")
-    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
-
-
-# ============================================================================
-# ONEOF DISCRIMINATED UNIONS FOR RESPONSE TYPES
-# ============================================================================
-# These response types use oneOf semantics: success XOR error, never both.
-# Implemented as Union types with distinct Success/Error variants.
-
-
-class ActivateSignalSuccess(BaseModel):
-    """Successful signal activation response"""
-
-    decisioning_platform_segment_id: str = Field(
-        description="The platform-specific ID to use once activated"
-    )
-    estimated_activation_duration_minutes: float | None = None
-    deployed_at: str | None = None
-    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
-
-class ActivateSignalError(BaseModel):
-    """Failed signal activation response"""
-
-    errors: list[Error] = Field(description="Task-specific errors and warnings")
-    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
-
-# Override the generated ActivateSignalResponse type alias
-ActivateSignalResponse = ActivateSignalSuccess | ActivateSignalError
-
-
-class CreateMediaBuySuccess(BaseModel):
-    """Successful media buy creation response"""
-
-    media_buy_id: str = Field(description="The unique ID for the media buy")
-    buyer_ref: str = Field(description="The buyer's reference ID for this media buy")
-    packages: list[Package] = Field(
-        description="Array of approved packages. Each package is ready for creative assignment."
-    )
-    creative_deadline: str | None = Field(
-        None,
-        description="ISO 8601 date when creatives must be provided for launch",
-    )
-    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
-
-
-class CreateMediaBuyError(BaseModel):
-    """Failed media buy creation response"""
-
-    errors: list[Error] = Field(description="Task-specific errors and warnings")
-    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
-
-
-# Override the generated CreateMediaBuyResponse type alias
-CreateMediaBuyResponse = CreateMediaBuySuccess | CreateMediaBuyError
-
-
-class UpdateMediaBuySuccess(BaseModel):
-    """Successful media buy update response"""
-
-    media_buy_id: str = Field(description="The unique ID for the media buy")
-    buyer_ref: str = Field(description="The buyer's reference ID for this media buy")
-    packages: list[Package] = Field(
-        description="Array of updated packages reflecting the changes"
-    )
-    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
-
-
-class UpdateMediaBuyError(BaseModel):
-    """Failed media buy update response"""
-
-    errors: list[Error] = Field(description="Task-specific errors and warnings")
-    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
-
-# Override the generated UpdateMediaBuyResponse type alias
-UpdateMediaBuyResponse = UpdateMediaBuySuccess | UpdateMediaBuyError
-
-
-class SyncCreativesSuccess(BaseModel):
-    """Successful creative sync response"""
-
-    assignments: list[CreativeAssignment] = Field(
-        description="Array of creative assignments with updated status"
-    )
-    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
-
-
-class SyncCreativesError(BaseModel):
-    """Failed creative sync response"""
-
-    errors: list[Error] = Field(description="Task-specific errors and warnings")
-    context: dict[str, Any] | None = Field(None, description="Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.")
-
-# Override the generated SyncCreativesResponse type alias
-SyncCreativesResponse = SyncCreativesSuccess | SyncCreativesError
+# All custom implementations have been removed - types are now auto-generated from schemas
 '''
     return code + custom_code
 
@@ -694,7 +724,7 @@ def main():
     ]
 
     # Skip core types that have custom implementations
-    skip_core_types = {"format-id"}
+    skip_core_types: set[str] = set()  # All core types now auto-generated
 
     # Generate core types first
     for schema_file in core_schemas:
@@ -722,15 +752,8 @@ def main():
     )
 
     # Generate task models
-    # Skip types that have custom implementations
-    skip_types = {
-        "preview-creative-request",
-        "preview-creative-response",
-        "activate-signal-response",
-        "create-media-buy-response",
-        "update-media-buy-response",
-        "sync-creatives-response",
-    }
+    # All task types now auto-generated from schemas
+    skip_types: set[str] = set()
     for schema_file in task_schemas:
         if schema_file.stem in skip_types:
             print(f"  Skipping {schema_file.stem} (custom implementation)...")

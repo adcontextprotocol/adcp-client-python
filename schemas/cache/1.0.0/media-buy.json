@@ -14,7 +14,7 @@
       "description": "Buyer's reference identifier for this media buy"
     },
     "status": {
-      "$ref": "media-buy-status.json"
+      "$ref": "/schemas/v1/enums/media-buy-status.json"
     },
     "promoted_offering": {
       "type": "string",
@@ -29,7 +29,7 @@
       "type": "array",
       "description": "Array of packages within this media buy",
       "items": {
-        "$ref": "package.json"
+        "$ref": "/schemas/v1/core/package.json"
       }
     },
     "creative_deadline": {

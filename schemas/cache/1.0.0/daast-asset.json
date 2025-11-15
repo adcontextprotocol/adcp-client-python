@@ -8,6 +8,7 @@
       "type": "object",
       "properties": {
         "delivery_type": {
+          "type": "string",
           "const": "url",
           "description": "Discriminator indicating DAAST is delivered via URL endpoint"
         },
@@ -64,6 +65,7 @@
       "type": "object",
       "properties": {
         "delivery_type": {
+          "type": "string",
           "const": "inline",
           "description": "Discriminator indicating DAAST is delivered as inline XML content"
         },

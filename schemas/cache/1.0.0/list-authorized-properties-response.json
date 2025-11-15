@@ -19,7 +19,7 @@
       "type": "array",
       "description": "Primary advertising channels represented in this property portfolio. Helps buying agents quickly filter relevance.",
       "items": {
-        "$ref": "channels.json"
+        "$ref": "/schemas/v1/enums/channels.json"
       },
       "minItems": 1
     },
@@ -53,7 +53,7 @@
       "type": "array",
       "description": "Task-specific errors and warnings (e.g., property availability issues)",
       "items": {
-        "$ref": "error.json"
+        "$ref": "/schemas/v1/core/error.json"
       }
     },
     "context": {

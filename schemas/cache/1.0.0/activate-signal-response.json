@@ -13,7 +13,7 @@
           "type": "array",
           "description": "Array of deployment results for each destination",
           "items": {
-            "$ref": "deployment.json"
+            "$ref": "/schemas/v1/core/deployment.json"
           }
         },
         "context": {
@@ -40,7 +40,7 @@
           "type": "array",
           "description": "Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)",
           "items": {
-            "$ref": "error.json"
+            "$ref": "/schemas/v1/core/error.json"
           },
           "minItems": 1
         },

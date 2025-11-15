@@ -34,7 +34,7 @@
         "type": "object",
         "properties": {
           "type": {
-            "$ref": "identifier-types.json",
+            "$ref": "/schemas/v1/enums/identifier-types.json",
             "description": "Type of identifier for this property"
           },
           "value": {

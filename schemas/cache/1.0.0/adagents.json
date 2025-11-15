@@ -54,7 +54,7 @@
       "type": "array",
       "description": "Array of all properties covered by this adagents.json file. Same structure as list_authorized_properties response.",
       "items": {
-        "$ref": "property.json"
+        "$ref": "/schemas/v1/core/property.json"
       },
       "minItems": 1
     },
@@ -119,7 +119,7 @@
             "type": "array",
             "description": "Specific properties this agent is authorized for (alternative to property_ids/property_tags). Mutually exclusive with property_ids and property_tags fields.",
             "items": {
-              "$ref": "property.json"
+              "$ref": "/schemas/v1/core/property.json"
             },
             "minItems": 1
           },

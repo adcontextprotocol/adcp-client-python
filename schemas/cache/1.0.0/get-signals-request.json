@@ -17,7 +17,7 @@
           "type": "array",
           "description": "List of destination platforms (DSPs, sales agents, etc.). If the authenticated caller matches one of these destinations, activation keys will be included in the response.",
           "items": {
-            "$ref": "destination.json"
+            "$ref": "/schemas/v1/core/destination.json"
           },
           "minItems": 1
         },

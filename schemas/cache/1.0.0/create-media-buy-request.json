@@ -13,11 +13,11 @@
       "type": "array",
       "description": "Array of package configurations",
       "items": {
-        "$ref": "package-request.json"
+        "$ref": "/schemas/v1/media-buy/package-request.json"
       }
     },
     "brand_manifest": {
-      "$ref": "brand-manifest-ref.json",
+      "$ref": "/schemas/v1/core/brand-manifest-ref.json",
       "description": "Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests."
     },
     "po_number": {
@@ -25,7 +25,7 @@
       "description": "Purchase order number for tracking"
     },
     "start_time": {
-      "$ref": "start-timing.json"
+      "$ref": "/schemas/v1/core/start-timing.json"
     },
     "end_time": {
       "type": "string",
@@ -35,7 +35,7 @@
     "reporting_webhook": {
       "allOf": [
         {
-          "$ref": "push-notification-config.json"
+          "$ref": "/schemas/v1/core/push-notification-config.json"
         },
         {
           "type": "object",

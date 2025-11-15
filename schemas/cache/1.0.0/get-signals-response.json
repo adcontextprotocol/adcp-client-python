@@ -46,7 +46,7 @@
             "type": "array",
             "description": "Array of destination deployments",
             "items": {
-              "$ref": "deployment.json"
+              "$ref": "/schemas/v1/core/deployment.json"
             }
           },
           "pricing": {
@@ -88,7 +88,7 @@
       "type": "array",
       "description": "Task-specific errors and warnings (e.g., signal discovery or pricing issues)",
       "items": {
-        "$ref": "error.json"
+        "$ref": "/schemas/v1/core/error.json"
       }
     },
     "context": {

@@ -100,11 +100,11 @@
             "description": "Human-readable creative name"
           },
           "format_id": {
-            "$ref": "format-id.json",
+            "$ref": "/schemas/v1/core/format-id.json",
             "description": "Format identifier specifying which format this creative conforms to"
           },
           "status": {
-            "$ref": "creative-status.json",
+            "$ref": "/schemas/v1/enums/creative-status.json",
             "description": "Current approval status of the creative"
           },
           "created_date": {
@@ -129,37 +129,37 @@
               "^[a-zA-Z0-9_-]+$": {
                 "oneOf": [
                   {
-                    "$ref": "image-asset.json"
+                    "$ref": "/schemas/v1/core/assets/image-asset.json"
                   },
                   {
-                    "$ref": "video-asset.json"
+                    "$ref": "/schemas/v1/core/assets/video-asset.json"
                   },
                   {
-                    "$ref": "audio-asset.json"
+                    "$ref": "/schemas/v1/core/assets/audio-asset.json"
                   },
                   {
-                    "$ref": "text-asset.json"
+                    "$ref": "/schemas/v1/core/assets/text-asset.json"
                   },
                   {
-                    "$ref": "html-asset.json"
+                    "$ref": "/schemas/v1/core/assets/html-asset.json"
                   },
                   {
-                    "$ref": "css-asset.json"
+                    "$ref": "/schemas/v1/core/assets/css-asset.json"
                   },
                   {
-                    "$ref": "javascript-asset.json"
+                    "$ref": "/schemas/v1/core/assets/javascript-asset.json"
                   },
                   {
-                    "$ref": "vast-asset.json"
+                    "$ref": "/schemas/v1/core/assets/vast-asset.json"
                   },
                   {
-                    "$ref": "daast-asset.json"
+                    "$ref": "/schemas/v1/core/assets/daast-asset.json"
                   },
                   {
-                    "$ref": "promoted-offerings.json"
+                    "$ref": "/schemas/v1/core/promoted-offerings.json"
                   },
                   {
-                    "$ref": "url-asset.json"
+                    "$ref": "/schemas/v1/core/assets/url-asset.json"
                   }
                 ]
               }
@@ -291,7 +291,7 @@
             "type": "array",
             "description": "Sub-assets for multi-asset formats (included when include_sub_assets=true)",
             "items": {
-              "$ref": "sub-asset.json"
+              "$ref": "/schemas/v1/core/sub-asset.json"
             }
           }
         },

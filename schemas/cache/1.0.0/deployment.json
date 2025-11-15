@@ -8,6 +8,7 @@
       "type": "object",
       "properties": {
         "type": {
+          "type": "string",
           "const": "platform",
           "description": "Discriminator indicating this is a platform-based deployment"
         },
@@ -24,7 +25,7 @@
           "description": "Whether signal is currently active on this destination"
         },
         "activation_key": {
-          "$ref": "activation-key.json",
+          "$ref": "/schemas/v1/core/activation-key.json",
           "description": "The key to use for targeting. Only present if is_live=true AND requester has access to this destination."
         },
         "estimated_activation_duration_minutes": {
@@ -49,6 +50,7 @@
       "type": "object",
       "properties": {
         "type": {
+          "type": "string",
           "const": "agent",
           "description": "Discriminator indicating this is an agent URL-based deployment"
         },
@@ -66,7 +68,7 @@
           "description": "Whether signal is currently active on this destination"
         },
         "activation_key": {
-          "$ref": "activation-key.json",
+          "$ref": "/schemas/v1/core/activation-key.json",
           "description": "The key to use for targeting. Only present if is_live=true AND requester has access to this destination."
         },
         "estimated_activation_duration_minutes": {

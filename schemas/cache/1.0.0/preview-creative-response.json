@@ -8,6 +8,11 @@
       "type": "object",
       "description": "Single preview response - each preview URL returns an HTML page that can be embedded in an iframe",
       "properties": {
+        "response_type": {
+          "type": "string",
+          "const": "single",
+          "description": "Discriminator indicating this is a single preview response"
+        },
         "previews": {
           "type": "array",
           "description": "Array of preview variants. Each preview corresponds to an input set from the request. If no inputs were provided, returns a single default preview.",
@@ -22,7 +27,7 @@
                 "type": "array",
                 "description": "Array of rendered pieces for this preview variant. Most formats render as a single piece. Companion ad formats (video + banner), multi-placement formats, and adaptive formats render as multiple pieces.",
                 "items": {
-                  "$ref": "preview-render.json"
+                  "$ref": "/schemas/v1/creative/preview-render.json"
                 },
                 "minItems": 1
               },
@@ -76,6 +81,7 @@
         }
       },
       "required": [
+        "response_type",
         "previews",
         "expires_at"
       ],
@@ -85,6 +91,11 @@
       "type": "object",
       "description": "Batch preview response - contains results for multiple creative requests",
       "properties": {
+        "response_type": {
+          "type": "string",
+          "const": "batch",
+          "description": "Discriminator indicating this is a batch preview response"
+        },
         "results": {
           "type": "array",
           "description": "Array of preview results corresponding to each request in the same order. results[0] is the result for requests[0], results[1] for requests[1], etc. Order is guaranteed even when some requests fail. Each result contains either a successful preview response or an error.",
@@ -111,7 +122,7 @@
                         "renders": {
                           "type": "array",
                           "items": {
-                            "$ref": "preview-render.json"
+                            "$ref": "/schemas/v1/creative/preview-render.json"
                           },
                           "minItems": 1
                         },
@@ -189,6 +200,7 @@
               {
                 "properties": {
                   "success": {
+                    "type": "boolean",
                     "const": true
                   }
                 },
@@ -199,6 +211,7 @@
               {
                 "properties": {
                   "success": {
+                    "type": "boolean",
                     "const": false
                   }
                 },
@@ -217,6 +230,7 @@
         }
       },
       "required": [
+        "response_type",
         "results"
       ],
       "additionalProperties": false
