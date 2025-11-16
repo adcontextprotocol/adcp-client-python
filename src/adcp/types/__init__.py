@@ -2,6 +2,17 @@ from __future__ import annotations
 
 """Type definitions for AdCP client."""
 
+from adcp.types.aliases import (
+    BothPreviewRender,
+    HtmlPreviewRender,
+    InlineDaastAsset,
+    InlineVastAsset,
+    MediaSubAsset,
+    TextSubAsset,
+    UrlDaastAsset,
+    UrlPreviewRender,
+    UrlVastAsset,
+)
 from adcp.types.base import AdCPBaseModel
 from adcp.types.core import (
     Activity,
@@ -12,17 +23,6 @@ from adcp.types.core import (
     TaskResult,
     TaskStatus,
     WebhookMetadata,
-)
-from adcp.types.generated import (
-    BothPreviewRender,
-    HtmlPreviewRender,
-    InlineDaastAsset,
-    InlineVastAsset,
-    MediaSubAsset,
-    TextSubAsset,
-    UrlDaastAsset,
-    UrlPreviewRender,
-    UrlVastAsset,
 )
 
 __all__ = [
