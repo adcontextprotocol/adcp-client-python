@@ -7,9 +7,11 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from adcp.adagents import (
+    AuthorizationContext,
     _normalize_domain,
     _validate_publisher_domain,
     domain_matches,
+    fetch_agent_authorizations,
     get_all_properties,
     get_all_tags,
     get_properties_by_agent,
@@ -651,3 +653,363 @@ class TestGetPropertiesByAgent:
 
         properties = get_properties_by_agent(adagents_data, "https://unknown-agent.com")
         assert len(properties) == 0
+
+
+class TestAuthorizationContext:
+    """Test AuthorizationContext class."""
+
+    def test_extract_property_ids(self):
+        """Should extract property IDs from properties."""
+        properties = [
+            {
+                "id": "prop1",
+                "property_type": "website",
+                "name": "Site 1",
+                "identifiers": [{"type": "domain", "value": "site1.com"}],
+            },
+            {
+                "id": "prop2",
+                "property_type": "mobile_app",
+                "name": "App 1",
+                "identifiers": [{"type": "bundle_id", "value": "com.site1.app"}],
+            },
+        ]
+
+        ctx = AuthorizationContext(properties)
+        assert ctx.property_ids == ["prop1", "prop2"]
+
+    def test_extract_property_tags(self):
+        """Should extract unique tags from properties."""
+        properties = [
+            {
+                "id": "prop1",
+                "property_type": "website",
+                "name": "Site 1",
+                "tags": ["premium", "news"],
+            },
+            {
+                "id": "prop2",
+                "property_type": "website",
+                "name": "Site 2",
+                "tags": ["premium", "sports"],
+            },
+        ]
+
+        ctx = AuthorizationContext(properties)
+        assert set(ctx.property_tags) == {"premium", "news", "sports"}
+
+    def test_deduplicate_tags(self):
+        """Should deduplicate tags."""
+        properties = [
+            {
+                "id": "prop1",
+                "tags": ["premium", "news"],
+            },
+            {
+                "id": "prop2",
+                "tags": ["premium", "sports"],
+            },
+        ]
+
+        ctx = AuthorizationContext(properties)
+        # Each tag should appear only once
+        assert ctx.property_tags.count("premium") == 1
+
+    def test_handle_missing_fields(self):
+        """Should handle properties without ID or tags."""
+        properties = [
+            {
+                "property_type": "website",
+                "name": "Site 1",
+            }
+        ]
+
+        ctx = AuthorizationContext(properties)
+        assert ctx.property_ids == []
+        assert ctx.property_tags == []
+
+    def test_raw_properties_preserved(self):
+        """Should preserve raw properties data."""
+        properties = [
+            {
+                "id": "prop1",
+                "property_type": "website",
+                "name": "Site 1",
+                "custom_field": "custom_value",
+            }
+        ]
+
+        ctx = AuthorizationContext(properties)
+        assert ctx.raw_properties == properties
+        assert ctx.raw_properties[0]["custom_field"] == "custom_value"
+
+    def test_repr(self):
+        """Should have useful string representation."""
+        properties = [
+            {
+                "id": "prop1",
+                "tags": ["premium"],
+            }
+        ]
+
+        ctx = AuthorizationContext(properties)
+        repr_str = repr(ctx)
+        assert "AuthorizationContext" in repr_str
+        assert "property_ids" in repr_str
+        assert "property_tags" in repr_str
+
+
+@pytest.mark.asyncio
+class TestFetchAgentAuthorizations:
+    """Test fetch_agent_authorizations function."""
+
+    async def test_single_publisher_authorized(self):
+        """Should return authorization context for authorized publisher."""
+        from unittest.mock import patch
+
+        # Mock adagents.json data
+        adagents_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://our-agent.com",
+                    "properties": [
+                        {
+                            "id": "prop1",
+                            "property_type": "website",
+                            "name": "Site 1",
+                            "identifiers": [{"type": "domain", "value": "nytimes.com"}],
+                            "tags": ["premium", "news"],
+                        }
+                    ],
+                }
+            ]
+        }
+
+        # Mock fetch_adagents to return our test data
+        with patch("adcp.adagents.fetch_adagents", new_callable=AsyncMock) as mock_fetch:
+            mock_fetch.return_value = adagents_data
+
+            contexts = await fetch_agent_authorizations("https://our-agent.com", ["nytimes.com"])
+
+            assert len(contexts) == 1
+            assert "nytimes.com" in contexts
+            ctx = contexts["nytimes.com"]
+            assert ctx.property_ids == ["prop1"]
+            assert "premium" in ctx.property_tags
+            assert "news" in ctx.property_tags
+
+    async def test_multiple_publishers(self):
+        """Should fetch and return contexts for multiple publishers in parallel."""
+        from unittest.mock import patch
+
+        # Mock adagents.json data for different publishers
+        nytimes_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://our-agent.com",
+                    "properties": [
+                        {
+                            "id": "nyt_prop1",
+                            "tags": ["news"],
+                        }
+                    ],
+                }
+            ]
+        }
+
+        wsj_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://our-agent.com",
+                    "properties": [
+                        {
+                            "id": "wsj_prop1",
+                            "tags": ["business"],
+                        }
+                    ],
+                }
+            ]
+        }
+
+        async def mock_fetch_adagents(domain, **kwargs):
+            if domain == "nytimes.com":
+                return nytimes_data
+            elif domain == "wsj.com":
+                return wsj_data
+            else:
+                raise Exception("Unexpected domain")
+
+        with patch("adcp.adagents.fetch_adagents", side_effect=mock_fetch_adagents):
+            contexts = await fetch_agent_authorizations(
+                "https://our-agent.com", ["nytimes.com", "wsj.com"]
+            )
+
+            assert len(contexts) == 2
+            assert "nytimes.com" in contexts
+            assert "wsj.com" in contexts
+            assert contexts["nytimes.com"].property_ids == ["nyt_prop1"]
+            assert contexts["wsj.com"].property_ids == ["wsj_prop1"]
+
+    async def test_skip_unauthorized_publishers(self):
+        """Should skip publishers where agent is not authorized."""
+        from unittest.mock import patch
+
+        # nytimes authorizes our agent
+        nytimes_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://our-agent.com",
+                    "properties": [{"id": "prop1"}],
+                }
+            ]
+        }
+
+        # wsj does NOT authorize our agent
+        wsj_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://different-agent.com",
+                    "properties": [{"id": "prop2"}],
+                }
+            ]
+        }
+
+        async def mock_fetch_adagents(domain, **kwargs):
+            if domain == "nytimes.com":
+                return nytimes_data
+            elif domain == "wsj.com":
+                return wsj_data
+            else:
+                raise Exception("Unexpected domain")
+
+        with patch("adcp.adagents.fetch_adagents", side_effect=mock_fetch_adagents):
+            contexts = await fetch_agent_authorizations(
+                "https://our-agent.com", ["nytimes.com", "wsj.com"]
+            )
+
+            # Should only include nytimes
+            assert len(contexts) == 1
+            assert "nytimes.com" in contexts
+            assert "wsj.com" not in contexts
+
+    async def test_skip_missing_adagents_json(self):
+        """Should silently skip publishers with missing adagents.json."""
+        from unittest.mock import patch
+
+        from adcp.exceptions import AdagentsNotFoundError
+
+        # nytimes has adagents.json
+        nytimes_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://our-agent.com",
+                    "properties": [{"id": "prop1"}],
+                }
+            ]
+        }
+
+        async def mock_fetch_adagents(domain, **kwargs):
+            if domain == "nytimes.com":
+                return nytimes_data
+            elif domain == "wsj.com":
+                # wsj doesn't have adagents.json (404)
+                raise AdagentsNotFoundError("wsj.com")
+            else:
+                raise Exception("Unexpected domain")
+
+        with patch("adcp.adagents.fetch_adagents", side_effect=mock_fetch_adagents):
+            contexts = await fetch_agent_authorizations(
+                "https://our-agent.com", ["nytimes.com", "wsj.com"]
+            )
+
+            # Should only include nytimes
+            assert len(contexts) == 1
+            assert "nytimes.com" in contexts
+            assert "wsj.com" not in contexts
+
+    async def test_skip_invalid_adagents_json(self):
+        """Should silently skip publishers with invalid adagents.json."""
+        from unittest.mock import patch
+
+        from adcp.exceptions import AdagentsValidationError
+
+        nytimes_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://our-agent.com",
+                    "properties": [{"id": "prop1"}],
+                }
+            ]
+        }
+
+        async def mock_fetch_adagents(domain, **kwargs):
+            if domain == "nytimes.com":
+                return nytimes_data
+            elif domain == "wsj.com":
+                # wsj has invalid adagents.json
+                raise AdagentsValidationError("Invalid JSON")
+            else:
+                raise Exception("Unexpected domain")
+
+        with patch("adcp.adagents.fetch_adagents", side_effect=mock_fetch_adagents):
+            contexts = await fetch_agent_authorizations(
+                "https://our-agent.com", ["nytimes.com", "wsj.com"]
+            )
+
+            # Should only include nytimes
+            assert len(contexts) == 1
+            assert "nytimes.com" in contexts
+            assert "wsj.com" not in contexts
+
+    async def test_empty_result_when_no_authorizations(self):
+        """Should return empty dict when no publishers authorize the agent."""
+        from unittest.mock import patch
+
+        # No publishers authorize our agent
+        adagents_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://different-agent.com",
+                    "properties": [{"id": "prop1"}],
+                }
+            ]
+        }
+
+        with patch("adcp.adagents.fetch_adagents", new_callable=AsyncMock) as mock_fetch:
+            mock_fetch.return_value = adagents_data
+
+            contexts = await fetch_agent_authorizations(
+                "https://our-agent.com", ["nytimes.com", "wsj.com"]
+            )
+
+            assert len(contexts) == 0
+            assert contexts == {}
+
+    async def test_uses_provided_http_client(self):
+        """Should use provided HTTP client for connection pooling."""
+        from unittest.mock import MagicMock, patch
+
+        import httpx
+
+        adagents_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://our-agent.com",
+                    "properties": [{"id": "prop1"}],
+                }
+            ]
+        }
+
+        mock_client = MagicMock(spec=httpx.AsyncClient)
+
+        with patch("adcp.adagents.fetch_adagents", new_callable=AsyncMock) as mock_fetch:
+            mock_fetch.return_value = adagents_data
+
+            await fetch_agent_authorizations(
+                "https://our-agent.com", ["nytimes.com"], client=mock_client
+            )
+
+            # Verify fetch_adagents was called with the provided client
+            mock_fetch.assert_called_once()
+            call_kwargs = mock_fetch.call_args[1]
+            assert call_kwargs.get("client") == mock_client

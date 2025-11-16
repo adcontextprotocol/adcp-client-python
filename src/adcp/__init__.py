@@ -8,8 +8,10 @@ Supports both A2A and MCP protocols with full type safety.
 """
 
 from adcp.adagents import (
+    AuthorizationContext,
     domain_matches,
     fetch_adagents,
+    fetch_agent_authorizations,
     get_all_properties,
     get_all_tags,
     get_properties_by_agent,
@@ -178,7 +180,9 @@ __all__ = [
     "Product",
     "Property",
     # Adagents validation
+    "AuthorizationContext",
     "fetch_adagents",
+    "fetch_agent_authorizations",
     "verify_agent_authorization",
     "verify_agent_for_property",
     "domain_matches",
