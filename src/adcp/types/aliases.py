@@ -167,16 +167,6 @@ PreviewCreativeInteractiveResponse = PreviewCreativeResponse2
 """Preview response with interactive renders (iframe embedding)."""
 
 # Preview Render Variants (discriminated by output_format)
-PreviewRenderImage = PreviewRender1
-"""Image-based preview render (PNG/JPEG)."""
-
-PreviewRenderHtml = PreviewRender2
-"""HTML-based preview render (static markup)."""
-
-PreviewRenderIframe = PreviewRender3
-"""Interactive iframe-based preview render."""
-
-# More precise aliases based on output_format discriminator
 UrlPreviewRender = PreviewRender1
 """Preview render with output_format='url' - provides preview_url for iframe embedding."""
 
@@ -247,10 +237,6 @@ __all__ = [
     # Preview creative responses
     "PreviewCreativeStaticResponse",
     "PreviewCreativeInteractiveResponse",
-    # Preview renders
-    "PreviewRenderImage",
-    "PreviewRenderHtml",
-    "PreviewRenderIframe",
     # Sync creatives responses
     "SyncCreativesSuccessResponse",
     "SyncCreativesErrorResponse",

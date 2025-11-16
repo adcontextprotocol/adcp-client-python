@@ -174,12 +174,9 @@ def test_all_activation_key_aliases_exported():
 def test_all_preview_render_aliases_exported():
     """Test that all preview render aliases are exported."""
     expected_aliases = [
-        "PreviewRenderImage",
-        "PreviewRenderHtml",
-        "PreviewRenderIframe",
         "PreviewCreativeStaticResponse",
         "PreviewCreativeInteractiveResponse",
-        # New semantic aliases based on discriminator
+        # Semantic aliases based on output_format discriminator
         "UrlPreviewRender",
         "HtmlPreviewRender",
         "BothPreviewRender",
