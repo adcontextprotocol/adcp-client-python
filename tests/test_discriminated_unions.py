@@ -9,8 +9,17 @@ from pydantic import ValidationError
 from adcp import (
     ActivateSignalErrorResponse,
     ActivateSignalSuccessResponse,
+    BothPreviewRender,
     CreateMediaBuyErrorResponse,
     CreateMediaBuySuccessResponse,
+    HtmlPreviewRender,
+    InlineDaastAsset,
+    InlineVastAsset,
+    MediaSubAsset,
+    TextSubAsset,
+    UrlDaastAsset,
+    UrlPreviewRender,
+    UrlVastAsset,
 )
 
 # Keep using generated names for authorization/deployment/destination variants
@@ -448,3 +457,254 @@ class TestProductValidation:
         assert len(mixed_props) == 2
         assert mixed_props[0].selection_type == "by_id"
         assert mixed_props[1].selection_type == "by_tag"
+
+
+class TestPreviewRenderDiscriminators:
+    """Test PreviewRender discriminator field values match semantic aliases."""
+
+    def test_url_preview_render_has_url_discriminator(self):
+        """UrlPreviewRender has output_format='url'."""
+        render = UrlPreviewRender(
+            render_id="render_1",
+            role="primary",
+            output_format="url",
+            preview_url="https://preview.example.com/creative",
+        )
+        assert render.output_format == "url"
+        assert hasattr(render, "preview_url")
+        assert not hasattr(render, "preview_html")
+
+    def test_html_preview_render_has_html_discriminator(self):
+        """HtmlPreviewRender has output_format='html'."""
+        render = HtmlPreviewRender(
+            render_id="render_1",
+            role="primary",
+            output_format="html",
+            preview_html="<div>Preview HTML</div>",
+        )
+        assert render.output_format == "html"
+        assert hasattr(render, "preview_html")
+        assert not hasattr(render, "preview_url")
+
+    def test_both_preview_render_has_both_discriminator(self):
+        """BothPreviewRender has output_format='both'."""
+        render = BothPreviewRender(
+            render_id="render_1",
+            role="primary",
+            output_format="both",
+            preview_url="https://preview.example.com/creative",
+            preview_html="<div>Preview HTML</div>",
+        )
+        assert render.output_format == "both"
+        assert hasattr(render, "preview_url")
+        assert hasattr(render, "preview_html")
+
+    def test_url_preview_render_rejects_wrong_discriminator(self):
+        """UrlPreviewRender rejects output_format='html'."""
+        with pytest.raises(ValidationError) as exc_info:
+            UrlPreviewRender(
+                render_id="render_1",
+                role="primary",
+                output_format="html",  # Wrong discriminator value
+                preview_url="https://preview.example.com/creative",
+            )
+        assert "output_format" in str(exc_info.value).lower()
+
+    def test_html_preview_render_rejects_wrong_discriminator(self):
+        """HtmlPreviewRender rejects output_format='url'."""
+        with pytest.raises(ValidationError) as exc_info:
+            HtmlPreviewRender(
+                render_id="render_1",
+                role="primary",
+                output_format="url",  # Wrong discriminator value
+                preview_html="<div>Preview HTML</div>",
+            )
+        assert "output_format" in str(exc_info.value).lower()
+
+
+class TestVastAssetDiscriminators:
+    """Test VastAsset discriminator field values match semantic aliases."""
+
+    def test_url_vast_asset_has_url_discriminator(self):
+        """UrlVastAsset has delivery_type='url'."""
+        asset = UrlVastAsset(
+            delivery_type="url",
+            url="https://vast.example.com/ad.xml",
+        )
+        assert asset.delivery_type == "url"
+        assert hasattr(asset, "url")
+        assert not hasattr(asset, "vast_xml")
+
+    def test_inline_vast_asset_has_inline_discriminator(self):
+        """InlineVastAsset has delivery_type='inline'."""
+        asset = InlineVastAsset(
+            delivery_type="inline",
+            content="<VAST>...</VAST>",
+        )
+        assert asset.delivery_type == "inline"
+        assert hasattr(asset, "content")
+        assert not hasattr(asset, "url")
+
+    def test_url_vast_asset_rejects_wrong_discriminator(self):
+        """UrlVastAsset rejects delivery_type='inline'."""
+        with pytest.raises(ValidationError) as exc_info:
+            UrlVastAsset(
+                delivery_type="inline",  # Wrong discriminator value
+                url="https://vast.example.com/ad.xml",
+            )
+        assert "delivery_type" in str(exc_info.value).lower()
+
+    def test_inline_vast_asset_rejects_wrong_discriminator(self):
+        """InlineVastAsset rejects delivery_type='url'."""
+        with pytest.raises(ValidationError) as exc_info:
+            InlineVastAsset(
+                delivery_type="url",  # Wrong discriminator value
+                content="<VAST>...</VAST>",
+            )
+        assert "delivery_type" in str(exc_info.value).lower()
+
+
+class TestDaastAssetDiscriminators:
+    """Test DaastAsset discriminator field values match semantic aliases."""
+
+    def test_url_daast_asset_has_url_discriminator(self):
+        """UrlDaastAsset has delivery_type='url'."""
+        asset = UrlDaastAsset(
+            delivery_type="url",
+            url="https://daast.example.com/ad.xml",
+        )
+        assert asset.delivery_type == "url"
+        assert hasattr(asset, "url")
+        assert not hasattr(asset, "content")
+
+    def test_inline_daast_asset_has_inline_discriminator(self):
+        """InlineDaastAsset has delivery_type='inline'."""
+        asset = InlineDaastAsset(
+            delivery_type="inline",
+            content="<DAAST>...</DAAST>",
+        )
+        assert asset.delivery_type == "inline"
+        assert hasattr(asset, "content")
+        assert not hasattr(asset, "url")
+
+    def test_url_daast_asset_rejects_wrong_discriminator(self):
+        """UrlDaastAsset rejects delivery_type='inline'."""
+        with pytest.raises(ValidationError) as exc_info:
+            UrlDaastAsset(
+                delivery_type="inline",  # Wrong discriminator value
+                url="https://daast.example.com/ad.xml",
+            )
+        assert "delivery_type" in str(exc_info.value).lower()
+
+    def test_inline_daast_asset_rejects_wrong_discriminator(self):
+        """InlineDaastAsset rejects delivery_type='url'."""
+        with pytest.raises(ValidationError) as exc_info:
+            InlineDaastAsset(
+                delivery_type="url",  # Wrong discriminator value
+                content="<DAAST>...</DAAST>",
+            )
+        assert "delivery_type" in str(exc_info.value).lower()
+
+
+class TestSubAssetDiscriminators:
+    """Test SubAsset discriminator field values match semantic aliases."""
+
+    def test_media_sub_asset_has_media_discriminator(self):
+        """MediaSubAsset has asset_kind='media'."""
+        asset = MediaSubAsset(
+            asset_id="asset_1",
+            asset_type="logo",
+            asset_kind="media",
+            content_uri="https://cdn.example.com/logo.png",
+        )
+        assert asset.asset_kind == "media"
+        assert hasattr(asset, "content_uri")
+        assert not hasattr(asset, "content")
+
+    def test_text_sub_asset_has_text_discriminator(self):
+        """TextSubAsset has asset_kind='text'."""
+        asset = TextSubAsset(
+            asset_id="asset_2",
+            asset_type="headline",
+            asset_kind="text",
+            content="Buy Now!",
+        )
+        assert asset.asset_kind == "text"
+        assert hasattr(asset, "content")
+        assert not hasattr(asset, "content_uri")
+
+    def test_media_sub_asset_rejects_wrong_discriminator(self):
+        """MediaSubAsset rejects asset_kind='text'."""
+        with pytest.raises(ValidationError) as exc_info:
+            MediaSubAsset(
+                asset_id="asset_1",
+                asset_type="logo",
+                asset_kind="text",  # Wrong discriminator value
+                content_uri="https://cdn.example.com/logo.png",
+            )
+        assert "asset_kind" in str(exc_info.value).lower()
+
+    def test_text_sub_asset_rejects_wrong_discriminator(self):
+        """TextSubAsset rejects asset_kind='media'."""
+        with pytest.raises(ValidationError) as exc_info:
+            TextSubAsset(
+                asset_id="asset_2",
+                asset_type="headline",
+                asset_kind="media",  # Wrong discriminator value
+                content="Buy Now!",
+            )
+        assert "asset_kind" in str(exc_info.value).lower()
+
+
+class TestSemanticAliasDiscriminatorRoundtrips:
+    """Test that semantic aliases serialize/deserialize with correct discriminators."""
+
+    def test_url_preview_render_roundtrip(self):
+        """UrlPreviewRender roundtrips with output_format='url'."""
+        original = UrlPreviewRender(
+            render_id="render_1",
+            role="primary",
+            output_format="url",
+            preview_url="https://preview.example.com/creative",
+        )
+        json_str = original.model_dump_json()
+        parsed = UrlPreviewRender.model_validate_json(json_str)
+        assert parsed.output_format == "url"
+        assert parsed.preview_url == original.preview_url
+
+    def test_url_vast_asset_roundtrip(self):
+        """UrlVastAsset roundtrips with delivery_type='url'."""
+        original = UrlVastAsset(
+            delivery_type="url",
+            url="https://vast.example.com/ad.xml",
+        )
+        json_str = original.model_dump_json()
+        parsed = UrlVastAsset.model_validate_json(json_str)
+        assert parsed.delivery_type == "url"
+        assert parsed.url == original.url
+
+    def test_media_sub_asset_roundtrip(self):
+        """MediaSubAsset roundtrips with asset_kind='media'."""
+        original = MediaSubAsset(
+            asset_id="asset_1",
+            asset_type="logo",
+            asset_kind="media",
+            content_uri="https://cdn.example.com/logo.png",
+        )
+        json_str = original.model_dump_json()
+        parsed = MediaSubAsset.model_validate_json(json_str)
+        assert parsed.asset_kind == "media"
+        assert parsed.content_uri == original.content_uri
+
+    def test_text_sub_asset_roundtrip(self):
+        """TextSubAsset roundtrips with asset_kind='text'."""
+        original = TextSubAsset(
+            asset_id="asset_2",
+            asset_type="headline",
+            asset_kind="text",
+            content="Buy Now!",
+        )
+        json_str = original.model_dump_json()
+        parsed = TextSubAsset.model_validate_json(json_str)
+        assert parsed.asset_kind == "text"
+        assert parsed.content == original.content
