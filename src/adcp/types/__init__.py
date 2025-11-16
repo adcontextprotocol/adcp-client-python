@@ -13,6 +13,17 @@ from adcp.types.core import (
     TaskStatus,
     WebhookMetadata,
 )
+from adcp.types.generated import (
+    BothPreviewRender,
+    HtmlPreviewRender,
+    InlineDaastAsset,
+    InlineVastAsset,
+    MediaSubAsset,
+    TextSubAsset,
+    UrlDaastAsset,
+    UrlPreviewRender,
+    UrlVastAsset,
+)
 
 __all__ = [
     "AdCPBaseModel",
@@ -24,4 +35,14 @@ __all__ = [
     "Activity",
     "ActivityType",
     "DebugInfo",
+    # Semantic aliases for discriminated unions
+    "BothPreviewRender",
+    "HtmlPreviewRender",
+    "InlineDaastAsset",
+    "InlineVastAsset",
+    "MediaSubAsset",
+    "TextSubAsset",
+    "UrlDaastAsset",
+    "UrlPreviewRender",
+    "UrlVastAsset",
 ]
