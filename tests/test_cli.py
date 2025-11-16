@@ -20,6 +20,28 @@ from adcp.config import save_agent
 class TestCLIBasics:
     """Test basic CLI functionality."""
 
+    def test_cli_imports_successfully(self):
+        """Test that CLI can import all dependencies including email_validator.
+
+        This test catches missing runtime dependencies that would cause
+        ModuleNotFoundError when the CLI tries to import generated types.
+        The generated types use EmailStr which requires email_validator.
+        """
+        # Import the CLI module and a type that uses EmailStr (BrandManifest.contact.email)
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import adcp.__main__; from adcp.types.generated_poc.brand_manifest import Contact",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, f"CLI import failed: {result.stderr}"
+        assert "ModuleNotFoundError" not in result.stderr
+        assert "email_validator" not in result.stderr
+        assert "ImportError" not in result.stderr
+
     def test_cli_help(self):
         """Test that --help works."""
         result = subprocess.run(
