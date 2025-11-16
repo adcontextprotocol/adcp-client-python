@@ -45,6 +45,9 @@ from adcp.types.generated import (
     # Create media buy responses
     CreateMediaBuyResponse1,
     CreateMediaBuyResponse2,
+    # DAAST assets
+    DaastAsset1,
+    DaastAsset2,
     # Preview creative requests
     PreviewCreativeRequest1,
     PreviewCreativeRequest2,
@@ -58,6 +61,9 @@ from adcp.types.generated import (
     # Performance feedback responses
     ProvidePerformanceFeedbackResponse1,
     ProvidePerformanceFeedbackResponse2,
+    # SubAssets
+    SubAsset1,
+    SubAsset2,
     # Sync creatives responses
     SyncCreativesResponse1,
     SyncCreativesResponse2,
@@ -67,6 +73,9 @@ from adcp.types.generated import (
     # Update media buy responses
     UpdateMediaBuyResponse1,
     UpdateMediaBuyResponse2,
+    # VAST assets
+    VastAsset1,
+    VastAsset2,
 )
 
 # ============================================================================
@@ -157,15 +166,40 @@ PreviewCreativeStaticResponse = PreviewCreativeResponse1
 PreviewCreativeInteractiveResponse = PreviewCreativeResponse2
 """Preview response with interactive renders (iframe embedding)."""
 
-# Preview Render Variants
-PreviewRenderImage = PreviewRender1
-"""Image-based preview render (PNG/JPEG)."""
+# Preview Render Variants (discriminated by output_format)
+UrlPreviewRender = PreviewRender1
+"""Preview render with output_format='url' - provides preview_url for iframe embedding."""
 
-PreviewRenderHtml = PreviewRender2
-"""HTML-based preview render (static markup)."""
+HtmlPreviewRender = PreviewRender2
+"""Preview render with output_format='html' - provides preview_html for direct embedding."""
 
-PreviewRenderIframe = PreviewRender3
-"""Interactive iframe-based preview render."""
+BothPreviewRender = PreviewRender3
+"""Preview render with output_format='both' - provides both preview_url and preview_html."""
+
+# ============================================================================
+# ASSET TYPE ALIASES - Delivery & Kind Discriminated Unions
+# ============================================================================
+
+# VAST Asset Variants (discriminated by delivery_type)
+UrlVastAsset = VastAsset1
+"""VAST asset delivered via URL endpoint - delivery_type='url'."""
+
+InlineVastAsset = VastAsset2
+"""VAST asset with inline XML content - delivery_type='inline'."""
+
+# DAAST Asset Variants (discriminated by delivery_type)
+UrlDaastAsset = DaastAsset1
+"""DAAST asset delivered via URL endpoint - delivery_type='url'."""
+
+InlineDaastAsset = DaastAsset2
+"""DAAST asset with inline XML content - delivery_type='inline'."""
+
+# SubAsset Variants (discriminated by asset_kind)
+MediaSubAsset = SubAsset1
+"""SubAsset for media content (images, videos) - asset_kind='media', provides content_uri."""
+
+TextSubAsset = SubAsset2
+"""SubAsset for text content (headlines, body text) - asset_kind='text', provides content."""
 
 # ============================================================================
 # EXPORTS
@@ -178,6 +212,16 @@ __all__ = [
     # Activation keys
     "PropertyIdActivationKey",
     "PropertyTagActivationKey",
+    # Asset type aliases
+    "BothPreviewRender",
+    "HtmlPreviewRender",
+    "InlineDaastAsset",
+    "InlineVastAsset",
+    "MediaSubAsset",
+    "TextSubAsset",
+    "UrlDaastAsset",
+    "UrlPreviewRender",
+    "UrlVastAsset",
     # Build creative responses
     "BuildCreativeSuccessResponse",
     "BuildCreativeErrorResponse",
@@ -193,10 +237,6 @@ __all__ = [
     # Preview creative responses
     "PreviewCreativeStaticResponse",
     "PreviewCreativeInteractiveResponse",
-    # Preview renders
-    "PreviewRenderImage",
-    "PreviewRenderHtml",
-    "PreviewRenderIframe",
     # Sync creatives responses
     "SyncCreativesSuccessResponse",
     "SyncCreativesErrorResponse",
