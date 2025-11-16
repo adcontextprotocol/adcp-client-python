@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.0.0...v2.1.0) (2025-11-16)
+
+
+### Features
+
+* Add ergonomic type aliases and public API exports ([#47](https://github.com/adcontextprotocol/adcp-client-python/issues/47)) ([5c63dec](https://github.com/adcontextprotocol/adcp-client-python/commit/5c63decdd12c9d565c1b0fced0b3ed4348e1bd75))
+
 ## [2.0.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v1.6.1...v2.0.0) (2025-11-15)
 
 
