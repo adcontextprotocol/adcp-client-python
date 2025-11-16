@@ -5,15 +5,21 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
+# Use semantic aliases for response types
+from adcp import (
+    ActivateSignalErrorResponse,
+    ActivateSignalSuccessResponse,
+    CreateMediaBuyErrorResponse,
+    CreateMediaBuySuccessResponse,
+)
+
+# Keep using generated names for authorization/deployment/destination variants
+# since these don't have semantic aliases yet
 from adcp.types.generated import (
-    ActivateSignalResponse1,  # Success
-    ActivateSignalResponse2,  # Error
     AuthorizedAgents,  # property_ids variant
     AuthorizedAgents1,  # property_tags variant
     AuthorizedAgents2,  # inline_properties variant
     AuthorizedAgents3,  # publisher_properties variant
-    CreateMediaBuyResponse1,  # Success
-    CreateMediaBuyResponse2,  # Error
     Deployment1,  # Platform
     Deployment2,  # Agent
     Destination1,  # Platform
@@ -109,8 +115,8 @@ class TestResponseUnions:
     """Test discriminated union response types."""
 
     def test_create_media_buy_success_variant(self):
-        """CreateMediaBuyResponse1 (success) should validate with required fields."""
-        success = CreateMediaBuyResponse1(
+        """CreateMediaBuySuccessResponse should validate with required fields."""
+        success = CreateMediaBuySuccessResponse(
             media_buy_id="mb_123",
             buyer_ref="ref_456",
             packages=[],
@@ -120,8 +126,8 @@ class TestResponseUnions:
         assert not hasattr(success, "errors")
 
     def test_create_media_buy_error_variant(self):
-        """CreateMediaBuyResponse2 (error) should validate with errors field."""
-        error = CreateMediaBuyResponse2(
+        """CreateMediaBuyErrorResponse should validate with errors field."""
+        error = CreateMediaBuyErrorResponse(
             errors=[{"code": "invalid_budget", "message": "Budget too low"}],
         )
         assert len(error.errors) == 1
@@ -129,16 +135,16 @@ class TestResponseUnions:
         assert not hasattr(error, "media_buy_id")
 
     def test_activate_signal_success_variant(self):
-        """ActivateSignalResponse1 (success) should validate with required fields."""
-        success = ActivateSignalResponse1(
+        """ActivateSignalSuccessResponse should validate with required fields."""
+        success = ActivateSignalSuccessResponse(
             deployments=[],
         )
         assert success.deployments == []
         assert not hasattr(success, "errors")
 
     def test_activate_signal_error_variant(self):
-        """ActivateSignalResponse2 (error) should validate with errors field."""
-        error = ActivateSignalResponse2(
+        """ActivateSignalErrorResponse should validate with errors field."""
+        error = ActivateSignalErrorResponse(
             errors=[{"code": "unauthorized", "message": "Not authorized"}],
         )
         assert len(error.errors) == 1
@@ -223,23 +229,23 @@ class TestUnionTypeValidation:
     """Test union type validation and deserialization."""
 
     def test_success_response_from_dict(self):
-        """CreateMediaBuyResponse1 should validate success from dict."""
+        """CreateMediaBuySuccessResponse should validate success from dict."""
         data = {
             "media_buy_id": "mb_123",
             "buyer_ref": "ref_456",
             "packages": [],
         }
-        response = CreateMediaBuyResponse1.model_validate(data)
-        assert isinstance(response, CreateMediaBuyResponse1)
+        response = CreateMediaBuySuccessResponse.model_validate(data)
+        assert isinstance(response, CreateMediaBuySuccessResponse)
         assert response.media_buy_id == "mb_123"
 
     def test_error_response_from_dict(self):
-        """CreateMediaBuyResponse2 should validate error from dict."""
+        """CreateMediaBuyErrorResponse should validate error from dict."""
         data = {
             "errors": [{"code": "invalid", "message": "Invalid request"}],
         }
-        response = CreateMediaBuyResponse2.model_validate(data)
-        assert isinstance(response, CreateMediaBuyResponse2)
+        response = CreateMediaBuyErrorResponse.model_validate(data)
+        assert isinstance(response, CreateMediaBuyErrorResponse)
         assert len(response.errors) == 1
 
     def test_platform_destination_from_dict(self):
@@ -265,24 +271,24 @@ class TestSerializationRoundtrips:
     """Test that discriminated unions serialize and deserialize correctly."""
 
     def test_success_response_roundtrip(self):
-        """CreateMediaBuyResponse1 should roundtrip through JSON."""
-        original = CreateMediaBuyResponse1(
+        """CreateMediaBuySuccessResponse should roundtrip through JSON."""
+        original = CreateMediaBuySuccessResponse(
             media_buy_id="mb_123",
             buyer_ref="ref_456",
             packages=[],
         )
         json_str = original.model_dump_json()
-        parsed = CreateMediaBuyResponse1.model_validate_json(json_str)
+        parsed = CreateMediaBuySuccessResponse.model_validate_json(json_str)
         assert parsed.media_buy_id == original.media_buy_id
         assert parsed.buyer_ref == original.buyer_ref
 
     def test_error_response_roundtrip(self):
-        """CreateMediaBuyResponse2 should roundtrip through JSON."""
-        original = CreateMediaBuyResponse2(
+        """CreateMediaBuyErrorResponse should roundtrip through JSON."""
+        original = CreateMediaBuyErrorResponse(
             errors=[{"code": "invalid", "message": "Invalid"}],
         )
         json_str = original.model_dump_json()
-        parsed = CreateMediaBuyResponse2.model_validate_json(json_str)
+        parsed = CreateMediaBuyErrorResponse.model_validate_json(json_str)
         assert len(parsed.errors) == len(original.errors)
         assert parsed.errors[0].code == original.errors[0].code
 

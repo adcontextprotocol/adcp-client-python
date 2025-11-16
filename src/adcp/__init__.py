@@ -50,8 +50,75 @@ from adcp.testing import (
 )
 
 # Import all generated types - users can import what they need from adcp.types.generated
-from adcp.types import generated
+from adcp.types import aliases, generated
+
+# Re-export semantic type aliases for better ergonomics
+from adcp.types.aliases import (
+    ActivateSignalErrorResponse,
+    ActivateSignalSuccessResponse,
+    BuildCreativeErrorResponse,
+    BuildCreativeSuccessResponse,
+    CreateMediaBuyErrorResponse,
+    CreateMediaBuySuccessResponse,
+    PreviewCreativeFormatRequest,
+    PreviewCreativeInteractiveResponse,
+    PreviewCreativeManifestRequest,
+    PreviewCreativeStaticResponse,
+    PreviewRenderHtml,
+    PreviewRenderIframe,
+    PreviewRenderImage,
+    PropertyIdActivationKey,
+    PropertyTagActivationKey,
+    ProvidePerformanceFeedbackErrorResponse,
+    ProvidePerformanceFeedbackSuccessResponse,
+    SyncCreativesErrorResponse,
+    SyncCreativesSuccessResponse,
+    UpdateMediaBuyErrorResponse,
+    UpdateMediaBuyPackagesRequest,
+    UpdateMediaBuyPropertiesRequest,
+    UpdateMediaBuySuccessResponse,
+)
 from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus, WebhookMetadata
+
+# Re-export commonly-used request/response types for convenience
+# Users should import from main package (e.g., `from adcp import GetProductsRequest`)
+# rather than internal modules for better API stability
+from adcp.types.generated import (
+    # Audience & Targeting
+    ActivateSignalRequest,
+    ActivateSignalResponse,
+    # Creative Operations
+    BuildCreativeRequest,
+    BuildCreativeResponse,
+    # Media Buy Operations
+    CreateMediaBuyRequest,
+    CreateMediaBuyResponse,
+    # Common data types
+    Error,
+    Format,
+    GetMediaBuyDeliveryRequest,
+    GetMediaBuyDeliveryResponse,
+    GetProductsRequest,
+    GetProductsResponse,
+    GetSignalsRequest,
+    GetSignalsResponse,
+    ListAuthorizedPropertiesRequest,
+    ListAuthorizedPropertiesResponse,
+    ListCreativeFormatsRequest,
+    ListCreativeFormatsResponse,
+    ListCreativesRequest,
+    ListCreativesResponse,
+    PreviewCreativeRequest,
+    PreviewCreativeResponse,
+    Product,
+    Property,
+    ProvidePerformanceFeedbackRequest,
+    ProvidePerformanceFeedbackResponse,
+    SyncCreativesRequest,
+    SyncCreativesResponse,
+    UpdateMediaBuyRequest,
+    UpdateMediaBuyResponse,
+)
 from adcp.types.generated import TaskStatus as GeneratedTaskStatus
 from adcp.validation import (
     ValidationError,
@@ -73,6 +140,37 @@ __all__ = [
     "TaskResult",
     "TaskStatus",
     "WebhookMetadata",
+    # Common request/response types (re-exported for convenience)
+    "CreateMediaBuyRequest",
+    "CreateMediaBuyResponse",
+    "GetMediaBuyDeliveryRequest",
+    "GetMediaBuyDeliveryResponse",
+    "GetProductsRequest",
+    "GetProductsResponse",
+    "UpdateMediaBuyRequest",
+    "UpdateMediaBuyResponse",
+    "BuildCreativeRequest",
+    "BuildCreativeResponse",
+    "ListCreativeFormatsRequest",
+    "ListCreativeFormatsResponse",
+    "ListCreativesRequest",
+    "ListCreativesResponse",
+    "PreviewCreativeRequest",
+    "PreviewCreativeResponse",
+    "SyncCreativesRequest",
+    "SyncCreativesResponse",
+    "ActivateSignalRequest",
+    "ActivateSignalResponse",
+    "GetSignalsRequest",
+    "GetSignalsResponse",
+    "ListAuthorizedPropertiesRequest",
+    "ListAuthorizedPropertiesResponse",
+    "ProvidePerformanceFeedbackRequest",
+    "ProvidePerformanceFeedbackResponse",
+    "Error",
+    "Format",
+    "Product",
+    "Property",
     # Adagents validation
     "fetch_adagents",
     "verify_agent_authorization",
@@ -114,7 +212,32 @@ __all__ = [
     "validate_agent_authorization",
     "validate_product",
     "validate_publisher_properties_item",
-    # Generated types module
+    # Generated types modules
     "generated",
+    "aliases",
     "GeneratedTaskStatus",
+    # Semantic type aliases (for better API ergonomics)
+    "ActivateSignalSuccessResponse",
+    "ActivateSignalErrorResponse",
+    "BuildCreativeSuccessResponse",
+    "BuildCreativeErrorResponse",
+    "CreateMediaBuySuccessResponse",
+    "CreateMediaBuyErrorResponse",
+    "ProvidePerformanceFeedbackSuccessResponse",
+    "ProvidePerformanceFeedbackErrorResponse",
+    "SyncCreativesSuccessResponse",
+    "SyncCreativesErrorResponse",
+    "UpdateMediaBuySuccessResponse",
+    "UpdateMediaBuyErrorResponse",
+    "PreviewCreativeFormatRequest",
+    "PreviewCreativeManifestRequest",
+    "PreviewCreativeStaticResponse",
+    "PreviewCreativeInteractiveResponse",
+    "PreviewRenderImage",
+    "PreviewRenderHtml",
+    "PreviewRenderIframe",
+    "PropertyIdActivationKey",
+    "PropertyTagActivationKey",
+    "UpdateMediaBuyPackagesRequest",
+    "UpdateMediaBuyPropertiesRequest",
 ]

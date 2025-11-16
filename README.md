@@ -55,7 +55,7 @@ print(products.products[0].name)
 **Standard API** (`client.*`) - Recommended for production:
 ```python
 from adcp.testing import test_agent
-from adcp.types.generated import GetProductsRequest
+from adcp import GetProductsRequest
 
 # Explicit request objects and TaskResult wrapper
 request = GetProductsRequest(brief='Coffee brands')
@@ -84,6 +84,8 @@ Pre-configured agents (all include `.simple` accessor):
 > **Note**: Test agents are rate-limited and for testing/examples only. DO NOT use in production.
 
 See [examples/simple_api_demo.py](examples/simple_api_demo.py) for a complete comparison.
+
+> **Tip**: Import types from the main `adcp` package (e.g., `from adcp import GetProductsRequest`) rather than `adcp.types.generated` for better API stability.
 
 ## Quick Start: Distributed Operations
 
@@ -148,7 +150,7 @@ from adcp.testing import (
     test_agent_no_auth, test_agent_a2a_no_auth,
     creative_agent, test_agent_client, create_test_agent
 )
-from adcp.types.generated import GetProductsRequest, PreviewCreativeRequest
+from adcp import GetProductsRequest, PreviewCreativeRequest
 
 # 1. Single agent with authentication (MCP)
 result = await test_agent.get_products(
@@ -204,6 +206,7 @@ client = ADCPClient(config)
 - **Auto-detection**: Automatically detect which protocol an agent uses
 
 ### Type Safety
+
 Full type hints with Pydantic validation and auto-generated types from the AdCP spec:
 
 ```python
@@ -218,6 +221,40 @@ if result.success:
     for product in result.data.products:
         print(product.name, product.pricing_options)  # Full IDE autocomplete!
 ```
+
+#### Semantic Type Aliases
+
+For discriminated union types (success/error responses), use semantic aliases for clearer code:
+
+```python
+from adcp import (
+    CreateMediaBuySuccessResponse,  # Clear: this is the success case
+    CreateMediaBuyErrorResponse,     # Clear: this is the error case
+)
+
+def handle_response(
+    response: CreateMediaBuySuccessResponse | CreateMediaBuyErrorResponse
+) -> None:
+    if isinstance(response, CreateMediaBuySuccessResponse):
+        print(f"✅ Media buy created: {response.media_buy_id}")
+    else:
+        print(f"❌ Errors: {response.errors}")
+```
+
+**Available semantic aliases:**
+- Response types: `*SuccessResponse` / `*ErrorResponse` (e.g., `CreateMediaBuySuccessResponse`)
+- Request variants: `*FormatRequest` / `*ManifestRequest` (e.g., `PreviewCreativeFormatRequest`)
+- Preview renders: `PreviewRenderImage` / `PreviewRenderHtml` / `PreviewRenderIframe`
+- Activation keys: `PropertyIdActivationKey` / `PropertyTagActivationKey`
+
+See `examples/type_aliases_demo.py` for more examples.
+
+**Import guidelines:**
+- ✅ **DO**: Import from main package: `from adcp import GetProductsRequest`
+- ✅ **DO**: Use semantic aliases: `from adcp import CreateMediaBuySuccessResponse`
+- ⚠️ **AVOID**: Import from internal modules: `from adcp.types.generated import CreateMediaBuyResponse1`
+
+The main package exports provide a stable API while internal generated types may change.
 
 ### Multi-Agent Operations
 Execute across multiple agents simultaneously:
