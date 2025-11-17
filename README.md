@@ -505,6 +505,42 @@ is_authorized = await verify_agent_for_property(
 
 See `examples/adagents_validation.py` for complete examples.
 
+### Authorization Discovery
+
+Discover which publishers have authorized your agent using two approaches:
+
+**1. "Push" Approach** - Ask the agent (recommended, fastest):
+```python
+from adcp import ADCPClient
+
+async with ADCPClient(agent_config) as client:
+    # Single API call to agent
+    response = await client.simple.list_authorized_properties()
+    print(f"Authorized for: {response.publisher_domains}")
+```
+
+**2. "Pull" Approach** - Check publisher adagents.json files (when you need property details):
+```python
+from adcp import fetch_agent_authorizations
+
+# Check specific publishers (fetches in parallel)
+contexts = await fetch_agent_authorizations(
+    "https://our-sales-agent.com",
+    ["nytimes.com", "wsj.com", "cnn.com"]
+)
+
+for domain, ctx in contexts.items():
+    print(f"{domain}:")
+    print(f"  Property IDs: {ctx.property_ids}")
+    print(f"  Tags: {ctx.property_tags}")
+```
+
+**When to use which:**
+- **Push**: Quick discovery, portfolio overview, high-level authorization check
+- **Pull**: Property-level details, specific publisher list, works offline
+
+See `examples/fetch_agent_authorizations.py` for complete examples.
+
 ## CLI Tool
 
 The `adcp` command-line tool provides easy interaction with AdCP agents without writing code.
