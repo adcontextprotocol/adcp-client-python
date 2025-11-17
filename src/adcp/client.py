@@ -15,6 +15,7 @@ from adcp.exceptions import ADCPWebhookSignatureError
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.base import ProtocolAdapter
 from adcp.protocols.mcp import MCPAdapter
+from adcp.simple import SimpleAPI
 from adcp.types.core import (
     Activity,
     ActivityType,
@@ -80,6 +81,24 @@ class ADCPClient:
             self.adapter = MCPAdapter(agent_config)
         else:
             raise ValueError(f"Unsupported protocol: {agent_config.protocol}")
+
+        # Initialize simple API wrapper
+        self._simple: SimpleAPI | None = None
+
+    @property
+    def simple(self) -> SimpleAPI:
+        """
+        Simple API with JavaScript-like ergonomics.
+
+        Example:
+            result = await client.simple.get_products(
+                brief='Coffee brands targeting millennials'
+            )
+            print(f"Found {len(result.products)} products")
+        """
+        if self._simple is None:
+            self._simple = SimpleAPI(self)
+        return self._simple
 
     def get_webhook_url(self, task_type: str, operation_id: str) -> str:
         """Generate webhook URL for a task."""

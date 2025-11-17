@@ -18,6 +18,7 @@ from adcp.exceptions import (
     ADCPWebhookError,
     ADCPWebhookSignatureError,
 )
+from adcp.simple import ADCPSimpleError, SimpleAPI
 from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus, WebhookMetadata
 from adcp.types.generated import (
     ActivateSignalRequest,
@@ -52,6 +53,9 @@ __all__ = [
     # Client classes
     "ADCPClient",
     "ADCPMultiAgentClient",
+    # Simple API
+    "SimpleAPI",
+    "ADCPSimpleError",
     # Core types
     "AgentConfig",
     "Protocol",
