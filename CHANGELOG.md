@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.3.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.2.0...v2.3.0) (2025-11-17)
+
+
+### Features
+
+* Add publisher authorization discovery API ([#54](https://github.com/adcontextprotocol/adcp-client-python/issues/54)) ([e7d0696](https://github.com/adcontextprotocol/adcp-client-python/commit/e7d06963c7d9538177798d31b8cb60a9775312b7))
+
+
+### Bug Fixes
+
+* Move email-validator to runtime dependencies ([#51](https://github.com/adcontextprotocol/adcp-client-python/issues/51)) ([6ce1535](https://github.com/adcontextprotocol/adcp-client-python/commit/6ce15357dda673125a48335a3c30774865b617ba))
+
 ## [2.2.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.1.0...v2.2.0) (2025-11-16)
 
 
