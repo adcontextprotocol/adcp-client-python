@@ -518,3 +518,125 @@ def get_properties_by_agent(adagents_data: dict[str, Any], agent_url: str) -> li
         return [p for p in properties if isinstance(p, dict)]
 
     return []
+
+
+class AuthorizationContext:
+    """Authorization context for a publisher domain.
+
+    Attributes:
+        property_ids: List of property IDs the agent is authorized for
+        property_tags: List of property tags the agent is authorized for
+        raw_properties: Raw property data from adagents.json
+    """
+
+    def __init__(self, properties: list[dict[str, Any]]):
+        """Initialize from list of properties.
+
+        Args:
+            properties: List of property dictionaries from adagents.json
+        """
+        self.property_ids: list[str] = []
+        self.property_tags: list[str] = []
+        self.raw_properties = properties
+
+        # Extract property IDs and tags
+        for prop in properties:
+            if not isinstance(prop, dict):
+                continue
+
+            # Extract property ID
+            prop_id = prop.get("id")
+            if prop_id and isinstance(prop_id, str):
+                self.property_ids.append(prop_id)
+
+            # Extract tags
+            tags = prop.get("tags", [])
+            if isinstance(tags, list):
+                for tag in tags:
+                    if isinstance(tag, str) and tag not in self.property_tags:
+                        self.property_tags.append(tag)
+
+    def __repr__(self) -> str:
+        return (
+            f"AuthorizationContext("
+            f"property_ids={self.property_ids}, "
+            f"property_tags={self.property_tags})"
+        )
+
+
+async def fetch_agent_authorizations(
+    agent_url: str,
+    publisher_domains: list[str],
+    timeout: float = 10.0,
+    client: httpx.AsyncClient | None = None,
+) -> dict[str, AuthorizationContext]:
+    """Fetch authorization contexts by checking publisher adagents.json files.
+
+    This function discovers what publishers have authorized your agent by fetching
+    their adagents.json files from the .well-known directory and extracting the
+    properties your agent can access.
+
+    This is the "pull" approach - you query publishers to see if they've authorized you.
+    For the "push" approach where the agent tells you what it's authorized for,
+    use the agent's list_authorized_properties endpoint via ADCPClient.
+
+    Args:
+        agent_url: URL of your sales agent
+        publisher_domains: List of publisher domains to check (e.g., ["nytimes.com", "wsj.com"])
+        timeout: Request timeout in seconds for each fetch
+        client: Optional httpx.AsyncClient for connection pooling
+
+    Returns:
+        Dictionary mapping publisher domain to AuthorizationContext.
+        Only includes domains where the agent is authorized.
+
+    Example:
+        >>> # "Pull" approach - check what publishers have authorized you
+        >>> contexts = await fetch_agent_authorizations(
+        ...     "https://our-sales-agent.com",
+        ...     ["nytimes.com", "wsj.com", "cnn.com"]
+        ... )
+        >>> for domain, ctx in contexts.items():
+        ...     print(f"{domain}:")
+        ...     print(f"  Property IDs: {ctx.property_ids}")
+        ...     print(f"  Tags: {ctx.property_tags}")
+
+    See Also:
+        ADCPClient.list_authorized_properties: "Push" approach using the agent's API
+
+    Notes:
+        - Silently skips domains where adagents.json is not found or invalid
+        - Only returns domains where the agent is explicitly authorized
+        - For production use with many domains, pass a shared httpx.AsyncClient
+          to enable connection pooling
+    """
+    import asyncio
+
+    # Create tasks to fetch all adagents.json files in parallel
+    async def fetch_authorization_for_domain(
+        domain: str,
+    ) -> tuple[str, AuthorizationContext | None]:
+        """Fetch authorization context for a single domain."""
+        try:
+            adagents_data = await fetch_adagents(domain, timeout=timeout, client=client)
+
+            # Check if agent is authorized
+            if not verify_agent_authorization(adagents_data, agent_url):
+                return (domain, None)
+
+            # Get properties for this agent
+            properties = get_properties_by_agent(adagents_data, agent_url)
+
+            # Create authorization context
+            return (domain, AuthorizationContext(properties))
+
+        except (AdagentsNotFoundError, AdagentsValidationError, AdagentsTimeoutError):
+            # Silently skip domains with missing or invalid adagents.json
+            return (domain, None)
+
+    # Fetch all domains in parallel
+    tasks = [fetch_authorization_for_domain(domain) for domain in publisher_domains]
+    results = await asyncio.gather(*tasks)
+
+    # Build result dictionary, filtering out None values
+    return {domain: ctx for domain, ctx in results if ctx is not None}
