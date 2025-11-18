@@ -186,16 +186,27 @@ def fix_brand_manifest_references():
             content = f.read()
 
         # Check if needs fixing
-        if "from . import brand_manifest as brand_manifest_1" in content:
-            # Replace with correct reference
-            content = content.replace(
-                "from . import brand_manifest as brand_manifest_1",
-                "from . import brand_manifest_ref as brand_manifest_1",
-            )
+        needs_fix = False
 
+        # Fix import if needed
+        if "from . import brand_manifest_ref as brand_manifest_1" in content:
+            content = content.replace(
+                "from . import brand_manifest_ref as brand_manifest_1",
+                "from . import brand_manifest as brand_manifest_1",
+            )
+            needs_fix = True
+
+        # Fix BrandManifest references (should be BrandManifest1 in brand_manifest.py)
+        if "brand_manifest_1.BrandManifest " in content:
+            content = content.replace(
+                "brand_manifest_1.BrandManifest ",
+                "brand_manifest_1.BrandManifest1 ",
+            )
+            needs_fix = True
+
+        if needs_fix:
             with open(file_path, "w") as f:
                 f.write(content)
-
             print(f"  {filename} BrandManifest reference fixed")
         else:
             print(f"  {filename} already fixed or doesn't need fixing")
@@ -206,28 +217,31 @@ def fix_enum_defaults():
 
     datamodel-code-generator sometimes creates string defaults for enum fields
     instead of enum member defaults, causing mypy errors.
+
+    Note: brand_manifest_ref.py was a stale file and has been removed.
+    The enum defaults in brand_manifest.py are already correct.
     """
-    brand_manifest_file = OUTPUT_DIR / "brand_manifest_ref.py"
+    brand_manifest_file = OUTPUT_DIR / "brand_manifest.py"
 
     if not brand_manifest_file.exists():
-        print("  brand_manifest_ref.py not found (skipping)")
+        print("  brand_manifest.py not found (skipping)")
         return
 
     with open(brand_manifest_file) as f:
         content = f.read()
 
-    # Check if already fixed
-    if "feed_format: FeedFormat | None = Field(FeedFormat.google_merchant_center" in content:
-        print("  brand_manifest_ref.py enum defaults already fixed")
+    # Check if already fixed (using enum member, not string)
+    if "FeedFormat.google_merchant_center" in content:
+        print("  brand_manifest.py enum defaults already correct")
         return
 
-    # Fix ProductCatalog.feed_format default (line 83)
+    # Fix ProductCatalog.feed_format default if needed
     content = content.replace(
         'feed_format: FeedFormat | None = Field("google_merchant_center"',
         "feed_format: FeedFormat | None = Field(FeedFormat.google_merchant_center",
     )
 
-    # Fix BrandManifest.feed_format default (line 173)
+    # Fix BrandManifest.feed_format default if needed
     content = content.replace(
         'product_feed_format: FeedFormat | None = Field("google_merchant_center"',
         "product_feed_format: FeedFormat | None = Field(FeedFormat.google_merchant_center",
@@ -236,7 +250,7 @@ def fix_enum_defaults():
     with open(brand_manifest_file, "w") as f:
         f.write(content)
 
-    print("  brand_manifest_ref.py enum defaults fixed")
+    print("  brand_manifest.py enum defaults fixed")
 
 
 def main():

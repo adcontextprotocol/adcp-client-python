@@ -10,7 +10,7 @@ from typing import Annotated, Any
 from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, ConfigDict, Field
 
-from . import brand_manifest_ref as brand_manifest_1
+from . import brand_manifest as brand_manifest_1
 from . import promoted_products
 
 
@@ -68,7 +68,7 @@ class PromotedOfferings(AdCPBaseModel):
         Field(description='Selectors to choose specific assets from the brand manifest'),
     ] = None
     brand_manifest: Annotated[
-        brand_manifest_1.BrandManifest | AnyUrl,
+        brand_manifest_1.BrandManifest1 | AnyUrl,
         Field(
             description='Brand information manifest containing assets, themes, and guidelines. Can be provided inline or as a URL reference to a hosted manifest.',
             examples=[

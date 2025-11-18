@@ -10,7 +10,7 @@ from typing import Annotated, Any
 from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, ConfigDict, Field
 
-from . import brand_manifest_ref as brand_manifest_1
+from . import brand_manifest as brand_manifest_1
 from . import delivery_type as delivery_type_1
 from . import format_id
 
@@ -49,7 +49,7 @@ class GetProductsRequest(AdCPBaseModel):
         extra='forbid',
     )
     brand_manifest: Annotated[
-        brand_manifest_1.BrandManifest | AnyUrl | None,
+        brand_manifest_1.BrandManifest1 | AnyUrl | None,
         Field(
             description='Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest.',
             examples=[

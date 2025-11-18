@@ -10,7 +10,7 @@ from typing import Annotated, Any
 from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field
 
-from . import brand_manifest_ref as brand_manifest_1
+from . import brand_manifest as brand_manifest_1
 from . import package_request
 from .push_notification_config import PushNotificationConfig
 
@@ -53,7 +53,7 @@ class CreateMediaBuyRequest(AdCPBaseModel):
         extra='forbid',
     )
     brand_manifest: Annotated[
-        brand_manifest_1.BrandManifest | AnyUrl,
+        brand_manifest_1.BrandManifest1 | AnyUrl,
         Field(
             description='Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests.',
             examples=[
