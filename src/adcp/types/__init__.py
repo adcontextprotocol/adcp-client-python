@@ -12,6 +12,7 @@ adcp.types or adcp.types.stable for stable, versioned types.
 
 from adcp.types.aliases import (
     BothPreviewRender,
+    CreatedPackageReference,
     HtmlPreviewRender,
     InlineDaastAsset,
     InlineVastAsset,
@@ -86,6 +87,8 @@ __all__ = [
     "UrlDaastAsset",
     "UrlPreviewRender",
     "UrlVastAsset",
+    # Package type aliases
+    "CreatedPackageReference",
     # Stable API types (commonly used)
     "BrandManifest",
     "Creative",

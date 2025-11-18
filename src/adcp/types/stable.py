@@ -22,6 +22,9 @@ Schema Evolution:
 from __future__ import annotations
 
 # Import all generated types from internal consolidated module
+# Import Package directly from its module to avoid collision with Response Package
+from adcp.types.generated_poc.package import Package
+
 from adcp.types._generated import (
     # Core request/response types
     ActivateSignalRequest,
@@ -67,7 +70,6 @@ from adcp.types._generated import (
     MarkdownAsset,
     MediaBuy,
     MediaBuyStatus,
-    Package,
     PackageStatus,
     PreviewCreativeRequest,
     PreviewCreativeResponse,

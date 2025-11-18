@@ -78,6 +78,12 @@ from adcp.types._generated import (
     VastAsset2,
 )
 
+# Import Package types directly from their modules to avoid collision issues
+from adcp.types.generated_poc.create_media_buy_response import (
+    Package as CreatedPackageInternal,
+)
+from adcp.types.generated_poc.package import Package as FullPackageInternal
+
 # ============================================================================
 # RESPONSE TYPE ALIASES - Success/Error Discriminated Unions
 # ============================================================================
@@ -202,6 +208,51 @@ TextSubAsset = SubAsset2
 """SubAsset for text content (headlines, body text) - asset_kind='text', provides content."""
 
 # ============================================================================
+# PACKAGE TYPE ALIASES - Resolving Type Name Collisions
+# ============================================================================
+# The AdCP schemas define two genuinely different types both named "Package":
+#
+# 1. Full Package (from package.json schema):
+#    - Complete operational package with all fields (budget, pricing_option_id, etc.)
+#    - Used in MediaBuy, update operations, and package management
+#    - Has 12+ fields for full package configuration
+#
+# 2. Created Package (from create-media-buy-response.json schema):
+#    - Minimal response type with only IDs (buyer_ref, package_id)
+#    - Used in CreateMediaBuy success responses
+#    - Only 2 fields - represents newly created package references
+#
+# The code generator's "first wins" collision handling exports the Created Package
+# as "Package", shadowing the Full Package. These semantic aliases provide clear,
+# unambiguous names for both types.
+
+Package = FullPackageInternal
+"""Complete package configuration with all operational fields.
+
+This is the canonical Package type used throughout AdCP for package management.
+
+Used in:
+- MediaBuy.packages (list of full package details)
+- Update operations (modifying existing packages)
+- Package management (creating/configuring packages)
+
+Fields include: budget, pricing_option_id, product_id, status, bid_price,
+creative_assignments, format_ids_to_provide, impressions, pacing, targeting_overlay
+"""
+
+CreatedPackageReference = CreatedPackageInternal
+"""Minimal package reference with only IDs returned after creation.
+
+This is NOT the full Package type - it's a lightweight reference returned
+in CreateMediaBuySuccessResponse to indicate which packages were created.
+
+Used in:
+- CreateMediaBuySuccessResponse.packages (list of created package references)
+
+Fields: buyer_ref, package_id only
+"""
+
+# ============================================================================
 # EXPORTS
 # ============================================================================
 
@@ -246,4 +297,7 @@ __all__ = [
     # Update media buy responses
     "UpdateMediaBuySuccessResponse",
     "UpdateMediaBuyErrorResponse",
+    # Package type aliases
+    "CreatedPackageReference",
+    "Package",
 ]
