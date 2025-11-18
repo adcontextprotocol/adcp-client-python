@@ -133,11 +133,11 @@ jobs:
 
       - name: Check for schema drift
         run: |
-          if git diff --exit-code src/adcp/types/generated.py schemas/cache/; then
+          if git diff --exit-code src/adcp/types/_generated.py schemas/cache/; then
             echo "✓ Schemas are up-to-date"
           else
             echo "✗ Schemas are out of date!"
             echo "Run: make regenerate-schemas"
-            git diff src/adcp/types/generated.py
+            git diff src/adcp/types/_generated.py
             exit 1
           fi
