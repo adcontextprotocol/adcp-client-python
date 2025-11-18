@@ -128,6 +128,32 @@ from adcp.types.generated import (
     UpdateMediaBuyResponse,
 )
 from adcp.types.generated import TaskStatus as GeneratedTaskStatus
+
+# Re-export core domain types and pricing options from stable API
+# These are commonly used in typical workflows
+from adcp.types.stable import (
+    # Core domain types
+    BrandManifest,
+    # Pricing options (all 9 types for product creation)
+    CpcPricingOption,
+    CpcvPricingOption,
+    CpmAuctionPricingOption,
+    CpmFixedRatePricingOption,
+    CppPricingOption,
+    CpvPricingOption,
+    Creative,
+    CreativeManifest,
+    # Status enums (for control flow)
+    CreativeStatus,
+    FlatRatePricingOption,
+    MediaBuy,
+    MediaBuyStatus,
+    Package,
+    PackageStatus,
+    PricingModel,
+    VcpmAuctionPricingOption,
+    VcpmFixedRatePricingOption,
+)
 from adcp.validation import (
     ValidationError,
     validate_adagents,
@@ -179,6 +205,27 @@ __all__ = [
     "Format",
     "Product",
     "Property",
+    # Core domain types (from stable API)
+    "BrandManifest",
+    "Creative",
+    "CreativeManifest",
+    "MediaBuy",
+    "Package",
+    # Status enums (for control flow)
+    "CreativeStatus",
+    "MediaBuyStatus",
+    "PackageStatus",
+    "PricingModel",
+    # Pricing options (all 9 types)
+    "CpcPricingOption",
+    "CpcvPricingOption",
+    "CpmAuctionPricingOption",
+    "CpmFixedRatePricingOption",
+    "CppPricingOption",
+    "CpvPricingOption",
+    "FlatRatePricingOption",
+    "VcpmAuctionPricingOption",
+    "VcpmFixedRatePricingOption",
     # Adagents validation
     "AuthorizationContext",
     "fetch_adagents",
