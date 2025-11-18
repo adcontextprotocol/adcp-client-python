@@ -115,21 +115,29 @@ def generate_consolidated_exports() -> str:
 
     lines.extend(import_lines)
 
-    # Add backward compatibility aliases
-    all_exports_with_aliases = all_exports | {"BrandManifestRef", "Channels"}
+    # Add backward compatibility aliases (only if source exists)
+    aliases = {}
+    if "AdvertisingChannels" in all_exports:
+        aliases["Channels"] = "AdvertisingChannels"
 
-    lines.extend(
-        [
+    all_exports_with_aliases = all_exports | set(aliases.keys())
+
+    alias_lines = []
+    if aliases:
+        alias_lines.extend([
             "",
             "# Backward compatibility aliases for renamed types",
-            "BrandManifestRef = BrandManifestReference",
-            "Channels = AdvertisingChannels",
-            "",
-            "# Explicit exports",
-            f"__all__ = {sorted(list(all_exports_with_aliases))}",
-            "",
-        ]
-    )
+        ])
+        for alias, target in aliases.items():
+            alias_lines.append(f"{alias} = {target}")
+
+    lines.extend(alias_lines)
+    lines.extend([
+        "",
+        "# Explicit exports",
+        f"__all__ = {sorted(list(all_exports_with_aliases))}",
+        "",
+    ])
 
     return "\n".join(lines)
 

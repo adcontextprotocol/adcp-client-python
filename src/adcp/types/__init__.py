@@ -36,7 +36,6 @@ from adcp.types.core import (
 # Import stable public API types
 from adcp.types.stable import (
     BrandManifest,
-    BrandManifestReference,
     Creative,
     CreativeStatus,
     Error,
@@ -87,7 +86,6 @@ __all__ = [
     "UrlVastAsset",
     # Stable API types (commonly used)
     "BrandManifest",
-    "BrandManifestReference",
     "Creative",
     "CreativeStatus",
     "Error",

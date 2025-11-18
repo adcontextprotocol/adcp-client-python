@@ -168,48 +168,13 @@ def fix_preview_render_self_reference():
 
 
 def fix_brand_manifest_references():
-    """Fix BrandManifest forward references in multiple files."""
-    files_to_fix = [
-        "promoted_offerings.py",
-        "create_media_buy_request.py",
-        "get_products_request.py",
-    ]
+    """Fix BrandManifest forward references in multiple files.
 
-    for filename in files_to_fix:
-        file_path = OUTPUT_DIR / filename
-
-        if not file_path.exists():
-            print(f"  {filename} not found (skipping)")
-            continue
-
-        with open(file_path) as f:
-            content = f.read()
-
-        # Check if needs fixing
-        needs_fix = False
-
-        # Fix import if needed
-        if "from . import brand_manifest_ref as brand_manifest_1" in content:
-            content = content.replace(
-                "from . import brand_manifest_ref as brand_manifest_1",
-                "from . import brand_manifest as brand_manifest_1",
-            )
-            needs_fix = True
-
-        # Fix BrandManifest references (should be BrandManifest1 in brand_manifest.py)
-        if "brand_manifest_1.BrandManifest " in content:
-            content = content.replace(
-                "brand_manifest_1.BrandManifest ",
-                "brand_manifest_1.BrandManifest1 ",
-            )
-            needs_fix = True
-
-        if needs_fix:
-            with open(file_path, "w") as f:
-                f.write(content)
-            print(f"  {filename} BrandManifest reference fixed")
-        else:
-            print(f"  {filename} already fixed or doesn't need fixing")
+    NOTE: This fix is deprecated after upstream schema consolidation.
+    The BrandManifest schema is now a single clean type, so no fixes needed.
+    Keeping function as no-op for backwards compatibility.
+    """
+    print("  BrandManifest references: no fixes needed (schema consolidated upstream)")
 
 
 def fix_enum_defaults():

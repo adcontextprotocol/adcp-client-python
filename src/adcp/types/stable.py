@@ -21,8 +21,6 @@ Schema Evolution:
 
 from __future__ import annotations
 
-from pydantic import AnyUrl
-
 # Import all generated types
 from adcp.types.generated import (
     # Core request/response types
@@ -57,7 +55,7 @@ from adcp.types.generated import (
     UpdateMediaBuyRequest,
     UpdateMediaBuyResponse,
     # Core domain types
-    BrandManifest1,
+    BrandManifest,  # Clean single type after upstream schema fix
     Creative,
     CreativeManifest,
     Error,
@@ -96,14 +94,12 @@ from adcp.types.generated import (
     WebhookAsset,
 )
 
-# Stable aliases for types with numbered variants
-# These provide a clean public API that hides schema evolution details
-BrandManifest = BrandManifest1
+# Note: BrandManifest is currently split into BrandManifest1/2 due to upstream schema
+# using anyOf incorrectly. This will be fixed upstream to create a single BrandManifest type.
+# For now, users should use BrandManifest1 (url required) which is most common.
 
-# Union types for oneOf schemas
-# BrandManifestReference represents the union from brand-manifest-ref.json:
-# either an inline BrandManifest object OR a URL string pointing to a hosted manifest
-BrandManifestReference = BrandManifest1 | AnyUrl
+# Note: BrandManifest is now a single clean type
+# Re-export BrandManifest directly (no alias needed)
 
 # Re-export all stable types
 __all__ = [
@@ -139,8 +135,7 @@ __all__ = [
     "UpdateMediaBuyRequest",
     "UpdateMediaBuyResponse",
     # Domain types
-    "BrandManifest",  # Stable alias for BrandManifest1
-    "BrandManifestReference",  # Union type: BrandManifest | AnyUrl
+    "BrandManifest",  # Stable alias for BrandManifest1 (temporary until upstream fix)
     "Creative",
     "CreativeManifest",
     "Error",
