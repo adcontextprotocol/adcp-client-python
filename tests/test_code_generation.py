@@ -35,7 +35,7 @@ def test_generated_poc_types_can_import():
 
 def test_product_type_structure():
     """Test that Product type has expected structure."""
-    from adcp.types.generated_poc.product import Product
+    from adcp import Product
 
     # Product should be a Pydantic model
     assert hasattr(Product, "model_validate")
@@ -51,7 +51,7 @@ def test_product_type_structure():
 
 def test_format_type_structure():
     """Test that Format type has expected structure."""
-    from adcp.types.generated_poc.format import Format
+    from adcp import Format
 
     # Format should be a Pydantic model
     assert hasattr(Format, "model_validate")

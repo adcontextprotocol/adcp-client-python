@@ -82,16 +82,15 @@ from adcp.types.generated_poc.format import Asset as FormatAsset
 - Using discriminated unions where appropriate
 
 **Current fixes applied:**
-1. **Model validators** - Injects `@model_validator` decorators into:
-   - `PublisherProperty.validate_mutual_exclusivity()` - enforces property_ids/property_tags mutual exclusivity
-   - `Product.validate_publisher_properties_items()` - validates all publisher_properties items
 
-2. **Self-referential types** - Fixes `preview_render.py` if it contains module-qualified self-references
+1. **Self-referential types** - Fixes `preview_render.py` if it contains module-qualified self-references
 
-3. **Forward references** - Fixes BrandManifest imports in:
+2. **Forward references** - Fixes BrandManifest imports in:
    - `promoted_offerings.py`
    - `create_media_buy_request.py`
    - `get_products_request.py`
+
+3. **~~Publisher properties validation~~ (DEPRECATED)** - After PR #213 added explicit discriminator to `publisher_properties` schema, Pydantic now generates proper discriminated union variants (`PublisherProperties`, `PublisherProperties4`, `PublisherProperties5`) with automatic validation. Manual validator injection is no longer needed.
 
 **Note on Pricing Options:**
 

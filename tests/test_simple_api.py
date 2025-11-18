@@ -8,7 +8,7 @@ import pytest
 
 from adcp.testing import test_agent
 from adcp.types.core import TaskResult, TaskStatus
-from adcp.types.generated import (
+from adcp.types._generated import (
     GetProductsResponse,
     ListCreativeFormatsResponse,
     PreviewCreativeResponse1,
@@ -75,7 +75,7 @@ def test_simple_api_has_no_sync_methods():
 @pytest.mark.asyncio
 async def test_list_creative_formats_simple_api():
     """Test client.simple.list_creative_formats with kwargs."""
-    from adcp.types.generated import Format
+    from adcp.types._generated import Format
 
     # Create mock response (using model_construct to bypass validation for test data)
     mock_format = Format.model_construct(
@@ -168,7 +168,7 @@ async def test_preview_creative_simple_api():
 
     with patch.object(creative_agent, "preview_creative", new=AsyncMock(return_value=mock_result)):
         # Call simplified API with new schema structure
-        from adcp.types.generated import CreativeManifest, FormatId
+        from adcp.types._generated import CreativeManifest, FormatId
 
         format_id = FormatId(agent_url="https://creative.example.com", id="banner_300x250")
         creative_manifest = CreativeManifest.model_construct(format_id=format_id, assets={})

@@ -21,8 +21,8 @@ Schema Evolution:
 
 from __future__ import annotations
 
-# Import all generated types
-from adcp.types.generated import (
+# Import all generated types from internal consolidated module
+from adcp.types._generated import (
     # Core request/response types
     ActivateSignalRequest,
     ActivateSignalResponse,

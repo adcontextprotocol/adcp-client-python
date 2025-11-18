@@ -78,7 +78,7 @@ async def test_get_products():
     from unittest.mock import patch
 
     from adcp.types.core import TaskResult, TaskStatus
-    from adcp.types.generated import GetProductsRequest, GetProductsResponse
+    from adcp.types._generated import GetProductsRequest, GetProductsResponse
 
     config = AgentConfig(
         id="test_agent",
@@ -230,7 +230,7 @@ async def test_multi_agent_parallel_execution():
     from unittest.mock import patch
 
     from adcp.types.core import TaskResult, TaskStatus
-    from adcp.types.generated import GetProductsRequest
+    from adcp.types._generated import GetProductsRequest
 
     agents = [
         AgentConfig(
@@ -281,7 +281,7 @@ async def test_list_creative_formats_parses_mcp_response():
     from unittest.mock import patch
 
     from adcp.types.core import TaskResult, TaskStatus
-    from adcp.types.generated import ListCreativeFormatsRequest, ListCreativeFormatsResponse
+    from adcp.types._generated import ListCreativeFormatsRequest, ListCreativeFormatsResponse
 
     config = AgentConfig(
         id="creative_agent",
@@ -331,7 +331,7 @@ async def test_list_creative_formats_parses_a2a_response():
     from unittest.mock import patch
 
     from adcp.types.core import TaskResult, TaskStatus
-    from adcp.types.generated import ListCreativeFormatsRequest, ListCreativeFormatsResponse
+    from adcp.types._generated import ListCreativeFormatsRequest, ListCreativeFormatsResponse
 
     config = AgentConfig(
         id="creative_agent",
@@ -375,7 +375,7 @@ async def test_list_creative_formats_handles_invalid_response():
     from unittest.mock import patch
 
     from adcp.types.core import TaskResult, TaskStatus
-    from adcp.types.generated import ListCreativeFormatsRequest
+    from adcp.types._generated import ListCreativeFormatsRequest
 
     config = AgentConfig(
         id="creative_agent",

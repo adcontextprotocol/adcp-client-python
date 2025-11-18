@@ -51,8 +51,10 @@ from adcp.testing import (
     test_agent_no_auth,
 )
 
-# Import all generated types - users can import what they need from adcp.types.generated
-from adcp.types import aliases, generated
+# Import generated types modules - for internal use
+# Note: Users should import specific types, not the whole module
+from adcp.types import _generated as generated
+from adcp.types import aliases
 
 # Re-export semantic type aliases for better ergonomics
 from adcp.types.aliases import (
@@ -91,7 +93,7 @@ from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus, Webho
 # Re-export commonly-used request/response types for convenience
 # Users should import from main package (e.g., `from adcp import GetProductsRequest`)
 # rather than internal modules for better API stability
-from adcp.types.generated import (
+from adcp.types._generated import (
     # Audience & Targeting
     ActivateSignalRequest,
     ActivateSignalResponse,
@@ -127,7 +129,7 @@ from adcp.types.generated import (
     UpdateMediaBuyRequest,
     UpdateMediaBuyResponse,
 )
-from adcp.types.generated import TaskStatus as GeneratedTaskStatus
+from adcp.types._generated import TaskStatus as GeneratedTaskStatus
 
 # Re-export core domain types and pricing options from stable API
 # These are commonly used in typical workflows

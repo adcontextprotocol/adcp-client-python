@@ -16,6 +16,7 @@ from adcp import (
     InlineDaastAsset,
     InlineVastAsset,
     MediaSubAsset,
+    Product,
     TextSubAsset,
     UrlDaastAsset,
     UrlPreviewRender,
@@ -24,7 +25,7 @@ from adcp import (
 
 # Keep using generated names for authorization/deployment/destination variants
 # since these don't have semantic aliases yet
-from adcp.types.generated import (
+from adcp.types._generated import (
     AuthorizedAgents,  # property_ids variant
     AuthorizedAgents1,  # property_tags variant
     AuthorizedAgents2,  # inline_properties variant
@@ -33,8 +34,10 @@ from adcp.types.generated import (
     Deployment2,  # Agent
     Destination1,  # Platform
     Destination2,  # Agent
+    PublisherProperties,  # selection_type='all'
+    PublisherProperties4,  # selection_type='by_id'
+    PublisherProperties5,  # selection_type='by_tag'
 )
-from adcp.types.generated_poc.product import PublisherProperties, PublisherProperties3
 
 
 class TestAuthorizationDiscriminatedUnions:
@@ -57,6 +60,18 @@ class TestAuthorizationDiscriminatedUnions:
         assert [p.root for p in agent.property_ids] == ["site1", "site2"]
         assert not hasattr(agent, "property_tags")
         assert not hasattr(agent, "properties")
+
+    def test_property_ids_authorization_from_json(self):
+        """AuthorizedAgents (property_ids) validates from JSON dict."""
+        data = {
+            "url": "https://agent.example.com",
+            "authorized_for": "All properties",
+            "authorization_type": "property_ids",
+            "property_ids": ["site1", "site2"],
+        }
+        agent = AuthorizedAgents.model_validate(data)
+        assert agent.authorization_type == "property_ids"
+        assert [p.root for p in agent.property_ids] == ["site1", "site2"]
 
     def test_property_ids_authorization_wrong_type_fails(self):
         """AuthorizedAgents (property_ids) rejects wrong authorization_type value."""
@@ -100,6 +115,25 @@ class TestAuthorizationDiscriminatedUnions:
         assert agent.authorization_type == "inline_properties"
         assert len(agent.properties) == 1
         assert not hasattr(agent, "property_ids")
+
+    def test_inline_properties_authorization_from_json(self):
+        """AuthorizedAgents2 (inline_properties) validates from JSON dict."""
+        data = {
+            "url": "https://agent.example.com",
+            "authorized_for": "All properties",
+            "authorization_type": "inline_properties",
+            "properties": [
+                {
+                    "property_id": "site1",
+                    "property_type": "website",
+                    "name": "Example Site",
+                    "identifiers": [{"type": "domain", "value": "example.com"}],
+                }
+            ],
+        }
+        agent = AuthorizedAgents2.model_validate(data)
+        assert agent.authorization_type == "inline_properties"
+        assert len(agent.properties) == 1
 
     def test_publisher_properties_authorization(self):
         """AuthorizedAgents3 (publisher_properties variant) requires publisher_properties and authorization_type."""
@@ -355,16 +389,17 @@ class TestPublisherPropertyValidation:
     """Test publisher_properties discriminated union validation.
 
     Note: Schema v1.0.0+ uses discriminated unions for publisher_properties:
-    - PublisherProperties (selection_type='by_id') with property_ids
-    - PublisherProperties3 (selection_type='by_tag') with property_tags
+    - PublisherProperties (selection_type='all') - all properties from publisher
+    - PublisherProperties4 (selection_type='by_id') with property_ids
+    - PublisherProperties5 (selection_type='by_tag') with property_tags
 
     Pydantic automatically enforces discriminated union constraints, so we test
     that the correct variants can be constructed and invalid variants fail.
     """
 
     def test_publisher_property_with_property_ids(self):
-        """PublisherProperties with selection_type='by_id' requires property_ids."""
-        prop = PublisherProperties(
+        """PublisherProperties4 with selection_type='by_id' requires property_ids."""
+        prop = PublisherProperties4(
             publisher_domain="cnn.com",
             property_ids=["site1", "site2"],
             selection_type="by_id",
@@ -373,9 +408,21 @@ class TestPublisherPropertyValidation:
         assert len(prop.property_ids) == 2
         assert prop.selection_type == "by_id"
 
+    def test_publisher_property_with_property_ids_from_json(self):
+        """PublisherProperties4 validates from JSON dict."""
+        data = {
+            "publisher_domain": "cnn.com",
+            "property_ids": ["site1", "site2"],
+            "selection_type": "by_id",
+        }
+        prop = PublisherProperties4.model_validate(data)
+        assert prop.publisher_domain == "cnn.com"
+        assert len(prop.property_ids) == 2
+        assert prop.selection_type == "by_id"
+
     def test_publisher_property_with_property_tags(self):
-        """PublisherProperties3 with selection_type='by_tag' requires property_tags."""
-        prop = PublisherProperties3(
+        """PublisherProperties5 with selection_type='by_tag' requires property_tags."""
+        prop = PublisherProperties5(
             publisher_domain="cnn.com",
             property_tags=["premium", "news"],
             selection_type="by_tag",
@@ -384,10 +431,22 @@ class TestPublisherPropertyValidation:
         assert len(prop.property_tags) == 2
         assert prop.selection_type == "by_tag"
 
+    def test_publisher_property_with_property_tags_from_json(self):
+        """PublisherProperties5 validates from JSON dict."""
+        data = {
+            "publisher_domain": "cnn.com",
+            "property_tags": ["premium", "news"],
+            "selection_type": "by_tag",
+        }
+        prop = PublisherProperties5.model_validate(data)
+        assert prop.publisher_domain == "cnn.com"
+        assert len(prop.property_tags) == 2
+        assert prop.selection_type == "by_tag"
+
     def test_publisher_property_by_id_without_property_ids_fails(self):
-        """PublisherProperties requires property_ids field."""
+        """PublisherProperties4 requires property_ids field."""
         with pytest.raises(ValidationError) as exc_info:
-            PublisherProperties(
+            PublisherProperties4(
                 publisher_domain="cnn.com",
                 selection_type="by_id",
                 # Missing property_ids - should fail
@@ -396,9 +455,9 @@ class TestPublisherPropertyValidation:
         assert "property_ids" in error_msg.lower()
 
     def test_publisher_property_by_tag_without_property_tags_fails(self):
-        """PublisherProperties3 requires property_tags field."""
+        """PublisherProperties5 requires property_tags field."""
         with pytest.raises(ValidationError) as exc_info:
-            PublisherProperties3(
+            PublisherProperties5(
                 publisher_domain="cnn.com",
                 selection_type="by_tag",
                 # Missing property_tags - should fail
@@ -415,9 +474,9 @@ class TestProductValidation:
     """
 
     def test_product_accepts_valid_publisher_properties_by_id(self):
-        """Product accepts valid PublisherProperties with selection_type='by_id'."""
+        """Product accepts valid PublisherProperties4 with selection_type='by_id'."""
         valid_props = [
-            PublisherProperties(
+            PublisherProperties4(
                 publisher_domain="cnn.com",
                 property_ids=["site1", "site2"],
                 selection_type="by_id",
@@ -428,9 +487,9 @@ class TestProductValidation:
         assert valid_props[0].selection_type == "by_id"
 
     def test_product_accepts_valid_publisher_properties_by_tag(self):
-        """Product accepts valid PublisherProperties3 with selection_type='by_tag'."""
+        """Product accepts valid PublisherProperties5 with selection_type='by_tag'."""
         valid_props = [
-            PublisherProperties3(
+            PublisherProperties5(
                 publisher_domain="cnn.com",
                 property_tags=["premium", "news"],
                 selection_type="by_tag",
@@ -443,12 +502,12 @@ class TestProductValidation:
     def test_product_accepts_mixed_publisher_properties(self):
         """Product accepts a mix of by_id and by_tag publisher_properties."""
         mixed_props = [
-            PublisherProperties(
+            PublisherProperties4(
                 publisher_domain="cnn.com",
                 property_ids=["site1"],
                 selection_type="by_id",
             ),
-            PublisherProperties3(
+            PublisherProperties5(
                 publisher_domain="nytimes.com",
                 property_tags=["premium"],
                 selection_type="by_tag",

@@ -231,7 +231,7 @@ test_agent_a2a_no_auth: ADCPClient = _create_test_agent_a2a_no_auth_client()
 # Example:
 #     ```python
 #     from adcp.testing import creative_agent
-#     from adcp.types.generated import PreviewCreativeRequest
+#     from adcp.types._generated import PreviewCreativeRequest
 #
 #     result = await creative_agent.preview_creative(
 #         PreviewCreativeRequest(

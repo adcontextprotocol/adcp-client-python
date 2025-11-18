@@ -305,6 +305,20 @@ def main():
         if not apply_post_generation_fixes():
             return 1
 
+        # Consolidate exports into generated.py
+        consolidate_script = REPO_ROOT / "scripts" / "consolidate_exports.py"
+        result = subprocess.run(
+            [sys.executable, str(consolidate_script)],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            print("\n✗ Export consolidation failed:", file=sys.stderr)
+            print(result.stderr, file=sys.stderr)
+            return 1
+        if result.stdout:
+            print(result.stdout, end="")
+
         # Restore files where only timestamp changed
         restore_unchanged_files()
 

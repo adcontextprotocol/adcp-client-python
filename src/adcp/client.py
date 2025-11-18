@@ -25,7 +25,7 @@ from adcp.types.core import (
     TaskResult,
     TaskStatus,
 )
-from adcp.types.generated import (
+from adcp.types._generated import (
     ActivateSignalRequest,
     ActivateSignalResponse,
     GetMediaBuyDeliveryRequest,
