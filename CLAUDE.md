@@ -160,7 +160,7 @@ Edit `scripts/post_generate_fixes.py` and add a new function. The script:
    - Test that aliases point to correct generated types
    - Test that aliases are exported from main package
 
-**Current Semantic Aliases:**
+**Current Semantic Aliases (Complete Coverage - 30 user-facing types):**
 
 - **Preview Renders** (discriminated by `output_format`):
   - `UrlPreviewRender` = `PreviewRender1` (output_format='url')
@@ -189,6 +189,26 @@ Edit `scripts/post_generate_fixes.py` and add a new function. The script:
 - **Activation Keys** (discriminated by identifier type):
   - `PropertyIdActivationKey`/`PropertyTagActivationKey`
 
+- **Publisher Properties** (discriminated by `selection_type`):
+  - `PublisherPropertiesAll` = `PublisherProperties` (selection_type='all')
+  - `PublisherPropertiesById` = `PublisherProperties4` (selection_type='by_id')
+  - `PublisherPropertiesByTag` = `PublisherProperties5` (selection_type='by_tag')
+  - Also exports: `PropertyId`, `PropertyTag` (constraint types)
+
+- **Deployment Types** (discriminated by `type`):
+  - `PlatformDeployment` = `Deployment1` (type='platform')
+  - `AgentDeployment` = `Deployment2` (type='agent')
+
+- **Destination Types** (discriminated by `type`):
+  - `PlatformDestination` = `Destination1` (type='platform')
+  - `AgentDestination` = `Destination2` (type='agent')
+
+**Internal Types NOT Aliased (15 types):**
+- Nested helper types: `Input2`, `Input4`, `Response1`, `Results1`, `Preview1`, etc.
+- Package update internals: `Packages1`, `Packages2`, `Packages3`
+- Format helpers: `AssetsRequired1`, `ViewThreshold1`
+- Internal enums: `Field1`, `Method1`
+
 **Note on Pricing Types:**
 
 Pricing option types (`CpcPricingOption`, `CpmAuctionPricingOption`, `CpmFixedRatePricingOption`, etc.) already have clear semantic names from the schema generator, so they don't need aliases. These types now include an `is_fixed` discriminator:
@@ -201,11 +221,122 @@ Pricing option types (`CpcPricingOption`, `CpmAuctionPricingOption`, `CpmFixedRa
 - User-facing discriminated unions used in API calls
 - Types where the discriminator conveys important semantic meaning
 - Types where numbered suffixes cause confusion
+- Types that appear in union fields of Product, MediaBuy, Package
+- Request/Response variants users construct or pattern-match
 
 ❌ **DON'T create aliases for:**
 - Internal helper types not commonly used directly
 - Types where parent context makes the meaning clear
-- Generic helper types (Input1, Parameters2, etc.)
+- Generic helper types (Input2, Parameters2, etc.)
+- Nested container types in requests/responses
+- Internal enums (Field1, Method1)
+
+## Preventing Direct Imports from generated_poc
+
+**Goal**: Ensure downstream users NEVER have to import from `generated_poc` or use numbered types.
+
+### Strategy 1: Complete Aliasing Coverage
+
+**After regenerating types**, audit for new discriminated unions:
+
+```bash
+# Find all numbered types in generated code
+grep -h "^class.*[0-9](" src/adcp/types/generated_poc/*.py | \
+  sed 's/class \([^(]*\).*/\1/' | sort -u
+
+# For each numbered type, determine if it needs an alias:
+# 1. Is it used in a Union[] in Product/MediaBuy/Package? → YES, alias it
+# 2. Is it a Request/Response variant? → YES, alias it
+# 3. Does it have a discriminator field (Literal type)? → Probably YES
+# 4. Is it only used internally (Input2, Results1)? → NO, skip it
+```
+
+### Strategy 2: Automated Detection
+
+Add `scripts/check_missing_aliases.py`:
+
+```python
+"""Check for user-facing numbered types without semantic aliases."""
+import ast
+import re
+from pathlib import Path
+
+def find_discriminated_unions():
+    """Find types with discriminator fields that need aliases."""
+    generated_dir = Path("src/adcp/types/generated_poc")
+    numbered_types = set()
+
+    for py_file in generated_dir.glob("*.py"):
+        content = py_file.read_text()
+        # Find class definitions ending in digits
+        matches = re.findall(r"class (\w+\d+)\(", content)
+        # Check if they have Literal discriminators
+        for match in matches:
+            if f"Literal[" in content:  # Has discriminator
+                numbered_types.add(match)
+
+    # Check which are already aliased
+    aliases_file = Path("src/adcp/types/aliases.py")
+    aliases_content = aliases_file.read_text()
+
+    missing = []
+    for typename in numbered_types:
+        if f"= {typename}" not in aliases_content:
+            missing.append(typename)
+
+    return missing
+
+if __name__ == "__main__":
+    missing = find_discriminated_unions()
+    if missing:
+        print(f"❌ Found {len(missing)} numbered types without aliases:")
+        for t in missing:
+            print(f"  - {t}")
+        exit(1)
+    else:
+        print("✅ All user-facing types have semantic aliases")
+```
+
+### Strategy 3: CI Enforcement
+
+Add to `.github/workflows/ci.yml`:
+
+```yaml
+- name: Check for missing type aliases
+  run: uv run python scripts/check_missing_aliases.py
+```
+
+### Strategy 4: Import Linting
+
+Add custom ruff rule or pre-commit hook:
+
+```python
+# .pre-commit-config.yaml or custom linter
+# Detect imports from generated_poc in user code
+def check_generated_imports(file_path: str) -> list[str]:
+    """Warn about direct generated_poc imports."""
+    if "test_" in file_path or "aliases.py" in file_path:
+        return []  # Allow in tests and aliases module
+
+    with open(file_path) as f:
+        for line_no, line in enumerate(f, 1):
+            if "from adcp.types.generated_poc" in line:
+                return [f"{file_path}:{line_no}: Don't import from generated_poc - use semantic aliases"]
+    return []
+```
+
+### Strategy 5: Documentation
+
+**In type regeneration workflow**, always check:
+
+1. Run type generation: `uv run python scripts/generate_types.py`
+2. Check for new numbered types: `scripts/check_missing_aliases.py`
+3. If new types found:
+   - Determine discriminator field
+   - Add semantic alias in `aliases.py`
+   - Export from `__init__.py`
+   - Add tests in `test_type_aliases.py`
+4. Commit with descriptive message explaining the discriminator
 
 **Type Checking Best Practices**
 - Use `TYPE_CHECKING` for optional dependencies to avoid runtime import errors
