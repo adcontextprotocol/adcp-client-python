@@ -1,0 +1,1352 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.protocols API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.protocols</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+<h2 class="section-title" id="header-submodules">Sub-modules</h2>
+<dl>
+<dt><code class="name"><a title="adcp.protocols.a2a" href="a2a.html">adcp.protocols.a2a</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt><code class="name"><a title="adcp.protocols.base" href="base.html">adcp.protocols.base</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt><code class="name"><a title="adcp.protocols.mcp" href="mcp.html">adcp.protocols.mcp</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.protocols.A2AAdapter"><code class="flex name class">
+<span>class <span class="ident">A2AAdapter</span></span>
+<span>(</span><span>agent_config: AgentConfig)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class A2AAdapter(ProtocolAdapter):
+    &#34;&#34;&#34;Adapter for A2A protocol following the Agent2Agent specification.&#34;&#34;&#34;
+
+    def __init__(self, agent_config: AgentConfig):
+        &#34;&#34;&#34;Initialize A2A adapter with reusable HTTP client.&#34;&#34;&#34;
+        super().__init__(agent_config)
+        self._client: httpx.AsyncClient | None = None
+
+    async def _get_client(self) -&gt; httpx.AsyncClient:
+        &#34;&#34;&#34;Get or create the HTTP client with connection pooling.&#34;&#34;&#34;
+        if self._client is None:
+            # Configure connection pooling for better performance
+            limits = httpx.Limits(
+                max_keepalive_connections=10,
+                max_connections=20,
+                keepalive_expiry=30.0,
+            )
+            self._client = httpx.AsyncClient(limits=limits)
+            logger.debug(
+                f&#34;Created HTTP client with connection pooling for agent {self.agent_config.id}&#34;
+            )
+        return self._client
+
+    async def close(self) -&gt; None:
+        &#34;&#34;&#34;Close the HTTP client and clean up resources.&#34;&#34;&#34;
+        if self._client is not None:
+            logger.debug(f&#34;Closing A2A adapter client for agent {self.agent_config.id}&#34;)
+            await self._client.aclose()
+            self._client = None
+
+    async def _call_a2a_tool(self, tool_name: str, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;
+        Call a tool using A2A protocol.
+
+        A2A uses a tasks/send endpoint to initiate tasks. The agent responds with
+        task status and may require multiple roundtrips for completion.
+        &#34;&#34;&#34;
+        start_time = time.time() if self.agent_config.debug else None
+        client = await self._get_client()
+
+        headers = {&#34;Content-Type&#34;: &#34;application/json&#34;}
+
+        if self.agent_config.auth_token:
+            # Support custom auth headers and types
+            if self.agent_config.auth_type == &#34;bearer&#34;:
+                headers[self.agent_config.auth_header] = f&#34;Bearer {self.agent_config.auth_token}&#34;
+            else:
+                headers[self.agent_config.auth_header] = self.agent_config.auth_token
+
+        # Construct A2A message
+        message = {
+            &#34;role&#34;: &#34;user&#34;,
+            &#34;parts&#34;: [
+                {
+                    &#34;type&#34;: &#34;text&#34;,
+                    &#34;text&#34;: self._format_tool_request(tool_name, params),
+                }
+            ],
+        }
+
+        # A2A uses message/send endpoint
+        url = f&#34;{self.agent_config.agent_uri}/message/send&#34;
+
+        request_data = {
+            &#34;message&#34;: message,
+            &#34;context_id&#34;: str(uuid4()),
+        }
+
+        debug_info = None
+        if self.agent_config.debug:
+            debug_request = {
+                &#34;url&#34;: url,
+                &#34;method&#34;: &#34;POST&#34;,
+                &#34;headers&#34;: {
+                    k: (
+                        v
+                        if k.lower() not in (&#34;authorization&#34;, self.agent_config.auth_header.lower())
+                        else &#34;***&#34;
+                    )
+                    for k, v in headers.items()
+                },
+                &#34;body&#34;: request_data,
+            }
+
+        try:
+            response = await client.post(
+                url,
+                json=request_data,
+                headers=headers,
+                timeout=self.agent_config.timeout,
+            )
+            response.raise_for_status()
+
+            data = response.json()
+
+            if self.agent_config.debug and start_time:
+                duration_ms = (time.time() - start_time) * 1000
+                debug_info = DebugInfo(
+                    request=debug_request,
+                    response={&#34;status&#34;: response.status_code, &#34;body&#34;: data},
+                    duration_ms=duration_ms,
+                )
+
+            # Parse A2A response format
+            # A2A tasks have lifecycle: submitted, working, completed, failed, input-required
+            task_status = data.get(&#34;task&#34;, {}).get(&#34;status&#34;)
+
+            if task_status in (&#34;completed&#34;, &#34;working&#34;):
+                # Extract the result from the response message
+                result_data = self._extract_result(data)
+
+                return TaskResult[Any](
+                    status=TaskStatus.COMPLETED,
+                    data=result_data,
+                    success=True,
+                    metadata={&#34;task_id&#34;: data.get(&#34;task&#34;, {}).get(&#34;id&#34;)},
+                    debug_info=debug_info,
+                )
+            elif task_status == &#34;failed&#34;:
+                return TaskResult[Any](
+                    status=TaskStatus.FAILED,
+                    error=data.get(&#34;message&#34;, {}).get(&#34;parts&#34;, [{}])[0].get(&#34;text&#34;, &#34;Task failed&#34;),
+                    success=False,
+                    debug_info=debug_info,
+                )
+            else:
+                # Handle other states (submitted, input-required)
+                return TaskResult[Any](
+                    status=TaskStatus.SUBMITTED,
+                    data=data,
+                    success=True,
+                    metadata={&#34;task_id&#34;: data.get(&#34;task&#34;, {}).get(&#34;id&#34;)},
+                    debug_info=debug_info,
+                )
+
+        except httpx.HTTPError as e:
+            if self.agent_config.debug and start_time:
+                duration_ms = (time.time() - start_time) * 1000
+                debug_info = DebugInfo(
+                    request=debug_request,
+                    response={&#34;error&#34;: str(e)},
+                    duration_ms=duration_ms,
+                )
+            return TaskResult[Any](
+                status=TaskStatus.FAILED,
+                error=str(e),
+                success=False,
+                debug_info=debug_info,
+            )
+
+    def _format_tool_request(self, tool_name: str, params: dict[str, Any]) -&gt; str:
+        &#34;&#34;&#34;Format tool request as natural language for A2A.&#34;&#34;&#34;
+        # For AdCP tools, we format as a structured request
+        import json
+
+        return f&#34;Execute tool: {tool_name}\nParameters: {json.dumps(params, indent=2)}&#34;
+
+    def _extract_result(self, response_data: dict[str, Any]) -&gt; Any:
+        &#34;&#34;&#34;Extract result data from A2A response.&#34;&#34;&#34;
+        # Try to extract structured data from response
+        message = response_data.get(&#34;message&#34;, {})
+        parts = message.get(&#34;parts&#34;, [])
+
+        if not parts:
+            return response_data
+
+        # Return the first part&#39;s content
+        first_part = parts[0]
+        if first_part.get(&#34;type&#34;) == &#34;text&#34;:
+            # Try to parse as JSON if it looks like structured data
+            text = first_part.get(&#34;text&#34;, &#34;&#34;)
+            try:
+                import json
+
+                return json.loads(text)
+            except (json.JSONDecodeError, ValueError):
+                return text
+
+        return first_part
+
+    # ========================================================================
+    # ADCP Protocol Methods
+    # ========================================================================
+
+    async def get_products(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get advertising products.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;get_products&#34;, params)
+
+    async def list_creative_formats(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;List supported creative formats.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;list_creative_formats&#34;, params)
+
+    async def sync_creatives(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Sync creatives.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;sync_creatives&#34;, params)
+
+    async def list_creatives(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;List creatives.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;list_creatives&#34;, params)
+
+    async def get_media_buy_delivery(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get media buy delivery.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;get_media_buy_delivery&#34;, params)
+
+    async def list_authorized_properties(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;List authorized properties.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;list_authorized_properties&#34;, params)
+
+    async def get_signals(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get signals.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;get_signals&#34;, params)
+
+    async def activate_signal(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Activate signal.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;activate_signal&#34;, params)
+
+    async def provide_performance_feedback(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Provide performance feedback.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;provide_performance_feedback&#34;, params)
+
+    async def preview_creative(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Generate preview URLs for a creative manifest.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;preview_creative&#34;, params)
+
+    async def list_tools(self) -&gt; list[str]:
+        &#34;&#34;&#34;
+        List available tools from A2A agent.
+
+        Note: A2A doesn&#39;t have a standard tools/list endpoint. Agents expose
+        their capabilities through the agent card. For AdCP, we rely on the
+        standard AdCP tool set.
+        &#34;&#34;&#34;
+        client = await self._get_client()
+
+        headers = {&#34;Content-Type&#34;: &#34;application/json&#34;}
+
+        if self.agent_config.auth_token:
+            # Support custom auth headers and types
+            if self.agent_config.auth_type == &#34;bearer&#34;:
+                headers[self.agent_config.auth_header] = f&#34;Bearer {self.agent_config.auth_token}&#34;
+            else:
+                headers[self.agent_config.auth_header] = self.agent_config.auth_token
+
+        # Try to fetch agent card from standard A2A location
+        # A2A spec uses /.well-known/agent.json for agent card
+        url = f&#34;{self.agent_config.agent_uri}/.well-known/agent.json&#34;
+
+        logger.debug(f&#34;Fetching A2A agent card for {self.agent_config.id} from {url}&#34;)
+
+        try:
+            response = await client.get(url, headers=headers, timeout=self.agent_config.timeout)
+            response.raise_for_status()
+
+            data = response.json()
+
+            # Extract skills from agent card
+            skills = data.get(&#34;skills&#34;, [])
+            tool_names = [skill.get(&#34;name&#34;, &#34;&#34;) for skill in skills if skill.get(&#34;name&#34;)]
+
+            logger.info(f&#34;Found {len(tool_names)} tools from A2A agent {self.agent_config.id}&#34;)
+            return tool_names
+
+        except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code
+            if status_code in (401, 403):
+                logger.error(f&#34;Authentication failed for A2A agent {self.agent_config.id}&#34;)
+                raise ADCPAuthenticationError(
+                    f&#34;Authentication failed: HTTP {status_code}&#34;,
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
+                ) from e
+            else:
+                logger.error(f&#34;HTTP {status_code} error fetching agent card: {e}&#34;)
+                raise ADCPConnectionError(
+                    f&#34;Failed to fetch agent card: HTTP {status_code}&#34;,
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
+                ) from e
+        except httpx.TimeoutException as e:
+            logger.error(f&#34;Timeout fetching agent card for {self.agent_config.id}&#34;)
+            raise ADCPTimeoutError(
+                f&#34;Timeout fetching agent card: {e}&#34;,
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
+                timeout=self.agent_config.timeout,
+            ) from e
+        except httpx.HTTPError as e:
+            logger.error(f&#34;HTTP error fetching agent card: {e}&#34;)
+            raise ADCPConnectionError(
+                f&#34;Failed to fetch agent card: {e}&#34;,
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
+            ) from e</code></pre>
+</details>
+<div class="desc"><p>Adapter for A2A protocol following the Agent2Agent specification.</p>
+<p>Initialize A2A adapter with reusable HTTP client.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.protocols.base.ProtocolAdapter" href="base.html#adcp.protocols.base.ProtocolAdapter">ProtocolAdapter</a></li>
+<li>abc.ABC</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.protocols.A2AAdapter.close"><code class="name flex">
+<span>async def <span class="ident">close</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def close(self) -&gt; None:
+    &#34;&#34;&#34;Close the HTTP client and clean up resources.&#34;&#34;&#34;
+    if self._client is not None:
+        logger.debug(f&#34;Closing A2A adapter client for agent {self.agent_config.id}&#34;)
+        await self._client.aclose()
+        self._client = None</code></pre>
+</details>
+<div class="desc"><p>Close the HTTP client and clean up resources.</p></div>
+</dd>
+<dt id="adcp.protocols.A2AAdapter.list_tools"><code class="name flex">
+<span>async def <span class="ident">list_tools</span></span>(<span>self) ‑> list[str]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_tools(self) -&gt; list[str]:
+    &#34;&#34;&#34;
+    List available tools from A2A agent.
+
+    Note: A2A doesn&#39;t have a standard tools/list endpoint. Agents expose
+    their capabilities through the agent card. For AdCP, we rely on the
+    standard AdCP tool set.
+    &#34;&#34;&#34;
+    client = await self._get_client()
+
+    headers = {&#34;Content-Type&#34;: &#34;application/json&#34;}
+
+    if self.agent_config.auth_token:
+        # Support custom auth headers and types
+        if self.agent_config.auth_type == &#34;bearer&#34;:
+            headers[self.agent_config.auth_header] = f&#34;Bearer {self.agent_config.auth_token}&#34;
+        else:
+            headers[self.agent_config.auth_header] = self.agent_config.auth_token
+
+    # Try to fetch agent card from standard A2A location
+    # A2A spec uses /.well-known/agent.json for agent card
+    url = f&#34;{self.agent_config.agent_uri}/.well-known/agent.json&#34;
+
+    logger.debug(f&#34;Fetching A2A agent card for {self.agent_config.id} from {url}&#34;)
+
+    try:
+        response = await client.get(url, headers=headers, timeout=self.agent_config.timeout)
+        response.raise_for_status()
+
+        data = response.json()
+
+        # Extract skills from agent card
+        skills = data.get(&#34;skills&#34;, [])
+        tool_names = [skill.get(&#34;name&#34;, &#34;&#34;) for skill in skills if skill.get(&#34;name&#34;)]
+
+        logger.info(f&#34;Found {len(tool_names)} tools from A2A agent {self.agent_config.id}&#34;)
+        return tool_names
+
+    except httpx.HTTPStatusError as e:
+        status_code = e.response.status_code
+        if status_code in (401, 403):
+            logger.error(f&#34;Authentication failed for A2A agent {self.agent_config.id}&#34;)
+            raise ADCPAuthenticationError(
+                f&#34;Authentication failed: HTTP {status_code}&#34;,
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
+            ) from e
+        else:
+            logger.error(f&#34;HTTP {status_code} error fetching agent card: {e}&#34;)
+            raise ADCPConnectionError(
+                f&#34;Failed to fetch agent card: HTTP {status_code}&#34;,
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
+            ) from e
+    except httpx.TimeoutException as e:
+        logger.error(f&#34;Timeout fetching agent card for {self.agent_config.id}&#34;)
+        raise ADCPTimeoutError(
+            f&#34;Timeout fetching agent card: {e}&#34;,
+            agent_id=self.agent_config.id,
+            agent_uri=self.agent_config.agent_uri,
+            timeout=self.agent_config.timeout,
+        ) from e
+    except httpx.HTTPError as e:
+        logger.error(f&#34;HTTP error fetching agent card: {e}&#34;)
+        raise ADCPConnectionError(
+            f&#34;Failed to fetch agent card: {e}&#34;,
+            agent_id=self.agent_config.id,
+            agent_uri=self.agent_config.agent_uri,
+        ) from e</code></pre>
+</details>
+<div class="desc"><p>List available tools from A2A agent.</p>
+<p>Note: A2A doesn't have a standard tools/list endpoint. Agents expose
+their capabilities through the agent card. For AdCP, we rely on the
+standard AdCP tool set.</p></div>
+</dd>
+<dt id="adcp.protocols.A2AAdapter.preview_creative"><code class="name flex">
+<span>async def <span class="ident">preview_creative</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def preview_creative(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Generate preview URLs for a creative manifest.&#34;&#34;&#34;
+    return await self._call_a2a_tool(&#34;preview_creative&#34;, params)</code></pre>
+</details>
+<div class="desc"><p>Generate preview URLs for a creative manifest.</p></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.protocols.base.ProtocolAdapter" href="base.html#adcp.protocols.base.ProtocolAdapter">ProtocolAdapter</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.activate_signal" href="base.html#adcp.protocols.base.ProtocolAdapter.activate_signal">activate_signal</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery" href="base.html#adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_products" href="base.html#adcp.protocols.base.ProtocolAdapter.get_products">get_products</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_signals" href="base.html#adcp.protocols.base.ProtocolAdapter.get_signals">get_signals</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.list_authorized_properties" href="base.html#adcp.protocols.base.ProtocolAdapter.list_authorized_properties">list_authorized_properties</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.list_creative_formats" href="base.html#adcp.protocols.base.ProtocolAdapter.list_creative_formats">list_creative_formats</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.list_creatives" href="base.html#adcp.protocols.base.ProtocolAdapter.list_creatives">list_creatives</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.provide_performance_feedback" href="base.html#adcp.protocols.base.ProtocolAdapter.provide_performance_feedback">provide_performance_feedback</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.sync_creatives" href="base.html#adcp.protocols.base.ProtocolAdapter.sync_creatives">sync_creatives</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.protocols.MCPAdapter"><code class="flex name class">
+<span>class <span class="ident">MCPAdapter</span></span>
+<span>(</span><span>*args: Any, **kwargs: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MCPAdapter(ProtocolAdapter):
+    &#34;&#34;&#34;Adapter for MCP protocol using official Python MCP SDK.&#34;&#34;&#34;
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        if not MCP_AVAILABLE:
+            raise ImportError(
+                &#34;MCP SDK not installed. Install with: pip install mcp (requires Python 3.10+)&#34;
+            )
+        self._session: Any = None
+        self._exit_stack: Any = None
+
+    async def _cleanup_failed_connection(self, context: str) -&gt; None:
+        &#34;&#34;&#34;
+        Clean up resources after a failed connection attempt.
+
+        This method handles cleanup without raising exceptions to avoid
+        masking the original connection error.
+
+        Args:
+            context: Description of the context for logging (e.g., &#34;during connection attempt&#34;)
+        &#34;&#34;&#34;
+        if self._exit_stack is not None:
+            old_stack = self._exit_stack
+            self._exit_stack = None
+            self._session = None
+            try:
+                await old_stack.aclose()
+            except asyncio.CancelledError:
+                logger.debug(f&#34;MCP session cleanup cancelled {context}&#34;)
+            except RuntimeError as cleanup_error:
+                # Known anyio task group cleanup issue
+                error_msg = str(cleanup_error).lower()
+                if &#34;cancel scope&#34; in error_msg or &#34;async context&#34; in error_msg:
+                    logger.debug(f&#34;Ignoring anyio cleanup error {context}: {cleanup_error}&#34;)
+                else:
+                    logger.warning(
+                        f&#34;Unexpected RuntimeError during cleanup {context}: {cleanup_error}&#34;
+                    )
+            except Exception as cleanup_error:
+                # Log unexpected cleanup errors but don&#39;t raise to preserve original error
+                logger.warning(
+                    f&#34;Unexpected error during cleanup {context}: {cleanup_error}&#34;, exc_info=True
+                )
+
+    async def _get_session(self) -&gt; ClientSession:
+        &#34;&#34;&#34;
+        Get or create MCP client session with URL fallback handling.
+
+        Raises:
+            ADCPConnectionError: If connection to agent fails
+        &#34;&#34;&#34;
+        if self._session is not None:
+            return self._session  # type: ignore[no-any-return]
+
+        logger.debug(f&#34;Creating MCP session for agent {self.agent_config.id}&#34;)
+
+        # Parse the agent URI to determine transport type
+        parsed = urlparse(self.agent_config.agent_uri)
+
+        # Use SSE transport for HTTP/HTTPS endpoints
+        if parsed.scheme in (&#34;http&#34;, &#34;https&#34;):
+            self._exit_stack = AsyncExitStack()
+
+            # Create SSE client with authentication header
+            headers = {}
+            if self.agent_config.auth_token:
+                # Support custom auth headers and types
+                if self.agent_config.auth_type == &#34;bearer&#34;:
+                    headers[self.agent_config.auth_header] = (
+                        f&#34;Bearer {self.agent_config.auth_token}&#34;
+                    )
+                else:
+                    headers[self.agent_config.auth_header] = self.agent_config.auth_token
+
+            # Try the user&#39;s exact URL first
+            urls_to_try = [self.agent_config.agent_uri]
+
+            # If URL doesn&#39;t end with /mcp, also try with /mcp suffix
+            if not self.agent_config.agent_uri.rstrip(&#34;/&#34;).endswith(&#34;/mcp&#34;):
+                base_uri = self.agent_config.agent_uri.rstrip(&#34;/&#34;)
+                urls_to_try.append(f&#34;{base_uri}/mcp&#34;)
+
+            last_error = None
+            for url in urls_to_try:
+                try:
+                    # Choose transport based on configuration
+                    if self.agent_config.mcp_transport == &#34;streamable_http&#34;:
+                        # Use streamable HTTP transport (newer, bidirectional)
+                        read, write, _get_session_id = await self._exit_stack.enter_async_context(
+                            streamablehttp_client(
+                                url, headers=headers, timeout=self.agent_config.timeout
+                            )
+                        )
+                    else:
+                        # Use SSE transport (legacy, but widely supported)
+                        read, write = await self._exit_stack.enter_async_context(
+                            sse_client(url, headers=headers)
+                        )
+
+                    self._session = await self._exit_stack.enter_async_context(
+                        _ClientSession(read, write)
+                    )
+
+                    # Initialize the session
+                    await self._session.initialize()
+
+                    logger.info(
+                        f&#34;Connected to MCP agent {self.agent_config.id} at {url} &#34;
+                        f&#34;using {self.agent_config.mcp_transport} transport&#34;
+                    )
+                    if url != self.agent_config.agent_uri:
+                        logger.info(
+                            f&#34;Note: Connected using fallback URL {url} &#34;
+                            f&#34;(configured: {self.agent_config.agent_uri})&#34;
+                        )
+
+                    return self._session  # type: ignore[no-any-return]
+                except Exception as e:
+                    last_error = e
+                    # Clean up the exit stack on failure to avoid resource leaks
+                    await self._cleanup_failed_connection(&#34;during connection attempt&#34;)
+
+                    # If this isn&#39;t the last URL to try, create a new exit stack and continue
+                    if url != urls_to_try[-1]:
+                        logger.debug(f&#34;Retrying with next URL after error: {last_error}&#34;)
+                        self._exit_stack = AsyncExitStack()
+                        continue
+                    # If this was the last URL, raise the error
+                    logger.error(
+                        f&#34;Failed to connect to MCP agent {self.agent_config.id} using &#34;
+                        f&#34;{self.agent_config.mcp_transport} transport. &#34;
+                        f&#34;Tried URLs: {&#39;, &#39;.join(urls_to_try)}&#34;
+                    )
+
+                    # Classify error type for better exception handling
+                    error_str = str(last_error).lower()
+                    if &#34;401&#34; in error_str or &#34;403&#34; in error_str or &#34;unauthorized&#34; in error_str:
+                        from adcp.exceptions import ADCPAuthenticationError
+
+                        raise ADCPAuthenticationError(
+                            f&#34;Authentication failed: {last_error}&#34;,
+                            agent_id=self.agent_config.id,
+                            agent_uri=self.agent_config.agent_uri,
+                        ) from last_error
+                    elif &#34;timeout&#34; in error_str:
+                        raise ADCPTimeoutError(
+                            f&#34;Connection timeout: {last_error}&#34;,
+                            agent_id=self.agent_config.id,
+                            agent_uri=self.agent_config.agent_uri,
+                            timeout=self.agent_config.timeout,
+                        ) from last_error
+                    else:
+                        raise ADCPConnectionError(
+                            f&#34;Failed to connect: {last_error}&#34;,
+                            agent_id=self.agent_config.id,
+                            agent_uri=self.agent_config.agent_uri,
+                        ) from last_error
+
+            # This shouldn&#39;t be reached, but just in case
+            raise RuntimeError(f&#34;Failed to connect to MCP agent at {self.agent_config.agent_uri}&#34;)
+        else:
+            raise ValueError(f&#34;Unsupported transport scheme: {parsed.scheme}&#34;)
+
+    def _serialize_mcp_content(self, content: list[Any]) -&gt; list[dict[str, Any]]:
+        &#34;&#34;&#34;
+        Convert MCP SDK content objects to plain dicts.
+
+        The MCP SDK returns Pydantic objects (TextContent, ImageContent, etc.)
+        but the rest of the ADCP client expects protocol-agnostic dicts.
+        This method handles the translation at the protocol boundary.
+
+        Args:
+            content: List of MCP content items (may be dicts or Pydantic objects)
+
+        Returns:
+            List of plain dicts representing the content
+        &#34;&#34;&#34;
+        result = []
+        for item in content:
+            # Already a dict, pass through
+            if isinstance(item, dict):
+                result.append(item)
+            # Pydantic v2 model with model_dump()
+            elif hasattr(item, &#34;model_dump&#34;):
+                result.append(item.model_dump())
+            # Pydantic v1 model with dict()
+            elif hasattr(item, &#34;dict&#34;) and callable(item.dict):
+                result.append(item.dict())
+            # Fallback: try to access __dict__
+            elif hasattr(item, &#34;__dict__&#34;):
+                result.append(dict(item.__dict__))
+            # Last resort: serialize as unknown type
+            else:
+                logger.warning(f&#34;Unknown MCP content type: {type(item)}, serializing as string&#34;)
+                result.append({&#34;type&#34;: &#34;unknown&#34;, &#34;data&#34;: str(item)})
+        return result
+
+    async def _call_mcp_tool(self, tool_name: str, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Call a tool using MCP protocol.&#34;&#34;&#34;
+        start_time = time.time() if self.agent_config.debug else None
+        debug_info = None
+
+        try:
+            session = await self._get_session()
+
+            if self.agent_config.debug:
+                debug_request = {
+                    &#34;protocol&#34;: &#34;MCP&#34;,
+                    &#34;tool&#34;: tool_name,
+                    &#34;params&#34;: params,
+                    &#34;transport&#34;: self.agent_config.mcp_transport,
+                }
+
+            # Call the tool using MCP client session
+            result = await session.call_tool(tool_name, params)
+
+            # Check if this is an error response
+            is_error = hasattr(result, &#34;isError&#34;) and result.isError
+
+            # Extract human-readable message from content
+            message_text = None
+            if hasattr(result, &#34;content&#34;) and result.content:
+                serialized_content = self._serialize_mcp_content(result.content)
+                if isinstance(serialized_content, list):
+                    for item in serialized_content:
+                        is_text = isinstance(item, dict) and item.get(&#34;type&#34;) == &#34;text&#34;
+                        if is_text and item.get(&#34;text&#34;):
+                            message_text = item[&#34;text&#34;]
+                            break
+
+            # Handle error responses
+            if is_error:
+                # For error responses, structuredContent is optional
+                # Use the error message from content as the error
+                error_message = message_text or &#34;Tool execution failed&#34;
+                if self.agent_config.debug and start_time:
+                    duration_ms = (time.time() - start_time) * 1000
+                    debug_info = DebugInfo(
+                        request=debug_request,
+                        response={
+                            &#34;error&#34;: error_message,
+                            &#34;is_error&#34;: True,
+                        },
+                        duration_ms=duration_ms,
+                    )
+                return TaskResult[Any](
+                    status=TaskStatus.FAILED,
+                    error=error_message,
+                    success=False,
+                    debug_info=debug_info,
+                )
+
+            # For successful responses, structuredContent is required
+            if not hasattr(result, &#34;structuredContent&#34;) or result.structuredContent is None:
+                raise ValueError(
+                    f&#34;MCP tool {tool_name} did not return structuredContent. &#34;
+                    f&#34;This SDK requires MCP tools to provide structured responses &#34;
+                    f&#34;for successful calls. &#34;
+                    f&#34;Got content: {result.content if hasattr(result, &#39;content&#39;) else &#39;none&#39;}&#34;
+                )
+
+            # Extract the structured data (required for success)
+            data_to_return = result.structuredContent
+
+            if self.agent_config.debug and start_time:
+                duration_ms = (time.time() - start_time) * 1000
+                debug_info = DebugInfo(
+                    request=debug_request,
+                    response={
+                        &#34;data&#34;: data_to_return,
+                        &#34;message&#34;: message_text,
+                        &#34;is_error&#34;: False,
+                    },
+                    duration_ms=duration_ms,
+                )
+
+            # Return both the structured data and the human-readable message
+            return TaskResult[Any](
+                status=TaskStatus.COMPLETED,
+                data=data_to_return,
+                message=message_text,
+                success=True,
+                debug_info=debug_info,
+            )
+
+        except Exception as e:
+            if self.agent_config.debug and start_time:
+                duration_ms = (time.time() - start_time) * 1000
+                debug_info = DebugInfo(
+                    request=debug_request if self.agent_config.debug else {},
+                    response={&#34;error&#34;: str(e)},
+                    duration_ms=duration_ms,
+                )
+            return TaskResult[Any](
+                status=TaskStatus.FAILED,
+                error=str(e),
+                success=False,
+                debug_info=debug_info,
+            )
+
+    # ========================================================================
+    # ADCP Protocol Methods
+    # ========================================================================
+
+    async def get_products(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get advertising products.&#34;&#34;&#34;
+        return await self._call_mcp_tool(&#34;get_products&#34;, params)
+
+    async def list_creative_formats(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;List supported creative formats.&#34;&#34;&#34;
+        return await self._call_mcp_tool(&#34;list_creative_formats&#34;, params)
+
+    async def sync_creatives(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Sync creatives.&#34;&#34;&#34;
+        return await self._call_mcp_tool(&#34;sync_creatives&#34;, params)
+
+    async def list_creatives(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;List creatives.&#34;&#34;&#34;
+        return await self._call_mcp_tool(&#34;list_creatives&#34;, params)
+
+    async def get_media_buy_delivery(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get media buy delivery.&#34;&#34;&#34;
+        return await self._call_mcp_tool(&#34;get_media_buy_delivery&#34;, params)
+
+    async def list_authorized_properties(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;List authorized properties.&#34;&#34;&#34;
+        return await self._call_mcp_tool(&#34;list_authorized_properties&#34;, params)
+
+    async def get_signals(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get signals.&#34;&#34;&#34;
+        return await self._call_mcp_tool(&#34;get_signals&#34;, params)
+
+    async def activate_signal(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Activate signal.&#34;&#34;&#34;
+        return await self._call_mcp_tool(&#34;activate_signal&#34;, params)
+
+    async def provide_performance_feedback(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Provide performance feedback.&#34;&#34;&#34;
+        return await self._call_mcp_tool(&#34;provide_performance_feedback&#34;, params)
+
+    async def preview_creative(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Generate preview URLs for a creative manifest.&#34;&#34;&#34;
+        return await self._call_mcp_tool(&#34;preview_creative&#34;, params)
+
+    async def list_tools(self) -&gt; list[str]:
+        &#34;&#34;&#34;List available tools from MCP agent.&#34;&#34;&#34;
+        session = await self._get_session()
+        result = await session.list_tools()
+        return [tool.name for tool in result.tools]
+
+    async def close(self) -&gt; None:
+        &#34;&#34;&#34;Close the MCP session and clean up resources.&#34;&#34;&#34;
+        await self._cleanup_failed_connection(&#34;during close&#34;)</code></pre>
+</details>
+<div class="desc"><p>Adapter for MCP protocol using official Python MCP SDK.</p>
+<p>Initialize adapter with agent configuration.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.protocols.base.ProtocolAdapter" href="base.html#adcp.protocols.base.ProtocolAdapter">ProtocolAdapter</a></li>
+<li>abc.ABC</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.protocols.MCPAdapter.close"><code class="name flex">
+<span>async def <span class="ident">close</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def close(self) -&gt; None:
+    &#34;&#34;&#34;Close the MCP session and clean up resources.&#34;&#34;&#34;
+    await self._cleanup_failed_connection(&#34;during close&#34;)</code></pre>
+</details>
+<div class="desc"><p>Close the MCP session and clean up resources.</p></div>
+</dd>
+<dt id="adcp.protocols.MCPAdapter.list_tools"><code class="name flex">
+<span>async def <span class="ident">list_tools</span></span>(<span>self) ‑> list[str]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_tools(self) -&gt; list[str]:
+    &#34;&#34;&#34;List available tools from MCP agent.&#34;&#34;&#34;
+    session = await self._get_session()
+    result = await session.list_tools()
+    return [tool.name for tool in result.tools]</code></pre>
+</details>
+<div class="desc"><p>List available tools from MCP agent.</p></div>
+</dd>
+<dt id="adcp.protocols.MCPAdapter.preview_creative"><code class="name flex">
+<span>async def <span class="ident">preview_creative</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def preview_creative(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Generate preview URLs for a creative manifest.&#34;&#34;&#34;
+    return await self._call_mcp_tool(&#34;preview_creative&#34;, params)</code></pre>
+</details>
+<div class="desc"><p>Generate preview URLs for a creative manifest.</p></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.protocols.base.ProtocolAdapter" href="base.html#adcp.protocols.base.ProtocolAdapter">ProtocolAdapter</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.activate_signal" href="base.html#adcp.protocols.base.ProtocolAdapter.activate_signal">activate_signal</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery" href="base.html#adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_products" href="base.html#adcp.protocols.base.ProtocolAdapter.get_products">get_products</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_signals" href="base.html#adcp.protocols.base.ProtocolAdapter.get_signals">get_signals</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.list_authorized_properties" href="base.html#adcp.protocols.base.ProtocolAdapter.list_authorized_properties">list_authorized_properties</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.list_creative_formats" href="base.html#adcp.protocols.base.ProtocolAdapter.list_creative_formats">list_creative_formats</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.list_creatives" href="base.html#adcp.protocols.base.ProtocolAdapter.list_creatives">list_creatives</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.provide_performance_feedback" href="base.html#adcp.protocols.base.ProtocolAdapter.provide_performance_feedback">provide_performance_feedback</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.sync_creatives" href="base.html#adcp.protocols.base.ProtocolAdapter.sync_creatives">sync_creatives</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.protocols.ProtocolAdapter"><code class="flex name class">
+<span>class <span class="ident">ProtocolAdapter</span></span>
+<span>(</span><span>agent_config: AgentConfig)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ProtocolAdapter(ABC):
+    &#34;&#34;&#34;
+    Base class for protocol adapters.
+
+    Each adapter implements the ADCP protocol methods and handles
+    protocol-specific translation (MCP/A2A) while returning properly
+    typed responses.
+    &#34;&#34;&#34;
+
+    def __init__(self, agent_config: AgentConfig):
+        &#34;&#34;&#34;Initialize adapter with agent configuration.&#34;&#34;&#34;
+        self.agent_config = agent_config
+
+    # ========================================================================
+    # Helper methods for response parsing
+    # ========================================================================
+
+    def _parse_response(
+        self, raw_result: TaskResult[Any], response_type: type[T] | Any
+    ) -&gt; TaskResult[T]:
+        &#34;&#34;&#34;
+        Parse raw TaskResult into typed TaskResult.
+
+        Handles both MCP content arrays and A2A dict responses.
+        Supports both single types and Union types (for oneOf discriminated unions).
+
+        Args:
+            raw_result: Raw TaskResult from adapter
+            response_type: Expected Pydantic response type (can be a Union type)
+
+        Returns:
+            Typed TaskResult
+        &#34;&#34;&#34;
+        # Handle failed results or missing data
+        if not raw_result.success or raw_result.data is None:
+            # Explicitly construct typed result to satisfy type checker
+            return TaskResult[T](
+                status=raw_result.status,
+                data=None,
+                message=raw_result.message,
+                success=False,
+                error=raw_result.error or &#34;No data returned from adapter&#34;,
+                metadata=raw_result.metadata,
+                debug_info=raw_result.debug_info,
+            )
+
+        try:
+            # Handle MCP content arrays
+            if isinstance(raw_result.data, list):
+                parsed_data = parse_mcp_content(raw_result.data, response_type)
+            else:
+                # Handle A2A or direct responses
+                parsed_data = parse_json_or_text(raw_result.data, response_type)
+
+            return TaskResult[T](
+                status=raw_result.status,
+                data=parsed_data,
+                message=raw_result.message,  # Preserve human-readable message from protocol
+                success=raw_result.success,
+                error=raw_result.error,
+                metadata=raw_result.metadata,
+                debug_info=raw_result.debug_info,
+            )
+        except ValueError as e:
+            # Parsing failed - return error result
+            return TaskResult[T](
+                status=TaskStatus.FAILED,
+                error=f&#34;Failed to parse response: {e}&#34;,
+                message=raw_result.message,
+                success=False,
+                debug_info=raw_result.debug_info,
+            )
+
+    # ========================================================================
+    # ADCP Protocol Methods - Type-safe, spec-aligned interface
+    # Each adapter MUST implement these methods explicitly.
+    # ========================================================================
+
+    @abstractmethod
+    async def get_products(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get advertising products.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def list_creative_formats(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;List supported creative formats.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def sync_creatives(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Sync creatives.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def list_creatives(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;List creatives.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def get_media_buy_delivery(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get media buy delivery.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def list_authorized_properties(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;List authorized properties.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def get_signals(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get signals.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def activate_signal(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Activate signal.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def provide_performance_feedback(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Provide performance feedback.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def list_tools(self) -&gt; list[str]:
+        &#34;&#34;&#34;
+        List available tools from the agent.
+
+        Returns:
+            List of tool names
+        &#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def close(self) -&gt; None:
+        &#34;&#34;&#34;
+        Close the adapter and clean up resources.
+
+        Implementations should close any open connections, clients, or other resources.
+        &#34;&#34;&#34;
+        pass</code></pre>
+</details>
+<div class="desc"><p>Base class for protocol adapters.</p>
+<p>Each adapter implements the ADCP protocol methods and handles
+protocol-specific translation (MCP/A2A) while returning properly
+typed responses.</p>
+<p>Initialize adapter with agent configuration.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>abc.ABC</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.protocols.a2a.A2AAdapter" href="a2a.html#adcp.protocols.a2a.A2AAdapter">A2AAdapter</a></li>
+<li><a title="adcp.protocols.mcp.MCPAdapter" href="mcp.html#adcp.protocols.mcp.MCPAdapter">MCPAdapter</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.protocols.ProtocolAdapter.activate_signal"><code class="name flex">
+<span>async def <span class="ident">activate_signal</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def activate_signal(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Activate signal.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Activate signal.</p></div>
+</dd>
+<dt id="adcp.protocols.ProtocolAdapter.close"><code class="name flex">
+<span>async def <span class="ident">close</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def close(self) -&gt; None:
+    &#34;&#34;&#34;
+    Close the adapter and clean up resources.
+
+    Implementations should close any open connections, clients, or other resources.
+    &#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Close the adapter and clean up resources.</p>
+<p>Implementations should close any open connections, clients, or other resources.</p></div>
+</dd>
+<dt id="adcp.protocols.ProtocolAdapter.get_media_buy_delivery"><code class="name flex">
+<span>async def <span class="ident">get_media_buy_delivery</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def get_media_buy_delivery(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Get media buy delivery.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Get media buy delivery.</p></div>
+</dd>
+<dt id="adcp.protocols.ProtocolAdapter.get_products"><code class="name flex">
+<span>async def <span class="ident">get_products</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def get_products(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Get advertising products.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Get advertising products.</p></div>
+</dd>
+<dt id="adcp.protocols.ProtocolAdapter.get_signals"><code class="name flex">
+<span>async def <span class="ident">get_signals</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def get_signals(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Get signals.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Get signals.</p></div>
+</dd>
+<dt id="adcp.protocols.ProtocolAdapter.list_authorized_properties"><code class="name flex">
+<span>async def <span class="ident">list_authorized_properties</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def list_authorized_properties(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;List authorized properties.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>List authorized properties.</p></div>
+</dd>
+<dt id="adcp.protocols.ProtocolAdapter.list_creative_formats"><code class="name flex">
+<span>async def <span class="ident">list_creative_formats</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def list_creative_formats(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;List supported creative formats.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>List supported creative formats.</p></div>
+</dd>
+<dt id="adcp.protocols.ProtocolAdapter.list_creatives"><code class="name flex">
+<span>async def <span class="ident">list_creatives</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def list_creatives(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;List creatives.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>List creatives.</p></div>
+</dd>
+<dt id="adcp.protocols.ProtocolAdapter.list_tools"><code class="name flex">
+<span>async def <span class="ident">list_tools</span></span>(<span>self) ‑> list[str]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def list_tools(self) -&gt; list[str]:
+    &#34;&#34;&#34;
+    List available tools from the agent.
+
+    Returns:
+        List of tool names
+    &#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>List available tools from the agent.</p>
+<h2 id="returns">Returns</h2>
+<p>List of tool names</p></div>
+</dd>
+<dt id="adcp.protocols.ProtocolAdapter.provide_performance_feedback"><code class="name flex">
+<span>async def <span class="ident">provide_performance_feedback</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def provide_performance_feedback(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Provide performance feedback.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Provide performance feedback.</p></div>
+</dd>
+<dt id="adcp.protocols.ProtocolAdapter.sync_creatives"><code class="name flex">
+<span>async def <span class="ident">sync_creatives</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def sync_creatives(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Sync creatives.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Sync creatives.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp" href="../index.html">adcp</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-submodules">Sub-modules</a></h3>
+<ul>
+<li><code><a title="adcp.protocols.a2a" href="a2a.html">adcp.protocols.a2a</a></code></li>
+<li><code><a title="adcp.protocols.base" href="base.html">adcp.protocols.base</a></code></li>
+<li><code><a title="adcp.protocols.mcp" href="mcp.html">adcp.protocols.mcp</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.protocols.A2AAdapter" href="#adcp.protocols.A2AAdapter">A2AAdapter</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.protocols.A2AAdapter.close" href="#adcp.protocols.A2AAdapter.close">close</a></code></li>
+<li><code><a title="adcp.protocols.A2AAdapter.list_tools" href="#adcp.protocols.A2AAdapter.list_tools">list_tools</a></code></li>
+<li><code><a title="adcp.protocols.A2AAdapter.preview_creative" href="#adcp.protocols.A2AAdapter.preview_creative">preview_creative</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.protocols.MCPAdapter" href="#adcp.protocols.MCPAdapter">MCPAdapter</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.protocols.MCPAdapter.close" href="#adcp.protocols.MCPAdapter.close">close</a></code></li>
+<li><code><a title="adcp.protocols.MCPAdapter.list_tools" href="#adcp.protocols.MCPAdapter.list_tools">list_tools</a></code></li>
+<li><code><a title="adcp.protocols.MCPAdapter.preview_creative" href="#adcp.protocols.MCPAdapter.preview_creative">preview_creative</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.protocols.ProtocolAdapter" href="#adcp.protocols.ProtocolAdapter">ProtocolAdapter</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.protocols.ProtocolAdapter.activate_signal" href="#adcp.protocols.ProtocolAdapter.activate_signal">activate_signal</a></code></li>
+<li><code><a title="adcp.protocols.ProtocolAdapter.close" href="#adcp.protocols.ProtocolAdapter.close">close</a></code></li>
+<li><code><a title="adcp.protocols.ProtocolAdapter.get_media_buy_delivery" href="#adcp.protocols.ProtocolAdapter.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
+<li><code><a title="adcp.protocols.ProtocolAdapter.get_products" href="#adcp.protocols.ProtocolAdapter.get_products">get_products</a></code></li>
+<li><code><a title="adcp.protocols.ProtocolAdapter.get_signals" href="#adcp.protocols.ProtocolAdapter.get_signals">get_signals</a></code></li>
+<li><code><a title="adcp.protocols.ProtocolAdapter.list_authorized_properties" href="#adcp.protocols.ProtocolAdapter.list_authorized_properties">list_authorized_properties</a></code></li>
+<li><code><a title="adcp.protocols.ProtocolAdapter.list_creative_formats" href="#adcp.protocols.ProtocolAdapter.list_creative_formats">list_creative_formats</a></code></li>
+<li><code><a title="adcp.protocols.ProtocolAdapter.list_creatives" href="#adcp.protocols.ProtocolAdapter.list_creatives">list_creatives</a></code></li>
+<li><code><a title="adcp.protocols.ProtocolAdapter.list_tools" href="#adcp.protocols.ProtocolAdapter.list_tools">list_tools</a></code></li>
+<li><code><a title="adcp.protocols.ProtocolAdapter.provide_performance_feedback" href="#adcp.protocols.ProtocolAdapter.provide_performance_feedback">provide_performance_feedback</a></code></li>
+<li><code><a title="adcp.protocols.ProtocolAdapter.sync_creatives" href="#adcp.protocols.ProtocolAdapter.sync_creatives">sync_creatives</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

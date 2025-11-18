@@ -1,0 +1,937 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.simple API documentation</title>
+<meta name="description" content="Simplified API accessor for ADCPClient …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.simple</code></h1>
+</header>
+<section id="section-intro">
+<p>Simplified API accessor for ADCPClient.</p>
+<p>Provides an ergonomic API with:
+- Kwargs instead of request objects
+- Direct return values (no TaskResult unwrapping)
+- Raises exceptions on errors</p>
+<h2 id="usage">Usage</h2>
+<p>client = ADCPClient(config)</p>
+<h1 id="standard-api-full-control">Standard API: full control</h1>
+<p>result = await client.get_products(GetProductsRequest(brief="Coffee"))
+if result.success:
+print(result.data.products)</p>
+<h1 id="simple-api-ergonomic">Simple API: ergonomic</h1>
+<p>products = await client.simple.get_products(brief="Coffee")
+print(products.products)</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.simple.SimpleAPI"><code class="flex name class">
+<span>class <span class="ident">SimpleAPI</span></span>
+<span>(</span><span>client: ADCPClient)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SimpleAPI:
+    &#34;&#34;&#34;Simplified API accessor for ergonomic usage.
+
+    Provides kwargs-based methods that return unwrapped response data
+    and raise exceptions on errors.
+
+    This is intended for:
+    - Quick prototyping and testing
+    - Documentation and examples
+    - Simple scripts and notebooks
+
+    For production code with complex error handling, use the standard
+    client API which returns TaskResult wrappers.
+    &#34;&#34;&#34;
+
+    def __init__(self, client: ADCPClient):
+        &#34;&#34;&#34;Initialize simple API accessor.
+
+        Args:
+            client: The ADCPClient instance to wrap
+        &#34;&#34;&#34;
+        self._client = client
+
+    async def get_products(
+        self,
+        **kwargs: Any,
+    ) -&gt; GetProductsResponse:
+        &#34;&#34;&#34;Get advertising products (simplified).
+
+        This is a convenience wrapper around client.get_products() that:
+        - Accepts kwargs instead of GetProductsRequest
+        - Returns unwrapped GetProductsResponse
+        - Raises ADCPSimpleAPIError on failures
+
+        For full control over error handling, use client.get_products() instead.
+
+        Args:
+            **kwargs: Arguments for GetProductsRequest (brief, brand_manifest, etc.)
+
+        Returns:
+            GetProductsResponse directly (no TaskResult wrapper)
+
+        Raises:
+            ADCPSimpleAPIError: If request fails. Use standard API for detailed error handling.
+
+        Example:
+            products = await client.simple.get_products(
+                brief=&#39;Coffee subscription service&#39;
+            )
+            print(f&#34;Found {len(products.products)} products&#34;)
+        &#34;&#34;&#34;
+        request = GetProductsRequest(**kwargs)
+        result = await self._client.get_products(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation=&#34;get_products&#34;,
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def list_creative_formats(
+        self,
+        **kwargs: Any,
+    ) -&gt; ListCreativeFormatsResponse:
+        &#34;&#34;&#34;List supported creative formats.
+
+        Args:
+            **kwargs: Arguments passed to ListCreativeFormatsRequest
+
+        Returns:
+            ListCreativeFormatsResponse with formats list
+
+        Raises:
+            Exception: If the request fails
+
+        Example:
+            formats = await client.simple.list_creative_formats()
+            print(f&#34;Found {len(formats.formats)} formats&#34;)
+        &#34;&#34;&#34;
+        request = ListCreativeFormatsRequest(**kwargs)
+        result = await self._client.list_creative_formats(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation=&#34;list_creative_formats&#34;,
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def preview_creative(
+        self,
+        **kwargs: Any,
+    ) -&gt; PreviewCreativeResponse:
+        &#34;&#34;&#34;Preview creative manifest.
+
+        Args:
+            **kwargs: Arguments passed to PreviewCreativeRequest
+
+        Returns:
+            PreviewCreativeResponse with preview data
+
+        Raises:
+            Exception: If the request fails
+
+        Example:
+            preview = await client.simple.preview_creative(
+                manifest={&#39;format_id&#39;: &#39;banner_300x250&#39;, &#39;assets&#39;: {...}}
+            )
+            print(f&#34;Preview: {preview.previews[0]}&#34;)
+        &#34;&#34;&#34;
+        request = PreviewCreativeRequest(**kwargs)
+        result = await self._client.preview_creative(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation=&#34;preview_creative&#34;,
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def sync_creatives(
+        self,
+        **kwargs: Any,
+    ) -&gt; SyncCreativesResponse:
+        &#34;&#34;&#34;Sync creatives.
+
+        Args:
+            **kwargs: Arguments passed to SyncCreativesRequest
+
+        Returns:
+            SyncCreativesResponse
+
+        Raises:
+            Exception: If the request fails
+        &#34;&#34;&#34;
+        request = SyncCreativesRequest(**kwargs)
+        result = await self._client.sync_creatives(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation=&#34;sync_creatives&#34;,
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def list_creatives(
+        self,
+        **kwargs: Any,
+    ) -&gt; ListCreativesResponse:
+        &#34;&#34;&#34;List creatives.
+
+        Args:
+            **kwargs: Arguments passed to ListCreativesRequest
+
+        Returns:
+            ListCreativesResponse
+
+        Raises:
+            Exception: If the request fails
+        &#34;&#34;&#34;
+        request = ListCreativesRequest(**kwargs)
+        result = await self._client.list_creatives(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation=&#34;list_creatives&#34;,
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def get_media_buy_delivery(
+        self,
+        **kwargs: Any,
+    ) -&gt; GetMediaBuyDeliveryResponse:
+        &#34;&#34;&#34;Get media buy delivery.
+
+        Args:
+            **kwargs: Arguments passed to GetMediaBuyDeliveryRequest
+
+        Returns:
+            GetMediaBuyDeliveryResponse
+
+        Raises:
+            Exception: If the request fails
+        &#34;&#34;&#34;
+        request = GetMediaBuyDeliveryRequest(**kwargs)
+        result = await self._client.get_media_buy_delivery(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation=&#34;get_media_buy_delivery&#34;,
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def list_authorized_properties(
+        self,
+        **kwargs: Any,
+    ) -&gt; ListAuthorizedPropertiesResponse:
+        &#34;&#34;&#34;List authorized properties.
+
+        Args:
+            **kwargs: Arguments passed to ListAuthorizedPropertiesRequest
+
+        Returns:
+            ListAuthorizedPropertiesResponse
+
+        Raises:
+            Exception: If the request fails
+        &#34;&#34;&#34;
+        request = ListAuthorizedPropertiesRequest(**kwargs)
+        result = await self._client.list_authorized_properties(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation=&#34;list_authorized_properties&#34;,
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def get_signals(
+        self,
+        **kwargs: Any,
+    ) -&gt; GetSignalsResponse:
+        &#34;&#34;&#34;Get signals.
+
+        Args:
+            **kwargs: Arguments passed to GetSignalsRequest
+
+        Returns:
+            GetSignalsResponse
+
+        Raises:
+            Exception: If the request fails
+        &#34;&#34;&#34;
+        request = GetSignalsRequest(**kwargs)
+        result = await self._client.get_signals(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation=&#34;get_signals&#34;,
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def activate_signal(
+        self,
+        **kwargs: Any,
+    ) -&gt; ActivateSignalResponse:
+        &#34;&#34;&#34;Activate signal.
+
+        Args:
+            **kwargs: Arguments passed to ActivateSignalRequest
+
+        Returns:
+            ActivateSignalResponse
+
+        Raises:
+            Exception: If the request fails
+        &#34;&#34;&#34;
+        request = ActivateSignalRequest(**kwargs)
+        result = await self._client.activate_signal(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation=&#34;activate_signal&#34;,
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def provide_performance_feedback(
+        self,
+        **kwargs: Any,
+    ) -&gt; ProvidePerformanceFeedbackResponse:
+        &#34;&#34;&#34;Provide performance feedback.
+
+        Args:
+            **kwargs: Arguments passed to ProvidePerformanceFeedbackRequest
+
+        Returns:
+            ProvidePerformanceFeedbackResponse
+
+        Raises:
+            Exception: If the request fails
+        &#34;&#34;&#34;
+        request = ProvidePerformanceFeedbackRequest(**kwargs)
+        result = await self._client.provide_performance_feedback(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation=&#34;provide_performance_feedback&#34;,
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data</code></pre>
+</details>
+<div class="desc"><p>Simplified API accessor for ergonomic usage.</p>
+<p>Provides kwargs-based methods that return unwrapped response data
+and raise exceptions on errors.</p>
+<p>This is intended for:
+- Quick prototyping and testing
+- Documentation and examples
+- Simple scripts and notebooks</p>
+<p>For production code with complex error handling, use the standard
+client API which returns TaskResult wrappers.</p>
+<p>Initialize simple API accessor.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>client</code></strong></dt>
+<dd>The ADCPClient instance to wrap</dd>
+</dl></div>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.simple.SimpleAPI.activate_signal"><code class="name flex">
+<span>async def <span class="ident">activate_signal</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.activate_signal_response.ActivateSignalResponse" href="types/generated_poc/activate_signal_response.html#adcp.types.generated_poc.activate_signal_response.ActivateSignalResponse">ActivateSignalResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def activate_signal(
+    self,
+    **kwargs: Any,
+) -&gt; ActivateSignalResponse:
+    &#34;&#34;&#34;Activate signal.
+
+    Args:
+        **kwargs: Arguments passed to ActivateSignalRequest
+
+    Returns:
+        ActivateSignalResponse
+
+    Raises:
+        Exception: If the request fails
+    &#34;&#34;&#34;
+    request = ActivateSignalRequest(**kwargs)
+    result = await self._client.activate_signal(request)
+    if not result.success or not result.data:
+        raise ADCPSimpleAPIError(
+            operation=&#34;activate_signal&#34;,
+            error_message=result.error,
+            agent_id=self._client.agent_config.id,
+        )
+    return result.data</code></pre>
+</details>
+<div class="desc"><p>Activate signal.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong></dt>
+<dd>Arguments passed to ActivateSignalRequest</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>ActivateSignalResponse</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>Exception</code></dt>
+<dd>If the request fails</dd>
+</dl></div>
+</dd>
+<dt id="adcp.simple.SimpleAPI.get_media_buy_delivery"><code class="name flex">
+<span>async def <span class="ident">get_media_buy_delivery</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse" href="types/generated_poc/get_media_buy_delivery_response.html#adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse">GetMediaBuyDeliveryResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_media_buy_delivery(
+    self,
+    **kwargs: Any,
+) -&gt; GetMediaBuyDeliveryResponse:
+    &#34;&#34;&#34;Get media buy delivery.
+
+    Args:
+        **kwargs: Arguments passed to GetMediaBuyDeliveryRequest
+
+    Returns:
+        GetMediaBuyDeliveryResponse
+
+    Raises:
+        Exception: If the request fails
+    &#34;&#34;&#34;
+    request = GetMediaBuyDeliveryRequest(**kwargs)
+    result = await self._client.get_media_buy_delivery(request)
+    if not result.success or not result.data:
+        raise ADCPSimpleAPIError(
+            operation=&#34;get_media_buy_delivery&#34;,
+            error_message=result.error,
+            agent_id=self._client.agent_config.id,
+        )
+    return result.data</code></pre>
+</details>
+<div class="desc"><p>Get media buy delivery.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong></dt>
+<dd>Arguments passed to GetMediaBuyDeliveryRequest</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>GetMediaBuyDeliveryResponse</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>Exception</code></dt>
+<dd>If the request fails</dd>
+</dl></div>
+</dd>
+<dt id="adcp.simple.SimpleAPI.get_products"><code class="name flex">
+<span>async def <span class="ident">get_products</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.get_products_response.GetProductsResponse" href="types/generated_poc/get_products_response.html#adcp.types.generated_poc.get_products_response.GetProductsResponse">GetProductsResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_products(
+    self,
+    **kwargs: Any,
+) -&gt; GetProductsResponse:
+    &#34;&#34;&#34;Get advertising products (simplified).
+
+    This is a convenience wrapper around client.get_products() that:
+    - Accepts kwargs instead of GetProductsRequest
+    - Returns unwrapped GetProductsResponse
+    - Raises ADCPSimpleAPIError on failures
+
+    For full control over error handling, use client.get_products() instead.
+
+    Args:
+        **kwargs: Arguments for GetProductsRequest (brief, brand_manifest, etc.)
+
+    Returns:
+        GetProductsResponse directly (no TaskResult wrapper)
+
+    Raises:
+        ADCPSimpleAPIError: If request fails. Use standard API for detailed error handling.
+
+    Example:
+        products = await client.simple.get_products(
+            brief=&#39;Coffee subscription service&#39;
+        )
+        print(f&#34;Found {len(products.products)} products&#34;)
+    &#34;&#34;&#34;
+    request = GetProductsRequest(**kwargs)
+    result = await self._client.get_products(request)
+    if not result.success or not result.data:
+        raise ADCPSimpleAPIError(
+            operation=&#34;get_products&#34;,
+            error_message=result.error,
+            agent_id=self._client.agent_config.id,
+        )
+    return result.data</code></pre>
+</details>
+<div class="desc"><p>Get advertising products (simplified).</p>
+<p>This is a convenience wrapper around client.get_products() that:
+- Accepts kwargs instead of GetProductsRequest
+- Returns unwrapped GetProductsResponse
+- Raises ADCPSimpleAPIError on failures</p>
+<p>For full control over error handling, use client.get_products() instead.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong></dt>
+<dd>Arguments for GetProductsRequest (brief, brand_manifest, etc.)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>GetProductsResponse directly (no TaskResult wrapper)</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>ADCPSimpleAPIError</code></dt>
+<dd>If request fails. Use standard API for detailed error handling.</dd>
+</dl>
+<h2 id="example">Example</h2>
+<p>products = await client.simple.get_products(
+brief='Coffee subscription service'
+)
+print(f"Found {len(products.products)} products")</p></div>
+</dd>
+<dt id="adcp.simple.SimpleAPI.get_signals"><code class="name flex">
+<span>async def <span class="ident">get_signals</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.get_signals_response.GetSignalsResponse" href="types/generated_poc/get_signals_response.html#adcp.types.generated_poc.get_signals_response.GetSignalsResponse">GetSignalsResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_signals(
+    self,
+    **kwargs: Any,
+) -&gt; GetSignalsResponse:
+    &#34;&#34;&#34;Get signals.
+
+    Args:
+        **kwargs: Arguments passed to GetSignalsRequest
+
+    Returns:
+        GetSignalsResponse
+
+    Raises:
+        Exception: If the request fails
+    &#34;&#34;&#34;
+    request = GetSignalsRequest(**kwargs)
+    result = await self._client.get_signals(request)
+    if not result.success or not result.data:
+        raise ADCPSimpleAPIError(
+            operation=&#34;get_signals&#34;,
+            error_message=result.error,
+            agent_id=self._client.agent_config.id,
+        )
+    return result.data</code></pre>
+</details>
+<div class="desc"><p>Get signals.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong></dt>
+<dd>Arguments passed to GetSignalsRequest</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>GetSignalsResponse</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>Exception</code></dt>
+<dd>If the request fails</dd>
+</dl></div>
+</dd>
+<dt id="adcp.simple.SimpleAPI.list_authorized_properties"><code class="name flex">
+<span>async def <span class="ident">list_authorized_properties</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.list_authorized_properties_response.ListAuthorizedPropertiesResponse" href="types/generated_poc/list_authorized_properties_response.html#adcp.types.generated_poc.list_authorized_properties_response.ListAuthorizedPropertiesResponse">ListAuthorizedPropertiesResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_authorized_properties(
+    self,
+    **kwargs: Any,
+) -&gt; ListAuthorizedPropertiesResponse:
+    &#34;&#34;&#34;List authorized properties.
+
+    Args:
+        **kwargs: Arguments passed to ListAuthorizedPropertiesRequest
+
+    Returns:
+        ListAuthorizedPropertiesResponse
+
+    Raises:
+        Exception: If the request fails
+    &#34;&#34;&#34;
+    request = ListAuthorizedPropertiesRequest(**kwargs)
+    result = await self._client.list_authorized_properties(request)
+    if not result.success or not result.data:
+        raise ADCPSimpleAPIError(
+            operation=&#34;list_authorized_properties&#34;,
+            error_message=result.error,
+            agent_id=self._client.agent_config.id,
+        )
+    return result.data</code></pre>
+</details>
+<div class="desc"><p>List authorized properties.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong></dt>
+<dd>Arguments passed to ListAuthorizedPropertiesRequest</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>ListAuthorizedPropertiesResponse</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>Exception</code></dt>
+<dd>If the request fails</dd>
+</dl></div>
+</dd>
+<dt id="adcp.simple.SimpleAPI.list_creative_formats"><code class="name flex">
+<span>async def <span class="ident">list_creative_formats</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.list_creative_formats_response.ListCreativeFormatsResponse" href="types/generated_poc/list_creative_formats_response.html#adcp.types.generated_poc.list_creative_formats_response.ListCreativeFormatsResponse">ListCreativeFormatsResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_creative_formats(
+    self,
+    **kwargs: Any,
+) -&gt; ListCreativeFormatsResponse:
+    &#34;&#34;&#34;List supported creative formats.
+
+    Args:
+        **kwargs: Arguments passed to ListCreativeFormatsRequest
+
+    Returns:
+        ListCreativeFormatsResponse with formats list
+
+    Raises:
+        Exception: If the request fails
+
+    Example:
+        formats = await client.simple.list_creative_formats()
+        print(f&#34;Found {len(formats.formats)} formats&#34;)
+    &#34;&#34;&#34;
+    request = ListCreativeFormatsRequest(**kwargs)
+    result = await self._client.list_creative_formats(request)
+    if not result.success or not result.data:
+        raise ADCPSimpleAPIError(
+            operation=&#34;list_creative_formats&#34;,
+            error_message=result.error,
+            agent_id=self._client.agent_config.id,
+        )
+    return result.data</code></pre>
+</details>
+<div class="desc"><p>List supported creative formats.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong></dt>
+<dd>Arguments passed to ListCreativeFormatsRequest</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>ListCreativeFormatsResponse with formats list</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>Exception</code></dt>
+<dd>If the request fails</dd>
+</dl>
+<h2 id="example">Example</h2>
+<p>formats = await client.simple.list_creative_formats()
+print(f"Found {len(formats.formats)} formats")</p></div>
+</dd>
+<dt id="adcp.simple.SimpleAPI.list_creatives"><code class="name flex">
+<span>async def <span class="ident">list_creatives</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.list_creatives_response.ListCreativesResponse" href="types/generated_poc/list_creatives_response.html#adcp.types.generated_poc.list_creatives_response.ListCreativesResponse">ListCreativesResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_creatives(
+    self,
+    **kwargs: Any,
+) -&gt; ListCreativesResponse:
+    &#34;&#34;&#34;List creatives.
+
+    Args:
+        **kwargs: Arguments passed to ListCreativesRequest
+
+    Returns:
+        ListCreativesResponse
+
+    Raises:
+        Exception: If the request fails
+    &#34;&#34;&#34;
+    request = ListCreativesRequest(**kwargs)
+    result = await self._client.list_creatives(request)
+    if not result.success or not result.data:
+        raise ADCPSimpleAPIError(
+            operation=&#34;list_creatives&#34;,
+            error_message=result.error,
+            agent_id=self._client.agent_config.id,
+        )
+    return result.data</code></pre>
+</details>
+<div class="desc"><p>List creatives.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong></dt>
+<dd>Arguments passed to ListCreativesRequest</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>ListCreativesResponse</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>Exception</code></dt>
+<dd>If the request fails</dd>
+</dl></div>
+</dd>
+<dt id="adcp.simple.SimpleAPI.preview_creative"><code class="name flex">
+<span>async def <span class="ident">preview_creative</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.preview_creative_response.PreviewCreativeResponse" href="types/generated_poc/preview_creative_response.html#adcp.types.generated_poc.preview_creative_response.PreviewCreativeResponse">PreviewCreativeResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def preview_creative(
+    self,
+    **kwargs: Any,
+) -&gt; PreviewCreativeResponse:
+    &#34;&#34;&#34;Preview creative manifest.
+
+    Args:
+        **kwargs: Arguments passed to PreviewCreativeRequest
+
+    Returns:
+        PreviewCreativeResponse with preview data
+
+    Raises:
+        Exception: If the request fails
+
+    Example:
+        preview = await client.simple.preview_creative(
+            manifest={&#39;format_id&#39;: &#39;banner_300x250&#39;, &#39;assets&#39;: {...}}
+        )
+        print(f&#34;Preview: {preview.previews[0]}&#34;)
+    &#34;&#34;&#34;
+    request = PreviewCreativeRequest(**kwargs)
+    result = await self._client.preview_creative(request)
+    if not result.success or not result.data:
+        raise ADCPSimpleAPIError(
+            operation=&#34;preview_creative&#34;,
+            error_message=result.error,
+            agent_id=self._client.agent_config.id,
+        )
+    return result.data</code></pre>
+</details>
+<div class="desc"><p>Preview creative manifest.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong></dt>
+<dd>Arguments passed to PreviewCreativeRequest</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>PreviewCreativeResponse with preview data</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>Exception</code></dt>
+<dd>If the request fails</dd>
+</dl>
+<h2 id="example">Example</h2>
+<p>preview = await client.simple.preview_creative(
+manifest={'format_id': 'banner_300x250', 'assets': {&hellip;}}
+)
+print(f"Preview: {preview.previews[0]}")</p></div>
+</dd>
+<dt id="adcp.simple.SimpleAPI.provide_performance_feedback"><code class="name flex">
+<span>async def <span class="ident">provide_performance_feedback</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse" href="types/generated_poc/provide_performance_feedback_response.html#adcp.types.generated_poc.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse">ProvidePerformanceFeedbackResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def provide_performance_feedback(
+    self,
+    **kwargs: Any,
+) -&gt; ProvidePerformanceFeedbackResponse:
+    &#34;&#34;&#34;Provide performance feedback.
+
+    Args:
+        **kwargs: Arguments passed to ProvidePerformanceFeedbackRequest
+
+    Returns:
+        ProvidePerformanceFeedbackResponse
+
+    Raises:
+        Exception: If the request fails
+    &#34;&#34;&#34;
+    request = ProvidePerformanceFeedbackRequest(**kwargs)
+    result = await self._client.provide_performance_feedback(request)
+    if not result.success or not result.data:
+        raise ADCPSimpleAPIError(
+            operation=&#34;provide_performance_feedback&#34;,
+            error_message=result.error,
+            agent_id=self._client.agent_config.id,
+        )
+    return result.data</code></pre>
+</details>
+<div class="desc"><p>Provide performance feedback.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong></dt>
+<dd>Arguments passed to ProvidePerformanceFeedbackRequest</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>ProvidePerformanceFeedbackResponse</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>Exception</code></dt>
+<dd>If the request fails</dd>
+</dl></div>
+</dd>
+<dt id="adcp.simple.SimpleAPI.sync_creatives"><code class="name flex">
+<span>async def <span class="ident">sync_creatives</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.sync_creatives_response.SyncCreativesResponse" href="types/generated_poc/sync_creatives_response.html#adcp.types.generated_poc.sync_creatives_response.SyncCreativesResponse">SyncCreativesResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def sync_creatives(
+    self,
+    **kwargs: Any,
+) -&gt; SyncCreativesResponse:
+    &#34;&#34;&#34;Sync creatives.
+
+    Args:
+        **kwargs: Arguments passed to SyncCreativesRequest
+
+    Returns:
+        SyncCreativesResponse
+
+    Raises:
+        Exception: If the request fails
+    &#34;&#34;&#34;
+    request = SyncCreativesRequest(**kwargs)
+    result = await self._client.sync_creatives(request)
+    if not result.success or not result.data:
+        raise ADCPSimpleAPIError(
+            operation=&#34;sync_creatives&#34;,
+            error_message=result.error,
+            agent_id=self._client.agent_config.id,
+        )
+    return result.data</code></pre>
+</details>
+<div class="desc"><p>Sync creatives.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong></dt>
+<dd>Arguments passed to SyncCreativesRequest</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>SyncCreativesResponse</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>Exception</code></dt>
+<dd>If the request fails</dd>
+</dl></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp" href="index.html">adcp</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.simple.SimpleAPI" href="#adcp.simple.SimpleAPI">SimpleAPI</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.simple.SimpleAPI.activate_signal" href="#adcp.simple.SimpleAPI.activate_signal">activate_signal</a></code></li>
+<li><code><a title="adcp.simple.SimpleAPI.get_media_buy_delivery" href="#adcp.simple.SimpleAPI.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
+<li><code><a title="adcp.simple.SimpleAPI.get_products" href="#adcp.simple.SimpleAPI.get_products">get_products</a></code></li>
+<li><code><a title="adcp.simple.SimpleAPI.get_signals" href="#adcp.simple.SimpleAPI.get_signals">get_signals</a></code></li>
+<li><code><a title="adcp.simple.SimpleAPI.list_authorized_properties" href="#adcp.simple.SimpleAPI.list_authorized_properties">list_authorized_properties</a></code></li>
+<li><code><a title="adcp.simple.SimpleAPI.list_creative_formats" href="#adcp.simple.SimpleAPI.list_creative_formats">list_creative_formats</a></code></li>
+<li><code><a title="adcp.simple.SimpleAPI.list_creatives" href="#adcp.simple.SimpleAPI.list_creatives">list_creatives</a></code></li>
+<li><code><a title="adcp.simple.SimpleAPI.preview_creative" href="#adcp.simple.SimpleAPI.preview_creative">preview_creative</a></code></li>
+<li><code><a title="adcp.simple.SimpleAPI.provide_performance_feedback" href="#adcp.simple.SimpleAPI.provide_performance_feedback">provide_performance_feedback</a></code></li>
+<li><code><a title="adcp.simple.SimpleAPI.sync_creatives" href="#adcp.simple.SimpleAPI.sync_creatives">sync_creatives</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

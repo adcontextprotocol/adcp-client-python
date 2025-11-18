@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.exceptions API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.exceptions</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.exceptions.ADCPAuthenticationError"><code class="flex name class">
+<span>class <span class="ident">ADCPAuthenticationError</span></span>
+<span>(</span><span>message: str, agent_id: str | None = None, agent_uri: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ADCPAuthenticationError(ADCPError):
+    &#34;&#34;&#34;Authentication failed (401, 403).&#34;&#34;&#34;
+
+    def __init__(self, message: str, agent_id: str | None = None, agent_uri: str | None = None):
+        &#34;&#34;&#34;Initialize authentication error.&#34;&#34;&#34;
+        suggestion = (
+            &#34;Check that your auth_token is valid and not expired.\n&#34;
+            &#34;     Verify auth_type (&#39;bearer&#39; vs &#39;token&#39;) and auth_header are correct.\n&#34;
+            &#34;     Some agents (like Optable) require auth_type=&#39;bearer&#39; and &#34;
+            &#34;auth_header=&#39;Authorization&#39;&#34;
+        )
+        super().__init__(message, agent_id, agent_uri, suggestion)</code></pre>
+</details>
+<div class="desc"><p>Authentication failed (401, 403).</p>
+<p>Initialize authentication error.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="adcp.exceptions.ADCPConnectionError"><code class="flex name class">
+<span>class <span class="ident">ADCPConnectionError</span></span>
+<span>(</span><span>message: str, agent_id: str | None = None, agent_uri: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ADCPConnectionError(ADCPError):
+    &#34;&#34;&#34;Connection to agent failed.&#34;&#34;&#34;
+
+    def __init__(self, message: str, agent_id: str | None = None, agent_uri: str | None = None):
+        &#34;&#34;&#34;Initialize connection error.&#34;&#34;&#34;
+        suggestion = (
+            &#34;Check that the agent URI is correct and the agent is running.\n&#34;
+            &#34;     Try testing with: python -m adcp test --config &lt;agent-id&gt;&#34;
+        )
+        super().__init__(message, agent_id, agent_uri, suggestion)</code></pre>
+</details>
+<div class="desc"><p>Connection to agent failed.</p>
+<p>Initialize connection error.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="adcp.exceptions.ADCPError"><code class="flex name class">
+<span>class <span class="ident">ADCPError</span></span>
+<span>(</span><span>message: str,<br>agent_id: str | None = None,<br>agent_uri: str | None = None,<br>suggestion: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ADCPError(Exception):
+    &#34;&#34;&#34;Base exception for all AdCP client errors.&#34;&#34;&#34;
+
+    def __init__(
+        self,
+        message: str,
+        agent_id: str | None = None,
+        agent_uri: str | None = None,
+        suggestion: str | None = None,
+    ):
+        &#34;&#34;&#34;Initialize exception with context.&#34;&#34;&#34;
+        self.message = message
+        self.agent_id = agent_id
+        self.agent_uri = agent_uri
+        self.suggestion = suggestion
+
+        full_message = message
+        if agent_id:
+            full_message = f&#34;[Agent: {agent_id}] {full_message}&#34;
+        if agent_uri:
+            full_message = f&#34;{full_message}\n  URI: {agent_uri}&#34;
+        if suggestion:
+            full_message = f&#34;{full_message}\n  💡 {suggestion}&#34;
+
+        super().__init__(full_message)</code></pre>
+</details>
+<div class="desc"><p>Base exception for all AdCP client errors.</p>
+<p>Initialize exception with context.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.ADCPAuthenticationError" href="#adcp.exceptions.ADCPAuthenticationError">ADCPAuthenticationError</a></li>
+<li><a title="adcp.exceptions.ADCPConnectionError" href="#adcp.exceptions.ADCPConnectionError">ADCPConnectionError</a></li>
+<li><a title="adcp.exceptions.ADCPProtocolError" href="#adcp.exceptions.ADCPProtocolError">ADCPProtocolError</a></li>
+<li><a title="adcp.exceptions.ADCPSimpleAPIError" href="#adcp.exceptions.ADCPSimpleAPIError">ADCPSimpleAPIError</a></li>
+<li><a title="adcp.exceptions.ADCPTimeoutError" href="#adcp.exceptions.ADCPTimeoutError">ADCPTimeoutError</a></li>
+<li><a title="adcp.exceptions.ADCPToolNotFoundError" href="#adcp.exceptions.ADCPToolNotFoundError">ADCPToolNotFoundError</a></li>
+<li><a title="adcp.exceptions.ADCPWebhookError" href="#adcp.exceptions.ADCPWebhookError">ADCPWebhookError</a></li>
+<li><a title="adcp.exceptions.AdagentsValidationError" href="#adcp.exceptions.AdagentsValidationError">AdagentsValidationError</a></li>
+</ul>
+</dd>
+<dt id="adcp.exceptions.ADCPProtocolError"><code class="flex name class">
+<span>class <span class="ident">ADCPProtocolError</span></span>
+<span>(</span><span>message: str, agent_id: str | None = None, protocol: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ADCPProtocolError(ADCPError):
+    &#34;&#34;&#34;Protocol-level error (malformed response, unexpected format).&#34;&#34;&#34;
+
+    def __init__(self, message: str, agent_id: str | None = None, protocol: str | None = None):
+        &#34;&#34;&#34;Initialize protocol error.&#34;&#34;&#34;
+        suggestion = (
+            f&#34;The agent returned an unexpected {protocol} response format.&#34;
+            if protocol
+            else &#34;Unexpected response format.&#34;
+        )
+        suggestion += &#34;\n     Enable debug mode to see the full request/response.&#34;
+        super().__init__(message, agent_id, None, suggestion)</code></pre>
+</details>
+<div class="desc"><p>Protocol-level error (malformed response, unexpected format).</p>
+<p>Initialize protocol error.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="adcp.exceptions.ADCPSimpleAPIError"><code class="flex name class">
+<span>class <span class="ident">ADCPSimpleAPIError</span></span>
+<span>(</span><span>operation: str, error_message: str | None = None, agent_id: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ADCPSimpleAPIError(ADCPError):
+    &#34;&#34;&#34;Error from simplified API (.simple accessor).
+
+    Raised when a simple API method fails. The underlying error details
+    are available in the message. For more control over error handling,
+    use the standard API (client.method()) instead of client.simple.method().
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        operation: str,
+        error_message: str | None = None,
+        agent_id: str | None = None,
+    ):
+        &#34;&#34;&#34;Initialize simple API error.
+
+        Args:
+            operation: The operation that failed (e.g., &#34;get_products&#34;)
+            error_message: The underlying error message from TaskResult
+            agent_id: Optional agent ID for context
+        &#34;&#34;&#34;
+        message = f&#34;{operation} failed&#34;
+        if error_message:
+            message = f&#34;{message}: {error_message}&#34;
+
+        suggestion = (
+            f&#34;For more control over error handling, use the standard API:\n&#34;
+            f&#34;     result = await client.{operation}(request)\n&#34;
+            f&#34;     if not result.success:\n&#34;
+            f&#34;         # Handle error with full TaskResult context&#34;
+        )
+        super().__init__(message, agent_id, None, suggestion)</code></pre>
+</details>
+<div class="desc"><p>Error from simplified API (.simple accessor).</p>
+<p>Raised when a simple API method fails. The underlying error details
+are available in the message. For more control over error handling,
+use the standard API (client.method()) instead of client.simple.method().</p>
+<p>Initialize simple API error.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>operation</code></strong></dt>
+<dd>The operation that failed (e.g., "get_products")</dd>
+<dt><strong><code>error_message</code></strong></dt>
+<dd>The underlying error message from TaskResult</dd>
+<dt><strong><code>agent_id</code></strong></dt>
+<dd>Optional agent ID for context</dd>
+</dl></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="adcp.exceptions.ADCPTimeoutError"><code class="flex name class">
+<span>class <span class="ident">ADCPTimeoutError</span></span>
+<span>(</span><span>message: str,<br>agent_id: str | None = None,<br>agent_uri: str | None = None,<br>timeout: float | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ADCPTimeoutError(ADCPError):
+    &#34;&#34;&#34;Request timed out.&#34;&#34;&#34;
+
+    def __init__(
+        self,
+        message: str,
+        agent_id: str | None = None,
+        agent_uri: str | None = None,
+        timeout: float | None = None,
+    ):
+        &#34;&#34;&#34;Initialize timeout error.&#34;&#34;&#34;
+        suggestion = (
+            f&#34;The request took longer than {timeout}s.&#34; if timeout else &#34;The request timed out.&#34;
+        )
+        suggestion += &#34;\n     Try increasing the timeout value or check if the agent is overloaded.&#34;
+        super().__init__(message, agent_id, agent_uri, suggestion)</code></pre>
+</details>
+<div class="desc"><p>Request timed out.</p>
+<p>Initialize timeout error.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="adcp.exceptions.ADCPToolNotFoundError"><code class="flex name class">
+<span>class <span class="ident">ADCPToolNotFoundError</span></span>
+<span>(</span><span>tool_name: str,<br>agent_id: str | None = None,<br>available_tools: list[str] | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ADCPToolNotFoundError(ADCPError):
+    &#34;&#34;&#34;Requested tool not found on agent.&#34;&#34;&#34;
+
+    def __init__(
+        self, tool_name: str, agent_id: str | None = None, available_tools: list[str] | None = None
+    ):
+        &#34;&#34;&#34;Initialize tool not found error.&#34;&#34;&#34;
+        message = f&#34;Tool &#39;{tool_name}&#39; not found on agent&#34;
+        suggestion = &#34;List available tools with: python -m adcp list-tools --config &lt;agent-id&gt;&#34;
+        if available_tools:
+            tools_list = &#34;, &#34;.join(available_tools[:5])
+            if len(available_tools) &gt; 5:
+                tools_list += f&#34;, ... ({len(available_tools)} total)&#34;
+            suggestion = f&#34;Available tools: {tools_list}&#34;
+        super().__init__(message, agent_id, None, suggestion)</code></pre>
+</details>
+<div class="desc"><p>Requested tool not found on agent.</p>
+<p>Initialize tool not found error.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="adcp.exceptions.ADCPWebhookError"><code class="flex name class">
+<span>class <span class="ident">ADCPWebhookError</span></span>
+<span>(</span><span>message: str,<br>agent_id: str | None = None,<br>agent_uri: str | None = None,<br>suggestion: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ADCPWebhookError(ADCPError):
+    &#34;&#34;&#34;Webhook handling error.&#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Webhook handling error.</p>
+<p>Initialize exception with context.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.ADCPWebhookSignatureError" href="#adcp.exceptions.ADCPWebhookSignatureError">ADCPWebhookSignatureError</a></li>
+</ul>
+</dd>
+<dt id="adcp.exceptions.ADCPWebhookSignatureError"><code class="flex name class">
+<span>class <span class="ident">ADCPWebhookSignatureError</span></span>
+<span>(</span><span>message: str = 'Invalid webhook signature', agent_id: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ADCPWebhookSignatureError(ADCPWebhookError):
+    &#34;&#34;&#34;Webhook signature verification failed.&#34;&#34;&#34;
+
+    def __init__(self, message: str = &#34;Invalid webhook signature&#34;, agent_id: str | None = None):
+        &#34;&#34;&#34;Initialize webhook signature error.&#34;&#34;&#34;
+        suggestion = (
+            &#34;Verify that the webhook_secret matches the secret configured on the agent.\n&#34;
+            &#34;     Webhook signatures use HMAC-SHA256 for security.&#34;
+        )
+        super().__init__(message, agent_id, None, suggestion)</code></pre>
+</details>
+<div class="desc"><p>Webhook signature verification failed.</p>
+<p>Initialize webhook signature error.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.ADCPWebhookError" href="#adcp.exceptions.ADCPWebhookError">ADCPWebhookError</a></li>
+<li><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="adcp.exceptions.AdagentsNotFoundError"><code class="flex name class">
+<span>class <span class="ident">AdagentsNotFoundError</span></span>
+<span>(</span><span>publisher_domain: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AdagentsNotFoundError(AdagentsValidationError):
+    &#34;&#34;&#34;adagents.json file not found (404).&#34;&#34;&#34;
+
+    def __init__(self, publisher_domain: str):
+        &#34;&#34;&#34;Initialize not found error.&#34;&#34;&#34;
+        message = f&#34;adagents.json not found for domain: {publisher_domain}&#34;
+        suggestion = (
+            &#34;Verify that the publisher has deployed adagents.json to:\n&#34;
+            f&#34;     https://{publisher_domain}/.well-known/adagents.json&#34;
+        )
+        super().__init__(message, None, None, suggestion)</code></pre>
+</details>
+<div class="desc"><p>adagents.json file not found (404).</p>
+<p>Initialize not found error.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.AdagentsValidationError" href="#adcp.exceptions.AdagentsValidationError">AdagentsValidationError</a></li>
+<li><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="adcp.exceptions.AdagentsTimeoutError"><code class="flex name class">
+<span>class <span class="ident">AdagentsTimeoutError</span></span>
+<span>(</span><span>publisher_domain: str, timeout: float)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AdagentsTimeoutError(AdagentsValidationError):
+    &#34;&#34;&#34;Request for adagents.json timed out.&#34;&#34;&#34;
+
+    def __init__(self, publisher_domain: str, timeout: float):
+        &#34;&#34;&#34;Initialize timeout error.&#34;&#34;&#34;
+        message = f&#34;Request to fetch adagents.json timed out after {timeout}s&#34;
+        suggestion = (
+            &#34;The publisher&#39;s server may be slow or unresponsive.\n&#34;
+            &#34;     Try increasing the timeout value or check the domain is correct.&#34;
+        )
+        super().__init__(message, None, None, suggestion)</code></pre>
+</details>
+<div class="desc"><p>Request for adagents.json timed out.</p>
+<p>Initialize timeout error.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.AdagentsValidationError" href="#adcp.exceptions.AdagentsValidationError">AdagentsValidationError</a></li>
+<li><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="adcp.exceptions.AdagentsValidationError"><code class="flex name class">
+<span>class <span class="ident">AdagentsValidationError</span></span>
+<span>(</span><span>message: str,<br>agent_id: str | None = None,<br>agent_uri: str | None = None,<br>suggestion: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AdagentsValidationError(ADCPError):
+    &#34;&#34;&#34;Base error for adagents.json validation issues.&#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Base error for adagents.json validation issues.</p>
+<p>Initialize exception with context.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.AdagentsNotFoundError" href="#adcp.exceptions.AdagentsNotFoundError">AdagentsNotFoundError</a></li>
+<li><a title="adcp.exceptions.AdagentsTimeoutError" href="#adcp.exceptions.AdagentsTimeoutError">AdagentsTimeoutError</a></li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp" href="index.html">adcp</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.exceptions.ADCPAuthenticationError" href="#adcp.exceptions.ADCPAuthenticationError">ADCPAuthenticationError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.exceptions.ADCPConnectionError" href="#adcp.exceptions.ADCPConnectionError">ADCPConnectionError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.exceptions.ADCPProtocolError" href="#adcp.exceptions.ADCPProtocolError">ADCPProtocolError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.exceptions.ADCPSimpleAPIError" href="#adcp.exceptions.ADCPSimpleAPIError">ADCPSimpleAPIError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.exceptions.ADCPTimeoutError" href="#adcp.exceptions.ADCPTimeoutError">ADCPTimeoutError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.exceptions.ADCPToolNotFoundError" href="#adcp.exceptions.ADCPToolNotFoundError">ADCPToolNotFoundError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.exceptions.ADCPWebhookError" href="#adcp.exceptions.ADCPWebhookError">ADCPWebhookError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.exceptions.ADCPWebhookSignatureError" href="#adcp.exceptions.ADCPWebhookSignatureError">ADCPWebhookSignatureError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.exceptions.AdagentsNotFoundError" href="#adcp.exceptions.AdagentsNotFoundError">AdagentsNotFoundError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.exceptions.AdagentsTimeoutError" href="#adcp.exceptions.AdagentsTimeoutError">AdagentsTimeoutError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.exceptions.AdagentsValidationError" href="#adcp.exceptions.AdagentsValidationError">AdagentsValidationError</a></code></h4>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

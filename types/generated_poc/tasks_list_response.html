@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.tasks_list_response API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.tasks_list_response</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.tasks_list_response.Direction"><code class="flex name class">
+<span>class <span class="ident">Direction</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Direction(Enum):
+    asc = &#39;asc&#39;
+    desc = &#39;desc&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.tasks_list_response.Direction.asc"><code class="name">var <span class="ident">asc</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.Direction.desc"><code class="name">var <span class="ident">desc</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.Domain"><code class="flex name class">
+<span>class <span class="ident">Domain</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Domain(Enum):
+    media_buy = &#39;media-buy&#39;
+    signals = &#39;signals&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.tasks_list_response.Domain.media_buy"><code class="name">var <span class="ident">media_buy</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.Domain.signals"><code class="name">var <span class="ident">signals</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.DomainBreakdown"><code class="flex name class">
+<span>class <span class="ident">DomainBreakdown</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DomainBreakdown(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    media_buy: Annotated[
+        int | None,
+        Field(alias=&#39;media-buy&#39;, description=&#39;Number of media-buy tasks in results&#39;, ge=0),
+    ] = None
+    signals: Annotated[
+        int | None, Field(description=&#39;Number of signals tasks in results&#39;, ge=0)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.tasks_list_response.DomainBreakdown.media_buy"><code class="name">var <span class="ident">media_buy</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.DomainBreakdown.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.DomainBreakdown.signals"><code class="name">var <span class="ident">signals</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.Pagination"><code class="flex name class">
+<span>class <span class="ident">Pagination</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Pagination(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    has_more: Annotated[bool, Field(description=&#39;Whether there are more tasks beyond this page&#39;)]
+    limit: Annotated[int, Field(description=&#39;Limit that was applied to this query&#39;, ge=1)]
+    next_offset: Annotated[
+        int | None,
+        Field(description=&#39;Offset to use for next page (only present if has_more is true)&#39;, ge=0),
+    ] = None
+    offset: Annotated[int, Field(description=&#39;Offset that was applied to this query&#39;, ge=0)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.tasks_list_response.Pagination.has_more"><code class="name">var <span class="ident">has_more</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.Pagination.limit"><code class="name">var <span class="ident">limit</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.Pagination.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.Pagination.next_offset"><code class="name">var <span class="ident">next_offset</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.Pagination.offset"><code class="name">var <span class="ident">offset</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.QuerySummary"><code class="flex name class">
+<span>class <span class="ident">QuerySummary</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class QuerySummary(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    domain_breakdown: Annotated[
+        DomainBreakdown | None, Field(description=&#39;Count of tasks by domain&#39;)
+    ] = None
+    filters_applied: Annotated[
+        list[str] | None, Field(description=&#39;List of filters that were applied to the query&#39;)
+    ] = None
+    returned: Annotated[int, Field(description=&#39;Number of tasks returned in this response&#39;, ge=0)]
+    sort_applied: Annotated[
+        SortApplied | None, Field(description=&#39;Sort order that was applied&#39;)
+    ] = None
+    status_breakdown: Annotated[
+        dict[str, int] | None, Field(description=&#39;Count of tasks by status&#39;)
+    ] = None
+    total_matching: Annotated[
+        int, Field(description=&#39;Total number of tasks matching filters (across all pages)&#39;, ge=0)
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.tasks_list_response.QuerySummary.domain_breakdown"><code class="name">var <span class="ident">domain_breakdown</span> : <a title="adcp.types.generated_poc.tasks_list_response.DomainBreakdown" href="#adcp.types.generated_poc.tasks_list_response.DomainBreakdown">DomainBreakdown</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.QuerySummary.filters_applied"><code class="name">var <span class="ident">filters_applied</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.QuerySummary.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.QuerySummary.returned"><code class="name">var <span class="ident">returned</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.QuerySummary.sort_applied"><code class="name">var <span class="ident">sort_applied</span> : <a title="adcp.types.generated_poc.tasks_list_response.SortApplied" href="#adcp.types.generated_poc.tasks_list_response.SortApplied">SortApplied</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.QuerySummary.status_breakdown"><code class="name">var <span class="ident">status_breakdown</span> : dict[str, int] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.QuerySummary.total_matching"><code class="name">var <span class="ident">total_matching</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.SortApplied"><code class="flex name class">
+<span>class <span class="ident">SortApplied</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SortApplied(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    direction: Direction
+    field: str</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.tasks_list_response.SortApplied.direction"><code class="name">var <span class="ident">direction</span> : <a title="adcp.types.generated_poc.tasks_list_response.Direction" href="#adcp.types.generated_poc.tasks_list_response.Direction">Direction</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.SortApplied.field"><code class="name">var <span class="ident">field</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.SortApplied.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.Task"><code class="flex name class">
+<span>class <span class="ident">Task</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Task(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    completed_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;When the task completed (ISO 8601, only for completed/failed/canceled tasks)&#39;
+        ),
+    ] = None
+    created_at: Annotated[
+        AwareDatetime, Field(description=&#39;When the task was initially created (ISO 8601)&#39;)
+    ]
+    domain: Annotated[Domain, Field(description=&#39;AdCP domain this task belongs to&#39;)]
+    has_webhook: Annotated[
+        bool | None, Field(description=&#39;Whether this task has webhook configuration&#39;)
+    ] = None
+    status: Annotated[task_status.TaskStatus, Field(description=&#39;Current task status&#39;)]
+    task_id: Annotated[str, Field(description=&#39;Unique identifier for this task&#39;)]
+    task_type: Annotated[task_type_1.TaskType, Field(description=&#39;Type of AdCP operation&#39;)]
+    updated_at: Annotated[
+        AwareDatetime, Field(description=&#39;When the task was last updated (ISO 8601)&#39;)
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.tasks_list_response.Task.completed_at"><code class="name">var <span class="ident">completed_at</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.Task.created_at"><code class="name">var <span class="ident">created_at</span> : pydantic.types.AwareDatetime</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.Task.domain"><code class="name">var <span class="ident">domain</span> : <a title="adcp.types.generated_poc.tasks_list_response.Domain" href="#adcp.types.generated_poc.tasks_list_response.Domain">Domain</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.Task.has_webhook"><code class="name">var <span class="ident">has_webhook</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.Task.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.Task.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.task_status.TaskStatus" href="task_status.html#adcp.types.generated_poc.task_status.TaskStatus">TaskStatus</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.Task.task_id"><code class="name">var <span class="ident">task_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.Task.task_type"><code class="name">var <span class="ident">task_type</span> : <a title="adcp.types.generated_poc.task_type.TaskType" href="task_type.html#adcp.types.generated_poc.task_type.TaskType">TaskType</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.Task.updated_at"><code class="name">var <span class="ident">updated_at</span> : pydantic.types.AwareDatetime</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.TasksListResponse"><code class="flex name class">
+<span>class <span class="ident">TasksListResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TasksListResponse(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
+        ),
+    ] = None
+    pagination: Annotated[Pagination, Field(description=&#39;Pagination information&#39;)]
+    query_summary: Annotated[
+        QuerySummary, Field(description=&#39;Summary of the query that was executed&#39;)
+    ]
+    tasks: Annotated[list[Task], Field(description=&#39;Array of tasks matching the query criteria&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.tasks_list_response.TasksListResponse.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.TasksListResponse.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.TasksListResponse.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.tasks_list_response.Pagination" href="#adcp.types.generated_poc.tasks_list_response.Pagination">Pagination</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.TasksListResponse.query_summary"><code class="name">var <span class="ident">query_summary</span> : <a title="adcp.types.generated_poc.tasks_list_response.QuerySummary" href="#adcp.types.generated_poc.tasks_list_response.QuerySummary">QuerySummary</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tasks_list_response.TasksListResponse.tasks"><code class="name">var <span class="ident">tasks</span> : list[<a title="adcp.types.generated_poc.tasks_list_response.Task" href="#adcp.types.generated_poc.tasks_list_response.Task">Task</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc" href="index.html">adcp.types.generated_poc</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.tasks_list_response.Direction" href="#adcp.types.generated_poc.tasks_list_response.Direction">Direction</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.Direction.asc" href="#adcp.types.generated_poc.tasks_list_response.Direction.asc">asc</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.Direction.desc" href="#adcp.types.generated_poc.tasks_list_response.Direction.desc">desc</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.tasks_list_response.Domain" href="#adcp.types.generated_poc.tasks_list_response.Domain">Domain</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.Domain.media_buy" href="#adcp.types.generated_poc.tasks_list_response.Domain.media_buy">media_buy</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.Domain.signals" href="#adcp.types.generated_poc.tasks_list_response.Domain.signals">signals</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.tasks_list_response.DomainBreakdown" href="#adcp.types.generated_poc.tasks_list_response.DomainBreakdown">DomainBreakdown</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.DomainBreakdown.media_buy" href="#adcp.types.generated_poc.tasks_list_response.DomainBreakdown.media_buy">media_buy</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.DomainBreakdown.model_config" href="#adcp.types.generated_poc.tasks_list_response.DomainBreakdown.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.DomainBreakdown.signals" href="#adcp.types.generated_poc.tasks_list_response.DomainBreakdown.signals">signals</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.tasks_list_response.Pagination" href="#adcp.types.generated_poc.tasks_list_response.Pagination">Pagination</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.Pagination.has_more" href="#adcp.types.generated_poc.tasks_list_response.Pagination.has_more">has_more</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.Pagination.limit" href="#adcp.types.generated_poc.tasks_list_response.Pagination.limit">limit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.Pagination.model_config" href="#adcp.types.generated_poc.tasks_list_response.Pagination.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.Pagination.next_offset" href="#adcp.types.generated_poc.tasks_list_response.Pagination.next_offset">next_offset</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.Pagination.offset" href="#adcp.types.generated_poc.tasks_list_response.Pagination.offset">offset</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.tasks_list_response.QuerySummary" href="#adcp.types.generated_poc.tasks_list_response.QuerySummary">QuerySummary</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.QuerySummary.domain_breakdown" href="#adcp.types.generated_poc.tasks_list_response.QuerySummary.domain_breakdown">domain_breakdown</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.QuerySummary.filters_applied" href="#adcp.types.generated_poc.tasks_list_response.QuerySummary.filters_applied">filters_applied</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.QuerySummary.model_config" href="#adcp.types.generated_poc.tasks_list_response.QuerySummary.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.QuerySummary.returned" href="#adcp.types.generated_poc.tasks_list_response.QuerySummary.returned">returned</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.QuerySummary.sort_applied" href="#adcp.types.generated_poc.tasks_list_response.QuerySummary.sort_applied">sort_applied</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.QuerySummary.status_breakdown" href="#adcp.types.generated_poc.tasks_list_response.QuerySummary.status_breakdown">status_breakdown</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.QuerySummary.total_matching" href="#adcp.types.generated_poc.tasks_list_response.QuerySummary.total_matching">total_matching</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.tasks_list_response.SortApplied" href="#adcp.types.generated_poc.tasks_list_response.SortApplied">SortApplied</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.SortApplied.direction" href="#adcp.types.generated_poc.tasks_list_response.SortApplied.direction">direction</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.SortApplied.field" href="#adcp.types.generated_poc.tasks_list_response.SortApplied.field">field</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.SortApplied.model_config" href="#adcp.types.generated_poc.tasks_list_response.SortApplied.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.tasks_list_response.Task" href="#adcp.types.generated_poc.tasks_list_response.Task">Task</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.Task.completed_at" href="#adcp.types.generated_poc.tasks_list_response.Task.completed_at">completed_at</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.Task.created_at" href="#adcp.types.generated_poc.tasks_list_response.Task.created_at">created_at</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.Task.domain" href="#adcp.types.generated_poc.tasks_list_response.Task.domain">domain</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.Task.has_webhook" href="#adcp.types.generated_poc.tasks_list_response.Task.has_webhook">has_webhook</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.Task.model_config" href="#adcp.types.generated_poc.tasks_list_response.Task.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.Task.status" href="#adcp.types.generated_poc.tasks_list_response.Task.status">status</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.Task.task_id" href="#adcp.types.generated_poc.tasks_list_response.Task.task_id">task_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.Task.task_type" href="#adcp.types.generated_poc.tasks_list_response.Task.task_type">task_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.Task.updated_at" href="#adcp.types.generated_poc.tasks_list_response.Task.updated_at">updated_at</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.tasks_list_response.TasksListResponse" href="#adcp.types.generated_poc.tasks_list_response.TasksListResponse">TasksListResponse</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.TasksListResponse.context" href="#adcp.types.generated_poc.tasks_list_response.TasksListResponse.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.TasksListResponse.model_config" href="#adcp.types.generated_poc.tasks_list_response.TasksListResponse.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.TasksListResponse.pagination" href="#adcp.types.generated_poc.tasks_list_response.TasksListResponse.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.TasksListResponse.query_summary" href="#adcp.types.generated_poc.tasks_list_response.TasksListResponse.query_summary">query_summary</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tasks_list_response.TasksListResponse.tasks" href="#adcp.types.generated_poc.tasks_list_response.TasksListResponse.tasks">tasks</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

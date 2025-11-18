@@ -1,0 +1,935 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.get_media_buy_delivery_response API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.get_media_buy_delivery_response</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals"><code class="flex name class">
+<span>class <span class="ident">AggregatedTotals</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AggregatedTotals(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    clicks: Annotated[
+        float | None,
+        Field(description=&#39;Total clicks across all media buys (if applicable)&#39;, ge=0.0),
+    ] = None
+    impressions: Annotated[
+        float, Field(description=&#39;Total impressions delivered across all media buys&#39;, ge=0.0)
+    ]
+    media_buy_count: Annotated[
+        int, Field(description=&#39;Number of media buys included in the response&#39;, ge=0)
+    ]
+    spend: Annotated[float, Field(description=&#39;Total amount spent across all media buys&#39;, ge=0.0)]
+    video_completions: Annotated[
+        float | None,
+        Field(description=&#39;Total video completions across all media buys (if applicable)&#39;, ge=0.0),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals.clicks"><code class="name">var <span class="ident">clicks</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals.impressions"><code class="name">var <span class="ident">impressions</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals.media_buy_count"><code class="name">var <span class="ident">media_buy_count</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals.spend"><code class="name">var <span class="ident">spend</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals.video_completions"><code class="name">var <span class="ident">video_completions</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem"><code class="flex name class">
+<span>class <span class="ident">ByPackageItem</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ByPackageItem(DeliveryMetrics):
+    buyer_ref: Annotated[
+        str | None, Field(description=&#34;Buyer&#39;s reference identifier for this package&#34;)
+    ] = None
+    currency: Annotated[
+        str,
+        Field(
+            description=&#34;ISO 4217 currency code (e.g., USD, EUR, GBP) for this package&#39;s pricing. Indicates the currency in which the rate and spend values are denominated. Different packages can use different currencies when supported by the publisher.&#34;,
+            pattern=&#39;^[A-Z]{3}$&#39;,
+        ),
+    ]
+    pacing_index: Annotated[
+        float | None,
+        Field(description=&#39;Delivery pace (1.0 = on track, &lt;1.0 = behind, &gt;1.0 = ahead)&#39;, ge=0.0),
+    ] = None
+    package_id: Annotated[str, Field(description=&#34;Publisher&#39;s package identifier&#34;)]
+    pricing_model: Annotated[
+        pricing_model_1.PricingModel,
+        Field(
+            description=&#39;The pricing model used for this package (e.g., cpm, cpcv, cpp). Indicates how the package is billed and which metrics are most relevant for optimization.&#39;
+        ),
+    ]
+    rate: Annotated[
+        float,
+        Field(
+            description=&#39;The pricing rate for this package in the specified currency. For fixed-rate pricing, this is the agreed rate (e.g., CPM rate of 12.50 means $12.50 per 1,000 impressions). For auction-based pricing, this represents the effective rate based on actual delivery.&#39;,
+            ge=0.0,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.delivery_metrics.DeliveryMetrics" href="delivery_metrics.html#adcp.types.generated_poc.delivery_metrics.DeliveryMetrics">DeliveryMetrics</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem.pacing_index"><code class="name">var <span class="ident">pacing_index</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem.package_id"><code class="name">var <span class="ident">package_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem.pricing_model"><code class="name">var <span class="ident">pricing_model</span> : <a title="adcp.types.generated_poc.pricing_model.PricingModel" href="pricing_model.html#adcp.types.generated_poc.pricing_model.PricingModel">PricingModel</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem.rate"><code class="name">var <span class="ident">rate</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.delivery_metrics.DeliveryMetrics" href="delivery_metrics.html#adcp.types.generated_poc.delivery_metrics.DeliveryMetrics">DeliveryMetrics</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.delivery_metrics.DeliveryMetrics.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.delivery_metrics.DeliveryMetrics.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.DailyBreakdownItem"><code class="flex name class">
+<span>class <span class="ident">DailyBreakdownItem</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DailyBreakdownItem(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    date: Annotated[str, Field(description=&#39;Date (YYYY-MM-DD)&#39;, pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;)]
+    impressions: Annotated[float, Field(description=&#39;Daily impressions&#39;, ge=0.0)]
+    spend: Annotated[float, Field(description=&#39;Daily spend&#39;, ge=0.0)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.DailyBreakdownItem.date"><code class="name">var <span class="ident">date</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.DailyBreakdownItem.impressions"><code class="name">var <span class="ident">impressions</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.DailyBreakdownItem.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.DailyBreakdownItem.spend"><code class="name">var <span class="ident">spend</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse"><code class="flex name class">
+<span>class <span class="ident">GetMediaBuyDeliveryResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetMediaBuyDeliveryResponse(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    aggregated_totals: Annotated[
+        AggregatedTotals | None,
+        Field(
+            description=&#39;Combined metrics across all returned media buys. Only included in API responses (get_media_buy_delivery), not in webhook notifications.&#39;
+        ),
+    ] = None
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
+        ),
+    ] = None
+    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
+    errors: Annotated[
+        list[error.Error] | None,
+        Field(
+            description=&#39;Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)&#39;
+        ),
+    ] = None
+    media_buy_deliveries: Annotated[
+        list[MediaBuyDelivery],
+        Field(
+            description=&#39;Array of delivery data for media buys. When used in webhook notifications, may contain multiple media buys aggregated by publisher. When used in get_media_buy_delivery API responses, typically contains requested media buys.&#39;
+        ),
+    ]
+    next_expected_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#34;ISO 8601 timestamp for next expected notification (only present in webhook deliveries when notification_type is not &#39;final&#39;)&#34;
+        ),
+    ] = None
+    notification_type: Annotated[
+        NotificationType | None,
+        Field(
+            description=&#39;Type of webhook notification (only present in webhook deliveries): scheduled = regular periodic update, final = campaign completed, delayed = data not yet available, adjusted = resending period with updated data&#39;
+        ),
+    ] = None
+    partial_data: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Indicates if any media buys in this webhook have missing/delayed data (only present in webhook deliveries)&#39;
+        ),
+    ] = None
+    reporting_period: Annotated[
+        ReportingPeriod,
+        Field(description=&#39;Date range for the report. All periods use UTC timezone.&#39;),
+    ]
+    sequence_number: Annotated[
+        int | None,
+        Field(
+            description=&#39;Sequential notification number (only present in webhook deliveries, starts at 1)&#39;,
+            ge=1,
+        ),
+    ] = None
+    unavailable_count: Annotated[
+        int | None,
+        Field(
+            description=&#39;Number of media buys with reporting_delayed or failed status (only present in webhook deliveries when partial_data is true)&#39;,
+            ge=0,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.aggregated_totals"><code class="name">var <span class="ident">aggregated_totals</span> : <a title="adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals" href="#adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals">AggregatedTotals</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.error.Error" href="error.html#adcp.types.generated_poc.error.Error">Error</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.media_buy_deliveries"><code class="name">var <span class="ident">media_buy_deliveries</span> : list[<a title="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery" href="#adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery">MediaBuyDelivery</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.next_expected_at"><code class="name">var <span class="ident">next_expected_at</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.notification_type"><code class="name">var <span class="ident">notification_type</span> : <a title="adcp.types.generated_poc.get_media_buy_delivery_response.NotificationType" href="#adcp.types.generated_poc.get_media_buy_delivery_response.NotificationType">NotificationType</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.partial_data"><code class="name">var <span class="ident">partial_data</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.reporting_period"><code class="name">var <span class="ident">reporting_period</span> : <a title="adcp.types.generated_poc.get_media_buy_delivery_response.ReportingPeriod" href="#adcp.types.generated_poc.get_media_buy_delivery_response.ReportingPeriod">ReportingPeriod</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.sequence_number"><code class="name">var <span class="ident">sequence_number</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.unavailable_count"><code class="name">var <span class="ident">unavailable_count</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery"><code class="flex name class">
+<span>class <span class="ident">MediaBuyDelivery</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MediaBuyDelivery(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    buyer_ref: Annotated[
+        str | None, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)
+    ] = None
+    by_package: Annotated[list[ByPackageItem], Field(description=&#39;Metrics broken down by package&#39;)]
+    daily_breakdown: Annotated[
+        list[DailyBreakdownItem] | None, Field(description=&#39;Day-by-day delivery&#39;)
+    ] = None
+    expected_availability: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;When delayed data is expected to be available (only present when status is reporting_delayed)&#39;
+        ),
+    ] = None
+    is_adjusted: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Indicates this delivery contains updated data for a previously reported period. Buyer should replace previous period data with these totals.&#39;
+        ),
+    ] = None
+    media_buy_id: Annotated[str, Field(description=&#34;Publisher&#39;s media buy identifier&#34;)]
+    pricing_model: Annotated[
+        pricing_model_1.PricingModel | None,
+        Field(description=&#39;Pricing model used for this media buy&#39;),
+    ] = None
+    status: Annotated[
+        Status,
+        Field(
+            description=&#39;Current media buy status. In webhook context, reporting_delayed indicates data temporarily unavailable.&#39;
+        ),
+    ]
+    totals: Totals</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.by_package"><code class="name">var <span class="ident">by_package</span> : list[<a title="adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem" href="#adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem">ByPackageItem</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.daily_breakdown"><code class="name">var <span class="ident">daily_breakdown</span> : list[<a title="adcp.types.generated_poc.get_media_buy_delivery_response.DailyBreakdownItem" href="#adcp.types.generated_poc.get_media_buy_delivery_response.DailyBreakdownItem">DailyBreakdownItem</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.expected_availability"><code class="name">var <span class="ident">expected_availability</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.is_adjusted"><code class="name">var <span class="ident">is_adjusted</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.pricing_model"><code class="name">var <span class="ident">pricing_model</span> : <a title="adcp.types.generated_poc.pricing_model.PricingModel" href="pricing_model.html#adcp.types.generated_poc.pricing_model.PricingModel">PricingModel</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.get_media_buy_delivery_response.Status" href="#adcp.types.generated_poc.get_media_buy_delivery_response.Status">Status</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.totals"><code class="name">var <span class="ident">totals</span> : <a title="adcp.types.generated_poc.get_media_buy_delivery_response.Totals" href="#adcp.types.generated_poc.get_media_buy_delivery_response.Totals">Totals</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.NotificationType"><code class="flex name class">
+<span>class <span class="ident">NotificationType</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class NotificationType(Enum):
+    scheduled = &#39;scheduled&#39;
+    final = &#39;final&#39;
+    delayed = &#39;delayed&#39;
+    adjusted = &#39;adjusted&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.NotificationType.adjusted"><code class="name">var <span class="ident">adjusted</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.NotificationType.delayed"><code class="name">var <span class="ident">delayed</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.NotificationType.final"><code class="name">var <span class="ident">final</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.NotificationType.scheduled"><code class="name">var <span class="ident">scheduled</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.ReportingPeriod"><code class="flex name class">
+<span>class <span class="ident">ReportingPeriod</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ReportingPeriod(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    end: Annotated[
+        AwareDatetime,
+        Field(description=&#39;ISO 8601 end timestamp in UTC (e.g., 2024-02-05T23:59:59Z)&#39;),
+    ]
+    start: Annotated[
+        AwareDatetime,
+        Field(description=&#39;ISO 8601 start timestamp in UTC (e.g., 2024-02-05T00:00:00Z)&#39;),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.ReportingPeriod.end"><code class="name">var <span class="ident">end</span> : pydantic.types.AwareDatetime</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.ReportingPeriod.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.ReportingPeriod.start"><code class="name">var <span class="ident">start</span> : pydantic.types.AwareDatetime</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.Status"><code class="flex name class">
+<span>class <span class="ident">Status</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Status(Enum):
+    pending = &#39;pending&#39;
+    active = &#39;active&#39;
+    paused = &#39;paused&#39;
+    completed = &#39;completed&#39;
+    failed = &#39;failed&#39;
+    reporting_delayed = &#39;reporting_delayed&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.Status.active"><code class="name">var <span class="ident">active</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.Status.completed"><code class="name">var <span class="ident">completed</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.Status.failed"><code class="name">var <span class="ident">failed</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.Status.paused"><code class="name">var <span class="ident">paused</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.Status.pending"><code class="name">var <span class="ident">pending</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.Status.reporting_delayed"><code class="name">var <span class="ident">reporting_delayed</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.Totals"><code class="flex name class">
+<span>class <span class="ident">Totals</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Totals(DeliveryMetrics):
+    effective_rate: Annotated[
+        float | None,
+        Field(
+            description=&#34;Effective rate paid per unit based on pricing_model (e.g., actual CPM for &#39;cpm&#39;, actual cost per completed view for &#39;cpcv&#39;, actual cost per point for &#39;cpp&#39;)&#34;,
+            ge=0.0,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.delivery_metrics.DeliveryMetrics" href="delivery_metrics.html#adcp.types.generated_poc.delivery_metrics.DeliveryMetrics">DeliveryMetrics</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.Totals.effective_rate"><code class="name">var <span class="ident">effective_rate</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.get_media_buy_delivery_response.Totals.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.delivery_metrics.DeliveryMetrics" href="delivery_metrics.html#adcp.types.generated_poc.delivery_metrics.DeliveryMetrics">DeliveryMetrics</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.delivery_metrics.DeliveryMetrics.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.delivery_metrics.DeliveryMetrics.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc" href="index.html">adcp.types.generated_poc</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals" href="#adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals">AggregatedTotals</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals.clicks" href="#adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals.clicks">clicks</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals.impressions" href="#adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals.impressions">impressions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals.media_buy_count" href="#adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals.media_buy_count">media_buy_count</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals.model_config" href="#adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals.spend" href="#adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals.spend">spend</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals.video_completions" href="#adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals.video_completions">video_completions</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem" href="#adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem">ByPackageItem</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem.buyer_ref" href="#adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem.currency" href="#adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem.model_config" href="#adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem.pacing_index" href="#adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem.pacing_index">pacing_index</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem.package_id" href="#adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem.package_id">package_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem.pricing_model" href="#adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem.pricing_model">pricing_model</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem.rate" href="#adcp.types.generated_poc.get_media_buy_delivery_response.ByPackageItem.rate">rate</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.DailyBreakdownItem" href="#adcp.types.generated_poc.get_media_buy_delivery_response.DailyBreakdownItem">DailyBreakdownItem</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.DailyBreakdownItem.date" href="#adcp.types.generated_poc.get_media_buy_delivery_response.DailyBreakdownItem.date">date</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.DailyBreakdownItem.impressions" href="#adcp.types.generated_poc.get_media_buy_delivery_response.DailyBreakdownItem.impressions">impressions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.DailyBreakdownItem.model_config" href="#adcp.types.generated_poc.get_media_buy_delivery_response.DailyBreakdownItem.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.DailyBreakdownItem.spend" href="#adcp.types.generated_poc.get_media_buy_delivery_response.DailyBreakdownItem.spend">spend</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse" href="#adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse">GetMediaBuyDeliveryResponse</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.aggregated_totals" href="#adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.aggregated_totals">aggregated_totals</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.context" href="#adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.currency" href="#adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.errors" href="#adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.errors">errors</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.media_buy_deliveries" href="#adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.media_buy_deliveries">media_buy_deliveries</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.model_config" href="#adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.next_expected_at" href="#adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.next_expected_at">next_expected_at</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.notification_type" href="#adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.notification_type">notification_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.partial_data" href="#adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.partial_data">partial_data</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.reporting_period" href="#adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.reporting_period">reporting_period</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.sequence_number" href="#adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.sequence_number">sequence_number</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.unavailable_count" href="#adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.unavailable_count">unavailable_count</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery" href="#adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery">MediaBuyDelivery</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.buyer_ref" href="#adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.by_package" href="#adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.by_package">by_package</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.daily_breakdown" href="#adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.daily_breakdown">daily_breakdown</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.expected_availability" href="#adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.expected_availability">expected_availability</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.is_adjusted" href="#adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.is_adjusted">is_adjusted</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.media_buy_id" href="#adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.media_buy_id">media_buy_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.model_config" href="#adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.pricing_model" href="#adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.pricing_model">pricing_model</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.status" href="#adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.status">status</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.totals" href="#adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery.totals">totals</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.NotificationType" href="#adcp.types.generated_poc.get_media_buy_delivery_response.NotificationType">NotificationType</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.NotificationType.adjusted" href="#adcp.types.generated_poc.get_media_buy_delivery_response.NotificationType.adjusted">adjusted</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.NotificationType.delayed" href="#adcp.types.generated_poc.get_media_buy_delivery_response.NotificationType.delayed">delayed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.NotificationType.final" href="#adcp.types.generated_poc.get_media_buy_delivery_response.NotificationType.final">final</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.NotificationType.scheduled" href="#adcp.types.generated_poc.get_media_buy_delivery_response.NotificationType.scheduled">scheduled</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.ReportingPeriod" href="#adcp.types.generated_poc.get_media_buy_delivery_response.ReportingPeriod">ReportingPeriod</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.ReportingPeriod.end" href="#adcp.types.generated_poc.get_media_buy_delivery_response.ReportingPeriod.end">end</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.ReportingPeriod.model_config" href="#adcp.types.generated_poc.get_media_buy_delivery_response.ReportingPeriod.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.ReportingPeriod.start" href="#adcp.types.generated_poc.get_media_buy_delivery_response.ReportingPeriod.start">start</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.Status" href="#adcp.types.generated_poc.get_media_buy_delivery_response.Status">Status</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.Status.active" href="#adcp.types.generated_poc.get_media_buy_delivery_response.Status.active">active</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.Status.completed" href="#adcp.types.generated_poc.get_media_buy_delivery_response.Status.completed">completed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.Status.failed" href="#adcp.types.generated_poc.get_media_buy_delivery_response.Status.failed">failed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.Status.paused" href="#adcp.types.generated_poc.get_media_buy_delivery_response.Status.paused">paused</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.Status.pending" href="#adcp.types.generated_poc.get_media_buy_delivery_response.Status.pending">pending</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.Status.reporting_delayed" href="#adcp.types.generated_poc.get_media_buy_delivery_response.Status.reporting_delayed">reporting_delayed</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.Totals" href="#adcp.types.generated_poc.get_media_buy_delivery_response.Totals">Totals</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.Totals.effective_rate" href="#adcp.types.generated_poc.get_media_buy_delivery_response.Totals.effective_rate">effective_rate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.get_media_buy_delivery_response.Totals.model_config" href="#adcp.types.generated_poc.get_media_buy_delivery_response.Totals.model_config">model_config</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

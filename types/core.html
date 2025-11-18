@@ -1,0 +1,828 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.core API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.core</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.core.Activity"><code class="flex name class">
+<span>class <span class="ident">Activity</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Activity(BaseModel):
+    &#34;&#34;&#34;Activity event for observability.&#34;&#34;&#34;
+
+    model_config = {&#34;frozen&#34;: True}
+
+    type: ActivityType
+    operation_id: str
+    agent_id: str
+    task_type: str
+    status: TaskStatus | None = None
+    timestamp: str
+    metadata: dict[str, Any] | None = None</code></pre>
+</details>
+<div class="desc"><p>Activity event for observability.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.core.Activity.agent_id"><code class="name">var <span class="ident">agent_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Activity.metadata"><code class="name">var <span class="ident">metadata</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Activity.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Activity.operation_id"><code class="name">var <span class="ident">operation_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Activity.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.core.TaskStatus" href="#adcp.types.core.TaskStatus">TaskStatus</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Activity.task_type"><code class="name">var <span class="ident">task_type</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Activity.timestamp"><code class="name">var <span class="ident">timestamp</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Activity.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.core.ActivityType" href="#adcp.types.core.ActivityType">ActivityType</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.core.ActivityType"><code class="flex name class">
+<span>class <span class="ident">ActivityType</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ActivityType(str, Enum):
+    &#34;&#34;&#34;Types of activity events.&#34;&#34;&#34;
+
+    PROTOCOL_REQUEST = &#34;protocol_request&#34;
+    PROTOCOL_RESPONSE = &#34;protocol_response&#34;
+    WEBHOOK_RECEIVED = &#34;webhook_received&#34;
+    HANDLER_CALLED = &#34;handler_called&#34;
+    STATUS_CHANGE = &#34;status_change&#34;</code></pre>
+</details>
+<div class="desc"><p>Types of activity events.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.str</li>
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.core.ActivityType.HANDLER_CALLED"><code class="name">var <span class="ident">HANDLER_CALLED</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.ActivityType.PROTOCOL_REQUEST"><code class="name">var <span class="ident">PROTOCOL_REQUEST</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.ActivityType.PROTOCOL_RESPONSE"><code class="name">var <span class="ident">PROTOCOL_RESPONSE</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.ActivityType.STATUS_CHANGE"><code class="name">var <span class="ident">STATUS_CHANGE</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.ActivityType.WEBHOOK_RECEIVED"><code class="name">var <span class="ident">WEBHOOK_RECEIVED</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.core.AgentConfig"><code class="flex name class">
+<span>class <span class="ident">AgentConfig</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AgentConfig(BaseModel):
+    &#34;&#34;&#34;Agent configuration.&#34;&#34;&#34;
+
+    id: str
+    agent_uri: str
+    protocol: Protocol
+    auth_token: str | None = None
+    requires_auth: bool = False
+    auth_header: str = &#34;x-adcp-auth&#34;  # Header name for authentication
+    auth_type: str = &#34;token&#34;  # &#34;token&#34; for direct value, &#34;bearer&#34; for &#34;Bearer {token}&#34;
+    timeout: float = 30.0  # Request timeout in seconds
+    mcp_transport: str = (
+        &#34;streamable_http&#34;  # &#34;streamable_http&#34; (default, modern) or &#34;sse&#34; (legacy fallback)
+    )
+    debug: bool = False  # Enable debug mode to capture request/response details
+
+    @field_validator(&#34;agent_uri&#34;)
+    @classmethod
+    def validate_agent_uri(cls, v: str) -&gt; str:
+        &#34;&#34;&#34;Validate agent URI format.&#34;&#34;&#34;
+        if not v:
+            raise ValueError(&#34;agent_uri cannot be empty&#34;)
+
+        if not v.startswith((&#34;http://&#34;, &#34;https://&#34;)):
+            raise ValueError(
+                f&#34;agent_uri must start with http:// or https://, got: {v}\n&#34;
+                &#34;Example: https://agent.example.com&#34;
+            )
+
+        # Remove trailing slash for consistency
+        return v.rstrip(&#34;/&#34;)
+
+    @field_validator(&#34;timeout&#34;)
+    @classmethod
+    def validate_timeout(cls, v: float) -&gt; float:
+        &#34;&#34;&#34;Validate timeout is reasonable.&#34;&#34;&#34;
+        if v &lt;= 0:
+            raise ValueError(f&#34;timeout must be positive, got: {v}&#34;)
+
+        if v &gt; 300:  # 5 minutes
+            raise ValueError(
+                f&#34;timeout is very large ({v}s). Consider a value under 300 seconds.\n&#34;
+                &#34;Large timeouts can cause long hangs if agent is unresponsive.&#34;
+            )
+
+        return v
+
+    @field_validator(&#34;mcp_transport&#34;)
+    @classmethod
+    def validate_mcp_transport(cls, v: str) -&gt; str:
+        &#34;&#34;&#34;Validate MCP transport type.&#34;&#34;&#34;
+        valid_transports = [&#34;streamable_http&#34;, &#34;sse&#34;]
+        if v not in valid_transports:
+            raise ValueError(
+                f&#34;mcp_transport must be one of {valid_transports}, got: {v}\n&#34;
+                &#34;Use &#39;streamable_http&#39; for modern agents (recommended)&#34;
+            )
+        return v
+
+    @field_validator(&#34;auth_type&#34;)
+    @classmethod
+    def validate_auth_type(cls, v: str) -&gt; str:
+        &#34;&#34;&#34;Validate auth type.&#34;&#34;&#34;
+        valid_types = [&#34;token&#34;, &#34;bearer&#34;]
+        if v not in valid_types:
+            raise ValueError(
+                f&#34;auth_type must be one of {valid_types}, got: {v}\n&#34;
+                &#34;Use &#39;bearer&#39; for OAuth2/standard Authorization header&#34;
+            )
+        return v</code></pre>
+</details>
+<div class="desc"><p>Agent configuration.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.core.AgentConfig.agent_uri"><code class="name">var <span class="ident">agent_uri</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.AgentConfig.auth_header"><code class="name">var <span class="ident">auth_header</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.AgentConfig.auth_token"><code class="name">var <span class="ident">auth_token</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.AgentConfig.auth_type"><code class="name">var <span class="ident">auth_type</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.AgentConfig.debug"><code class="name">var <span class="ident">debug</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.AgentConfig.id"><code class="name">var <span class="ident">id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.AgentConfig.mcp_transport"><code class="name">var <span class="ident">mcp_transport</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.AgentConfig.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.AgentConfig.protocol"><code class="name">var <span class="ident">protocol</span> : <a title="adcp.types.core.Protocol" href="#adcp.types.core.Protocol">Protocol</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.AgentConfig.requires_auth"><code class="name">var <span class="ident">requires_auth</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.AgentConfig.timeout"><code class="name">var <span class="ident">timeout</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Static methods</h3>
+<dl>
+<dt id="adcp.types.core.AgentConfig.validate_agent_uri"><code class="name flex">
+<span>def <span class="ident">validate_agent_uri</span></span>(<span>v: str) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Validate agent URI format.</p></div>
+</dd>
+<dt id="adcp.types.core.AgentConfig.validate_auth_type"><code class="name flex">
+<span>def <span class="ident">validate_auth_type</span></span>(<span>v: str) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Validate auth type.</p></div>
+</dd>
+<dt id="adcp.types.core.AgentConfig.validate_mcp_transport"><code class="name flex">
+<span>def <span class="ident">validate_mcp_transport</span></span>(<span>v: str) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Validate MCP transport type.</p></div>
+</dd>
+<dt id="adcp.types.core.AgentConfig.validate_timeout"><code class="name flex">
+<span>def <span class="ident">validate_timeout</span></span>(<span>v: float) ‑> float</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Validate timeout is reasonable.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.core.DebugInfo"><code class="flex name class">
+<span>class <span class="ident">DebugInfo</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DebugInfo(BaseModel):
+    &#34;&#34;&#34;Debug information for troubleshooting.&#34;&#34;&#34;
+
+    request: dict[str, Any]
+    response: dict[str, Any]
+    duration_ms: float | None = None</code></pre>
+</details>
+<div class="desc"><p>Debug information for troubleshooting.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.core.DebugInfo.duration_ms"><code class="name">var <span class="ident">duration_ms</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.DebugInfo.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.DebugInfo.request"><code class="name">var <span class="ident">request</span> : dict[str, typing.Any]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.DebugInfo.response"><code class="name">var <span class="ident">response</span> : dict[str, typing.Any]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.core.NeedsInputInfo"><code class="flex name class">
+<span>class <span class="ident">NeedsInputInfo</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class NeedsInputInfo(BaseModel):
+    &#34;&#34;&#34;Information when agent needs clarification.&#34;&#34;&#34;
+
+    message: str
+    field: str | None = None</code></pre>
+</details>
+<div class="desc"><p>Information when agent needs clarification.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.core.NeedsInputInfo.field"><code class="name">var <span class="ident">field</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.NeedsInputInfo.message"><code class="name">var <span class="ident">message</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.NeedsInputInfo.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.core.Protocol"><code class="flex name class">
+<span>class <span class="ident">Protocol</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Protocol(str, Enum):
+    &#34;&#34;&#34;Supported protocols.&#34;&#34;&#34;
+
+    A2A = &#34;a2a&#34;
+    MCP = &#34;mcp&#34;</code></pre>
+</details>
+<div class="desc"><p>Supported protocols.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.str</li>
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.core.Protocol.A2A"><code class="name">var <span class="ident">A2A</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Protocol.MCP"><code class="name">var <span class="ident">MCP</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.core.SubmittedInfo"><code class="flex name class">
+<span>class <span class="ident">SubmittedInfo</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SubmittedInfo(BaseModel):
+    &#34;&#34;&#34;Information about submitted async task.&#34;&#34;&#34;
+
+    webhook_url: str
+    operation_id: str</code></pre>
+</details>
+<div class="desc"><p>Information about submitted async task.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.core.SubmittedInfo.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.SubmittedInfo.operation_id"><code class="name">var <span class="ident">operation_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.SubmittedInfo.webhook_url"><code class="name">var <span class="ident">webhook_url</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.core.TaskResult"><code class="flex name class">
+<span>class <span class="ident">TaskResult</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TaskResult(BaseModel, Generic[T]):
+    &#34;&#34;&#34;Result from task execution.&#34;&#34;&#34;
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    status: TaskStatus
+    data: T | None = None
+    message: str | None = None  # Human-readable message from agent (e.g., MCP content text)
+    submitted: SubmittedInfo | None = None
+    needs_input: NeedsInputInfo | None = None
+    error: str | None = None
+    success: bool = Field(default=True)
+    metadata: dict[str, Any] | None = None
+    debug_info: DebugInfo | None = None</code></pre>
+</details>
+<div class="desc"><p>Result from task execution.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li>adcp.types.core.TaskResult[ActivateSignalResponse]</li>
+<li>adcp.types.core.TaskResult[Any]</li>
+<li>adcp.types.core.TaskResult[GetMediaBuyDeliveryResponse]</li>
+<li>adcp.types.core.TaskResult[GetProductsResponse]</li>
+<li>adcp.types.core.TaskResult[GetSignalsResponse]</li>
+<li>adcp.types.core.TaskResult[ListAuthorizedPropertiesResponse]</li>
+<li>adcp.types.core.TaskResult[ListCreativeFormatsResponse]</li>
+<li>adcp.types.core.TaskResult[ListCreativesResponse]</li>
+<li>adcp.types.core.TaskResult[PreviewCreativeResponse]</li>
+<li>adcp.types.core.TaskResult[ProvidePerformanceFeedbackResponse]</li>
+<li>adcp.types.core.TaskResult[SyncCreativesResponse]</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.core.TaskResult.data"><code class="name">var <span class="ident">data</span> : ~T | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.TaskResult.debug_info"><code class="name">var <span class="ident">debug_info</span> : <a title="adcp.types.core.DebugInfo" href="#adcp.types.core.DebugInfo">DebugInfo</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.TaskResult.error"><code class="name">var <span class="ident">error</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.TaskResult.message"><code class="name">var <span class="ident">message</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.TaskResult.metadata"><code class="name">var <span class="ident">metadata</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.TaskResult.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.TaskResult.needs_input"><code class="name">var <span class="ident">needs_input</span> : <a title="adcp.types.core.NeedsInputInfo" href="#adcp.types.core.NeedsInputInfo">NeedsInputInfo</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.TaskResult.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.core.TaskStatus" href="#adcp.types.core.TaskStatus">TaskStatus</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.TaskResult.submitted"><code class="name">var <span class="ident">submitted</span> : <a title="adcp.types.core.SubmittedInfo" href="#adcp.types.core.SubmittedInfo">SubmittedInfo</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.TaskResult.success"><code class="name">var <span class="ident">success</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.core.TaskStatus"><code class="flex name class">
+<span>class <span class="ident">TaskStatus</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TaskStatus(str, Enum):
+    &#34;&#34;&#34;Task execution status.&#34;&#34;&#34;
+
+    COMPLETED = &#34;completed&#34;
+    SUBMITTED = &#34;submitted&#34;
+    NEEDS_INPUT = &#34;needs_input&#34;
+    FAILED = &#34;failed&#34;
+    WORKING = &#34;working&#34;</code></pre>
+</details>
+<div class="desc"><p>Task execution status.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.str</li>
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.core.TaskStatus.COMPLETED"><code class="name">var <span class="ident">COMPLETED</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.TaskStatus.FAILED"><code class="name">var <span class="ident">FAILED</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.TaskStatus.NEEDS_INPUT"><code class="name">var <span class="ident">NEEDS_INPUT</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.TaskStatus.SUBMITTED"><code class="name">var <span class="ident">SUBMITTED</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.TaskStatus.WORKING"><code class="name">var <span class="ident">WORKING</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.core.WebhookMetadata"><code class="flex name class">
+<span>class <span class="ident">WebhookMetadata</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class WebhookMetadata(BaseModel):
+    &#34;&#34;&#34;Metadata passed to webhook handlers.&#34;&#34;&#34;
+
+    operation_id: str
+    agent_id: str
+    task_type: str
+    status: TaskStatus
+    sequence_number: int | None = None
+    notification_type: Literal[&#34;scheduled&#34;, &#34;final&#34;, &#34;delayed&#34;] | None = None
+    timestamp: str</code></pre>
+</details>
+<div class="desc"><p>Metadata passed to webhook handlers.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.core.WebhookMetadata.agent_id"><code class="name">var <span class="ident">agent_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.WebhookMetadata.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.WebhookMetadata.notification_type"><code class="name">var <span class="ident">notification_type</span> : Literal['scheduled', 'final', 'delayed'] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.WebhookMetadata.operation_id"><code class="name">var <span class="ident">operation_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.WebhookMetadata.sequence_number"><code class="name">var <span class="ident">sequence_number</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.WebhookMetadata.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.core.TaskStatus" href="#adcp.types.core.TaskStatus">TaskStatus</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.WebhookMetadata.task_type"><code class="name">var <span class="ident">task_type</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.WebhookMetadata.timestamp"><code class="name">var <span class="ident">timestamp</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types" href="index.html">adcp.types</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.core.Activity" href="#adcp.types.core.Activity">Activity</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.core.Activity.agent_id" href="#adcp.types.core.Activity.agent_id">agent_id</a></code></li>
+<li><code><a title="adcp.types.core.Activity.metadata" href="#adcp.types.core.Activity.metadata">metadata</a></code></li>
+<li><code><a title="adcp.types.core.Activity.model_config" href="#adcp.types.core.Activity.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.core.Activity.operation_id" href="#adcp.types.core.Activity.operation_id">operation_id</a></code></li>
+<li><code><a title="adcp.types.core.Activity.status" href="#adcp.types.core.Activity.status">status</a></code></li>
+<li><code><a title="adcp.types.core.Activity.task_type" href="#adcp.types.core.Activity.task_type">task_type</a></code></li>
+<li><code><a title="adcp.types.core.Activity.timestamp" href="#adcp.types.core.Activity.timestamp">timestamp</a></code></li>
+<li><code><a title="adcp.types.core.Activity.type" href="#adcp.types.core.Activity.type">type</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.core.ActivityType" href="#adcp.types.core.ActivityType">ActivityType</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.core.ActivityType.HANDLER_CALLED" href="#adcp.types.core.ActivityType.HANDLER_CALLED">HANDLER_CALLED</a></code></li>
+<li><code><a title="adcp.types.core.ActivityType.PROTOCOL_REQUEST" href="#adcp.types.core.ActivityType.PROTOCOL_REQUEST">PROTOCOL_REQUEST</a></code></li>
+<li><code><a title="adcp.types.core.ActivityType.PROTOCOL_RESPONSE" href="#adcp.types.core.ActivityType.PROTOCOL_RESPONSE">PROTOCOL_RESPONSE</a></code></li>
+<li><code><a title="adcp.types.core.ActivityType.STATUS_CHANGE" href="#adcp.types.core.ActivityType.STATUS_CHANGE">STATUS_CHANGE</a></code></li>
+<li><code><a title="adcp.types.core.ActivityType.WEBHOOK_RECEIVED" href="#adcp.types.core.ActivityType.WEBHOOK_RECEIVED">WEBHOOK_RECEIVED</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.core.AgentConfig" href="#adcp.types.core.AgentConfig">AgentConfig</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.core.AgentConfig.agent_uri" href="#adcp.types.core.AgentConfig.agent_uri">agent_uri</a></code></li>
+<li><code><a title="adcp.types.core.AgentConfig.auth_header" href="#adcp.types.core.AgentConfig.auth_header">auth_header</a></code></li>
+<li><code><a title="adcp.types.core.AgentConfig.auth_token" href="#adcp.types.core.AgentConfig.auth_token">auth_token</a></code></li>
+<li><code><a title="adcp.types.core.AgentConfig.auth_type" href="#adcp.types.core.AgentConfig.auth_type">auth_type</a></code></li>
+<li><code><a title="adcp.types.core.AgentConfig.debug" href="#adcp.types.core.AgentConfig.debug">debug</a></code></li>
+<li><code><a title="adcp.types.core.AgentConfig.id" href="#adcp.types.core.AgentConfig.id">id</a></code></li>
+<li><code><a title="adcp.types.core.AgentConfig.mcp_transport" href="#adcp.types.core.AgentConfig.mcp_transport">mcp_transport</a></code></li>
+<li><code><a title="adcp.types.core.AgentConfig.model_config" href="#adcp.types.core.AgentConfig.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.core.AgentConfig.protocol" href="#adcp.types.core.AgentConfig.protocol">protocol</a></code></li>
+<li><code><a title="adcp.types.core.AgentConfig.requires_auth" href="#adcp.types.core.AgentConfig.requires_auth">requires_auth</a></code></li>
+<li><code><a title="adcp.types.core.AgentConfig.timeout" href="#adcp.types.core.AgentConfig.timeout">timeout</a></code></li>
+<li><code><a title="adcp.types.core.AgentConfig.validate_agent_uri" href="#adcp.types.core.AgentConfig.validate_agent_uri">validate_agent_uri</a></code></li>
+<li><code><a title="adcp.types.core.AgentConfig.validate_auth_type" href="#adcp.types.core.AgentConfig.validate_auth_type">validate_auth_type</a></code></li>
+<li><code><a title="adcp.types.core.AgentConfig.validate_mcp_transport" href="#adcp.types.core.AgentConfig.validate_mcp_transport">validate_mcp_transport</a></code></li>
+<li><code><a title="adcp.types.core.AgentConfig.validate_timeout" href="#adcp.types.core.AgentConfig.validate_timeout">validate_timeout</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.core.DebugInfo" href="#adcp.types.core.DebugInfo">DebugInfo</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.core.DebugInfo.duration_ms" href="#adcp.types.core.DebugInfo.duration_ms">duration_ms</a></code></li>
+<li><code><a title="adcp.types.core.DebugInfo.model_config" href="#adcp.types.core.DebugInfo.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.core.DebugInfo.request" href="#adcp.types.core.DebugInfo.request">request</a></code></li>
+<li><code><a title="adcp.types.core.DebugInfo.response" href="#adcp.types.core.DebugInfo.response">response</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.core.NeedsInputInfo" href="#adcp.types.core.NeedsInputInfo">NeedsInputInfo</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.core.NeedsInputInfo.field" href="#adcp.types.core.NeedsInputInfo.field">field</a></code></li>
+<li><code><a title="adcp.types.core.NeedsInputInfo.message" href="#adcp.types.core.NeedsInputInfo.message">message</a></code></li>
+<li><code><a title="adcp.types.core.NeedsInputInfo.model_config" href="#adcp.types.core.NeedsInputInfo.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.core.Protocol" href="#adcp.types.core.Protocol">Protocol</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.core.Protocol.A2A" href="#adcp.types.core.Protocol.A2A">A2A</a></code></li>
+<li><code><a title="adcp.types.core.Protocol.MCP" href="#adcp.types.core.Protocol.MCP">MCP</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.core.SubmittedInfo" href="#adcp.types.core.SubmittedInfo">SubmittedInfo</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.core.SubmittedInfo.model_config" href="#adcp.types.core.SubmittedInfo.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.core.SubmittedInfo.operation_id" href="#adcp.types.core.SubmittedInfo.operation_id">operation_id</a></code></li>
+<li><code><a title="adcp.types.core.SubmittedInfo.webhook_url" href="#adcp.types.core.SubmittedInfo.webhook_url">webhook_url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.core.TaskResult" href="#adcp.types.core.TaskResult">TaskResult</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.core.TaskResult.data" href="#adcp.types.core.TaskResult.data">data</a></code></li>
+<li><code><a title="adcp.types.core.TaskResult.debug_info" href="#adcp.types.core.TaskResult.debug_info">debug_info</a></code></li>
+<li><code><a title="adcp.types.core.TaskResult.error" href="#adcp.types.core.TaskResult.error">error</a></code></li>
+<li><code><a title="adcp.types.core.TaskResult.message" href="#adcp.types.core.TaskResult.message">message</a></code></li>
+<li><code><a title="adcp.types.core.TaskResult.metadata" href="#adcp.types.core.TaskResult.metadata">metadata</a></code></li>
+<li><code><a title="adcp.types.core.TaskResult.model_config" href="#adcp.types.core.TaskResult.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.core.TaskResult.needs_input" href="#adcp.types.core.TaskResult.needs_input">needs_input</a></code></li>
+<li><code><a title="adcp.types.core.TaskResult.status" href="#adcp.types.core.TaskResult.status">status</a></code></li>
+<li><code><a title="adcp.types.core.TaskResult.submitted" href="#adcp.types.core.TaskResult.submitted">submitted</a></code></li>
+<li><code><a title="adcp.types.core.TaskResult.success" href="#adcp.types.core.TaskResult.success">success</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.core.TaskStatus" href="#adcp.types.core.TaskStatus">TaskStatus</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.core.TaskStatus.COMPLETED" href="#adcp.types.core.TaskStatus.COMPLETED">COMPLETED</a></code></li>
+<li><code><a title="adcp.types.core.TaskStatus.FAILED" href="#adcp.types.core.TaskStatus.FAILED">FAILED</a></code></li>
+<li><code><a title="adcp.types.core.TaskStatus.NEEDS_INPUT" href="#adcp.types.core.TaskStatus.NEEDS_INPUT">NEEDS_INPUT</a></code></li>
+<li><code><a title="adcp.types.core.TaskStatus.SUBMITTED" href="#adcp.types.core.TaskStatus.SUBMITTED">SUBMITTED</a></code></li>
+<li><code><a title="adcp.types.core.TaskStatus.WORKING" href="#adcp.types.core.TaskStatus.WORKING">WORKING</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.core.WebhookMetadata" href="#adcp.types.core.WebhookMetadata">WebhookMetadata</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.core.WebhookMetadata.agent_id" href="#adcp.types.core.WebhookMetadata.agent_id">agent_id</a></code></li>
+<li><code><a title="adcp.types.core.WebhookMetadata.model_config" href="#adcp.types.core.WebhookMetadata.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.core.WebhookMetadata.notification_type" href="#adcp.types.core.WebhookMetadata.notification_type">notification_type</a></code></li>
+<li><code><a title="adcp.types.core.WebhookMetadata.operation_id" href="#adcp.types.core.WebhookMetadata.operation_id">operation_id</a></code></li>
+<li><code><a title="adcp.types.core.WebhookMetadata.sequence_number" href="#adcp.types.core.WebhookMetadata.sequence_number">sequence_number</a></code></li>
+<li><code><a title="adcp.types.core.WebhookMetadata.status" href="#adcp.types.core.WebhookMetadata.status">status</a></code></li>
+<li><code><a title="adcp.types.core.WebhookMetadata.task_type" href="#adcp.types.core.WebhookMetadata.task_type">task_type</a></code></li>
+<li><code><a title="adcp.types.core.WebhookMetadata.timestamp" href="#adcp.types.core.WebhookMetadata.timestamp">timestamp</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

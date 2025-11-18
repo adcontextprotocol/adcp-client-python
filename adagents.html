@@ -1,0 +1,953 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.adagents API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.adagents</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="adcp.adagents.domain_matches"><code class="name flex">
+<span>def <span class="ident">domain_matches</span></span>(<span>property_domain: str, agent_domain_pattern: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def domain_matches(property_domain: str, agent_domain_pattern: str) -&gt; bool:
+    &#34;&#34;&#34;Check if domains match per AdCP rules.
+
+    Rules:
+    - Exact match always succeeds
+    - &#39;example.com&#39; matches www.example.com, m.example.com (common subdomains)
+    - &#39;subdomain.example.com&#39; matches that specific subdomain only
+    - &#39;*.example.com&#39; matches all subdomains
+
+    Args:
+        property_domain: Domain from property
+        agent_domain_pattern: Domain pattern from adagents.json
+
+    Returns:
+        True if domains match per AdCP rules
+    &#34;&#34;&#34;
+    # Normalize both domains for comparison
+    try:
+        property_domain = _normalize_domain(property_domain)
+        agent_domain_pattern = _normalize_domain(agent_domain_pattern)
+    except AdagentsValidationError:
+        # Invalid domain format - no match
+        return False
+
+    # Exact match
+    if property_domain == agent_domain_pattern:
+        return True
+
+    # Wildcard pattern (*.example.com)
+    if agent_domain_pattern.startswith(&#34;*.&#34;):
+        base_domain = agent_domain_pattern[2:]
+        return property_domain.endswith(f&#34;.{base_domain}&#34;)
+
+    # Bare domain matches common subdomains (www, m)
+    # If agent pattern is a bare domain (no subdomain), match www/m subdomains
+    if &#34;.&#34; in agent_domain_pattern and not agent_domain_pattern.startswith(&#34;www.&#34;):
+        # Check if this looks like a bare domain (e.g., example.com)
+        parts = agent_domain_pattern.split(&#34;.&#34;)
+        if len(parts) == 2:  # Looks like bare domain
+            common_subdomains = [&#34;www&#34;, &#34;m&#34;]
+            for subdomain in common_subdomains:
+                if property_domain == f&#34;{subdomain}.{agent_domain_pattern}&#34;:
+                    return True
+
+    return False</code></pre>
+</details>
+<div class="desc"><p>Check if domains match per AdCP rules.</p>
+<p>Rules:
+- Exact match always succeeds
+- 'example.com' matches www.example.com, m.example.com (common subdomains)
+- 'subdomain.example.com' matches that specific subdomain only
+- '*.example.com' matches all subdomains</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>property_domain</code></strong></dt>
+<dd>Domain from property</dd>
+<dt><strong><code>agent_domain_pattern</code></strong></dt>
+<dd>Domain pattern from adagents.json</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>True if domains match per AdCP rules</p></div>
+</dd>
+<dt id="adcp.adagents.fetch_adagents"><code class="name flex">
+<span>async def <span class="ident">fetch_adagents</span></span>(<span>publisher_domain: str,<br>timeout: float = 10.0,<br>user_agent: str = 'AdCP-Client/1.0',<br>client: httpx.AsyncClient | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def fetch_adagents(
+    publisher_domain: str,
+    timeout: float = 10.0,
+    user_agent: str = &#34;AdCP-Client/1.0&#34;,
+    client: httpx.AsyncClient | None = None,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Fetch and parse adagents.json from publisher domain.
+
+    Args:
+        publisher_domain: Domain hosting the adagents.json file
+        timeout: Request timeout in seconds
+        user_agent: User-Agent header for HTTP request
+        client: Optional httpx.AsyncClient for connection pooling.
+            If provided, caller is responsible for client lifecycle.
+            If None, a new client is created for this request.
+
+    Returns:
+        Parsed adagents.json data
+
+    Raises:
+        AdagentsNotFoundError: If adagents.json not found (404)
+        AdagentsValidationError: If JSON is invalid or malformed
+        AdagentsTimeoutError: If request times out
+
+    Notes:
+        For production use with multiple requests, pass a shared httpx.AsyncClient
+        to enable connection pooling and improve performance.
+    &#34;&#34;&#34;
+    # Validate and normalize domain for security
+    publisher_domain = _validate_publisher_domain(publisher_domain)
+
+    # Construct URL
+    url = f&#34;https://{publisher_domain}/.well-known/adagents.json&#34;
+
+    try:
+        # Use provided client or create a new one
+        if client is not None:
+            # Reuse provided client (connection pooling)
+            response = await client.get(
+                url,
+                headers={&#34;User-Agent&#34;: user_agent},
+                timeout=timeout,
+                follow_redirects=True,
+            )
+        else:
+            # Create new client for single request
+            async with httpx.AsyncClient() as new_client:
+                response = await new_client.get(
+                    url,
+                    headers={&#34;User-Agent&#34;: user_agent},
+                    timeout=timeout,
+                    follow_redirects=True,
+                )
+
+        # Process response (same for both paths)
+        if response.status_code == 404:
+            raise AdagentsNotFoundError(publisher_domain)
+
+        if response.status_code != 200:
+            raise AdagentsValidationError(
+                f&#34;Failed to fetch adagents.json: HTTP {response.status_code}&#34;
+            )
+
+        # Parse JSON
+        try:
+            data = response.json()
+        except Exception as e:
+            raise AdagentsValidationError(f&#34;Invalid JSON in adagents.json: {e}&#34;) from e
+
+        # Validate basic structure
+        if not isinstance(data, dict):
+            raise AdagentsValidationError(&#34;adagents.json must be a JSON object&#34;)
+
+        if &#34;authorized_agents&#34; not in data:
+            raise AdagentsValidationError(&#34;adagents.json must have &#39;authorized_agents&#39; field&#34;)
+
+        if not isinstance(data[&#34;authorized_agents&#34;], list):
+            raise AdagentsValidationError(&#34;&#39;authorized_agents&#39; must be an array&#34;)
+
+        # Validate mutual exclusivity constraints
+        try:
+            validate_adagents(data)
+        except ValidationError as e:
+            raise AdagentsValidationError(f&#34;Invalid adagents.json structure: {e}&#34;) from e
+
+        return data
+
+    except httpx.TimeoutException as e:
+        raise AdagentsTimeoutError(publisher_domain, timeout) from e
+    except httpx.RequestError as e:
+        raise AdagentsValidationError(f&#34;Failed to fetch adagents.json: {e}&#34;) from e</code></pre>
+</details>
+<div class="desc"><p>Fetch and parse adagents.json from publisher domain.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>publisher_domain</code></strong></dt>
+<dd>Domain hosting the adagents.json file</dd>
+<dt><strong><code>timeout</code></strong></dt>
+<dd>Request timeout in seconds</dd>
+<dt><strong><code>user_agent</code></strong></dt>
+<dd>User-Agent header for HTTP request</dd>
+<dt><strong><code>client</code></strong></dt>
+<dd>Optional httpx.AsyncClient for connection pooling.
+If provided, caller is responsible for client lifecycle.
+If None, a new client is created for this request.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Parsed adagents.json data</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>AdagentsNotFoundError</code></dt>
+<dd>If adagents.json not found (404)</dd>
+<dt><code>AdagentsValidationError</code></dt>
+<dd>If JSON is invalid or malformed</dd>
+<dt><code>AdagentsTimeoutError</code></dt>
+<dd>If request times out</dd>
+</dl>
+<h2 id="notes">Notes</h2>
+<p>For production use with multiple requests, pass a shared httpx.AsyncClient
+to enable connection pooling and improve performance.</p></div>
+</dd>
+<dt id="adcp.adagents.fetch_agent_authorizations"><code class="name flex">
+<span>async def <span class="ident">fetch_agent_authorizations</span></span>(<span>agent_url: str,<br>publisher_domains: list[str],<br>timeout: float = 10.0,<br>client: httpx.AsyncClient | None = None) ‑> dict[str, <a title="adcp.adagents.AuthorizationContext" href="#adcp.adagents.AuthorizationContext">AuthorizationContext</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def fetch_agent_authorizations(
+    agent_url: str,
+    publisher_domains: list[str],
+    timeout: float = 10.0,
+    client: httpx.AsyncClient | None = None,
+) -&gt; dict[str, AuthorizationContext]:
+    &#34;&#34;&#34;Fetch authorization contexts by checking publisher adagents.json files.
+
+    This function discovers what publishers have authorized your agent by fetching
+    their adagents.json files from the .well-known directory and extracting the
+    properties your agent can access.
+
+    This is the &#34;pull&#34; approach - you query publishers to see if they&#39;ve authorized you.
+    For the &#34;push&#34; approach where the agent tells you what it&#39;s authorized for,
+    use the agent&#39;s list_authorized_properties endpoint via ADCPClient.
+
+    Args:
+        agent_url: URL of your sales agent
+        publisher_domains: List of publisher domains to check (e.g., [&#34;nytimes.com&#34;, &#34;wsj.com&#34;])
+        timeout: Request timeout in seconds for each fetch
+        client: Optional httpx.AsyncClient for connection pooling
+
+    Returns:
+        Dictionary mapping publisher domain to AuthorizationContext.
+        Only includes domains where the agent is authorized.
+
+    Example:
+        &gt;&gt;&gt; # &#34;Pull&#34; approach - check what publishers have authorized you
+        &gt;&gt;&gt; contexts = await fetch_agent_authorizations(
+        ...     &#34;https://our-sales-agent.com&#34;,
+        ...     [&#34;nytimes.com&#34;, &#34;wsj.com&#34;, &#34;cnn.com&#34;]
+        ... )
+        &gt;&gt;&gt; for domain, ctx in contexts.items():
+        ...     print(f&#34;{domain}:&#34;)
+        ...     print(f&#34;  Property IDs: {ctx.property_ids}&#34;)
+        ...     print(f&#34;  Tags: {ctx.property_tags}&#34;)
+
+    See Also:
+        ADCPClient.list_authorized_properties: &#34;Push&#34; approach using the agent&#39;s API
+
+    Notes:
+        - Silently skips domains where adagents.json is not found or invalid
+        - Only returns domains where the agent is explicitly authorized
+        - For production use with many domains, pass a shared httpx.AsyncClient
+          to enable connection pooling
+    &#34;&#34;&#34;
+    import asyncio
+
+    # Create tasks to fetch all adagents.json files in parallel
+    async def fetch_authorization_for_domain(
+        domain: str,
+    ) -&gt; tuple[str, AuthorizationContext | None]:
+        &#34;&#34;&#34;Fetch authorization context for a single domain.&#34;&#34;&#34;
+        try:
+            adagents_data = await fetch_adagents(domain, timeout=timeout, client=client)
+
+            # Check if agent is authorized
+            if not verify_agent_authorization(adagents_data, agent_url):
+                return (domain, None)
+
+            # Get properties for this agent
+            properties = get_properties_by_agent(adagents_data, agent_url)
+
+            # Create authorization context
+            return (domain, AuthorizationContext(properties))
+
+        except (AdagentsNotFoundError, AdagentsValidationError, AdagentsTimeoutError):
+            # Silently skip domains with missing or invalid adagents.json
+            return (domain, None)
+
+    # Fetch all domains in parallel
+    tasks = [fetch_authorization_for_domain(domain) for domain in publisher_domains]
+    results = await asyncio.gather(*tasks)
+
+    # Build result dictionary, filtering out None values
+    return {domain: ctx for domain, ctx in results if ctx is not None}</code></pre>
+</details>
+<div class="desc"><p>Fetch authorization contexts by checking publisher adagents.json files.</p>
+<p>This function discovers what publishers have authorized your agent by fetching
+their adagents.json files from the .well-known directory and extracting the
+properties your agent can access.</p>
+<p>This is the "pull" approach - you query publishers to see if they've authorized you.
+For the "push" approach where the agent tells you what it's authorized for,
+use the agent's list_authorized_properties endpoint via ADCPClient.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>agent_url</code></strong></dt>
+<dd>URL of your sales agent</dd>
+<dt><strong><code>publisher_domains</code></strong></dt>
+<dd>List of publisher domains to check (e.g., ["nytimes.com", "wsj.com"])</dd>
+<dt><strong><code>timeout</code></strong></dt>
+<dd>Request timeout in seconds for each fetch</dd>
+<dt><strong><code>client</code></strong></dt>
+<dd>Optional httpx.AsyncClient for connection pooling</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Dictionary mapping publisher domain to AuthorizationContext.
+Only includes domains where the agent is authorized.</p>
+<h2 id="example">Example</h2>
+<pre><code class="language-python-repl">&gt;&gt;&gt; # &quot;Pull&quot; approach - check what publishers have authorized you
+&gt;&gt;&gt; contexts = await fetch_agent_authorizations(
+...     &quot;https://our-sales-agent.com&quot;,
+...     [&quot;nytimes.com&quot;, &quot;wsj.com&quot;, &quot;cnn.com&quot;]
+... )
+&gt;&gt;&gt; for domain, ctx in contexts.items():
+...     print(f&quot;{domain}:&quot;)
+...     print(f&quot;  Property IDs: {ctx.property_ids}&quot;)
+...     print(f&quot;  Tags: {ctx.property_tags}&quot;)
+</code></pre>
+<p>See Also:
+ADCPClient.list_authorized_properties: "Push" approach using the agent's API</p>
+<h2 id="notes">Notes</h2>
+<ul>
+<li>Silently skips domains where adagents.json is not found or invalid</li>
+<li>Only returns domains where the agent is explicitly authorized</li>
+<li>For production use with many domains, pass a shared httpx.AsyncClient
+to enable connection pooling</li>
+</ul></div>
+</dd>
+<dt id="adcp.adagents.get_all_properties"><code class="name flex">
+<span>def <span class="ident">get_all_properties</span></span>(<span>adagents_data: dict[str, Any]) ‑> list[dict[str, typing.Any]]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_all_properties(adagents_data: dict[str, Any]) -&gt; list[dict[str, Any]]:
+    &#34;&#34;&#34;Extract all properties from adagents.json data.
+
+    Args:
+        adagents_data: Parsed adagents.json data
+
+    Returns:
+        List of all properties across all authorized agents, with agent_url added
+
+    Raises:
+        AdagentsValidationError: If adagents_data is malformed
+    &#34;&#34;&#34;
+    if not isinstance(adagents_data, dict):
+        raise AdagentsValidationError(&#34;adagents_data must be a dictionary&#34;)
+
+    authorized_agents = adagents_data.get(&#34;authorized_agents&#34;)
+    if not isinstance(authorized_agents, list):
+        raise AdagentsValidationError(&#34;adagents.json must have &#39;authorized_agents&#39; array&#34;)
+
+    properties = []
+    for agent in authorized_agents:
+        if not isinstance(agent, dict):
+            continue
+
+        agent_url = agent.get(&#34;url&#34;, &#34;&#34;)
+        if not agent_url:
+            continue
+
+        agent_properties = agent.get(&#34;properties&#34;, [])
+        if not isinstance(agent_properties, list):
+            continue
+
+        # Add each property with the agent URL for reference
+        for prop in agent_properties:
+            if isinstance(prop, dict):
+                # Create a copy and add agent_url
+                prop_with_agent = {**prop, &#34;agent_url&#34;: agent_url}
+                properties.append(prop_with_agent)
+
+    return properties</code></pre>
+</details>
+<div class="desc"><p>Extract all properties from adagents.json data.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>adagents_data</code></strong></dt>
+<dd>Parsed adagents.json data</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>List of all properties across all authorized agents, with agent_url added</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>AdagentsValidationError</code></dt>
+<dd>If adagents_data is malformed</dd>
+</dl></div>
+</dd>
+<dt id="adcp.adagents.get_all_tags"><code class="name flex">
+<span>def <span class="ident">get_all_tags</span></span>(<span>adagents_data: dict[str, Any]) ‑> set[str]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_all_tags(adagents_data: dict[str, Any]) -&gt; set[str]:
+    &#34;&#34;&#34;Extract all unique tags from properties in adagents.json data.
+
+    Args:
+        adagents_data: Parsed adagents.json data
+
+    Returns:
+        Set of all unique tags across all properties
+
+    Raises:
+        AdagentsValidationError: If adagents_data is malformed
+    &#34;&#34;&#34;
+    properties = get_all_properties(adagents_data)
+    tags = set()
+
+    for prop in properties:
+        prop_tags = prop.get(&#34;tags&#34;, [])
+        if isinstance(prop_tags, list):
+            for tag in prop_tags:
+                if isinstance(tag, str):
+                    tags.add(tag)
+
+    return tags</code></pre>
+</details>
+<div class="desc"><p>Extract all unique tags from properties in adagents.json data.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>adagents_data</code></strong></dt>
+<dd>Parsed adagents.json data</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Set of all unique tags across all properties</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>AdagentsValidationError</code></dt>
+<dd>If adagents_data is malformed</dd>
+</dl></div>
+</dd>
+<dt id="adcp.adagents.get_properties_by_agent"><code class="name flex">
+<span>def <span class="ident">get_properties_by_agent</span></span>(<span>adagents_data: dict[str, Any], agent_url: str) ‑> list[dict[str, typing.Any]]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_properties_by_agent(adagents_data: dict[str, Any], agent_url: str) -&gt; list[dict[str, Any]]:
+    &#34;&#34;&#34;Get all properties authorized for a specific agent.
+
+    Args:
+        adagents_data: Parsed adagents.json data
+        agent_url: URL of the agent to filter by
+
+    Returns:
+        List of properties for the specified agent (empty if agent not found or no properties)
+
+    Raises:
+        AdagentsValidationError: If adagents_data is malformed
+    &#34;&#34;&#34;
+    if not isinstance(adagents_data, dict):
+        raise AdagentsValidationError(&#34;adagents_data must be a dictionary&#34;)
+
+    authorized_agents = adagents_data.get(&#34;authorized_agents&#34;)
+    if not isinstance(authorized_agents, list):
+        raise AdagentsValidationError(&#34;adagents.json must have &#39;authorized_agents&#39; array&#34;)
+
+    # Normalize the agent URL for comparison
+    normalized_agent_url = normalize_url(agent_url)
+
+    for agent in authorized_agents:
+        if not isinstance(agent, dict):
+            continue
+
+        agent_url_from_json = agent.get(&#34;url&#34;, &#34;&#34;)
+        if not agent_url_from_json:
+            continue
+
+        # Match agent URL (protocol-agnostic)
+        if normalize_url(agent_url_from_json) != normalized_agent_url:
+            continue
+
+        # Found the agent - return their properties
+        properties = agent.get(&#34;properties&#34;, [])
+        if not isinstance(properties, list):
+            return []
+
+        return [p for p in properties if isinstance(p, dict)]
+
+    return []</code></pre>
+</details>
+<div class="desc"><p>Get all properties authorized for a specific agent.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>adagents_data</code></strong></dt>
+<dd>Parsed adagents.json data</dd>
+<dt><strong><code>agent_url</code></strong></dt>
+<dd>URL of the agent to filter by</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>List of properties for the specified agent (empty if agent not found or no properties)</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>AdagentsValidationError</code></dt>
+<dd>If adagents_data is malformed</dd>
+</dl></div>
+</dd>
+<dt id="adcp.adagents.identifiers_match"><code class="name flex">
+<span>def <span class="ident">identifiers_match</span></span>(<span>property_identifiers: list[dict[str, str]],<br>agent_identifiers: list[dict[str, str]]) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def identifiers_match(
+    property_identifiers: list[dict[str, str]],
+    agent_identifiers: list[dict[str, str]],
+) -&gt; bool:
+    &#34;&#34;&#34;Check if any property identifier matches agent&#39;s authorized identifiers.
+
+    Args:
+        property_identifiers: Identifiers from property
+            (e.g., [{&#34;type&#34;: &#34;domain&#34;, &#34;value&#34;: &#34;cnn.com&#34;}])
+        agent_identifiers: Identifiers from adagents.json
+
+    Returns:
+        True if any identifier matches
+
+    Notes:
+        - Domain identifiers use AdCP domain matching rules
+        - Other identifiers (bundle_id, roku_store_id, etc.) require exact match
+    &#34;&#34;&#34;
+    for prop_id in property_identifiers:
+        prop_type = prop_id.get(&#34;type&#34;, &#34;&#34;)
+        prop_value = prop_id.get(&#34;value&#34;, &#34;&#34;)
+
+        for agent_id in agent_identifiers:
+            agent_type = agent_id.get(&#34;type&#34;, &#34;&#34;)
+            agent_value = agent_id.get(&#34;value&#34;, &#34;&#34;)
+
+            # Type must match
+            if prop_type != agent_type:
+                continue
+
+            # Domain identifiers use special matching rules
+            if prop_type == &#34;domain&#34;:
+                if domain_matches(prop_value, agent_value):
+                    return True
+            else:
+                # Other identifier types require exact match
+                if prop_value == agent_value:
+                    return True
+
+    return False</code></pre>
+</details>
+<div class="desc"><p>Check if any property identifier matches agent's authorized identifiers.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>property_identifiers</code></strong></dt>
+<dd>Identifiers from property
+(e.g., [{"type": "domain", "value": "cnn.com"}])</dd>
+<dt><strong><code>agent_identifiers</code></strong></dt>
+<dd>Identifiers from adagents.json</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>True if any identifier matches</p>
+<h2 id="notes">Notes</h2>
+<ul>
+<li>Domain identifiers use AdCP domain matching rules</li>
+<li>Other identifiers (bundle_id, roku_store_id, etc.) require exact match</li>
+</ul></div>
+</dd>
+<dt id="adcp.adagents.normalize_url"><code class="name flex">
+<span>def <span class="ident">normalize_url</span></span>(<span>url: str) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def normalize_url(url: str) -&gt; str:
+    &#34;&#34;&#34;Normalize URL by removing protocol and trailing slash.
+
+    Args:
+        url: URL to normalize
+
+    Returns:
+        Normalized URL (domain/path without protocol or trailing slash)
+    &#34;&#34;&#34;
+    parsed = urlparse(url)
+    normalized = parsed.netloc + parsed.path
+    return normalized.rstrip(&#34;/&#34;)</code></pre>
+</details>
+<div class="desc"><p>Normalize URL by removing protocol and trailing slash.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>url</code></strong></dt>
+<dd>URL to normalize</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Normalized URL (domain/path without protocol or trailing slash)</p></div>
+</dd>
+<dt id="adcp.adagents.verify_agent_authorization"><code class="name flex">
+<span>def <span class="ident">verify_agent_authorization</span></span>(<span>adagents_data: dict[str, Any],<br>agent_url: str,<br>property_type: str | None = None,<br>property_identifiers: list[dict[str, str]] | None = None) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def verify_agent_authorization(
+    adagents_data: dict[str, Any],
+    agent_url: str,
+    property_type: str | None = None,
+    property_identifiers: list[dict[str, str]] | None = None,
+) -&gt; bool:
+    &#34;&#34;&#34;Check if agent is authorized for a property.
+
+    Args:
+        adagents_data: Parsed adagents.json data
+        agent_url: URL of the sales agent to verify
+        property_type: Type of property (website, app, etc.) - optional
+        property_identifiers: List of identifiers to match - optional
+
+    Returns:
+        True if agent is authorized, False otherwise
+
+    Raises:
+        AdagentsValidationError: If adagents_data is malformed
+
+    Notes:
+        - If property_type/identifiers are None, checks if agent is authorized
+          for ANY property on this domain
+        - Implements AdCP domain matching rules
+        - Agent URLs are matched ignoring protocol and trailing slash
+    &#34;&#34;&#34;
+    # Validate structure
+    if not isinstance(adagents_data, dict):
+        raise AdagentsValidationError(&#34;adagents_data must be a dictionary&#34;)
+
+    authorized_agents = adagents_data.get(&#34;authorized_agents&#34;)
+    if not isinstance(authorized_agents, list):
+        raise AdagentsValidationError(&#34;adagents.json must have &#39;authorized_agents&#39; array&#34;)
+
+    # Normalize the agent URL for comparison
+    normalized_agent_url = normalize_url(agent_url)
+
+    # Check each authorized agent
+    for agent in authorized_agents:
+        if not isinstance(agent, dict):
+            continue
+
+        agent_url_from_json = agent.get(&#34;url&#34;, &#34;&#34;)
+        if not agent_url_from_json:
+            continue
+
+        # Match agent URL (protocol-agnostic)
+        if normalize_url(agent_url_from_json) != normalized_agent_url:
+            continue
+
+        # Found matching agent - now check properties
+        properties = agent.get(&#34;properties&#34;)
+
+        # If properties field is missing or empty, agent is authorized for all properties
+        if properties is None or (isinstance(properties, list) and len(properties) == 0):
+            return True
+
+        # If no property filters specified, we found the agent - authorized
+        if property_type is None and property_identifiers is None:
+            return True
+
+        # Check specific property authorization
+        if isinstance(properties, list):
+            for prop in properties:
+                if not isinstance(prop, dict):
+                    continue
+
+                # Check property type if specified
+                if property_type is not None:
+                    prop_type = prop.get(&#34;property_type&#34;, &#34;&#34;)
+                    if prop_type != property_type:
+                        continue
+
+                # Check identifiers if specified
+                if property_identifiers is not None:
+                    prop_identifiers = prop.get(&#34;identifiers&#34;, [])
+                    if not isinstance(prop_identifiers, list):
+                        continue
+
+                    if identifiers_match(property_identifiers, prop_identifiers):
+                        return True
+                else:
+                    # Property type matched and no identifier check needed
+                    return True
+
+    return False</code></pre>
+</details>
+<div class="desc"><p>Check if agent is authorized for a property.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>adagents_data</code></strong></dt>
+<dd>Parsed adagents.json data</dd>
+<dt><strong><code>agent_url</code></strong></dt>
+<dd>URL of the sales agent to verify</dd>
+<dt><strong><code>property_type</code></strong></dt>
+<dd>Type of property (website, app, etc.) - optional</dd>
+<dt><strong><code>property_identifiers</code></strong></dt>
+<dd>List of identifiers to match - optional</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>True if agent is authorized, False otherwise</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>AdagentsValidationError</code></dt>
+<dd>If adagents_data is malformed</dd>
+</dl>
+<h2 id="notes">Notes</h2>
+<ul>
+<li>If property_type/identifiers are None, checks if agent is authorized
+for ANY property on this domain</li>
+<li>Implements AdCP domain matching rules</li>
+<li>Agent URLs are matched ignoring protocol and trailing slash</li>
+</ul></div>
+</dd>
+<dt id="adcp.adagents.verify_agent_for_property"><code class="name flex">
+<span>async def <span class="ident">verify_agent_for_property</span></span>(<span>publisher_domain: str,<br>agent_url: str,<br>property_identifiers: list[dict[str, str]],<br>property_type: str | None = None,<br>timeout: float = 10.0,<br>client: httpx.AsyncClient | None = None) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def verify_agent_for_property(
+    publisher_domain: str,
+    agent_url: str,
+    property_identifiers: list[dict[str, str]],
+    property_type: str | None = None,
+    timeout: float = 10.0,
+    client: httpx.AsyncClient | None = None,
+) -&gt; bool:
+    &#34;&#34;&#34;Convenience wrapper to fetch adagents.json and verify authorization in one call.
+
+    Args:
+        publisher_domain: Domain hosting the adagents.json file
+        agent_url: URL of the sales agent to verify
+        property_identifiers: List of identifiers to match
+        property_type: Type of property (website, app, etc.) - optional
+        timeout: Request timeout in seconds
+        client: Optional httpx.AsyncClient for connection pooling
+
+    Returns:
+        True if agent is authorized, False otherwise
+
+    Raises:
+        AdagentsNotFoundError: If adagents.json not found (404)
+        AdagentsValidationError: If JSON is invalid or malformed
+        AdagentsTimeoutError: If request times out
+    &#34;&#34;&#34;
+    adagents_data = await fetch_adagents(publisher_domain, timeout=timeout, client=client)
+    return verify_agent_authorization(
+        adagents_data=adagents_data,
+        agent_url=agent_url,
+        property_type=property_type,
+        property_identifiers=property_identifiers,
+    )</code></pre>
+</details>
+<div class="desc"><p>Convenience wrapper to fetch adagents.json and verify authorization in one call.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>publisher_domain</code></strong></dt>
+<dd>Domain hosting the adagents.json file</dd>
+<dt><strong><code>agent_url</code></strong></dt>
+<dd>URL of the sales agent to verify</dd>
+<dt><strong><code>property_identifiers</code></strong></dt>
+<dd>List of identifiers to match</dd>
+<dt><strong><code>property_type</code></strong></dt>
+<dd>Type of property (website, app, etc.) - optional</dd>
+<dt><strong><code>timeout</code></strong></dt>
+<dd>Request timeout in seconds</dd>
+<dt><strong><code>client</code></strong></dt>
+<dd>Optional httpx.AsyncClient for connection pooling</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>True if agent is authorized, False otherwise</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>AdagentsNotFoundError</code></dt>
+<dd>If adagents.json not found (404)</dd>
+<dt><code>AdagentsValidationError</code></dt>
+<dd>If JSON is invalid or malformed</dd>
+<dt><code>AdagentsTimeoutError</code></dt>
+<dd>If request times out</dd>
+</dl></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.adagents.AuthorizationContext"><code class="flex name class">
+<span>class <span class="ident">AuthorizationContext</span></span>
+<span>(</span><span>properties: list[dict[str, Any]])</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AuthorizationContext:
+    &#34;&#34;&#34;Authorization context for a publisher domain.
+
+    Attributes:
+        property_ids: List of property IDs the agent is authorized for
+        property_tags: List of property tags the agent is authorized for
+        raw_properties: Raw property data from adagents.json
+    &#34;&#34;&#34;
+
+    def __init__(self, properties: list[dict[str, Any]]):
+        &#34;&#34;&#34;Initialize from list of properties.
+
+        Args:
+            properties: List of property dictionaries from adagents.json
+        &#34;&#34;&#34;
+        self.property_ids: list[str] = []
+        self.property_tags: list[str] = []
+        self.raw_properties = properties
+
+        # Extract property IDs and tags
+        for prop in properties:
+            if not isinstance(prop, dict):
+                continue
+
+            # Extract property ID
+            prop_id = prop.get(&#34;id&#34;)
+            if prop_id and isinstance(prop_id, str):
+                self.property_ids.append(prop_id)
+
+            # Extract tags
+            tags = prop.get(&#34;tags&#34;, [])
+            if isinstance(tags, list):
+                for tag in tags:
+                    if isinstance(tag, str) and tag not in self.property_tags:
+                        self.property_tags.append(tag)
+
+    def __repr__(self) -&gt; str:
+        return (
+            f&#34;AuthorizationContext(&#34;
+            f&#34;property_ids={self.property_ids}, &#34;
+            f&#34;property_tags={self.property_tags})&#34;
+        )</code></pre>
+</details>
+<div class="desc"><p>Authorization context for a publisher domain.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>property_ids</code></strong></dt>
+<dd>List of property IDs the agent is authorized for</dd>
+<dt><strong><code>property_tags</code></strong></dt>
+<dd>List of property tags the agent is authorized for</dd>
+<dt><strong><code>raw_properties</code></strong></dt>
+<dd>Raw property data from adagents.json</dd>
+</dl>
+<p>Initialize from list of properties.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>properties</code></strong></dt>
+<dd>List of property dictionaries from adagents.json</dd>
+</dl></div>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp" href="index.html">adcp</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="adcp.adagents.domain_matches" href="#adcp.adagents.domain_matches">domain_matches</a></code></li>
+<li><code><a title="adcp.adagents.fetch_adagents" href="#adcp.adagents.fetch_adagents">fetch_adagents</a></code></li>
+<li><code><a title="adcp.adagents.fetch_agent_authorizations" href="#adcp.adagents.fetch_agent_authorizations">fetch_agent_authorizations</a></code></li>
+<li><code><a title="adcp.adagents.get_all_properties" href="#adcp.adagents.get_all_properties">get_all_properties</a></code></li>
+<li><code><a title="adcp.adagents.get_all_tags" href="#adcp.adagents.get_all_tags">get_all_tags</a></code></li>
+<li><code><a title="adcp.adagents.get_properties_by_agent" href="#adcp.adagents.get_properties_by_agent">get_properties_by_agent</a></code></li>
+<li><code><a title="adcp.adagents.identifiers_match" href="#adcp.adagents.identifiers_match">identifiers_match</a></code></li>
+<li><code><a title="adcp.adagents.normalize_url" href="#adcp.adagents.normalize_url">normalize_url</a></code></li>
+<li><code><a title="adcp.adagents.verify_agent_authorization" href="#adcp.adagents.verify_agent_authorization">verify_agent_authorization</a></code></li>
+<li><code><a title="adcp.adagents.verify_agent_for_property" href="#adcp.adagents.verify_agent_for_property">verify_agent_for_property</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.adagents.AuthorizationContext" href="#adcp.adagents.AuthorizationContext">AuthorizationContext</a></code></h4>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

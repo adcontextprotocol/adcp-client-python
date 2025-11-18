@@ -1,0 +1,2662 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.aliases API documentation</title>
+<meta name="description" content="Semantic type aliases for generated AdCP types …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.aliases</code></h1>
+</header>
+<section id="section-intro">
+<p>Semantic type aliases for generated AdCP types.</p>
+<p>This module provides user-friendly aliases for generated types where the
+auto-generated names don't match user expectations from reading the spec.</p>
+<p>The code generator (datamodel-code-generator) creates numbered suffixes for
+discriminated union variants (e.g., Response1, Response2), but users expect
+semantic names (e.g., SuccessResponse, ErrorResponse).</p>
+<p>Categories of aliases:</p>
+<ol>
+<li>Discriminated Union Response Variants</li>
+<li>Success/Error cases for API responses</li>
+<li>
+<p>Named to match the semantic meaning from the spec</p>
+</li>
+<li>
+<p>Preview/Render Types</p>
+</li>
+<li>Input/Output/Request/Response variants</li>
+<li>
+<p>Numbered types mapped to their semantic purpose</p>
+</li>
+<li>
+<p>Activation Keys</p>
+</li>
+<li>Signal activation key variants</li>
+</ol>
+<p>DO NOT EDIT the generated types directly - they are regenerated from schemas.
+Add aliases here for any types where the generated name is unclear.</p>
+<p>Validation:
+This module will raise ImportError at import time if any of the referenced
+generated types do not exist. This ensures that schema changes are caught
+immediately rather than at runtime when users try to use the aliases.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.aliases.ActivateSignalResponse1"><code class="flex name class">
+<span>class <span class="ident">ActivateSignalSuccessResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ActivateSignalResponse1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
+        ),
+    ] = None
+    deployments: Annotated[
+        list[deployment.Deployment1 | deployment.Deployment2],
+        Field(description=&#39;Array of deployment results for each destination&#39;),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.ActivateSignalResponse1.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ActivateSignalResponse1.deployments"><code class="name">var <span class="ident">deployments</span> : list[<a title="adcp.types.generated_poc.deployment.Deployment1" href="generated_poc/deployment.html#adcp.types.generated_poc.deployment.Deployment1">Deployment1</a> | <a title="adcp.types.generated_poc.deployment.Deployment2" href="generated_poc/deployment.html#adcp.types.generated_poc.deployment.Deployment2">Deployment2</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ActivateSignalResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.ActivateSignalResponse2"><code class="flex name class">
+<span>class <span class="ident">ActivateSignalErrorResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ActivateSignalResponse2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
+        ),
+    ] = None
+    errors: Annotated[
+        list[error.Error],
+        Field(
+            description=&#39;Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)&#39;,
+            min_length=1,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.ActivateSignalResponse2.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ActivateSignalResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.error.Error" href="generated_poc/error.html#adcp.types.generated_poc.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ActivateSignalResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.ActivationKey1"><code class="flex name class">
+<span>class <span class="ident">PropertyIdActivationKey</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ActivationKey1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    segment_id: Annotated[
+        str,
+        Field(description=&#39;The platform-specific segment identifier to use in campaign targeting&#39;),
+    ]
+    type: Annotated[Literal[&#39;segment_id&#39;], Field(description=&#39;Segment ID based targeting&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.ActivationKey1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ActivationKey1.segment_id"><code class="name">var <span class="ident">segment_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ActivationKey1.type"><code class="name">var <span class="ident">type</span> : Literal['segment_id']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.ActivationKey2"><code class="flex name class">
+<span>class <span class="ident">PropertyTagActivationKey</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ActivationKey2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    key: Annotated[str, Field(description=&#39;The targeting parameter key&#39;)]
+    type: Annotated[Literal[&#39;key_value&#39;], Field(description=&#39;Key-value pair based targeting&#39;)]
+    value: Annotated[str, Field(description=&#39;The targeting parameter value&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.ActivationKey2.key"><code class="name">var <span class="ident">key</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ActivationKey2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ActivationKey2.type"><code class="name">var <span class="ident">type</span> : Literal['key_value']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ActivationKey2.value"><code class="name">var <span class="ident">value</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.BuildCreativeResponse1"><code class="flex name class">
+<span>class <span class="ident">BuildCreativeSuccessResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class BuildCreativeResponse1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
+        ),
+    ] = None
+    creative_manifest: Annotated[
+        creative_manifest_1.CreativeManifest,
+        Field(description=&#39;The generated or transformed creative manifest&#39;),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.BuildCreativeResponse1.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.BuildCreativeResponse1.creative_manifest"><code class="name">var <span class="ident">creative_manifest</span> : <a title="adcp.types.generated_poc.creative_manifest.CreativeManifest" href="generated_poc/creative_manifest.html#adcp.types.generated_poc.creative_manifest.CreativeManifest">CreativeManifest</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.BuildCreativeResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.BuildCreativeResponse2"><code class="flex name class">
+<span>class <span class="ident">BuildCreativeErrorResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class BuildCreativeResponse2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
+        ),
+    ] = None
+    errors: Annotated[
+        list[error.Error],
+        Field(
+            description=&#39;Array of errors explaining why creative generation failed&#39;, min_length=1
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.BuildCreativeResponse2.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.BuildCreativeResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.error.Error" href="generated_poc/error.html#adcp.types.generated_poc.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.BuildCreativeResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse1"><code class="flex name class">
+<span>class <span class="ident">CreateMediaBuySuccessResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class CreateMediaBuyResponse1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
+        ),
+    ] = None
+    creative_deadline: Annotated[
+        AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
+    ] = None
+    media_buy_id: Annotated[
+        str, Field(description=&#34;Publisher&#39;s unique identifier for the created media buy&#34;)
+    ]
+    packages: Annotated[list[Package], Field(description=&#39;Array of created packages&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse1.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse1.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse1.creative_deadline"><code class="name">var <span class="ident">creative_deadline</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse1.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse1.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.create_media_buy_response.Package" href="generated_poc/create_media_buy_response.html#adcp.types.generated_poc.create_media_buy_response.Package">Package</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse2"><code class="flex name class">
+<span>class <span class="ident">CreateMediaBuyErrorResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class CreateMediaBuyResponse2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
+        ),
+    ] = None
+    errors: Annotated[
+        list[error.Error],
+        Field(description=&#39;Array of errors explaining why the operation failed&#39;, min_length=1),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse2.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.error.Error" href="generated_poc/error.html#adcp.types.generated_poc.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.DaastAsset1"><code class="flex name class">
+<span>class <span class="ident">UrlDaastAsset</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DaastAsset1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    companion_ads: Annotated[
+        bool | None, Field(description=&#39;Whether companion display ads are included&#39;)
+    ] = None
+    daast_version: Annotated[
+        DaastVersion | None, Field(description=&#39;DAAST specification version&#39;)
+    ] = None
+    delivery_type: Annotated[
+        Literal[&#39;url&#39;],
+        Field(description=&#39;Discriminator indicating DAAST is delivered via URL endpoint&#39;),
+    ]
+    duration_ms: Annotated[
+        int | None, Field(description=&#39;Expected audio duration in milliseconds (if known)&#39;, ge=0)
+    ] = None
+    tracking_events: Annotated[
+        list[TrackingEvent] | None, Field(description=&#39;Tracking events supported by this DAAST tag&#39;)
+    ] = None
+    url: Annotated[AnyUrl, Field(description=&#39;URL endpoint that returns DAAST XML&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.DaastAsset1.companion_ads"><code class="name">var <span class="ident">companion_ads</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.DaastAsset1.daast_version"><code class="name">var <span class="ident">daast_version</span> : <a title="adcp.types.generated_poc.daast_asset.DaastVersion" href="generated_poc/daast_asset.html#adcp.types.generated_poc.daast_asset.DaastVersion">DaastVersion</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.DaastAsset1.delivery_type"><code class="name">var <span class="ident">delivery_type</span> : Literal['url']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.DaastAsset1.duration_ms"><code class="name">var <span class="ident">duration_ms</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.DaastAsset1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.DaastAsset1.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.daast_asset.TrackingEvent" href="generated_poc/daast_asset.html#adcp.types.generated_poc.daast_asset.TrackingEvent">TrackingEvent</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.DaastAsset1.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.DaastAsset2"><code class="flex name class">
+<span>class <span class="ident">InlineDaastAsset</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DaastAsset2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    companion_ads: Annotated[
+        bool | None, Field(description=&#39;Whether companion display ads are included&#39;)
+    ] = None
+    content: Annotated[str, Field(description=&#39;Inline DAAST XML content&#39;)]
+    daast_version: Annotated[
+        DaastVersion | None, Field(description=&#39;DAAST specification version&#39;)
+    ] = None
+    delivery_type: Annotated[
+        Literal[&#39;inline&#39;],
+        Field(description=&#39;Discriminator indicating DAAST is delivered as inline XML content&#39;),
+    ]
+    duration_ms: Annotated[
+        int | None, Field(description=&#39;Expected audio duration in milliseconds (if known)&#39;, ge=0)
+    ] = None
+    tracking_events: Annotated[
+        list[TrackingEvent] | None, Field(description=&#39;Tracking events supported by this DAAST tag&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.DaastAsset2.companion_ads"><code class="name">var <span class="ident">companion_ads</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.DaastAsset2.content"><code class="name">var <span class="ident">content</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.DaastAsset2.daast_version"><code class="name">var <span class="ident">daast_version</span> : <a title="adcp.types.generated_poc.daast_asset.DaastVersion" href="generated_poc/daast_asset.html#adcp.types.generated_poc.daast_asset.DaastVersion">DaastVersion</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.DaastAsset2.delivery_type"><code class="name">var <span class="ident">delivery_type</span> : Literal['inline']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.DaastAsset2.duration_ms"><code class="name">var <span class="ident">duration_ms</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.DaastAsset2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.DaastAsset2.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.daast_asset.TrackingEvent" href="generated_poc/daast_asset.html#adcp.types.generated_poc.daast_asset.TrackingEvent">TrackingEvent</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeRequest1"><code class="flex name class">
+<span>class <span class="ident">PreviewCreativeFormatRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PreviewCreativeRequest1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.&#39;
+        ),
+    ] = None
+    creative_manifest: Annotated[
+        creative_manifest_1.CreativeManifest,
+        Field(
+            description=&#39;Complete creative manifest with all required assets (including promoted_offerings if required by the format)&#39;
+        ),
+    ]
+    format_id: Annotated[
+        format_id_1.FormatId, Field(description=&#39;Format identifier for rendering the preview&#39;)
+    ]
+    inputs: Annotated[
+        list[Input] | None,
+        Field(
+            description=&#39;Array of input sets for generating multiple preview variants. Each input set defines macros and context values for one preview rendering. If not provided, creative agent will generate default previews.&#39;
+        ),
+    ] = None
+    output_format: Annotated[
+        OutputFormat | None,
+        Field(
+            description=&#34;Output format for previews. &#39;url&#39; returns preview_url (iframe-embeddable URL), &#39;html&#39; returns preview_html (raw HTML for direct embedding). Default: &#39;url&#39; for backward compatibility.&#34;
+        ),
+    ] = OutputFormat.url
+    request_type: Annotated[
+        Literal[&#39;single&#39;],
+        Field(description=&#39;Discriminator indicating this is a single preview request&#39;),
+    ]
+    template_id: Annotated[
+        str | None, Field(description=&#39;Specific template ID for custom format rendering&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.PreviewCreativeRequest1.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeRequest1.creative_manifest"><code class="name">var <span class="ident">creative_manifest</span> : <a title="adcp.types.generated_poc.creative_manifest.CreativeManifest" href="generated_poc/creative_manifest.html#adcp.types.generated_poc.creative_manifest.CreativeManifest">CreativeManifest</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeRequest1.format_id"><code class="name">var <span class="ident">format_id</span> : <a title="adcp.types.generated_poc.format_id.FormatId" href="generated_poc/format_id.html#adcp.types.generated_poc.format_id.FormatId">FormatId</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeRequest1.inputs"><code class="name">var <span class="ident">inputs</span> : list[<a title="adcp.types.generated_poc.preview_creative_request.Input" href="generated_poc/preview_creative_request.html#adcp.types.generated_poc.preview_creative_request.Input">Input</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeRequest1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeRequest1.output_format"><code class="name">var <span class="ident">output_format</span> : <a title="adcp.types.generated_poc.preview_creative_request.OutputFormat" href="generated_poc/preview_creative_request.html#adcp.types.generated_poc.preview_creative_request.OutputFormat">OutputFormat</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeRequest1.request_type"><code class="name">var <span class="ident">request_type</span> : Literal['single']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeRequest1.template_id"><code class="name">var <span class="ident">template_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeRequest2"><code class="flex name class">
+<span>class <span class="ident">PreviewCreativeManifestRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PreviewCreativeRequest2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.&#39;
+        ),
+    ] = None
+    output_format: Annotated[
+        OutputFormat | None,
+        Field(
+            description=&#34;Default output format for all requests in this batch. Individual requests can override this. &#39;url&#39; returns preview_url (iframe-embeddable URL), &#39;html&#39; returns preview_html (raw HTML for direct embedding).&#34;
+        ),
+    ] = OutputFormat.url
+    request_type: Annotated[
+        Literal[&#39;batch&#39;],
+        Field(description=&#39;Discriminator indicating this is a batch preview request&#39;),
+    ]
+    requests: Annotated[
+        list[Request],
+        Field(
+            description=&#39;Array of preview requests (1-50 items). Each follows the single request structure.&#39;,
+            max_length=50,
+            min_length=1,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.PreviewCreativeRequest2.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeRequest2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeRequest2.output_format"><code class="name">var <span class="ident">output_format</span> : <a title="adcp.types.generated_poc.preview_creative_request.OutputFormat" href="generated_poc/preview_creative_request.html#adcp.types.generated_poc.preview_creative_request.OutputFormat">OutputFormat</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeRequest2.request_type"><code class="name">var <span class="ident">request_type</span> : Literal['batch']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeRequest2.requests"><code class="name">var <span class="ident">requests</span> : list[<a title="adcp.types.generated_poc.preview_creative_request.Request" href="generated_poc/preview_creative_request.html#adcp.types.generated_poc.preview_creative_request.Request">Request</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeResponse1"><code class="flex name class">
+<span>class <span class="ident">PreviewCreativeStaticResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PreviewCreativeResponse1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context echoed inside the preview payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
+        ),
+    ] = None
+    expires_at: Annotated[
+        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when preview links expire&#39;)
+    ]
+    interactive_url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#39;Optional URL to an interactive testing page that shows all preview variants with controls to switch between them, modify macro values, and test different scenarios.&#39;
+        ),
+    ] = None
+    previews: Annotated[
+        list[Preview],
+        Field(
+            description=&#39;Array of preview variants. Each preview corresponds to an input set from the request. If no inputs were provided, returns a single default preview.&#39;,
+            min_length=1,
+        ),
+    ]
+    response_type: Annotated[
+        Literal[&#39;single&#39;],
+        Field(description=&#39;Discriminator indicating this is a single preview response&#39;),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.PreviewCreativeResponse1.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeResponse1.expires_at"><code class="name">var <span class="ident">expires_at</span> : pydantic.types.AwareDatetime</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeResponse1.interactive_url"><code class="name">var <span class="ident">interactive_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeResponse1.previews"><code class="name">var <span class="ident">previews</span> : list[<a title="adcp.types.generated_poc.preview_creative_response.Preview" href="generated_poc/preview_creative_response.html#adcp.types.generated_poc.preview_creative_response.Preview">Preview</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeResponse1.response_type"><code class="name">var <span class="ident">response_type</span> : Literal['single']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeResponse2"><code class="flex name class">
+<span>class <span class="ident">PreviewCreativeInteractiveResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PreviewCreativeResponse2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context echoed inside the preview payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
+        ),
+    ] = None
+    response_type: Annotated[
+        Literal[&#39;batch&#39;],
+        Field(description=&#39;Discriminator indicating this is a batch preview response&#39;),
+    ]
+    results: Annotated[
+        list[Results | Results1],
+        Field(
+            description=&#39;Array of preview results corresponding to each request in the same order. results[0] is the result for requests[0], results[1] for requests[1], etc. Order is guaranteed even when some requests fail. Each result contains either a successful preview response or an error.&#39;,
+            min_length=1,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.PreviewCreativeResponse2.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeResponse2.response_type"><code class="name">var <span class="ident">response_type</span> : Literal['batch']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeResponse2.results"><code class="name">var <span class="ident">results</span> : list[<a title="adcp.types.generated_poc.preview_creative_response.Results" href="generated_poc/preview_creative_response.html#adcp.types.generated_poc.preview_creative_response.Results">Results</a> | <a title="adcp.types.generated_poc.preview_creative_response.Results1" href="generated_poc/preview_creative_response.html#adcp.types.generated_poc.preview_creative_response.Results1">Results1</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender1"><code class="flex name class">
+<span>class <span class="ident">UrlPreviewRender</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PreviewRender1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    dimensions: Annotated[
+        Dimensions | None, Field(description=&#39;Dimensions for this rendered piece&#39;)
+    ] = None
+    embedding: Annotated[
+        Embedding | None,
+        Field(description=&#39;Optional security and embedding metadata for safe iframe integration&#39;),
+    ] = None
+    output_format: Annotated[
+        Literal[&#39;url&#39;], Field(description=&#39;Discriminator indicating preview_url is provided&#39;)
+    ]
+    preview_url: Annotated[
+        AnyUrl,
+        Field(
+            description=&#39;URL to an HTML page that renders this piece. Can be embedded in an iframe.&#39;
+        ),
+    ]
+    render_id: Annotated[
+        str, Field(description=&#39;Unique identifier for this rendered piece within the variant&#39;)
+    ]
+    role: Annotated[
+        str,
+        Field(
+            description=&#34;Semantic role of this rendered piece. Use &#39;primary&#39; for main content, &#39;companion&#39; for associated banners, descriptive strings for device variants or custom roles.&#34;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.PreviewRender1.dimensions"><code class="name">var <span class="ident">dimensions</span> : <a title="adcp.types.generated_poc.preview_render.Dimensions" href="generated_poc/preview_render.html#adcp.types.generated_poc.preview_render.Dimensions">Dimensions</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender1.embedding"><code class="name">var <span class="ident">embedding</span> : <a title="adcp.types.generated_poc.preview_render.Embedding" href="generated_poc/preview_render.html#adcp.types.generated_poc.preview_render.Embedding">Embedding</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender1.output_format"><code class="name">var <span class="ident">output_format</span> : Literal['url']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender1.preview_url"><code class="name">var <span class="ident">preview_url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender1.render_id"><code class="name">var <span class="ident">render_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender1.role"><code class="name">var <span class="ident">role</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender2"><code class="flex name class">
+<span>class <span class="ident">HtmlPreviewRender</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PreviewRender2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    dimensions: Annotated[
+        Dimensions | None, Field(description=&#39;Dimensions for this rendered piece&#39;)
+    ] = None
+    embedding: Annotated[
+        Embedding | None, Field(description=&#39;Optional security and embedding metadata&#39;)
+    ] = None
+    output_format: Annotated[
+        Literal[&#39;html&#39;], Field(description=&#39;Discriminator indicating preview_html is provided&#39;)
+    ]
+    preview_html: Annotated[
+        str,
+        Field(
+            description=&#39;Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.&#39;
+        ),
+    ]
+    render_id: Annotated[
+        str, Field(description=&#39;Unique identifier for this rendered piece within the variant&#39;)
+    ]
+    role: Annotated[
+        str,
+        Field(
+            description=&#34;Semantic role of this rendered piece. Use &#39;primary&#39; for main content, &#39;companion&#39; for associated banners, descriptive strings for device variants or custom roles.&#34;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.PreviewRender2.dimensions"><code class="name">var <span class="ident">dimensions</span> : <a title="adcp.types.generated_poc.preview_render.Dimensions" href="generated_poc/preview_render.html#adcp.types.generated_poc.preview_render.Dimensions">Dimensions</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender2.embedding"><code class="name">var <span class="ident">embedding</span> : <a title="adcp.types.generated_poc.preview_render.Embedding" href="generated_poc/preview_render.html#adcp.types.generated_poc.preview_render.Embedding">Embedding</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender2.output_format"><code class="name">var <span class="ident">output_format</span> : Literal['html']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender2.preview_html"><code class="name">var <span class="ident">preview_html</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender2.render_id"><code class="name">var <span class="ident">render_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender2.role"><code class="name">var <span class="ident">role</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender3"><code class="flex name class">
+<span>class <span class="ident">BothPreviewRender</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PreviewRender3(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    dimensions: Annotated[
+        Dimensions | None, Field(description=&#39;Dimensions for this rendered piece&#39;)
+    ] = None
+    embedding: Annotated[
+        Embedding | None,
+        Field(description=&#39;Optional security and embedding metadata for safe iframe integration&#39;),
+    ] = None
+    output_format: Annotated[
+        Literal[&#39;both&#39;],
+        Field(
+            description=&#39;Discriminator indicating both preview_url and preview_html are provided&#39;
+        ),
+    ]
+    preview_html: Annotated[
+        str,
+        Field(
+            description=&#39;Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.&#39;
+        ),
+    ]
+    preview_url: Annotated[
+        AnyUrl,
+        Field(
+            description=&#39;URL to an HTML page that renders this piece. Can be embedded in an iframe.&#39;
+        ),
+    ]
+    render_id: Annotated[
+        str, Field(description=&#39;Unique identifier for this rendered piece within the variant&#39;)
+    ]
+    role: Annotated[
+        str,
+        Field(
+            description=&#34;Semantic role of this rendered piece. Use &#39;primary&#39; for main content, &#39;companion&#39; for associated banners, descriptive strings for device variants or custom roles.&#34;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.PreviewRender3.dimensions"><code class="name">var <span class="ident">dimensions</span> : <a title="adcp.types.generated_poc.preview_render.Dimensions" href="generated_poc/preview_render.html#adcp.types.generated_poc.preview_render.Dimensions">Dimensions</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender3.embedding"><code class="name">var <span class="ident">embedding</span> : <a title="adcp.types.generated_poc.preview_render.Embedding" href="generated_poc/preview_render.html#adcp.types.generated_poc.preview_render.Embedding">Embedding</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender3.output_format"><code class="name">var <span class="ident">output_format</span> : Literal['both']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender3.preview_html"><code class="name">var <span class="ident">preview_html</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender3.preview_url"><code class="name">var <span class="ident">preview_url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender3.render_id"><code class="name">var <span class="ident">render_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewRender3.role"><code class="name">var <span class="ident">role</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.ProvidePerformanceFeedbackResponse1"><code class="flex name class">
+<span>class <span class="ident">ProvidePerformanceFeedbackSuccessResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ProvidePerformanceFeedbackResponse1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
+        ),
+    ] = None
+    success: Annotated[
+        Literal[True],
+        Field(description=&#39;Whether the performance feedback was successfully received&#39;),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.ProvidePerformanceFeedbackResponse1.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ProvidePerformanceFeedbackResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ProvidePerformanceFeedbackResponse1.success"><code class="name">var <span class="ident">success</span> : Literal[True]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.ProvidePerformanceFeedbackResponse2"><code class="flex name class">
+<span>class <span class="ident">ProvidePerformanceFeedbackErrorResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ProvidePerformanceFeedbackResponse2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
+        ),
+    ] = None
+    errors: Annotated[
+        list[error.Error],
+        Field(
+            description=&#39;Array of errors explaining why feedback was rejected (e.g., invalid measurement period, missing campaign data)&#39;,
+            min_length=1,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.ProvidePerformanceFeedbackResponse2.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ProvidePerformanceFeedbackResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.error.Error" href="generated_poc/error.html#adcp.types.generated_poc.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ProvidePerformanceFeedbackResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.SubAsset1"><code class="flex name class">
+<span>class <span class="ident">MediaSubAsset</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SubAsset1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    asset_id: Annotated[
+        str, Field(description=&#39;Unique identifier for the asset within the creative&#39;)
+    ]
+    asset_kind: Annotated[
+        Literal[&#39;media&#39;],
+        Field(description=&#39;Discriminator indicating this is a media asset with content_uri&#39;),
+    ]
+    asset_type: Annotated[
+        str,
+        Field(
+            description=&#39;Type of asset. Common types: thumbnail_image, product_image, featured_image, logo&#39;
+        ),
+    ]
+    content_uri: Annotated[AnyUrl, Field(description=&#39;URL for media assets (images, videos, etc.)&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.SubAsset1.asset_id"><code class="name">var <span class="ident">asset_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SubAsset1.asset_kind"><code class="name">var <span class="ident">asset_kind</span> : Literal['media']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SubAsset1.asset_type"><code class="name">var <span class="ident">asset_type</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SubAsset1.content_uri"><code class="name">var <span class="ident">content_uri</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SubAsset1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.SubAsset2"><code class="flex name class">
+<span>class <span class="ident">TextSubAsset</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SubAsset2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    asset_id: Annotated[
+        str, Field(description=&#39;Unique identifier for the asset within the creative&#39;)
+    ]
+    asset_kind: Annotated[
+        Literal[&#39;text&#39;],
+        Field(description=&#39;Discriminator indicating this is a text asset with content&#39;),
+    ]
+    asset_type: Annotated[
+        str,
+        Field(
+            description=&#39;Type of asset. Common types: headline, body_text, cta_text, price_text, sponsor_name, author_name, click_url&#39;
+        ),
+    ]
+    content: Annotated[
+        str | list[str],
+        Field(
+            description=&#39;Text content for text-based assets like headlines, body text, CTA text, etc.&#39;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.SubAsset2.asset_id"><code class="name">var <span class="ident">asset_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SubAsset2.asset_kind"><code class="name">var <span class="ident">asset_kind</span> : Literal['text']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SubAsset2.asset_type"><code class="name">var <span class="ident">asset_type</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SubAsset2.content"><code class="name">var <span class="ident">content</span> : str | list[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SubAsset2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.SyncCreativesResponse1"><code class="flex name class">
+<span>class <span class="ident">SyncCreativesSuccessResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SyncCreativesResponse1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
+        ),
+    ] = None
+    creatives: Annotated[
+        list[Creative],
+        Field(
+            description=&#34;Results for each creative processed. Items with action=&#39;failed&#39; indicate per-item validation/processing failures, not operation-level failures.&#34;
+        ),
+    ]
+    dry_run: Annotated[
+        bool | None, Field(description=&#39;Whether this was a dry run (no actual changes made)&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.SyncCreativesResponse1.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncCreativesResponse1.creatives"><code class="name">var <span class="ident">creatives</span> : list[<a title="adcp.types.generated_poc.sync_creatives_response.Creative" href="generated_poc/sync_creatives_response.html#adcp.types.generated_poc.sync_creatives_response.Creative">Creative</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncCreativesResponse1.dry_run"><code class="name">var <span class="ident">dry_run</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncCreativesResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.SyncCreativesResponse2"><code class="flex name class">
+<span>class <span class="ident">SyncCreativesErrorResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SyncCreativesResponse2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
+        ),
+    ] = None
+    errors: Annotated[
+        list[error.Error],
+        Field(
+            description=&#39;Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)&#39;,
+            min_length=1,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.SyncCreativesResponse2.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncCreativesResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.error.Error" href="generated_poc/error.html#adcp.types.generated_poc.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncCreativesResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest1"><code class="flex name class">
+<span>class <span class="ident">UpdateMediaBuyPackagesRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class UpdateMediaBuyRequest1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    active: Annotated[bool | None, Field(description=&#39;Pause/resume the entire media buy&#39;)] = None
+    buyer_ref: Annotated[
+        str | None, Field(description=&#34;Buyer&#39;s reference for the media buy to update&#34;)
+    ] = None
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.&#39;
+        ),
+    ] = None
+    end_time: Annotated[
+        AwareDatetime | None, Field(description=&#39;New end date/time in ISO 8601 format&#39;)
+    ] = None
+    media_buy_id: Annotated[str, Field(description=&#34;Publisher&#39;s ID of the media buy to update&#34;)]
+    packages: Annotated[
+        list[Packages | Packages1] | None, Field(description=&#39;Package-specific updates&#39;)
+    ] = None
+    push_notification_config: Annotated[
+        push_notification_config_1.PushNotificationConfig | None,
+        Field(
+            description=&#39;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time.&#39;
+        ),
+    ] = None
+    start_time: Annotated[
+        str | AwareDatetime | None,
+        Field(
+            description=&#34;Campaign start timing: &#39;asap&#39; or ISO 8601 date-time&#34;, title=&#39;Start Timing&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest1.active"><code class="name">var <span class="ident">active</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest1.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest1.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest1.end_time"><code class="name">var <span class="ident">end_time</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest1.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest1.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.update_media_buy_request.Packages" href="generated_poc/update_media_buy_request.html#adcp.types.generated_poc.update_media_buy_request.Packages">Packages</a> | <a title="adcp.types.generated_poc.update_media_buy_request.Packages1" href="generated_poc/update_media_buy_request.html#adcp.types.generated_poc.update_media_buy_request.Packages1">Packages1</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest1.push_notification_config"><code class="name">var <span class="ident">push_notification_config</span> : <a title="adcp.types.generated_poc.push_notification_config.PushNotificationConfig" href="generated_poc/push_notification_config.html#adcp.types.generated_poc.push_notification_config.PushNotificationConfig">PushNotificationConfig</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest1.start_time"><code class="name">var <span class="ident">start_time</span> : str | pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest2"><code class="flex name class">
+<span>class <span class="ident">UpdateMediaBuyPropertiesRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class UpdateMediaBuyRequest2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    active: Annotated[bool | None, Field(description=&#39;Pause/resume the entire media buy&#39;)] = None
+    buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference for the media buy to update&#34;)]
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.&#39;
+        ),
+    ] = None
+    end_time: Annotated[
+        AwareDatetime | None, Field(description=&#39;New end date/time in ISO 8601 format&#39;)
+    ] = None
+    media_buy_id: Annotated[
+        str | None, Field(description=&#34;Publisher&#39;s ID of the media buy to update&#34;)
+    ] = None
+    packages: Annotated[
+        list[Packages2 | Packages3] | None, Field(description=&#39;Package-specific updates&#39;)
+    ] = None
+    push_notification_config: Annotated[
+        push_notification_config_1.PushNotificationConfig | None,
+        Field(
+            description=&#39;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time.&#39;
+        ),
+    ] = None
+    start_time: Annotated[
+        str | AwareDatetime | None,
+        Field(
+            description=&#34;Campaign start timing: &#39;asap&#39; or ISO 8601 date-time&#34;, title=&#39;Start Timing&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest2.active"><code class="name">var <span class="ident">active</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest2.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest2.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest2.end_time"><code class="name">var <span class="ident">end_time</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest2.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest2.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.update_media_buy_request.Packages" href="generated_poc/update_media_buy_request.html#adcp.types.generated_poc.update_media_buy_request.Packages">Packages</a> | <a title="adcp.types.generated_poc.update_media_buy_request.Packages1" href="generated_poc/update_media_buy_request.html#adcp.types.generated_poc.update_media_buy_request.Packages1">Packages1</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest2.push_notification_config"><code class="name">var <span class="ident">push_notification_config</span> : <a title="adcp.types.generated_poc.push_notification_config.PushNotificationConfig" href="generated_poc/push_notification_config.html#adcp.types.generated_poc.push_notification_config.PushNotificationConfig">PushNotificationConfig</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest2.start_time"><code class="name">var <span class="ident">start_time</span> : str | pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyResponse1"><code class="flex name class">
+<span>class <span class="ident">UpdateMediaBuySuccessResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class UpdateMediaBuyResponse1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    affected_packages: Annotated[
+        list[AffectedPackage] | None, Field(description=&#39;Array of packages that were modified&#39;)
+    ] = None
+    buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for the media buy&#34;)]
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
+        ),
+    ] = None
+    implementation_date: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;ISO 8601 timestamp when changes take effect (null if pending approval)&#39;),
+    ] = None
+    media_buy_id: Annotated[str, Field(description=&#34;Publisher&#39;s identifier for the media buy&#34;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.UpdateMediaBuyResponse1.affected_packages"><code class="name">var <span class="ident">affected_packages</span> : list[<a title="adcp.types.generated_poc.update_media_buy_response.AffectedPackage" href="generated_poc/update_media_buy_response.html#adcp.types.generated_poc.update_media_buy_response.AffectedPackage">AffectedPackage</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyResponse1.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyResponse1.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyResponse1.implementation_date"><code class="name">var <span class="ident">implementation_date</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyResponse1.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyResponse2"><code class="flex name class">
+<span>class <span class="ident">UpdateMediaBuyErrorResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class UpdateMediaBuyResponse2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
+        ),
+    ] = None
+    errors: Annotated[
+        list[error.Error],
+        Field(description=&#39;Array of errors explaining why the operation failed&#39;, min_length=1),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.UpdateMediaBuyResponse2.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.error.Error" href="generated_poc/error.html#adcp.types.generated_poc.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.VastAsset1"><code class="flex name class">
+<span>class <span class="ident">UrlVastAsset</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class VastAsset1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    delivery_type: Annotated[
+        Literal[&#39;url&#39;],
+        Field(description=&#39;Discriminator indicating VAST is delivered via URL endpoint&#39;),
+    ]
+    duration_ms: Annotated[
+        int | None, Field(description=&#39;Expected video duration in milliseconds (if known)&#39;, ge=0)
+    ] = None
+    tracking_events: Annotated[
+        list[TrackingEvent] | None, Field(description=&#39;Tracking events supported by this VAST tag&#39;)
+    ] = None
+    url: Annotated[AnyUrl, Field(description=&#39;URL endpoint that returns VAST XML&#39;)]
+    vast_version: Annotated[VastVersion | None, Field(description=&#39;VAST specification version&#39;)] = (
+        None
+    )
+    vpaid_enabled: Annotated[
+        bool | None,
+        Field(description=&#39;Whether VPAID (Video Player-Ad Interface Definition) is supported&#39;),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.VastAsset1.delivery_type"><code class="name">var <span class="ident">delivery_type</span> : Literal['url']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.VastAsset1.duration_ms"><code class="name">var <span class="ident">duration_ms</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.VastAsset1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.VastAsset1.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.vast_asset.TrackingEvent" href="generated_poc/vast_asset.html#adcp.types.generated_poc.vast_asset.TrackingEvent">TrackingEvent</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.VastAsset1.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.VastAsset1.vast_version"><code class="name">var <span class="ident">vast_version</span> : <a title="adcp.types.generated_poc.vast_asset.VastVersion" href="generated_poc/vast_asset.html#adcp.types.generated_poc.vast_asset.VastVersion">VastVersion</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.VastAsset1.vpaid_enabled"><code class="name">var <span class="ident">vpaid_enabled</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.VastAsset2"><code class="flex name class">
+<span>class <span class="ident">InlineVastAsset</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class VastAsset2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    content: Annotated[str, Field(description=&#39;Inline VAST XML content&#39;)]
+    delivery_type: Annotated[
+        Literal[&#39;inline&#39;],
+        Field(description=&#39;Discriminator indicating VAST is delivered as inline XML content&#39;),
+    ]
+    duration_ms: Annotated[
+        int | None, Field(description=&#39;Expected video duration in milliseconds (if known)&#39;, ge=0)
+    ] = None
+    tracking_events: Annotated[
+        list[TrackingEvent] | None, Field(description=&#39;Tracking events supported by this VAST tag&#39;)
+    ] = None
+    vast_version: Annotated[VastVersion | None, Field(description=&#39;VAST specification version&#39;)] = (
+        None
+    )
+    vpaid_enabled: Annotated[
+        bool | None,
+        Field(description=&#39;Whether VPAID (Video Player-Ad Interface Definition) is supported&#39;),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.VastAsset2.content"><code class="name">var <span class="ident">content</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.VastAsset2.delivery_type"><code class="name">var <span class="ident">delivery_type</span> : Literal['inline']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.VastAsset2.duration_ms"><code class="name">var <span class="ident">duration_ms</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.VastAsset2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.VastAsset2.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.vast_asset.TrackingEvent" href="generated_poc/vast_asset.html#adcp.types.generated_poc.vast_asset.TrackingEvent">TrackingEvent</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.VastAsset2.vast_version"><code class="name">var <span class="ident">vast_version</span> : <a title="adcp.types.generated_poc.vast_asset.VastVersion" href="generated_poc/vast_asset.html#adcp.types.generated_poc.vast_asset.VastVersion">VastVersion</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.VastAsset2.vpaid_enabled"><code class="name">var <span class="ident">vpaid_enabled</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types" href="index.html">adcp.types</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.aliases.ActivateSignalResponse1" href="#adcp.types.aliases.ActivateSignalResponse1">ActivateSignalResponse1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.ActivateSignalResponse1.context" href="#adcp.types.aliases.ActivateSignalResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.ActivateSignalResponse1.deployments" href="#adcp.types.aliases.ActivateSignalResponse1.deployments">deployments</a></code></li>
+<li><code><a title="adcp.types.aliases.ActivateSignalResponse1.model_config" href="#adcp.types.aliases.ActivateSignalResponse1.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.ActivateSignalResponse2" href="#adcp.types.aliases.ActivateSignalResponse2">ActivateSignalResponse2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.ActivateSignalResponse2.context" href="#adcp.types.aliases.ActivateSignalResponse2.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.ActivateSignalResponse2.errors" href="#adcp.types.aliases.ActivateSignalResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.ActivateSignalResponse2.model_config" href="#adcp.types.aliases.ActivateSignalResponse2.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.ActivationKey1" href="#adcp.types.aliases.ActivationKey1">ActivationKey1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.ActivationKey1.model_config" href="#adcp.types.aliases.ActivationKey1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.ActivationKey1.segment_id" href="#adcp.types.aliases.ActivationKey1.segment_id">segment_id</a></code></li>
+<li><code><a title="adcp.types.aliases.ActivationKey1.type" href="#adcp.types.aliases.ActivationKey1.type">type</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.ActivationKey2" href="#adcp.types.aliases.ActivationKey2">ActivationKey2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.ActivationKey2.key" href="#adcp.types.aliases.ActivationKey2.key">key</a></code></li>
+<li><code><a title="adcp.types.aliases.ActivationKey2.model_config" href="#adcp.types.aliases.ActivationKey2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.ActivationKey2.type" href="#adcp.types.aliases.ActivationKey2.type">type</a></code></li>
+<li><code><a title="adcp.types.aliases.ActivationKey2.value" href="#adcp.types.aliases.ActivationKey2.value">value</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.BuildCreativeResponse1" href="#adcp.types.aliases.BuildCreativeResponse1">BuildCreativeResponse1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.BuildCreativeResponse1.context" href="#adcp.types.aliases.BuildCreativeResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.BuildCreativeResponse1.creative_manifest" href="#adcp.types.aliases.BuildCreativeResponse1.creative_manifest">creative_manifest</a></code></li>
+<li><code><a title="adcp.types.aliases.BuildCreativeResponse1.model_config" href="#adcp.types.aliases.BuildCreativeResponse1.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.BuildCreativeResponse2" href="#adcp.types.aliases.BuildCreativeResponse2">BuildCreativeResponse2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.BuildCreativeResponse2.context" href="#adcp.types.aliases.BuildCreativeResponse2.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.BuildCreativeResponse2.errors" href="#adcp.types.aliases.BuildCreativeResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.BuildCreativeResponse2.model_config" href="#adcp.types.aliases.BuildCreativeResponse2.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.CreateMediaBuyResponse1" href="#adcp.types.aliases.CreateMediaBuyResponse1">CreateMediaBuyResponse1</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.buyer_ref" href="#adcp.types.aliases.CreateMediaBuyResponse1.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.context" href="#adcp.types.aliases.CreateMediaBuyResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.creative_deadline" href="#adcp.types.aliases.CreateMediaBuyResponse1.creative_deadline">creative_deadline</a></code></li>
+<li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.media_buy_id" href="#adcp.types.aliases.CreateMediaBuyResponse1.media_buy_id">media_buy_id</a></code></li>
+<li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.model_config" href="#adcp.types.aliases.CreateMediaBuyResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.packages" href="#adcp.types.aliases.CreateMediaBuyResponse1.packages">packages</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.CreateMediaBuyResponse2" href="#adcp.types.aliases.CreateMediaBuyResponse2">CreateMediaBuyResponse2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.CreateMediaBuyResponse2.context" href="#adcp.types.aliases.CreateMediaBuyResponse2.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.CreateMediaBuyResponse2.errors" href="#adcp.types.aliases.CreateMediaBuyResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.CreateMediaBuyResponse2.model_config" href="#adcp.types.aliases.CreateMediaBuyResponse2.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.DaastAsset1" href="#adcp.types.aliases.DaastAsset1">DaastAsset1</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.aliases.DaastAsset1.companion_ads" href="#adcp.types.aliases.DaastAsset1.companion_ads">companion_ads</a></code></li>
+<li><code><a title="adcp.types.aliases.DaastAsset1.daast_version" href="#adcp.types.aliases.DaastAsset1.daast_version">daast_version</a></code></li>
+<li><code><a title="adcp.types.aliases.DaastAsset1.delivery_type" href="#adcp.types.aliases.DaastAsset1.delivery_type">delivery_type</a></code></li>
+<li><code><a title="adcp.types.aliases.DaastAsset1.duration_ms" href="#adcp.types.aliases.DaastAsset1.duration_ms">duration_ms</a></code></li>
+<li><code><a title="adcp.types.aliases.DaastAsset1.model_config" href="#adcp.types.aliases.DaastAsset1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.DaastAsset1.tracking_events" href="#adcp.types.aliases.DaastAsset1.tracking_events">tracking_events</a></code></li>
+<li><code><a title="adcp.types.aliases.DaastAsset1.url" href="#adcp.types.aliases.DaastAsset1.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.DaastAsset2" href="#adcp.types.aliases.DaastAsset2">DaastAsset2</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.aliases.DaastAsset2.companion_ads" href="#adcp.types.aliases.DaastAsset2.companion_ads">companion_ads</a></code></li>
+<li><code><a title="adcp.types.aliases.DaastAsset2.content" href="#adcp.types.aliases.DaastAsset2.content">content</a></code></li>
+<li><code><a title="adcp.types.aliases.DaastAsset2.daast_version" href="#adcp.types.aliases.DaastAsset2.daast_version">daast_version</a></code></li>
+<li><code><a title="adcp.types.aliases.DaastAsset2.delivery_type" href="#adcp.types.aliases.DaastAsset2.delivery_type">delivery_type</a></code></li>
+<li><code><a title="adcp.types.aliases.DaastAsset2.duration_ms" href="#adcp.types.aliases.DaastAsset2.duration_ms">duration_ms</a></code></li>
+<li><code><a title="adcp.types.aliases.DaastAsset2.model_config" href="#adcp.types.aliases.DaastAsset2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.DaastAsset2.tracking_events" href="#adcp.types.aliases.DaastAsset2.tracking_events">tracking_events</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.PreviewCreativeRequest1" href="#adcp.types.aliases.PreviewCreativeRequest1">PreviewCreativeRequest1</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.aliases.PreviewCreativeRequest1.context" href="#adcp.types.aliases.PreviewCreativeRequest1.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeRequest1.creative_manifest" href="#adcp.types.aliases.PreviewCreativeRequest1.creative_manifest">creative_manifest</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeRequest1.format_id" href="#adcp.types.aliases.PreviewCreativeRequest1.format_id">format_id</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeRequest1.inputs" href="#adcp.types.aliases.PreviewCreativeRequest1.inputs">inputs</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeRequest1.model_config" href="#adcp.types.aliases.PreviewCreativeRequest1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeRequest1.output_format" href="#adcp.types.aliases.PreviewCreativeRequest1.output_format">output_format</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeRequest1.request_type" href="#adcp.types.aliases.PreviewCreativeRequest1.request_type">request_type</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeRequest1.template_id" href="#adcp.types.aliases.PreviewCreativeRequest1.template_id">template_id</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.PreviewCreativeRequest2" href="#adcp.types.aliases.PreviewCreativeRequest2">PreviewCreativeRequest2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.PreviewCreativeRequest2.context" href="#adcp.types.aliases.PreviewCreativeRequest2.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeRequest2.model_config" href="#adcp.types.aliases.PreviewCreativeRequest2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeRequest2.output_format" href="#adcp.types.aliases.PreviewCreativeRequest2.output_format">output_format</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeRequest2.request_type" href="#adcp.types.aliases.PreviewCreativeRequest2.request_type">request_type</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeRequest2.requests" href="#adcp.types.aliases.PreviewCreativeRequest2.requests">requests</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.PreviewCreativeResponse1" href="#adcp.types.aliases.PreviewCreativeResponse1">PreviewCreativeResponse1</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.aliases.PreviewCreativeResponse1.context" href="#adcp.types.aliases.PreviewCreativeResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeResponse1.expires_at" href="#adcp.types.aliases.PreviewCreativeResponse1.expires_at">expires_at</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeResponse1.interactive_url" href="#adcp.types.aliases.PreviewCreativeResponse1.interactive_url">interactive_url</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeResponse1.model_config" href="#adcp.types.aliases.PreviewCreativeResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeResponse1.previews" href="#adcp.types.aliases.PreviewCreativeResponse1.previews">previews</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeResponse1.response_type" href="#adcp.types.aliases.PreviewCreativeResponse1.response_type">response_type</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.PreviewCreativeResponse2" href="#adcp.types.aliases.PreviewCreativeResponse2">PreviewCreativeResponse2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.PreviewCreativeResponse2.context" href="#adcp.types.aliases.PreviewCreativeResponse2.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeResponse2.model_config" href="#adcp.types.aliases.PreviewCreativeResponse2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeResponse2.response_type" href="#adcp.types.aliases.PreviewCreativeResponse2.response_type">response_type</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeResponse2.results" href="#adcp.types.aliases.PreviewCreativeResponse2.results">results</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.PreviewRender1" href="#adcp.types.aliases.PreviewRender1">PreviewRender1</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.aliases.PreviewRender1.dimensions" href="#adcp.types.aliases.PreviewRender1.dimensions">dimensions</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewRender1.embedding" href="#adcp.types.aliases.PreviewRender1.embedding">embedding</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewRender1.model_config" href="#adcp.types.aliases.PreviewRender1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewRender1.output_format" href="#adcp.types.aliases.PreviewRender1.output_format">output_format</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewRender1.preview_url" href="#adcp.types.aliases.PreviewRender1.preview_url">preview_url</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewRender1.render_id" href="#adcp.types.aliases.PreviewRender1.render_id">render_id</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewRender1.role" href="#adcp.types.aliases.PreviewRender1.role">role</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.PreviewRender2" href="#adcp.types.aliases.PreviewRender2">PreviewRender2</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.aliases.PreviewRender2.dimensions" href="#adcp.types.aliases.PreviewRender2.dimensions">dimensions</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewRender2.embedding" href="#adcp.types.aliases.PreviewRender2.embedding">embedding</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewRender2.model_config" href="#adcp.types.aliases.PreviewRender2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewRender2.output_format" href="#adcp.types.aliases.PreviewRender2.output_format">output_format</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewRender2.preview_html" href="#adcp.types.aliases.PreviewRender2.preview_html">preview_html</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewRender2.render_id" href="#adcp.types.aliases.PreviewRender2.render_id">render_id</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewRender2.role" href="#adcp.types.aliases.PreviewRender2.role">role</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.PreviewRender3" href="#adcp.types.aliases.PreviewRender3">PreviewRender3</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.aliases.PreviewRender3.dimensions" href="#adcp.types.aliases.PreviewRender3.dimensions">dimensions</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewRender3.embedding" href="#adcp.types.aliases.PreviewRender3.embedding">embedding</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewRender3.model_config" href="#adcp.types.aliases.PreviewRender3.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewRender3.output_format" href="#adcp.types.aliases.PreviewRender3.output_format">output_format</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewRender3.preview_html" href="#adcp.types.aliases.PreviewRender3.preview_html">preview_html</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewRender3.preview_url" href="#adcp.types.aliases.PreviewRender3.preview_url">preview_url</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewRender3.render_id" href="#adcp.types.aliases.PreviewRender3.render_id">render_id</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewRender3.role" href="#adcp.types.aliases.PreviewRender3.role">role</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse1" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse1">ProvidePerformanceFeedbackResponse1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse1.context" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse1.model_config" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse1.success" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse1.success">success</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse2" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse2">ProvidePerformanceFeedbackResponse2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse2.context" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse2.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse2.errors" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse2.model_config" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse2.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.SubAsset1" href="#adcp.types.aliases.SubAsset1">SubAsset1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.SubAsset1.asset_id" href="#adcp.types.aliases.SubAsset1.asset_id">asset_id</a></code></li>
+<li><code><a title="adcp.types.aliases.SubAsset1.asset_kind" href="#adcp.types.aliases.SubAsset1.asset_kind">asset_kind</a></code></li>
+<li><code><a title="adcp.types.aliases.SubAsset1.asset_type" href="#adcp.types.aliases.SubAsset1.asset_type">asset_type</a></code></li>
+<li><code><a title="adcp.types.aliases.SubAsset1.content_uri" href="#adcp.types.aliases.SubAsset1.content_uri">content_uri</a></code></li>
+<li><code><a title="adcp.types.aliases.SubAsset1.model_config" href="#adcp.types.aliases.SubAsset1.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.SubAsset2" href="#adcp.types.aliases.SubAsset2">SubAsset2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.SubAsset2.asset_id" href="#adcp.types.aliases.SubAsset2.asset_id">asset_id</a></code></li>
+<li><code><a title="adcp.types.aliases.SubAsset2.asset_kind" href="#adcp.types.aliases.SubAsset2.asset_kind">asset_kind</a></code></li>
+<li><code><a title="adcp.types.aliases.SubAsset2.asset_type" href="#adcp.types.aliases.SubAsset2.asset_type">asset_type</a></code></li>
+<li><code><a title="adcp.types.aliases.SubAsset2.content" href="#adcp.types.aliases.SubAsset2.content">content</a></code></li>
+<li><code><a title="adcp.types.aliases.SubAsset2.model_config" href="#adcp.types.aliases.SubAsset2.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.SyncCreativesResponse1" href="#adcp.types.aliases.SyncCreativesResponse1">SyncCreativesResponse1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.SyncCreativesResponse1.context" href="#adcp.types.aliases.SyncCreativesResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncCreativesResponse1.creatives" href="#adcp.types.aliases.SyncCreativesResponse1.creatives">creatives</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncCreativesResponse1.dry_run" href="#adcp.types.aliases.SyncCreativesResponse1.dry_run">dry_run</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncCreativesResponse1.model_config" href="#adcp.types.aliases.SyncCreativesResponse1.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.SyncCreativesResponse2" href="#adcp.types.aliases.SyncCreativesResponse2">SyncCreativesResponse2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.SyncCreativesResponse2.context" href="#adcp.types.aliases.SyncCreativesResponse2.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncCreativesResponse2.errors" href="#adcp.types.aliases.SyncCreativesResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncCreativesResponse2.model_config" href="#adcp.types.aliases.SyncCreativesResponse2.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1" href="#adcp.types.aliases.UpdateMediaBuyRequest1">UpdateMediaBuyRequest1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1.active" href="#adcp.types.aliases.UpdateMediaBuyRequest1.active">active</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1.buyer_ref" href="#adcp.types.aliases.UpdateMediaBuyRequest1.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1.context" href="#adcp.types.aliases.UpdateMediaBuyRequest1.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1.end_time" href="#adcp.types.aliases.UpdateMediaBuyRequest1.end_time">end_time</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1.media_buy_id" href="#adcp.types.aliases.UpdateMediaBuyRequest1.media_buy_id">media_buy_id</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1.model_config" href="#adcp.types.aliases.UpdateMediaBuyRequest1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1.packages" href="#adcp.types.aliases.UpdateMediaBuyRequest1.packages">packages</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1.push_notification_config" href="#adcp.types.aliases.UpdateMediaBuyRequest1.push_notification_config">push_notification_config</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1.start_time" href="#adcp.types.aliases.UpdateMediaBuyRequest1.start_time">start_time</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2" href="#adcp.types.aliases.UpdateMediaBuyRequest2">UpdateMediaBuyRequest2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2.active" href="#adcp.types.aliases.UpdateMediaBuyRequest2.active">active</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2.buyer_ref" href="#adcp.types.aliases.UpdateMediaBuyRequest2.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2.context" href="#adcp.types.aliases.UpdateMediaBuyRequest2.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2.end_time" href="#adcp.types.aliases.UpdateMediaBuyRequest2.end_time">end_time</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2.media_buy_id" href="#adcp.types.aliases.UpdateMediaBuyRequest2.media_buy_id">media_buy_id</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2.model_config" href="#adcp.types.aliases.UpdateMediaBuyRequest2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2.packages" href="#adcp.types.aliases.UpdateMediaBuyRequest2.packages">packages</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2.push_notification_config" href="#adcp.types.aliases.UpdateMediaBuyRequest2.push_notification_config">push_notification_config</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2.start_time" href="#adcp.types.aliases.UpdateMediaBuyRequest2.start_time">start_time</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.UpdateMediaBuyResponse1" href="#adcp.types.aliases.UpdateMediaBuyResponse1">UpdateMediaBuyResponse1</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse1.affected_packages" href="#adcp.types.aliases.UpdateMediaBuyResponse1.affected_packages">affected_packages</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse1.buyer_ref" href="#adcp.types.aliases.UpdateMediaBuyResponse1.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse1.context" href="#adcp.types.aliases.UpdateMediaBuyResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse1.implementation_date" href="#adcp.types.aliases.UpdateMediaBuyResponse1.implementation_date">implementation_date</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse1.media_buy_id" href="#adcp.types.aliases.UpdateMediaBuyResponse1.media_buy_id">media_buy_id</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse1.model_config" href="#adcp.types.aliases.UpdateMediaBuyResponse1.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.UpdateMediaBuyResponse2" href="#adcp.types.aliases.UpdateMediaBuyResponse2">UpdateMediaBuyResponse2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse2.context" href="#adcp.types.aliases.UpdateMediaBuyResponse2.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse2.errors" href="#adcp.types.aliases.UpdateMediaBuyResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse2.model_config" href="#adcp.types.aliases.UpdateMediaBuyResponse2.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.VastAsset1" href="#adcp.types.aliases.VastAsset1">VastAsset1</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.aliases.VastAsset1.delivery_type" href="#adcp.types.aliases.VastAsset1.delivery_type">delivery_type</a></code></li>
+<li><code><a title="adcp.types.aliases.VastAsset1.duration_ms" href="#adcp.types.aliases.VastAsset1.duration_ms">duration_ms</a></code></li>
+<li><code><a title="adcp.types.aliases.VastAsset1.model_config" href="#adcp.types.aliases.VastAsset1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.VastAsset1.tracking_events" href="#adcp.types.aliases.VastAsset1.tracking_events">tracking_events</a></code></li>
+<li><code><a title="adcp.types.aliases.VastAsset1.url" href="#adcp.types.aliases.VastAsset1.url">url</a></code></li>
+<li><code><a title="adcp.types.aliases.VastAsset1.vast_version" href="#adcp.types.aliases.VastAsset1.vast_version">vast_version</a></code></li>
+<li><code><a title="adcp.types.aliases.VastAsset1.vpaid_enabled" href="#adcp.types.aliases.VastAsset1.vpaid_enabled">vpaid_enabled</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.VastAsset2" href="#adcp.types.aliases.VastAsset2">VastAsset2</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.aliases.VastAsset2.content" href="#adcp.types.aliases.VastAsset2.content">content</a></code></li>
+<li><code><a title="adcp.types.aliases.VastAsset2.delivery_type" href="#adcp.types.aliases.VastAsset2.delivery_type">delivery_type</a></code></li>
+<li><code><a title="adcp.types.aliases.VastAsset2.duration_ms" href="#adcp.types.aliases.VastAsset2.duration_ms">duration_ms</a></code></li>
+<li><code><a title="adcp.types.aliases.VastAsset2.model_config" href="#adcp.types.aliases.VastAsset2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.VastAsset2.tracking_events" href="#adcp.types.aliases.VastAsset2.tracking_events">tracking_events</a></code></li>
+<li><code><a title="adcp.types.aliases.VastAsset2.vast_version" href="#adcp.types.aliases.VastAsset2.vast_version">vast_version</a></code></li>
+<li><code><a title="adcp.types.aliases.VastAsset2.vpaid_enabled" href="#adcp.types.aliases.VastAsset2.vpaid_enabled">vpaid_enabled</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

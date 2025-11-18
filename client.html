@@ -1,0 +1,1838 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.client API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.client</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.client.ADCPClient"><code class="flex name class">
+<span>class <span class="ident">ADCPClient</span></span>
+<span>(</span><span>agent_config: AgentConfig,<br>webhook_url_template: str | None = None,<br>webhook_secret: str | None = None,<br>on_activity: Callable[[Activity], None] | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ADCPClient:
+    &#34;&#34;&#34;Client for interacting with a single AdCP agent.&#34;&#34;&#34;
+
+    def __init__(
+        self,
+        agent_config: AgentConfig,
+        webhook_url_template: str | None = None,
+        webhook_secret: str | None = None,
+        on_activity: Callable[[Activity], None] | None = None,
+    ):
+        &#34;&#34;&#34;
+        Initialize ADCP client for a single agent.
+
+        Args:
+            agent_config: Agent configuration
+            webhook_url_template: Template for webhook URLs with {agent_id},
+                {task_type}, {operation_id}
+            webhook_secret: Secret for webhook signature verification
+            on_activity: Callback for activity events
+        &#34;&#34;&#34;
+        self.agent_config = agent_config
+        self.webhook_url_template = webhook_url_template
+        self.webhook_secret = webhook_secret
+        self.on_activity = on_activity
+
+        # Initialize protocol adapter
+        self.adapter: ProtocolAdapter
+        if agent_config.protocol == Protocol.A2A:
+            self.adapter = A2AAdapter(agent_config)
+        elif agent_config.protocol == Protocol.MCP:
+            self.adapter = MCPAdapter(agent_config)
+        else:
+            raise ValueError(f&#34;Unsupported protocol: {agent_config.protocol}&#34;)
+
+        # Initialize simple API accessor (lazy import to avoid circular dependency)
+        from adcp.simple import SimpleAPI
+
+        self.simple = SimpleAPI(self)
+
+    def get_webhook_url(self, task_type: str, operation_id: str) -&gt; str:
+        &#34;&#34;&#34;Generate webhook URL for a task.&#34;&#34;&#34;
+        if not self.webhook_url_template:
+            raise ValueError(&#34;webhook_url_template not configured&#34;)
+
+        return self.webhook_url_template.format(
+            agent_id=self.agent_config.id,
+            task_type=task_type,
+            operation_id=operation_id,
+        )
+
+    def _emit_activity(self, activity: Activity) -&gt; None:
+        &#34;&#34;&#34;Emit activity event.&#34;&#34;&#34;
+        if self.on_activity:
+            self.on_activity(activity)
+
+    async def get_products(
+        self,
+        request: GetProductsRequest,
+        fetch_previews: bool = False,
+        preview_output_format: str = &#34;url&#34;,
+        creative_agent_client: ADCPClient | None = None,
+    ) -&gt; TaskResult[GetProductsResponse]:
+        &#34;&#34;&#34;
+        Get advertising products.
+
+        Args:
+            request: Request parameters
+            fetch_previews: If True, generate preview URLs for each product&#39;s formats
+                (uses batch API for 5-10x performance improvement)
+            preview_output_format: &#34;url&#34; for iframe URLs (default), &#34;html&#34; for direct
+                embedding (2-3x faster, no iframe overhead)
+            creative_agent_client: Client for creative agent (required if
+                fetch_previews=True)
+
+        Returns:
+            TaskResult containing GetProductsResponse with optional preview URLs in metadata
+
+        Raises:
+            ValueError: If fetch_previews=True but creative_agent_client is not provided
+        &#34;&#34;&#34;
+        if fetch_previews and not creative_agent_client:
+            raise ValueError(&#34;creative_agent_client is required when fetch_previews=True&#34;)
+
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_products&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.get_products(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_products&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        result: TaskResult[GetProductsResponse] = self.adapter._parse_response(
+            raw_result, GetProductsResponse
+        )
+
+        if fetch_previews and result.success and result.data and creative_agent_client:
+            from adcp.utils.preview_cache import add_preview_urls_to_products
+
+            products_with_previews = await add_preview_urls_to_products(
+                result.data.products,
+                creative_agent_client,
+                use_batch=True,
+                output_format=preview_output_format,
+            )
+            result.metadata = result.metadata or {}
+            result.metadata[&#34;products_with_previews&#34;] = products_with_previews
+
+        return result
+
+    async def list_creative_formats(
+        self,
+        request: ListCreativeFormatsRequest,
+        fetch_previews: bool = False,
+        preview_output_format: str = &#34;url&#34;,
+    ) -&gt; TaskResult[ListCreativeFormatsResponse]:
+        &#34;&#34;&#34;
+        List supported creative formats.
+
+        Args:
+            request: Request parameters
+            fetch_previews: If True, generate preview URLs for each format using
+                sample manifests (uses batch API for 5-10x performance improvement)
+            preview_output_format: &#34;url&#34; for iframe URLs (default), &#34;html&#34; for direct
+                embedding (2-3x faster, no iframe overhead)
+
+        Returns:
+            TaskResult containing ListCreativeFormatsResponse with optional preview URLs in metadata
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;list_creative_formats&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.list_creative_formats(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;list_creative_formats&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        result: TaskResult[ListCreativeFormatsResponse] = self.adapter._parse_response(
+            raw_result, ListCreativeFormatsResponse
+        )
+
+        if fetch_previews and result.success and result.data:
+            from adcp.utils.preview_cache import add_preview_urls_to_formats
+
+            formats_with_previews = await add_preview_urls_to_formats(
+                result.data.formats,
+                self,
+                use_batch=True,
+                output_format=preview_output_format,
+            )
+            result.metadata = result.metadata or {}
+            result.metadata[&#34;formats_with_previews&#34;] = formats_with_previews
+
+        return result
+
+    async def preview_creative(
+        self,
+        request: PreviewCreativeRequest,
+    ) -&gt; TaskResult[PreviewCreativeResponse]:
+        &#34;&#34;&#34;
+        Generate preview of a creative manifest.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing PreviewCreativeResponse with preview URLs
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;preview_creative&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.preview_creative(params)  # type: ignore[attr-defined]
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;preview_creative&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, PreviewCreativeResponse)
+
+    async def sync_creatives(
+        self,
+        request: SyncCreativesRequest,
+    ) -&gt; TaskResult[SyncCreativesResponse]:
+        &#34;&#34;&#34;
+        Sync Creatives.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing SyncCreativesResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;sync_creatives&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.sync_creatives(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;sync_creatives&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, SyncCreativesResponse)
+
+    async def list_creatives(
+        self,
+        request: ListCreativesRequest,
+    ) -&gt; TaskResult[ListCreativesResponse]:
+        &#34;&#34;&#34;
+        List Creatives.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing ListCreativesResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;list_creatives&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.list_creatives(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;list_creatives&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, ListCreativesResponse)
+
+    async def get_media_buy_delivery(
+        self,
+        request: GetMediaBuyDeliveryRequest,
+    ) -&gt; TaskResult[GetMediaBuyDeliveryResponse]:
+        &#34;&#34;&#34;
+        Get Media Buy Delivery.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing GetMediaBuyDeliveryResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_media_buy_delivery&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.get_media_buy_delivery(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_media_buy_delivery&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, GetMediaBuyDeliveryResponse)
+
+    async def list_authorized_properties(
+        self,
+        request: ListAuthorizedPropertiesRequest,
+    ) -&gt; TaskResult[ListAuthorizedPropertiesResponse]:
+        &#34;&#34;&#34;
+        List Authorized Properties.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing ListAuthorizedPropertiesResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;list_authorized_properties&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.list_authorized_properties(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;list_authorized_properties&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, ListAuthorizedPropertiesResponse)
+
+    async def get_signals(
+        self,
+        request: GetSignalsRequest,
+    ) -&gt; TaskResult[GetSignalsResponse]:
+        &#34;&#34;&#34;
+        Get Signals.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing GetSignalsResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_signals&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.get_signals(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_signals&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, GetSignalsResponse)
+
+    async def activate_signal(
+        self,
+        request: ActivateSignalRequest,
+    ) -&gt; TaskResult[ActivateSignalResponse]:
+        &#34;&#34;&#34;
+        Activate Signal.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing ActivateSignalResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;activate_signal&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.activate_signal(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;activate_signal&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, ActivateSignalResponse)
+
+    async def provide_performance_feedback(
+        self,
+        request: ProvidePerformanceFeedbackRequest,
+    ) -&gt; TaskResult[ProvidePerformanceFeedbackResponse]:
+        &#34;&#34;&#34;
+        Provide Performance Feedback.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing ProvidePerformanceFeedbackResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;provide_performance_feedback&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.provide_performance_feedback(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;provide_performance_feedback&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, ProvidePerformanceFeedbackResponse)
+
+    async def list_tools(self) -&gt; list[str]:
+        &#34;&#34;&#34;
+        List available tools from the agent.
+
+        Returns:
+            List of tool names
+        &#34;&#34;&#34;
+        return await self.adapter.list_tools()
+
+    async def close(self) -&gt; None:
+        &#34;&#34;&#34;Close the adapter and clean up resources.&#34;&#34;&#34;
+        if hasattr(self.adapter, &#34;close&#34;):
+            logger.debug(f&#34;Closing adapter for agent {self.agent_config.id}&#34;)
+            await self.adapter.close()
+
+    async def __aenter__(self) -&gt; ADCPClient:
+        &#34;&#34;&#34;Async context manager entry.&#34;&#34;&#34;
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -&gt; None:
+        &#34;&#34;&#34;Async context manager exit.&#34;&#34;&#34;
+        await self.close()
+
+    def _verify_webhook_signature(self, payload: dict[str, Any], signature: str) -&gt; bool:
+        &#34;&#34;&#34;
+        Verify HMAC-SHA256 signature of webhook payload.
+
+        Args:
+            payload: Webhook payload dict
+            signature: Signature to verify
+
+        Returns:
+            True if signature is valid, False otherwise
+        &#34;&#34;&#34;
+        if not self.webhook_secret:
+            return True
+
+        payload_bytes = json.dumps(payload, separators=(&#34;,&#34;, &#34;:&#34;), sort_keys=True).encode(&#34;utf-8&#34;)
+        expected_signature = hmac.new(
+            self.webhook_secret.encode(&#34;utf-8&#34;), payload_bytes, hashlib.sha256
+        ).hexdigest()
+
+        return hmac.compare_digest(signature, expected_signature)
+
+    def _parse_webhook_result(self, webhook: WebhookPayload) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;
+        Parse webhook payload into typed TaskResult based on task_type.
+
+        Args:
+            webhook: Validated webhook payload
+
+        Returns:
+            TaskResult with task-specific typed response data
+        &#34;&#34;&#34;
+        from adcp.utils.response_parser import parse_json_or_text
+
+        # Map task types to their response types (using string literals, not enum)
+        # Note: Some response types are Union types (e.g., ActivateSignalResponse = Success | Error)
+        response_type_map: dict[str, type[BaseModel] | Any] = {
+            &#34;get_products&#34;: GetProductsResponse,
+            &#34;list_creative_formats&#34;: ListCreativeFormatsResponse,
+            &#34;sync_creatives&#34;: SyncCreativesResponse,  # Union type
+            &#34;list_creatives&#34;: ListCreativesResponse,
+            &#34;get_media_buy_delivery&#34;: GetMediaBuyDeliveryResponse,
+            &#34;list_authorized_properties&#34;: ListAuthorizedPropertiesResponse,
+            &#34;get_signals&#34;: GetSignalsResponse,
+            &#34;activate_signal&#34;: ActivateSignalResponse,  # Union type
+            &#34;provide_performance_feedback&#34;: ProvidePerformanceFeedbackResponse,
+        }
+
+        # Handle completed tasks with result parsing
+
+        if webhook.status == GeneratedTaskStatus.completed and webhook.result is not None:
+            response_type = response_type_map.get(webhook.task_type.value)
+            if response_type:
+                try:
+                    parsed_result: Any = parse_json_or_text(webhook.result, response_type)
+                    return TaskResult[Any](
+                        status=TaskStatus.COMPLETED,
+                        data=parsed_result,
+                        success=True,
+                        metadata={
+                            &#34;task_id&#34;: webhook.task_id,
+                            &#34;operation_id&#34;: webhook.operation_id,
+                            &#34;timestamp&#34;: webhook.timestamp,
+                            &#34;message&#34;: webhook.message,
+                        },
+                    )
+                except ValueError as e:
+                    logger.warning(f&#34;Failed to parse webhook result: {e}&#34;)
+                    # Fall through to untyped result
+
+        # Handle failed, input-required, or unparseable results
+        # Convert webhook status to core TaskStatus enum
+        # Map generated enum values to core enum values
+        status_map = {
+            GeneratedTaskStatus.completed: TaskStatus.COMPLETED,
+            GeneratedTaskStatus.submitted: TaskStatus.SUBMITTED,
+            GeneratedTaskStatus.working: TaskStatus.WORKING,
+            GeneratedTaskStatus.failed: TaskStatus.FAILED,
+            GeneratedTaskStatus.input_required: TaskStatus.NEEDS_INPUT,
+        }
+        task_status = status_map.get(webhook.status, TaskStatus.FAILED)
+
+        return TaskResult[Any](
+            status=task_status,
+            data=webhook.result,
+            success=webhook.status == GeneratedTaskStatus.completed,
+            error=webhook.error if isinstance(webhook.error, str) else None,
+            metadata={
+                &#34;task_id&#34;: webhook.task_id,
+                &#34;operation_id&#34;: webhook.operation_id,
+                &#34;timestamp&#34;: webhook.timestamp,
+                &#34;message&#34;: webhook.message,
+                &#34;context_id&#34;: webhook.context_id,
+                &#34;progress&#34;: webhook.progress,
+            },
+        )
+
+    async def handle_webhook(
+        self,
+        payload: dict[str, Any],
+        signature: str | None = None,
+    ) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;
+        Handle incoming webhook and return typed result.
+
+        This method:
+        1. Verifies webhook signature (if provided)
+        2. Validates payload against WebhookPayload schema
+        3. Parses task-specific result data into typed response
+        4. Emits activity for monitoring
+
+        Args:
+            payload: Webhook payload dict
+            signature: Optional HMAC-SHA256 signature for verification
+
+        Returns:
+            TaskResult with parsed task-specific response data
+
+        Raises:
+            ADCPWebhookSignatureError: If signature verification fails
+            ValidationError: If payload doesn&#39;t match WebhookPayload schema
+
+        Example:
+            &gt;&gt;&gt; result = await client.handle_webhook(payload, signature)
+            &gt;&gt;&gt; if result.success and isinstance(result.data, GetProductsResponse):
+            &gt;&gt;&gt;     print(f&#34;Found {len(result.data.products)} products&#34;)
+        &#34;&#34;&#34;
+        # Verify signature before processing
+        if signature and not self._verify_webhook_signature(payload, signature):
+            logger.warning(
+                f&#34;Webhook signature verification failed for agent {self.agent_config.id}&#34;
+            )
+            raise ADCPWebhookSignatureError(&#34;Invalid webhook signature&#34;)
+
+        # Validate and parse webhook payload
+        webhook = WebhookPayload.model_validate(payload)
+
+        # Emit activity for monitoring
+        self._emit_activity(
+            Activity(
+                type=ActivityType.WEBHOOK_RECEIVED,
+                operation_id=webhook.operation_id or &#34;unknown&#34;,
+                agent_id=self.agent_config.id,
+                task_type=webhook.task_type.value,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                metadata={&#34;payload&#34;: payload},
+            )
+        )
+
+        # Parse and return typed result
+        return self._parse_webhook_result(webhook)</code></pre>
+</details>
+<div class="desc"><p>Client for interacting with a single AdCP agent.</p>
+<p>Initialize ADCP client for a single agent.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>agent_config</code></strong></dt>
+<dd>Agent configuration</dd>
+<dt><strong><code>webhook_url_template</code></strong></dt>
+<dd>Template for webhook URLs with {agent_id},
+{task_type}, {operation_id}</dd>
+<dt><strong><code>webhook_secret</code></strong></dt>
+<dd>Secret for webhook signature verification</dd>
+<dt><strong><code>on_activity</code></strong></dt>
+<dd>Callback for activity events</dd>
+</dl></div>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.client.ADCPClient.activate_signal"><code class="name flex">
+<span>async def <span class="ident">activate_signal</span></span>(<span>self, request: ActivateSignalRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[ActivateSignalResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def activate_signal(
+    self,
+    request: ActivateSignalRequest,
+) -&gt; TaskResult[ActivateSignalResponse]:
+    &#34;&#34;&#34;
+    Activate Signal.
+
+    Args:
+        request: Request parameters
+
+    Returns:
+        TaskResult containing ActivateSignalResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;activate_signal&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.activate_signal(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;activate_signal&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, ActivateSignalResponse)</code></pre>
+</details>
+<div class="desc"><p>Activate Signal.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing ActivateSignalResponse</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.close"><code class="name flex">
+<span>async def <span class="ident">close</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def close(self) -&gt; None:
+    &#34;&#34;&#34;Close the adapter and clean up resources.&#34;&#34;&#34;
+    if hasattr(self.adapter, &#34;close&#34;):
+        logger.debug(f&#34;Closing adapter for agent {self.agent_config.id}&#34;)
+        await self.adapter.close()</code></pre>
+</details>
+<div class="desc"><p>Close the adapter and clean up resources.</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.get_media_buy_delivery"><code class="name flex">
+<span>async def <span class="ident">get_media_buy_delivery</span></span>(<span>self, request: GetMediaBuyDeliveryRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[GetMediaBuyDeliveryResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_media_buy_delivery(
+    self,
+    request: GetMediaBuyDeliveryRequest,
+) -&gt; TaskResult[GetMediaBuyDeliveryResponse]:
+    &#34;&#34;&#34;
+    Get Media Buy Delivery.
+
+    Args:
+        request: Request parameters
+
+    Returns:
+        TaskResult containing GetMediaBuyDeliveryResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_media_buy_delivery&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.get_media_buy_delivery(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_media_buy_delivery&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, GetMediaBuyDeliveryResponse)</code></pre>
+</details>
+<div class="desc"><p>Get Media Buy Delivery.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing GetMediaBuyDeliveryResponse</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.get_products"><code class="name flex">
+<span>async def <span class="ident">get_products</span></span>(<span>self,<br>request: GetProductsRequest,<br>fetch_previews: bool = False,<br>preview_output_format: str = 'url',<br>creative_agent_client: <a title="adcp.client.ADCPClient" href="#adcp.client.ADCPClient">ADCPClient</a> | None = None) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[GetProductsResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_products(
+    self,
+    request: GetProductsRequest,
+    fetch_previews: bool = False,
+    preview_output_format: str = &#34;url&#34;,
+    creative_agent_client: ADCPClient | None = None,
+) -&gt; TaskResult[GetProductsResponse]:
+    &#34;&#34;&#34;
+    Get advertising products.
+
+    Args:
+        request: Request parameters
+        fetch_previews: If True, generate preview URLs for each product&#39;s formats
+            (uses batch API for 5-10x performance improvement)
+        preview_output_format: &#34;url&#34; for iframe URLs (default), &#34;html&#34; for direct
+            embedding (2-3x faster, no iframe overhead)
+        creative_agent_client: Client for creative agent (required if
+            fetch_previews=True)
+
+    Returns:
+        TaskResult containing GetProductsResponse with optional preview URLs in metadata
+
+    Raises:
+        ValueError: If fetch_previews=True but creative_agent_client is not provided
+    &#34;&#34;&#34;
+    if fetch_previews and not creative_agent_client:
+        raise ValueError(&#34;creative_agent_client is required when fetch_previews=True&#34;)
+
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_products&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.get_products(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_products&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    result: TaskResult[GetProductsResponse] = self.adapter._parse_response(
+        raw_result, GetProductsResponse
+    )
+
+    if fetch_previews and result.success and result.data and creative_agent_client:
+        from adcp.utils.preview_cache import add_preview_urls_to_products
+
+        products_with_previews = await add_preview_urls_to_products(
+            result.data.products,
+            creative_agent_client,
+            use_batch=True,
+            output_format=preview_output_format,
+        )
+        result.metadata = result.metadata or {}
+        result.metadata[&#34;products_with_previews&#34;] = products_with_previews
+
+    return result</code></pre>
+</details>
+<div class="desc"><p>Get advertising products.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters</dd>
+<dt><strong><code>fetch_previews</code></strong></dt>
+<dd>If True, generate preview URLs for each product's formats
+(uses batch API for 5-10x performance improvement)</dd>
+<dt><strong><code>preview_output_format</code></strong></dt>
+<dd>"url" for iframe URLs (default), "html" for direct
+embedding (2-3x faster, no iframe overhead)</dd>
+<dt><strong><code>creative_agent_client</code></strong></dt>
+<dd>Client for creative agent (required if
+fetch_previews=True)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing GetProductsResponse with optional preview URLs in metadata</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>ValueError</code></dt>
+<dd>If fetch_previews=True but creative_agent_client is not provided</dd>
+</dl></div>
+</dd>
+<dt id="adcp.client.ADCPClient.get_signals"><code class="name flex">
+<span>async def <span class="ident">get_signals</span></span>(<span>self, request: GetSignalsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[GetSignalsResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_signals(
+    self,
+    request: GetSignalsRequest,
+) -&gt; TaskResult[GetSignalsResponse]:
+    &#34;&#34;&#34;
+    Get Signals.
+
+    Args:
+        request: Request parameters
+
+    Returns:
+        TaskResult containing GetSignalsResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_signals&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.get_signals(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_signals&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, GetSignalsResponse)</code></pre>
+</details>
+<div class="desc"><p>Get Signals.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing GetSignalsResponse</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.get_webhook_url"><code class="name flex">
+<span>def <span class="ident">get_webhook_url</span></span>(<span>self, task_type: str, operation_id: str) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_webhook_url(self, task_type: str, operation_id: str) -&gt; str:
+    &#34;&#34;&#34;Generate webhook URL for a task.&#34;&#34;&#34;
+    if not self.webhook_url_template:
+        raise ValueError(&#34;webhook_url_template not configured&#34;)
+
+    return self.webhook_url_template.format(
+        agent_id=self.agent_config.id,
+        task_type=task_type,
+        operation_id=operation_id,
+    )</code></pre>
+</details>
+<div class="desc"><p>Generate webhook URL for a task.</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.handle_webhook"><code class="name flex">
+<span>async def <span class="ident">handle_webhook</span></span>(<span>self, payload: dict[str, Any], signature: str | None = None) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def handle_webhook(
+    self,
+    payload: dict[str, Any],
+    signature: str | None = None,
+) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;
+    Handle incoming webhook and return typed result.
+
+    This method:
+    1. Verifies webhook signature (if provided)
+    2. Validates payload against WebhookPayload schema
+    3. Parses task-specific result data into typed response
+    4. Emits activity for monitoring
+
+    Args:
+        payload: Webhook payload dict
+        signature: Optional HMAC-SHA256 signature for verification
+
+    Returns:
+        TaskResult with parsed task-specific response data
+
+    Raises:
+        ADCPWebhookSignatureError: If signature verification fails
+        ValidationError: If payload doesn&#39;t match WebhookPayload schema
+
+    Example:
+        &gt;&gt;&gt; result = await client.handle_webhook(payload, signature)
+        &gt;&gt;&gt; if result.success and isinstance(result.data, GetProductsResponse):
+        &gt;&gt;&gt;     print(f&#34;Found {len(result.data.products)} products&#34;)
+    &#34;&#34;&#34;
+    # Verify signature before processing
+    if signature and not self._verify_webhook_signature(payload, signature):
+        logger.warning(
+            f&#34;Webhook signature verification failed for agent {self.agent_config.id}&#34;
+        )
+        raise ADCPWebhookSignatureError(&#34;Invalid webhook signature&#34;)
+
+    # Validate and parse webhook payload
+    webhook = WebhookPayload.model_validate(payload)
+
+    # Emit activity for monitoring
+    self._emit_activity(
+        Activity(
+            type=ActivityType.WEBHOOK_RECEIVED,
+            operation_id=webhook.operation_id or &#34;unknown&#34;,
+            agent_id=self.agent_config.id,
+            task_type=webhook.task_type.value,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            metadata={&#34;payload&#34;: payload},
+        )
+    )
+
+    # Parse and return typed result
+    return self._parse_webhook_result(webhook)</code></pre>
+</details>
+<div class="desc"><p>Handle incoming webhook and return typed result.</p>
+<p>This method:
+1. Verifies webhook signature (if provided)
+2. Validates payload against WebhookPayload schema
+3. Parses task-specific result data into typed response
+4. Emits activity for monitoring</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>payload</code></strong></dt>
+<dd>Webhook payload dict</dd>
+<dt><strong><code>signature</code></strong></dt>
+<dd>Optional HMAC-SHA256 signature for verification</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult with parsed task-specific response data</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>ADCPWebhookSignatureError</code></dt>
+<dd>If signature verification fails</dd>
+<dt><code>ValidationError</code></dt>
+<dd>If payload doesn't match WebhookPayload schema</dd>
+</dl>
+<h2 id="example">Example</h2>
+<pre><code class="language-python-repl">&gt;&gt;&gt; result = await client.handle_webhook(payload, signature)
+&gt;&gt;&gt; if result.success and isinstance(result.data, GetProductsResponse):
+&gt;&gt;&gt;     print(f&quot;Found {len(result.data.products)} products&quot;)
+</code></pre></div>
+</dd>
+<dt id="adcp.client.ADCPClient.list_authorized_properties"><code class="name flex">
+<span>async def <span class="ident">list_authorized_properties</span></span>(<span>self, request: ListAuthorizedPropertiesRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[ListAuthorizedPropertiesResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_authorized_properties(
+    self,
+    request: ListAuthorizedPropertiesRequest,
+) -&gt; TaskResult[ListAuthorizedPropertiesResponse]:
+    &#34;&#34;&#34;
+    List Authorized Properties.
+
+    Args:
+        request: Request parameters
+
+    Returns:
+        TaskResult containing ListAuthorizedPropertiesResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;list_authorized_properties&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.list_authorized_properties(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;list_authorized_properties&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, ListAuthorizedPropertiesResponse)</code></pre>
+</details>
+<div class="desc"><p>List Authorized Properties.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing ListAuthorizedPropertiesResponse</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.list_creative_formats"><code class="name flex">
+<span>async def <span class="ident">list_creative_formats</span></span>(<span>self,<br>request: ListCreativeFormatsRequest,<br>fetch_previews: bool = False,<br>preview_output_format: str = 'url') ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[ListCreativeFormatsResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_creative_formats(
+    self,
+    request: ListCreativeFormatsRequest,
+    fetch_previews: bool = False,
+    preview_output_format: str = &#34;url&#34;,
+) -&gt; TaskResult[ListCreativeFormatsResponse]:
+    &#34;&#34;&#34;
+    List supported creative formats.
+
+    Args:
+        request: Request parameters
+        fetch_previews: If True, generate preview URLs for each format using
+            sample manifests (uses batch API for 5-10x performance improvement)
+        preview_output_format: &#34;url&#34; for iframe URLs (default), &#34;html&#34; for direct
+            embedding (2-3x faster, no iframe overhead)
+
+    Returns:
+        TaskResult containing ListCreativeFormatsResponse with optional preview URLs in metadata
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;list_creative_formats&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.list_creative_formats(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;list_creative_formats&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    result: TaskResult[ListCreativeFormatsResponse] = self.adapter._parse_response(
+        raw_result, ListCreativeFormatsResponse
+    )
+
+    if fetch_previews and result.success and result.data:
+        from adcp.utils.preview_cache import add_preview_urls_to_formats
+
+        formats_with_previews = await add_preview_urls_to_formats(
+            result.data.formats,
+            self,
+            use_batch=True,
+            output_format=preview_output_format,
+        )
+        result.metadata = result.metadata or {}
+        result.metadata[&#34;formats_with_previews&#34;] = formats_with_previews
+
+    return result</code></pre>
+</details>
+<div class="desc"><p>List supported creative formats.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters</dd>
+<dt><strong><code>fetch_previews</code></strong></dt>
+<dd>If True, generate preview URLs for each format using
+sample manifests (uses batch API for 5-10x performance improvement)</dd>
+<dt><strong><code>preview_output_format</code></strong></dt>
+<dd>"url" for iframe URLs (default), "html" for direct
+embedding (2-3x faster, no iframe overhead)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing ListCreativeFormatsResponse with optional preview URLs in metadata</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.list_creatives"><code class="name flex">
+<span>async def <span class="ident">list_creatives</span></span>(<span>self, request: ListCreativesRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[ListCreativesResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_creatives(
+    self,
+    request: ListCreativesRequest,
+) -&gt; TaskResult[ListCreativesResponse]:
+    &#34;&#34;&#34;
+    List Creatives.
+
+    Args:
+        request: Request parameters
+
+    Returns:
+        TaskResult containing ListCreativesResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;list_creatives&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.list_creatives(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;list_creatives&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, ListCreativesResponse)</code></pre>
+</details>
+<div class="desc"><p>List Creatives.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing ListCreativesResponse</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.list_tools"><code class="name flex">
+<span>async def <span class="ident">list_tools</span></span>(<span>self) ‑> list[str]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_tools(self) -&gt; list[str]:
+    &#34;&#34;&#34;
+    List available tools from the agent.
+
+    Returns:
+        List of tool names
+    &#34;&#34;&#34;
+    return await self.adapter.list_tools()</code></pre>
+</details>
+<div class="desc"><p>List available tools from the agent.</p>
+<h2 id="returns">Returns</h2>
+<p>List of tool names</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.preview_creative"><code class="name flex">
+<span>async def <span class="ident">preview_creative</span></span>(<span>self, request: PreviewCreativeRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[PreviewCreativeResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def preview_creative(
+    self,
+    request: PreviewCreativeRequest,
+) -&gt; TaskResult[PreviewCreativeResponse]:
+    &#34;&#34;&#34;
+    Generate preview of a creative manifest.
+
+    Args:
+        request: Request parameters
+
+    Returns:
+        TaskResult containing PreviewCreativeResponse with preview URLs
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;preview_creative&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.preview_creative(params)  # type: ignore[attr-defined]
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;preview_creative&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, PreviewCreativeResponse)</code></pre>
+</details>
+<div class="desc"><p>Generate preview of a creative manifest.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing PreviewCreativeResponse with preview URLs</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.provide_performance_feedback"><code class="name flex">
+<span>async def <span class="ident">provide_performance_feedback</span></span>(<span>self, request: ProvidePerformanceFeedbackRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[ProvidePerformanceFeedbackResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def provide_performance_feedback(
+    self,
+    request: ProvidePerformanceFeedbackRequest,
+) -&gt; TaskResult[ProvidePerformanceFeedbackResponse]:
+    &#34;&#34;&#34;
+    Provide Performance Feedback.
+
+    Args:
+        request: Request parameters
+
+    Returns:
+        TaskResult containing ProvidePerformanceFeedbackResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;provide_performance_feedback&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.provide_performance_feedback(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;provide_performance_feedback&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, ProvidePerformanceFeedbackResponse)</code></pre>
+</details>
+<div class="desc"><p>Provide Performance Feedback.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing ProvidePerformanceFeedbackResponse</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.sync_creatives"><code class="name flex">
+<span>async def <span class="ident">sync_creatives</span></span>(<span>self, request: SyncCreativesRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[SyncCreativesResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def sync_creatives(
+    self,
+    request: SyncCreativesRequest,
+) -&gt; TaskResult[SyncCreativesResponse]:
+    &#34;&#34;&#34;
+    Sync Creatives.
+
+    Args:
+        request: Request parameters
+
+    Returns:
+        TaskResult containing SyncCreativesResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;sync_creatives&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.sync_creatives(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;sync_creatives&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, SyncCreativesResponse)</code></pre>
+</details>
+<div class="desc"><p>Sync Creatives.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing SyncCreativesResponse</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.client.ADCPMultiAgentClient"><code class="flex name class">
+<span>class <span class="ident">ADCPMultiAgentClient</span></span>
+<span>(</span><span>agents: list[AgentConfig],<br>webhook_url_template: str | None = None,<br>webhook_secret: str | None = None,<br>on_activity: Callable[[Activity], None] | None = None,<br>handlers: dict[str, Callable[..., Any]] | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ADCPMultiAgentClient:
+    &#34;&#34;&#34;Client for managing multiple AdCP agents.&#34;&#34;&#34;
+
+    def __init__(
+        self,
+        agents: list[AgentConfig],
+        webhook_url_template: str | None = None,
+        webhook_secret: str | None = None,
+        on_activity: Callable[[Activity], None] | None = None,
+        handlers: dict[str, Callable[..., Any]] | None = None,
+    ):
+        &#34;&#34;&#34;
+        Initialize multi-agent client.
+
+        Args:
+            agents: List of agent configurations
+            webhook_url_template: Template for webhook URLs
+            webhook_secret: Secret for webhook verification
+            on_activity: Callback for activity events
+            handlers: Task completion handlers
+        &#34;&#34;&#34;
+        self.agents = {
+            agent.id: ADCPClient(
+                agent,
+                webhook_url_template=webhook_url_template,
+                webhook_secret=webhook_secret,
+                on_activity=on_activity,
+            )
+            for agent in agents
+        }
+        self.handlers = handlers or {}
+
+    def agent(self, agent_id: str) -&gt; ADCPClient:
+        &#34;&#34;&#34;Get client for specific agent.&#34;&#34;&#34;
+        if agent_id not in self.agents:
+            raise ValueError(f&#34;Agent not found: {agent_id}&#34;)
+        return self.agents[agent_id]
+
+    @property
+    def agent_ids(self) -&gt; list[str]:
+        &#34;&#34;&#34;Get list of agent IDs.&#34;&#34;&#34;
+        return list(self.agents.keys())
+
+    async def close(self) -&gt; None:
+        &#34;&#34;&#34;Close all agent clients and clean up resources.&#34;&#34;&#34;
+        import asyncio
+
+        logger.debug(&#34;Closing all agent clients in multi-agent client&#34;)
+        close_tasks = [client.close() for client in self.agents.values()]
+        await asyncio.gather(*close_tasks, return_exceptions=True)
+
+    async def __aenter__(self) -&gt; ADCPMultiAgentClient:
+        &#34;&#34;&#34;Async context manager entry.&#34;&#34;&#34;
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -&gt; None:
+        &#34;&#34;&#34;Async context manager exit.&#34;&#34;&#34;
+        await self.close()
+
+    async def get_products(
+        self,
+        request: GetProductsRequest,
+    ) -&gt; list[TaskResult[GetProductsResponse]]:
+        &#34;&#34;&#34;
+        Execute get_products across all agents in parallel.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            List of TaskResults containing GetProductsResponse for each agent
+        &#34;&#34;&#34;
+        import asyncio
+
+        tasks = [agent.get_products(request) for agent in self.agents.values()]
+        return await asyncio.gather(*tasks)
+
+    @classmethod
+    def from_env(cls) -&gt; ADCPMultiAgentClient:
+        &#34;&#34;&#34;Create client from environment variables.&#34;&#34;&#34;
+        agents_json = os.getenv(&#34;ADCP_AGENTS&#34;)
+        if not agents_json:
+            raise ValueError(&#34;ADCP_AGENTS environment variable not set&#34;)
+
+        agents_data = json.loads(agents_json)
+        agents = [AgentConfig(**agent) for agent in agents_data]
+
+        return cls(
+            agents=agents,
+            webhook_url_template=os.getenv(&#34;WEBHOOK_URL_TEMPLATE&#34;),
+            webhook_secret=os.getenv(&#34;WEBHOOK_SECRET&#34;),
+        )</code></pre>
+</details>
+<div class="desc"><p>Client for managing multiple AdCP agents.</p>
+<p>Initialize multi-agent client.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>agents</code></strong></dt>
+<dd>List of agent configurations</dd>
+<dt><strong><code>webhook_url_template</code></strong></dt>
+<dd>Template for webhook URLs</dd>
+<dt><strong><code>webhook_secret</code></strong></dt>
+<dd>Secret for webhook verification</dd>
+<dt><strong><code>on_activity</code></strong></dt>
+<dd>Callback for activity events</dd>
+<dt><strong><code>handlers</code></strong></dt>
+<dd>Task completion handlers</dd>
+</dl></div>
+<h3>Static methods</h3>
+<dl>
+<dt id="adcp.client.ADCPMultiAgentClient.from_env"><code class="name flex">
+<span>def <span class="ident">from_env</span></span>(<span>) ‑> <a title="adcp.client.ADCPMultiAgentClient" href="#adcp.client.ADCPMultiAgentClient">ADCPMultiAgentClient</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Create client from environment variables.</p></div>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.client.ADCPMultiAgentClient.agent_ids"><code class="name">prop <span class="ident">agent_ids</span> : list[str]</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def agent_ids(self) -&gt; list[str]:
+    &#34;&#34;&#34;Get list of agent IDs.&#34;&#34;&#34;
+    return list(self.agents.keys())</code></pre>
+</details>
+<div class="desc"><p>Get list of agent IDs.</p></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.client.ADCPMultiAgentClient.agent"><code class="name flex">
+<span>def <span class="ident">agent</span></span>(<span>self, agent_id: str) ‑> <a title="adcp.client.ADCPClient" href="#adcp.client.ADCPClient">ADCPClient</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def agent(self, agent_id: str) -&gt; ADCPClient:
+    &#34;&#34;&#34;Get client for specific agent.&#34;&#34;&#34;
+    if agent_id not in self.agents:
+        raise ValueError(f&#34;Agent not found: {agent_id}&#34;)
+    return self.agents[agent_id]</code></pre>
+</details>
+<div class="desc"><p>Get client for specific agent.</p></div>
+</dd>
+<dt id="adcp.client.ADCPMultiAgentClient.close"><code class="name flex">
+<span>async def <span class="ident">close</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def close(self) -&gt; None:
+    &#34;&#34;&#34;Close all agent clients and clean up resources.&#34;&#34;&#34;
+    import asyncio
+
+    logger.debug(&#34;Closing all agent clients in multi-agent client&#34;)
+    close_tasks = [client.close() for client in self.agents.values()]
+    await asyncio.gather(*close_tasks, return_exceptions=True)</code></pre>
+</details>
+<div class="desc"><p>Close all agent clients and clean up resources.</p></div>
+</dd>
+<dt id="adcp.client.ADCPMultiAgentClient.get_products"><code class="name flex">
+<span>async def <span class="ident">get_products</span></span>(<span>self, request: GetProductsRequest) ‑> list[<a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[GetProductsResponse]]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_products(
+    self,
+    request: GetProductsRequest,
+) -&gt; list[TaskResult[GetProductsResponse]]:
+    &#34;&#34;&#34;
+    Execute get_products across all agents in parallel.
+
+    Args:
+        request: Request parameters
+
+    Returns:
+        List of TaskResults containing GetProductsResponse for each agent
+    &#34;&#34;&#34;
+    import asyncio
+
+    tasks = [agent.get_products(request) for agent in self.agents.values()]
+    return await asyncio.gather(*tasks)</code></pre>
+</details>
+<div class="desc"><p>Execute get_products across all agents in parallel.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>List of TaskResults containing GetProductsResponse for each agent</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp" href="index.html">adcp</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.client.ADCPClient" href="#adcp.client.ADCPClient">ADCPClient</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.client.ADCPClient.activate_signal" href="#adcp.client.ADCPClient.activate_signal">activate_signal</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.close" href="#adcp.client.ADCPClient.close">close</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.get_media_buy_delivery" href="#adcp.client.ADCPClient.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.get_products" href="#adcp.client.ADCPClient.get_products">get_products</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.get_signals" href="#adcp.client.ADCPClient.get_signals">get_signals</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.get_webhook_url" href="#adcp.client.ADCPClient.get_webhook_url">get_webhook_url</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.handle_webhook" href="#adcp.client.ADCPClient.handle_webhook">handle_webhook</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.list_authorized_properties" href="#adcp.client.ADCPClient.list_authorized_properties">list_authorized_properties</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.list_creative_formats" href="#adcp.client.ADCPClient.list_creative_formats">list_creative_formats</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.list_creatives" href="#adcp.client.ADCPClient.list_creatives">list_creatives</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.list_tools" href="#adcp.client.ADCPClient.list_tools">list_tools</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.preview_creative" href="#adcp.client.ADCPClient.preview_creative">preview_creative</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.provide_performance_feedback" href="#adcp.client.ADCPClient.provide_performance_feedback">provide_performance_feedback</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.sync_creatives" href="#adcp.client.ADCPClient.sync_creatives">sync_creatives</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.client.ADCPMultiAgentClient" href="#adcp.client.ADCPMultiAgentClient">ADCPMultiAgentClient</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.client.ADCPMultiAgentClient.agent" href="#adcp.client.ADCPMultiAgentClient.agent">agent</a></code></li>
+<li><code><a title="adcp.client.ADCPMultiAgentClient.agent_ids" href="#adcp.client.ADCPMultiAgentClient.agent_ids">agent_ids</a></code></li>
+<li><code><a title="adcp.client.ADCPMultiAgentClient.close" href="#adcp.client.ADCPMultiAgentClient.close">close</a></code></li>
+<li><code><a title="adcp.client.ADCPMultiAgentClient.from_env" href="#adcp.client.ADCPMultiAgentClient.from_env">from_env</a></code></li>
+<li><code><a title="adcp.client.ADCPMultiAgentClient.get_products" href="#adcp.client.ADCPMultiAgentClient.get_products">get_products</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

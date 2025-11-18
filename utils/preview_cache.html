@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.utils.preview_cache API documentation</title>
+<meta name="description" content="Helper utilities for generating creative preview URLs for grid rendering.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.utils.preview_cache</code></h1>
+</header>
+<section id="section-intro">
+<p>Helper utilities for generating creative preview URLs for grid rendering.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="adcp.utils.preview_cache.add_preview_urls_to_formats"><code class="name flex">
+<span>async def <span class="ident">add_preview_urls_to_formats</span></span>(<span>formats: list[Format],<br>creative_agent_client: ADCPClient,<br>use_batch: bool = True,<br>output_format: str = 'url') ‑> list[dict[str, Any]]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def add_preview_urls_to_formats(
+    formats: list[Format],
+    creative_agent_client: ADCPClient,
+    use_batch: bool = True,
+    output_format: str = &#34;url&#34;,
+) -&gt; list[dict[str, Any]]:
+    &#34;&#34;&#34;
+    Add preview URLs to each format by generating sample manifests.
+
+    Uses batch API for 5-10x better performance when previewing multiple formats.
+
+    Args:
+        formats: List of Format objects
+        creative_agent_client: Client for the creative agent
+        use_batch: If True, use batch API (default). Set False to use individual requests.
+        output_format: &#34;url&#34; for iframe URLs, &#34;html&#34; for direct embedding
+
+    Returns:
+        List of format dicts with added preview_data fields
+    &#34;&#34;&#34;
+    if not formats:
+        return []
+
+    generator = PreviewURLGenerator(creative_agent_client)
+
+    # Prepare all requests
+    format_requests = []
+    for fmt in formats:
+        sample_manifest = _create_sample_manifest_for_format(fmt)
+        if sample_manifest:
+            format_requests.append((fmt, sample_manifest))
+
+    if not format_requests:
+        return [fmt.model_dump(exclude_none=True) for fmt in formats]
+
+    # Use batch API if requested and we have multiple formats
+    if use_batch and len(format_requests) &gt; 1:
+        # Batch mode - much faster!
+        batch_requests = [(fmt.format_id, manifest) for fmt, manifest in format_requests]
+        preview_data_list = await generator.get_preview_data_batch(
+            batch_requests, output_format=output_format
+        )
+
+        # Merge preview data back with formats
+        result = []
+        preview_idx = 0
+        for fmt in formats:
+            format_dict = fmt.model_dump(exclude_none=True)
+            # Check if this format had a manifest
+            if preview_idx &lt; len(format_requests) and format_requests[preview_idx][0] == fmt:
+                preview_data = preview_data_list[preview_idx]
+                if preview_data:
+                    format_dict[&#34;preview_data&#34;] = preview_data
+                preview_idx += 1
+            result.append(format_dict)
+        return result
+    else:
+        # Fallback to individual requests (for single format or when batch disabled)
+        import asyncio
+
+        async def process_format(fmt: Format) -&gt; dict[str, Any]:
+            &#34;&#34;&#34;Process a single format and add preview data.&#34;&#34;&#34;
+            format_dict = fmt.model_dump(exclude_none=True)
+
+            try:
+                sample_manifest = _create_sample_manifest_for_format(fmt)
+                if sample_manifest:
+                    preview_data = await generator.get_preview_data_for_manifest(
+                        fmt.format_id, sample_manifest
+                    )
+                    if preview_data:
+                        format_dict[&#34;preview_data&#34;] = preview_data
+            except Exception as e:
+                logger.warning(f&#34;Failed to add preview data for format {fmt.format_id}: {e}&#34;)
+
+            return format_dict
+
+        return await asyncio.gather(*[process_format(fmt) for fmt in formats])</code></pre>
+</details>
+<div class="desc"><p>Add preview URLs to each format by generating sample manifests.</p>
+<p>Uses batch API for 5-10x better performance when previewing multiple formats.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>formats</code></strong></dt>
+<dd>List of Format objects</dd>
+<dt><strong><code>creative_agent_client</code></strong></dt>
+<dd>Client for the creative agent</dd>
+<dt><strong><code>use_batch</code></strong></dt>
+<dd>If True, use batch API (default). Set False to use individual requests.</dd>
+<dt><strong><code>output_format</code></strong></dt>
+<dd>"url" for iframe URLs, "html" for direct embedding</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>List of format dicts with added preview_data fields</p></div>
+</dd>
+<dt id="adcp.utils.preview_cache.add_preview_urls_to_products"><code class="name flex">
+<span>async def <span class="ident">add_preview_urls_to_products</span></span>(<span>products: list[Product],<br>creative_agent_client: ADCPClient,<br>use_batch: bool = True,<br>output_format: str = 'url') ‑> list[dict[str, Any]]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def add_preview_urls_to_products(
+    products: list[Product],
+    creative_agent_client: ADCPClient,
+    use_batch: bool = True,
+    output_format: str = &#34;url&#34;,
+) -&gt; list[dict[str, Any]]:
+    &#34;&#34;&#34;
+    Add preview URLs to products for their supported formats.
+
+    Uses batch API for 5-10x better performance when previewing many product formats.
+
+    Args:
+        products: List of Product objects
+        creative_agent_client: Client for the creative agent
+        use_batch: If True, use batch API (default). Set False to use individual requests.
+        output_format: &#34;url&#34; for iframe URLs, &#34;html&#34; for direct embedding
+
+    Returns:
+        List of product dicts with added format_previews field
+    &#34;&#34;&#34;
+    if not products:
+        return []
+
+    generator = PreviewURLGenerator(creative_agent_client)
+
+    # Collect all unique format_id + manifest combinations across all products
+    all_requests: list[tuple[Product, FormatId, CreativeManifest]] = []
+    for product in products:
+        for format_id in product.format_ids:
+            sample_manifest = _create_sample_manifest_for_format_id(format_id, product)
+            if sample_manifest:
+                all_requests.append((product, format_id, sample_manifest))
+
+    if not all_requests:
+        return [p.model_dump(exclude_none=True) for p in products]
+
+    # Use batch API if requested and we have multiple requests
+    if use_batch and len(all_requests) &gt; 1:
+        # Batch mode - much faster!
+        batch_requests = [(format_id, manifest) for _, format_id, manifest in all_requests]
+        preview_data_list = await generator.get_preview_data_batch(
+            batch_requests, output_format=output_format
+        )
+
+        # Map results back to products
+        # Build a mapping from product_id -&gt; format_id -&gt; preview_data
+        product_previews: dict[str, dict[str, dict[str, Any]]] = {}
+        for (product, format_id, _), preview_data in zip(all_requests, preview_data_list):
+            if preview_data:
+                if product.product_id not in product_previews:
+                    product_previews[product.product_id] = {}
+                product_previews[product.product_id][format_id.id] = preview_data
+
+        # Add preview data to products
+        result = []
+        for product in products:
+            product_dict = product.model_dump(exclude_none=True)
+            if product.product_id in product_previews:
+                product_dict[&#34;format_previews&#34;] = product_previews[product.product_id]
+            result.append(product_dict)
+        return result
+    else:
+        # Fallback to individual requests (for single product/format or when batch disabled)
+        import asyncio
+
+        async def process_product(product: Product) -&gt; dict[str, Any]:
+            &#34;&#34;&#34;Process a single product and add preview data for all its formats.&#34;&#34;&#34;
+            product_dict = product.model_dump(exclude_none=True)
+
+            async def process_format(format_id: FormatId) -&gt; tuple[str, dict[str, Any] | None]:
+                &#34;&#34;&#34;Process a single format for this product.&#34;&#34;&#34;
+                try:
+                    sample_manifest = _create_sample_manifest_for_format_id(format_id, product)
+                    if sample_manifest:
+                        preview_data = await generator.get_preview_data_for_manifest(
+                            format_id, sample_manifest
+                        )
+                        return (format_id.id, preview_data)
+                except Exception as e:
+                    logger.warning(
+                        f&#34;Failed to generate preview for product {product.product_id}, &#34;
+                        f&#34;format {format_id}: {e}&#34;
+                    )
+                return (format_id.id, None)
+
+            format_tasks = [process_format(fid) for fid in product.format_ids]
+            format_results = await asyncio.gather(*format_tasks)
+            format_previews = {fid: data for fid, data in format_results if data is not None}
+
+            if format_previews:
+                product_dict[&#34;format_previews&#34;] = format_previews
+
+            return product_dict
+
+        return await asyncio.gather(*[process_product(product) for product in products])</code></pre>
+</details>
+<div class="desc"><p>Add preview URLs to products for their supported formats.</p>
+<p>Uses batch API for 5-10x better performance when previewing many product formats.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>products</code></strong></dt>
+<dd>List of Product objects</dd>
+<dt><strong><code>creative_agent_client</code></strong></dt>
+<dd>Client for the creative agent</dd>
+<dt><strong><code>use_batch</code></strong></dt>
+<dd>If True, use batch API (default). Set False to use individual requests.</dd>
+<dt><strong><code>output_format</code></strong></dt>
+<dd>"url" for iframe URLs, "html" for direct embedding</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>List of product dicts with added format_previews field</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.utils.preview_cache.PreviewURLGenerator"><code class="flex name class">
+<span>class <span class="ident">PreviewURLGenerator</span></span>
+<span>(</span><span>creative_agent_client: ADCPClient)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PreviewURLGenerator:
+    &#34;&#34;&#34;Helper class for generating preview URLs from creative agents.&#34;&#34;&#34;
+
+    def __init__(self, creative_agent_client: ADCPClient):
+        &#34;&#34;&#34;
+        Initialize preview URL generator.
+
+        Args:
+            creative_agent_client: ADCPClient configured to talk to a creative agent
+        &#34;&#34;&#34;
+        self.creative_agent_client = creative_agent_client
+        self._preview_cache: dict[str, dict[str, Any]] = {}
+
+    async def get_preview_data_for_manifest(
+        self, format_id: FormatId, manifest: CreativeManifest
+    ) -&gt; dict[str, Any] | None:
+        &#34;&#34;&#34;
+        Generate preview data for a creative manifest.
+
+        Returns preview data with URLs suitable for embedding in
+        &lt;rendered-creative&gt; web components or iframes.
+
+        Args:
+            format_id: Format identifier
+            manifest: Creative manifest
+
+        Returns:
+            Preview data with preview_url and metadata, or None if generation fails
+        &#34;&#34;&#34;
+        from adcp.types._generated import PreviewCreativeRequest1
+
+        cache_key = _make_manifest_cache_key(format_id, manifest.model_dump(exclude_none=True))
+
+        if cache_key in self._preview_cache:
+            return self._preview_cache[cache_key]
+
+        try:
+            request = PreviewCreativeRequest1(
+                request_type=&#34;single&#34;,
+                format_id=format_id,
+                creative_manifest=manifest,
+            )
+            result = await self.creative_agent_client.preview_creative(request)
+
+            if result.success and result.data and result.data.previews:
+                preview = result.data.previews[0]
+                first_render = preview.renders[0] if preview.renders else None
+
+                if first_render:
+                    has_url = hasattr(first_render, &#34;preview_url&#34;)
+                    preview_url = str(first_render.preview_url) if has_url else None
+                    preview_data = {
+                        &#34;preview_id&#34;: preview.preview_id,
+                        &#34;preview_url&#34;: preview_url,
+                        &#34;preview_html&#34;: getattr(first_render, &#34;preview_html&#34;, None),
+                        &#34;render_id&#34;: first_render.render_id,
+                        &#34;input&#34;: preview.input.model_dump(),
+                        &#34;expires_at&#34;: str(result.data.expires_at),
+                    }
+
+                    self._preview_cache[cache_key] = preview_data
+                    return preview_data
+
+        except Exception as e:
+            logger.warning(f&#34;Failed to generate preview for format {format_id}: {e}&#34;, exc_info=True)
+
+        return None
+
+    async def get_preview_data_batch(
+        self,
+        requests: list[tuple[FormatId, CreativeManifest]],
+        output_format: str = &#34;url&#34;,
+    ) -&gt; list[dict[str, Any] | None]:
+        &#34;&#34;&#34;
+        Generate preview data for multiple manifests in one API call (batch mode).
+
+        This is 5-10x faster than individual requests for multiple previews.
+
+        Args:
+            requests: List of (format_id, manifest) tuples to preview
+            output_format: &#34;url&#34; for iframe URLs, &#34;html&#34; for direct embedding
+
+        Returns:
+            List of preview data dicts (or None for failures), in same order as requests
+        &#34;&#34;&#34;
+        from adcp.types._generated import PreviewCreativeRequest
+
+        if not requests:
+            return []
+
+        # Check cache first
+        cache_keys = [
+            _make_manifest_cache_key(fid, manifest.model_dump(exclude_none=True))
+            for fid, manifest in requests
+        ]
+
+        # Separate cached vs uncached requests
+        uncached_indices: list[int] = []
+        uncached_requests: list[dict[str, Any]] = []
+        results: list[dict[str, Any] | None] = [None] * len(requests)
+
+        for idx, (cache_key, (format_id, manifest)) in enumerate(zip(cache_keys, requests)):
+            if cache_key in self._preview_cache:
+                results[idx] = self._preview_cache[cache_key]
+            else:
+                uncached_indices.append(idx)
+                fid_dict = format_id.model_dump() if hasattr(format_id, &#34;model_dump&#34;) else format_id
+                uncached_requests.append(
+                    {
+                        &#34;format_id&#34;: fid_dict,
+                        &#34;creative_manifest&#34;: manifest.model_dump(exclude_none=True),
+                    }
+                )
+
+        # If everything was cached, return early
+        if not uncached_requests:
+            return results
+
+        # Make batch API call for uncached items
+        try:
+            # Batch requests in chunks of 50 (API limit)
+            batch_size = 50
+            for chunk_start in range(0, len(uncached_requests), batch_size):
+                chunk_end = min(chunk_start + batch_size, len(uncached_requests))
+                chunk_requests = uncached_requests[chunk_start:chunk_end]
+                chunk_indices = uncached_indices[chunk_start:chunk_end]
+
+                batch_request = PreviewCreativeRequest(
+                    requests=chunk_requests,
+                    output_format=output_format,  # type: ignore[arg-type]
+                    context=None,
+                )
+                result = await self.creative_agent_client.preview_creative(batch_request)
+
+                if result.success and result.data and result.data.results:
+                    # Process batch results
+                    for result_idx, batch_result in enumerate(result.data.results):
+                        original_idx = chunk_indices[result_idx]
+                        cache_key = cache_keys[original_idx]
+
+                        if batch_result.get(&#34;success&#34;) and batch_result.get(&#34;response&#34;):
+                            response = batch_result[&#34;response&#34;]
+                            if response.get(&#34;previews&#34;):
+                                preview = response[&#34;previews&#34;][0]
+                                renders = preview.get(&#34;renders&#34;, [])
+                                first_render = renders[0] if renders else {}
+                                preview_data = {
+                                    &#34;preview_id&#34;: preview.get(&#34;preview_id&#34;),
+                                    &#34;preview_url&#34;: first_render.get(&#34;preview_url&#34;),
+                                    &#34;preview_html&#34;: first_render.get(&#34;preview_html&#34;),
+                                    &#34;render_id&#34;: first_render.get(&#34;render_id&#34;),
+                                    &#34;input&#34;: preview.get(&#34;input&#34;, {}),
+                                    &#34;expires_at&#34;: response.get(&#34;expires_at&#34;),
+                                }
+                                # Cache and store
+                                self._preview_cache[cache_key] = preview_data
+                                results[original_idx] = preview_data
+                        else:
+                            # Request failed
+                            error = batch_result.get(&#34;error&#34;, {})
+                            logger.warning(
+                                f&#34;Batch preview failed for request {original_idx}: &#34;
+                                f&#34;{error.get(&#39;message&#39;, &#39;Unknown error&#39;)}&#34;
+                            )
+
+        except Exception as e:
+            logger.warning(f&#34;Batch preview generation failed: {e}&#34;, exc_info=True)
+
+        return results</code></pre>
+</details>
+<div class="desc"><p>Helper class for generating preview URLs from creative agents.</p>
+<p>Initialize preview URL generator.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>creative_agent_client</code></strong></dt>
+<dd>ADCPClient configured to talk to a creative agent</dd>
+</dl></div>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.utils.preview_cache.PreviewURLGenerator.get_preview_data_batch"><code class="name flex">
+<span>async def <span class="ident">get_preview_data_batch</span></span>(<span>self,<br>requests: list[tuple[FormatId, CreativeManifest]],<br>output_format: str = 'url') ‑> list[dict[str, Any] | None]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_preview_data_batch(
+    self,
+    requests: list[tuple[FormatId, CreativeManifest]],
+    output_format: str = &#34;url&#34;,
+) -&gt; list[dict[str, Any] | None]:
+    &#34;&#34;&#34;
+    Generate preview data for multiple manifests in one API call (batch mode).
+
+    This is 5-10x faster than individual requests for multiple previews.
+
+    Args:
+        requests: List of (format_id, manifest) tuples to preview
+        output_format: &#34;url&#34; for iframe URLs, &#34;html&#34; for direct embedding
+
+    Returns:
+        List of preview data dicts (or None for failures), in same order as requests
+    &#34;&#34;&#34;
+    from adcp.types._generated import PreviewCreativeRequest
+
+    if not requests:
+        return []
+
+    # Check cache first
+    cache_keys = [
+        _make_manifest_cache_key(fid, manifest.model_dump(exclude_none=True))
+        for fid, manifest in requests
+    ]
+
+    # Separate cached vs uncached requests
+    uncached_indices: list[int] = []
+    uncached_requests: list[dict[str, Any]] = []
+    results: list[dict[str, Any] | None] = [None] * len(requests)
+
+    for idx, (cache_key, (format_id, manifest)) in enumerate(zip(cache_keys, requests)):
+        if cache_key in self._preview_cache:
+            results[idx] = self._preview_cache[cache_key]
+        else:
+            uncached_indices.append(idx)
+            fid_dict = format_id.model_dump() if hasattr(format_id, &#34;model_dump&#34;) else format_id
+            uncached_requests.append(
+                {
+                    &#34;format_id&#34;: fid_dict,
+                    &#34;creative_manifest&#34;: manifest.model_dump(exclude_none=True),
+                }
+            )
+
+    # If everything was cached, return early
+    if not uncached_requests:
+        return results
+
+    # Make batch API call for uncached items
+    try:
+        # Batch requests in chunks of 50 (API limit)
+        batch_size = 50
+        for chunk_start in range(0, len(uncached_requests), batch_size):
+            chunk_end = min(chunk_start + batch_size, len(uncached_requests))
+            chunk_requests = uncached_requests[chunk_start:chunk_end]
+            chunk_indices = uncached_indices[chunk_start:chunk_end]
+
+            batch_request = PreviewCreativeRequest(
+                requests=chunk_requests,
+                output_format=output_format,  # type: ignore[arg-type]
+                context=None,
+            )
+            result = await self.creative_agent_client.preview_creative(batch_request)
+
+            if result.success and result.data and result.data.results:
+                # Process batch results
+                for result_idx, batch_result in enumerate(result.data.results):
+                    original_idx = chunk_indices[result_idx]
+                    cache_key = cache_keys[original_idx]
+
+                    if batch_result.get(&#34;success&#34;) and batch_result.get(&#34;response&#34;):
+                        response = batch_result[&#34;response&#34;]
+                        if response.get(&#34;previews&#34;):
+                            preview = response[&#34;previews&#34;][0]
+                            renders = preview.get(&#34;renders&#34;, [])
+                            first_render = renders[0] if renders else {}
+                            preview_data = {
+                                &#34;preview_id&#34;: preview.get(&#34;preview_id&#34;),
+                                &#34;preview_url&#34;: first_render.get(&#34;preview_url&#34;),
+                                &#34;preview_html&#34;: first_render.get(&#34;preview_html&#34;),
+                                &#34;render_id&#34;: first_render.get(&#34;render_id&#34;),
+                                &#34;input&#34;: preview.get(&#34;input&#34;, {}),
+                                &#34;expires_at&#34;: response.get(&#34;expires_at&#34;),
+                            }
+                            # Cache and store
+                            self._preview_cache[cache_key] = preview_data
+                            results[original_idx] = preview_data
+                    else:
+                        # Request failed
+                        error = batch_result.get(&#34;error&#34;, {})
+                        logger.warning(
+                            f&#34;Batch preview failed for request {original_idx}: &#34;
+                            f&#34;{error.get(&#39;message&#39;, &#39;Unknown error&#39;)}&#34;
+                        )
+
+    except Exception as e:
+        logger.warning(f&#34;Batch preview generation failed: {e}&#34;, exc_info=True)
+
+    return results</code></pre>
+</details>
+<div class="desc"><p>Generate preview data for multiple manifests in one API call (batch mode).</p>
+<p>This is 5-10x faster than individual requests for multiple previews.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>requests</code></strong></dt>
+<dd>List of (format_id, manifest) tuples to preview</dd>
+<dt><strong><code>output_format</code></strong></dt>
+<dd>"url" for iframe URLs, "html" for direct embedding</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>List of preview data dicts (or None for failures), in same order as requests</p></div>
+</dd>
+<dt id="adcp.utils.preview_cache.PreviewURLGenerator.get_preview_data_for_manifest"><code class="name flex">
+<span>async def <span class="ident">get_preview_data_for_manifest</span></span>(<span>self, format_id: FormatId, manifest: CreativeManifest) ‑> dict[str, Any] | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_preview_data_for_manifest(
+    self, format_id: FormatId, manifest: CreativeManifest
+) -&gt; dict[str, Any] | None:
+    &#34;&#34;&#34;
+    Generate preview data for a creative manifest.
+
+    Returns preview data with URLs suitable for embedding in
+    &lt;rendered-creative&gt; web components or iframes.
+
+    Args:
+        format_id: Format identifier
+        manifest: Creative manifest
+
+    Returns:
+        Preview data with preview_url and metadata, or None if generation fails
+    &#34;&#34;&#34;
+    from adcp.types._generated import PreviewCreativeRequest1
+
+    cache_key = _make_manifest_cache_key(format_id, manifest.model_dump(exclude_none=True))
+
+    if cache_key in self._preview_cache:
+        return self._preview_cache[cache_key]
+
+    try:
+        request = PreviewCreativeRequest1(
+            request_type=&#34;single&#34;,
+            format_id=format_id,
+            creative_manifest=manifest,
+        )
+        result = await self.creative_agent_client.preview_creative(request)
+
+        if result.success and result.data and result.data.previews:
+            preview = result.data.previews[0]
+            first_render = preview.renders[0] if preview.renders else None
+
+            if first_render:
+                has_url = hasattr(first_render, &#34;preview_url&#34;)
+                preview_url = str(first_render.preview_url) if has_url else None
+                preview_data = {
+                    &#34;preview_id&#34;: preview.preview_id,
+                    &#34;preview_url&#34;: preview_url,
+                    &#34;preview_html&#34;: getattr(first_render, &#34;preview_html&#34;, None),
+                    &#34;render_id&#34;: first_render.render_id,
+                    &#34;input&#34;: preview.input.model_dump(),
+                    &#34;expires_at&#34;: str(result.data.expires_at),
+                }
+
+                self._preview_cache[cache_key] = preview_data
+                return preview_data
+
+    except Exception as e:
+        logger.warning(f&#34;Failed to generate preview for format {format_id}: {e}&#34;, exc_info=True)
+
+    return None</code></pre>
+</details>
+<div class="desc"><p>Generate preview data for a creative manifest.</p>
+<p>Returns preview data with URLs suitable for embedding in
+<rendered-creative> web components or iframes.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>format_id</code></strong></dt>
+<dd>Format identifier</dd>
+<dt><strong><code>manifest</code></strong></dt>
+<dd>Creative manifest</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Preview data with preview_url and metadata, or None if generation fails</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.utils" href="index.html">adcp.utils</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="adcp.utils.preview_cache.add_preview_urls_to_formats" href="#adcp.utils.preview_cache.add_preview_urls_to_formats">add_preview_urls_to_formats</a></code></li>
+<li><code><a title="adcp.utils.preview_cache.add_preview_urls_to_products" href="#adcp.utils.preview_cache.add_preview_urls_to_products">add_preview_urls_to_products</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.utils.preview_cache.PreviewURLGenerator" href="#adcp.utils.preview_cache.PreviewURLGenerator">PreviewURLGenerator</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.utils.preview_cache.PreviewURLGenerator.get_preview_data_batch" href="#adcp.utils.preview_cache.PreviewURLGenerator.get_preview_data_batch">get_preview_data_batch</a></code></li>
+<li><code><a title="adcp.utils.preview_cache.PreviewURLGenerator.get_preview_data_for_manifest" href="#adcp.utils.preview_cache.PreviewURLGenerator.get_preview_data_for_manifest">get_preview_data_for_manifest</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

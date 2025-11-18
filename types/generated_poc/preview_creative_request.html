@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.preview_creative_request API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.preview_creative_request</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.preview_creative_request.Input"><code class="flex name class">
+<span>class <span class="ident">Input</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Input(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    context_description: Annotated[
+        str | None,
+        Field(
+            description=&#34;Natural language description of the context for AI-generated content (e.g., &#39;User just searched for running shoes&#39;, &#39;Podcast discussing weather patterns&#39;, &#39;Article about electric vehicles&#39;)&#34;
+        ),
+    ] = None
+    macros: Annotated[
+        dict[str, str] | None,
+        Field(
+            description=&#34;Macro values to use for this preview. Supports all universal macros from the format&#39;s supported_macros list. See docs/media-buy/creatives/universal-macros.md for available macros.&#34;
+        ),
+    ] = None
+    name: Annotated[
+        str,
+        Field(
+            description=&#34;Human-readable name for this input set (e.g., &#39;Sunny morning on mobile&#39;, &#39;Evening podcast ad&#39;, &#39;Desktop dark mode&#39;)&#34;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.preview_creative_request.Input.context_description"><code class="name">var <span class="ident">context_description</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.Input.macros"><code class="name">var <span class="ident">macros</span> : dict[str, str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.Input.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.Input.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.Input2"><code class="flex name class">
+<span>class <span class="ident">Input2</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Input2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    context_description: Annotated[
+        str | None,
+        Field(description=&#39;Natural language description of the context for AI-generated content&#39;),
+    ] = None
+    macros: Annotated[
+        dict[str, str] | None, Field(description=&#39;Macro values to use for this preview&#39;)
+    ] = None
+    name: Annotated[str, Field(description=&#39;Human-readable name for this input set&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.preview_creative_request.Input2.context_description"><code class="name">var <span class="ident">context_description</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.Input2.macros"><code class="name">var <span class="ident">macros</span> : dict[str, str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.Input2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.Input2.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.OutputFormat"><code class="flex name class">
+<span>class <span class="ident">OutputFormat</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class OutputFormat(Enum):
+    url = &#39;url&#39;
+    html = &#39;html&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.preview_creative_request.OutputFormat.html"><code class="name">var <span class="ident">html</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.OutputFormat.url"><code class="name">var <span class="ident">url</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest"><code class="flex name class">
+<span>class <span class="ident">PreviewCreativeRequest</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PreviewCreativeRequest(RootModel[PreviewCreativeRequest1 | PreviewCreativeRequest2]):
+    root: Annotated[
+        PreviewCreativeRequest1 | PreviewCreativeRequest2,
+        Field(
+            description=&#39;Request to generate previews of one or more creative manifests. Accepts either a single creative request or an array of requests for batch processing.&#39;,
+            title=&#39;Preview Creative Request&#39;,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[Union[PreviewCreativeRequest1, PreviewCreativeRequest2]]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1" href="#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1">PreviewCreativeRequest1</a> | <a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2" href="#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2">PreviewCreativeRequest2</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1"><code class="flex name class">
+<span>class <span class="ident">PreviewCreativeRequest1</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PreviewCreativeRequest1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.&#39;
+        ),
+    ] = None
+    creative_manifest: Annotated[
+        creative_manifest_1.CreativeManifest,
+        Field(
+            description=&#39;Complete creative manifest with all required assets (including promoted_offerings if required by the format)&#39;
+        ),
+    ]
+    format_id: Annotated[
+        format_id_1.FormatId, Field(description=&#39;Format identifier for rendering the preview&#39;)
+    ]
+    inputs: Annotated[
+        list[Input] | None,
+        Field(
+            description=&#39;Array of input sets for generating multiple preview variants. Each input set defines macros and context values for one preview rendering. If not provided, creative agent will generate default previews.&#39;
+        ),
+    ] = None
+    output_format: Annotated[
+        OutputFormat | None,
+        Field(
+            description=&#34;Output format for previews. &#39;url&#39; returns preview_url (iframe-embeddable URL), &#39;html&#39; returns preview_html (raw HTML for direct embedding). Default: &#39;url&#39; for backward compatibility.&#34;
+        ),
+    ] = OutputFormat.url
+    request_type: Annotated[
+        Literal[&#39;single&#39;],
+        Field(description=&#39;Discriminator indicating this is a single preview request&#39;),
+    ]
+    template_id: Annotated[
+        str | None, Field(description=&#39;Specific template ID for custom format rendering&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.creative_manifest"><code class="name">var <span class="ident">creative_manifest</span> : <a title="adcp.types.generated_poc.creative_manifest.CreativeManifest" href="creative_manifest.html#adcp.types.generated_poc.creative_manifest.CreativeManifest">CreativeManifest</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.format_id"><code class="name">var <span class="ident">format_id</span> : <a title="adcp.types.generated_poc.format_id.FormatId" href="format_id.html#adcp.types.generated_poc.format_id.FormatId">FormatId</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.inputs"><code class="name">var <span class="ident">inputs</span> : list[<a title="adcp.types.generated_poc.preview_creative_request.Input" href="#adcp.types.generated_poc.preview_creative_request.Input">Input</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.output_format"><code class="name">var <span class="ident">output_format</span> : <a title="adcp.types.generated_poc.preview_creative_request.OutputFormat" href="#adcp.types.generated_poc.preview_creative_request.OutputFormat">OutputFormat</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.request_type"><code class="name">var <span class="ident">request_type</span> : Literal['single']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.template_id"><code class="name">var <span class="ident">template_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2"><code class="flex name class">
+<span>class <span class="ident">PreviewCreativeRequest2</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PreviewCreativeRequest2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.&#39;
+        ),
+    ] = None
+    output_format: Annotated[
+        OutputFormat | None,
+        Field(
+            description=&#34;Default output format for all requests in this batch. Individual requests can override this. &#39;url&#39; returns preview_url (iframe-embeddable URL), &#39;html&#39; returns preview_html (raw HTML for direct embedding).&#34;
+        ),
+    ] = OutputFormat.url
+    request_type: Annotated[
+        Literal[&#39;batch&#39;],
+        Field(description=&#39;Discriminator indicating this is a batch preview request&#39;),
+    ]
+    requests: Annotated[
+        list[Request],
+        Field(
+            description=&#39;Array of preview requests (1-50 items). Each follows the single request structure.&#39;,
+            max_length=50,
+            min_length=1,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2.output_format"><code class="name">var <span class="ident">output_format</span> : <a title="adcp.types.generated_poc.preview_creative_request.OutputFormat" href="#adcp.types.generated_poc.preview_creative_request.OutputFormat">OutputFormat</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2.request_type"><code class="name">var <span class="ident">request_type</span> : Literal['batch']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2.requests"><code class="name">var <span class="ident">requests</span> : list[<a title="adcp.types.generated_poc.preview_creative_request.Request" href="#adcp.types.generated_poc.preview_creative_request.Request">Request</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.Request"><code class="flex name class">
+<span>class <span class="ident">Request</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Request(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    creative_manifest: Annotated[
+        creative_manifest_1.CreativeManifest,
+        Field(description=&#39;Complete creative manifest with all required assets&#39;),
+    ]
+    format_id: Annotated[
+        format_id_1.FormatId, Field(description=&#39;Format identifier for rendering the preview&#39;)
+    ]
+    inputs: Annotated[
+        list[Input2] | None,
+        Field(description=&#39;Array of input sets for generating multiple preview variants&#39;),
+    ] = None
+    output_format: Annotated[
+        OutputFormat | None,
+        Field(
+            description=&#34;Output format for this preview. &#39;url&#39; returns preview_url, &#39;html&#39; returns preview_html.&#34;
+        ),
+    ] = OutputFormat.url
+    template_id: Annotated[
+        str | None, Field(description=&#39;Specific template ID for custom format rendering&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.preview_creative_request.Request.creative_manifest"><code class="name">var <span class="ident">creative_manifest</span> : <a title="adcp.types.generated_poc.creative_manifest.CreativeManifest" href="creative_manifest.html#adcp.types.generated_poc.creative_manifest.CreativeManifest">CreativeManifest</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.Request.format_id"><code class="name">var <span class="ident">format_id</span> : <a title="adcp.types.generated_poc.format_id.FormatId" href="format_id.html#adcp.types.generated_poc.format_id.FormatId">FormatId</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.Request.inputs"><code class="name">var <span class="ident">inputs</span> : list[<a title="adcp.types.generated_poc.preview_creative_request.Input2" href="#adcp.types.generated_poc.preview_creative_request.Input2">Input2</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.Request.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.Request.output_format"><code class="name">var <span class="ident">output_format</span> : <a title="adcp.types.generated_poc.preview_creative_request.OutputFormat" href="#adcp.types.generated_poc.preview_creative_request.OutputFormat">OutputFormat</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.preview_creative_request.Request.template_id"><code class="name">var <span class="ident">template_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc" href="index.html">adcp.types.generated_poc</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.preview_creative_request.Input" href="#adcp.types.generated_poc.preview_creative_request.Input">Input</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.Input.context_description" href="#adcp.types.generated_poc.preview_creative_request.Input.context_description">context_description</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.Input.macros" href="#adcp.types.generated_poc.preview_creative_request.Input.macros">macros</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.Input.model_config" href="#adcp.types.generated_poc.preview_creative_request.Input.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.Input.name" href="#adcp.types.generated_poc.preview_creative_request.Input.name">name</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.preview_creative_request.Input2" href="#adcp.types.generated_poc.preview_creative_request.Input2">Input2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.Input2.context_description" href="#adcp.types.generated_poc.preview_creative_request.Input2.context_description">context_description</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.Input2.macros" href="#adcp.types.generated_poc.preview_creative_request.Input2.macros">macros</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.Input2.model_config" href="#adcp.types.generated_poc.preview_creative_request.Input2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.Input2.name" href="#adcp.types.generated_poc.preview_creative_request.Input2.name">name</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.preview_creative_request.OutputFormat" href="#adcp.types.generated_poc.preview_creative_request.OutputFormat">OutputFormat</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.OutputFormat.html" href="#adcp.types.generated_poc.preview_creative_request.OutputFormat.html">html</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.OutputFormat.url" href="#adcp.types.generated_poc.preview_creative_request.OutputFormat.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest" href="#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest">PreviewCreativeRequest</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest.model_config" href="#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest.root" href="#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest.root">root</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1" href="#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1">PreviewCreativeRequest1</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.context" href="#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.creative_manifest" href="#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.creative_manifest">creative_manifest</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.format_id" href="#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.format_id">format_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.inputs" href="#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.inputs">inputs</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.model_config" href="#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.output_format" href="#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.output_format">output_format</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.request_type" href="#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.request_type">request_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.template_id" href="#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.template_id">template_id</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2" href="#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2">PreviewCreativeRequest2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2.context" href="#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2.model_config" href="#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2.output_format" href="#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2.output_format">output_format</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2.request_type" href="#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2.request_type">request_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2.requests" href="#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2.requests">requests</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.preview_creative_request.Request" href="#adcp.types.generated_poc.preview_creative_request.Request">Request</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.Request.creative_manifest" href="#adcp.types.generated_poc.preview_creative_request.Request.creative_manifest">creative_manifest</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.Request.format_id" href="#adcp.types.generated_poc.preview_creative_request.Request.format_id">format_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.Request.inputs" href="#adcp.types.generated_poc.preview_creative_request.Request.inputs">inputs</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.Request.model_config" href="#adcp.types.generated_poc.preview_creative_request.Request.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.Request.output_format" href="#adcp.types.generated_poc.preview_creative_request.Request.output_format">output_format</a></code></li>
+<li><code><a title="adcp.types.generated_poc.preview_creative_request.Request.template_id" href="#adcp.types.generated_poc.preview_creative_request.Request.template_id">template_id</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

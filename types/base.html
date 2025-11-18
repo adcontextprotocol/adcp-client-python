@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.base API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.base</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.base.AdCPBaseModel"><code class="flex name class">
+<span>class <span class="ident">AdCPBaseModel</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AdCPBaseModel(BaseModel):
+    &#34;&#34;&#34;Base model for AdCP types with spec-compliant serialization.
+
+    AdCP JSON schemas use additionalProperties: false and do not allow null
+    for optional fields. Therefore, optional fields must be omitted entirely
+    when not present (not sent as null).
+    &#34;&#34;&#34;
+
+    def model_dump(self, **kwargs: Any) -&gt; dict[str, Any]:
+        if &#34;exclude_none&#34; not in kwargs:
+            kwargs[&#34;exclude_none&#34;] = True
+        return super().model_dump(**kwargs)
+
+    def model_dump_json(self, **kwargs: Any) -&gt; str:
+        if &#34;exclude_none&#34; not in kwargs:
+            kwargs[&#34;exclude_none&#34;] = True
+        return super().model_dump_json(**kwargs)</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.activate_signal_request.ActivateSignalRequest" href="generated_poc/activate_signal_request.html#adcp.types.generated_poc.activate_signal_request.ActivateSignalRequest">ActivateSignalRequest</a></li>
+<li><a title="adcp.types.generated_poc.activate_signal_response.ActivateSignalResponse1" href="generated_poc/activate_signal_response.html#adcp.types.generated_poc.activate_signal_response.ActivateSignalResponse1">ActivateSignalResponse1</a></li>
+<li><a title="adcp.types.generated_poc.activate_signal_response.ActivateSignalResponse2" href="generated_poc/activate_signal_response.html#adcp.types.generated_poc.activate_signal_response.ActivateSignalResponse2">ActivateSignalResponse2</a></li>
+<li><a title="adcp.types.generated_poc.activation_key.ActivationKey1" href="generated_poc/activation_key.html#adcp.types.generated_poc.activation_key.ActivationKey1">ActivationKey1</a></li>
+<li><a title="adcp.types.generated_poc.activation_key.ActivationKey2" href="generated_poc/activation_key.html#adcp.types.generated_poc.activation_key.ActivationKey2">ActivationKey2</a></li>
+<li><a title="adcp.types.generated_poc.adagents.AuthorizedAgents" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.AuthorizedAgents">AuthorizedAgents</a></li>
+<li><a title="adcp.types.generated_poc.adagents.AuthorizedAgents1" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.AuthorizedAgents1">AuthorizedAgents1</a></li>
+<li><a title="adcp.types.generated_poc.adagents.AuthorizedAgents2" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.AuthorizedAgents2">AuthorizedAgents2</a></li>
+<li><a title="adcp.types.generated_poc.adagents.AuthorizedAgents3" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.AuthorizedAgents3">AuthorizedAgents3</a></li>
+<li><a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.AuthorizedSalesAgents">AuthorizedSalesAgents</a></li>
+<li><a title="adcp.types.generated_poc.adagents.Contact" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.Contact">Contact</a></li>
+<li><a title="adcp.types.generated_poc.adagents.PublisherProperties" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.PublisherProperties">PublisherProperties</a></li>
+<li><a title="adcp.types.generated_poc.adagents.PublisherProperties1" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.PublisherProperties1">PublisherProperties1</a></li>
+<li><a title="adcp.types.generated_poc.adagents.Tags" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.Tags">Tags</a></li>
+<li><a title="adcp.types.generated_poc.asset_type.AssetTypeSchema" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.AssetTypeSchema">AssetTypeSchema</a></li>
+<li><a title="adcp.types.generated_poc.asset_type.ContentLength" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.ContentLength">ContentLength</a></li>
+<li><a title="adcp.types.generated_poc.asset_type.Dimensions" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.Dimensions">Dimensions</a></li>
+<li><a title="adcp.types.generated_poc.asset_type.Duration" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.Duration">Duration</a></li>
+<li><a title="adcp.types.generated_poc.asset_type.FileSize" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.FileSize">FileSize</a></li>
+<li><a title="adcp.types.generated_poc.asset_type.Quality" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.Quality">Quality</a></li>
+<li><a title="adcp.types.generated_poc.asset_type.Requirements" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.Requirements">Requirements</a></li>
+<li><a title="adcp.types.generated_poc.audio_asset.AudioAsset" href="generated_poc/audio_asset.html#adcp.types.generated_poc.audio_asset.AudioAsset">AudioAsset</a></li>
+<li><a title="adcp.types.generated_poc.brand_manifest.Asset" href="generated_poc/brand_manifest.html#adcp.types.generated_poc.brand_manifest.Asset">Asset</a></li>
+<li><a title="adcp.types.generated_poc.brand_manifest.BrandManifest" href="generated_poc/brand_manifest.html#adcp.types.generated_poc.brand_manifest.BrandManifest">BrandManifest</a></li>
+<li><a title="adcp.types.generated_poc.brand_manifest.Colors" href="generated_poc/brand_manifest.html#adcp.types.generated_poc.brand_manifest.Colors">Colors</a></li>
+<li><a title="adcp.types.generated_poc.brand_manifest.Contact" href="generated_poc/brand_manifest.html#adcp.types.generated_poc.brand_manifest.Contact">Contact</a></li>
+<li><a title="adcp.types.generated_poc.brand_manifest.Disclaimer" href="generated_poc/brand_manifest.html#adcp.types.generated_poc.brand_manifest.Disclaimer">Disclaimer</a></li>
+<li><a title="adcp.types.generated_poc.brand_manifest.Fonts" href="generated_poc/brand_manifest.html#adcp.types.generated_poc.brand_manifest.Fonts">Fonts</a></li>
+<li><a title="adcp.types.generated_poc.brand_manifest.Logo" href="generated_poc/brand_manifest.html#adcp.types.generated_poc.brand_manifest.Logo">Logo</a></li>
+<li><a title="adcp.types.generated_poc.brand_manifest.Metadata" href="generated_poc/brand_manifest.html#adcp.types.generated_poc.brand_manifest.Metadata">Metadata</a></li>
+<li><a title="adcp.types.generated_poc.brand_manifest.ProductCatalog" href="generated_poc/brand_manifest.html#adcp.types.generated_poc.brand_manifest.ProductCatalog">ProductCatalog</a></li>
+<li><a title="adcp.types.generated_poc.build_creative_request.BuildCreativeRequest" href="generated_poc/build_creative_request.html#adcp.types.generated_poc.build_creative_request.BuildCreativeRequest">BuildCreativeRequest</a></li>
+<li><a title="adcp.types.generated_poc.build_creative_response.BuildCreativeResponse1" href="generated_poc/build_creative_response.html#adcp.types.generated_poc.build_creative_response.BuildCreativeResponse1">BuildCreativeResponse1</a></li>
+<li><a title="adcp.types.generated_poc.build_creative_response.BuildCreativeResponse2" href="generated_poc/build_creative_response.html#adcp.types.generated_poc.build_creative_response.BuildCreativeResponse2">BuildCreativeResponse2</a></li>
+<li><a title="adcp.types.generated_poc.cpc_option.CpcPricingOption" href="generated_poc/cpc_option.html#adcp.types.generated_poc.cpc_option.CpcPricingOption">CpcPricingOption</a></li>
+<li><a title="adcp.types.generated_poc.cpcv_option.CpcvPricingOption" href="generated_poc/cpcv_option.html#adcp.types.generated_poc.cpcv_option.CpcvPricingOption">CpcvPricingOption</a></li>
+<li><a title="adcp.types.generated_poc.cpm_auction_option.CpmAuctionPricingOption" href="generated_poc/cpm_auction_option.html#adcp.types.generated_poc.cpm_auction_option.CpmAuctionPricingOption">CpmAuctionPricingOption</a></li>
+<li><a title="adcp.types.generated_poc.cpm_auction_option.PriceGuidance" href="generated_poc/cpm_auction_option.html#adcp.types.generated_poc.cpm_auction_option.PriceGuidance">PriceGuidance</a></li>
+<li><a title="adcp.types.generated_poc.cpm_fixed_option.CpmFixedRatePricingOption" href="generated_poc/cpm_fixed_option.html#adcp.types.generated_poc.cpm_fixed_option.CpmFixedRatePricingOption">CpmFixedRatePricingOption</a></li>
+<li><a title="adcp.types.generated_poc.cpp_option.CppPricingOption" href="generated_poc/cpp_option.html#adcp.types.generated_poc.cpp_option.CppPricingOption">CppPricingOption</a></li>
+<li><a title="adcp.types.generated_poc.cpp_option.Parameters" href="generated_poc/cpp_option.html#adcp.types.generated_poc.cpp_option.Parameters">Parameters</a></li>
+<li><a title="adcp.types.generated_poc.cpv_option.CpvPricingOption" href="generated_poc/cpv_option.html#adcp.types.generated_poc.cpv_option.CpvPricingOption">CpvPricingOption</a></li>
+<li><a title="adcp.types.generated_poc.cpv_option.Parameters" href="generated_poc/cpv_option.html#adcp.types.generated_poc.cpv_option.Parameters">Parameters</a></li>
+<li><a title="adcp.types.generated_poc.cpv_option.ViewThreshold1" href="generated_poc/cpv_option.html#adcp.types.generated_poc.cpv_option.ViewThreshold1">ViewThreshold1</a></li>
+<li><a title="adcp.types.generated_poc.create_media_buy_request.CreateMediaBuyRequest" href="generated_poc/create_media_buy_request.html#adcp.types.generated_poc.create_media_buy_request.CreateMediaBuyRequest">CreateMediaBuyRequest</a></li>
+<li><a title="adcp.types.generated_poc.create_media_buy_response.CreateMediaBuyResponse1" href="generated_poc/create_media_buy_response.html#adcp.types.generated_poc.create_media_buy_response.CreateMediaBuyResponse1">CreateMediaBuyResponse1</a></li>
+<li><a title="adcp.types.generated_poc.create_media_buy_response.CreateMediaBuyResponse2" href="generated_poc/create_media_buy_response.html#adcp.types.generated_poc.create_media_buy_response.CreateMediaBuyResponse2">CreateMediaBuyResponse2</a></li>
+<li><a title="adcp.types.generated_poc.create_media_buy_response.Package" href="generated_poc/create_media_buy_response.html#adcp.types.generated_poc.create_media_buy_response.Package">Package</a></li>
+<li><a title="adcp.types.generated_poc.creative_asset.CreativeAsset" href="generated_poc/creative_asset.html#adcp.types.generated_poc.creative_asset.CreativeAsset">CreativeAsset</a></li>
+<li><a title="adcp.types.generated_poc.creative_asset.Input" href="generated_poc/creative_asset.html#adcp.types.generated_poc.creative_asset.Input">Input</a></li>
+<li><a title="adcp.types.generated_poc.creative_assignment.CreativeAssignment" href="generated_poc/creative_assignment.html#adcp.types.generated_poc.creative_assignment.CreativeAssignment">CreativeAssignment</a></li>
+<li><a title="adcp.types.generated_poc.creative_manifest.CreativeManifest" href="generated_poc/creative_manifest.html#adcp.types.generated_poc.creative_manifest.CreativeManifest">CreativeManifest</a></li>
+<li><a title="adcp.types.generated_poc.creative_policy.CreativePolicy" href="generated_poc/creative_policy.html#adcp.types.generated_poc.creative_policy.CreativePolicy">CreativePolicy</a></li>
+<li><a title="adcp.types.generated_poc.css_asset.CssAsset" href="generated_poc/css_asset.html#adcp.types.generated_poc.css_asset.CssAsset">CssAsset</a></li>
+<li><a title="adcp.types.generated_poc.daast_asset.DaastAsset1" href="generated_poc/daast_asset.html#adcp.types.generated_poc.daast_asset.DaastAsset1">DaastAsset1</a></li>
+<li><a title="adcp.types.generated_poc.daast_asset.DaastAsset2" href="generated_poc/daast_asset.html#adcp.types.generated_poc.daast_asset.DaastAsset2">DaastAsset2</a></li>
+<li><a title="adcp.types.generated_poc.delivery_metrics.DeliveryMetrics" href="generated_poc/delivery_metrics.html#adcp.types.generated_poc.delivery_metrics.DeliveryMetrics">DeliveryMetrics</a></li>
+<li><a title="adcp.types.generated_poc.delivery_metrics.DoohMetrics" href="generated_poc/delivery_metrics.html#adcp.types.generated_poc.delivery_metrics.DoohMetrics">DoohMetrics</a></li>
+<li><a title="adcp.types.generated_poc.delivery_metrics.QuartileData" href="generated_poc/delivery_metrics.html#adcp.types.generated_poc.delivery_metrics.QuartileData">QuartileData</a></li>
+<li><a title="adcp.types.generated_poc.delivery_metrics.VenueBreakdownItem" href="generated_poc/delivery_metrics.html#adcp.types.generated_poc.delivery_metrics.VenueBreakdownItem">VenueBreakdownItem</a></li>
+<li><a title="adcp.types.generated_poc.deployment.Deployment1" href="generated_poc/deployment.html#adcp.types.generated_poc.deployment.Deployment1">Deployment1</a></li>
+<li><a title="adcp.types.generated_poc.deployment.Deployment2" href="generated_poc/deployment.html#adcp.types.generated_poc.deployment.Deployment2">Deployment2</a></li>
+<li><a title="adcp.types.generated_poc.destination.Destination1" href="generated_poc/destination.html#adcp.types.generated_poc.destination.Destination1">Destination1</a></li>
+<li><a title="adcp.types.generated_poc.destination.Destination2" href="generated_poc/destination.html#adcp.types.generated_poc.destination.Destination2">Destination2</a></li>
+<li><a title="adcp.types.generated_poc.error.Error" href="generated_poc/error.html#adcp.types.generated_poc.error.Error">Error</a></li>
+<li><a title="adcp.types.generated_poc.flat_rate_option.FlatRatePricingOption" href="generated_poc/flat_rate_option.html#adcp.types.generated_poc.flat_rate_option.FlatRatePricingOption">FlatRatePricingOption</a></li>
+<li><a title="adcp.types.generated_poc.flat_rate_option.Parameters" href="generated_poc/flat_rate_option.html#adcp.types.generated_poc.flat_rate_option.Parameters">Parameters</a></li>
+<li><a title="adcp.types.generated_poc.format.Asset" href="generated_poc/format.html#adcp.types.generated_poc.format.Asset">Asset</a></li>
+<li><a title="adcp.types.generated_poc.format.AssetsRequired" href="generated_poc/format.html#adcp.types.generated_poc.format.AssetsRequired">AssetsRequired</a></li>
+<li><a title="adcp.types.generated_poc.format.AssetsRequired1" href="generated_poc/format.html#adcp.types.generated_poc.format.AssetsRequired1">AssetsRequired1</a></li>
+<li><a title="adcp.types.generated_poc.format.Dimensions" href="generated_poc/format.html#adcp.types.generated_poc.format.Dimensions">Dimensions</a></li>
+<li><a title="adcp.types.generated_poc.format.Format" href="generated_poc/format.html#adcp.types.generated_poc.format.Format">Format</a></li>
+<li><a title="adcp.types.generated_poc.format.FormatCard" href="generated_poc/format.html#adcp.types.generated_poc.format.FormatCard">FormatCard</a></li>
+<li><a title="adcp.types.generated_poc.format.FormatCardDetailed" href="generated_poc/format.html#adcp.types.generated_poc.format.FormatCardDetailed">FormatCardDetailed</a></li>
+<li><a title="adcp.types.generated_poc.format.Render" href="generated_poc/format.html#adcp.types.generated_poc.format.Render">Render</a></li>
+<li><a title="adcp.types.generated_poc.format.Responsive" href="generated_poc/format.html#adcp.types.generated_poc.format.Responsive">Responsive</a></li>
+<li><a title="adcp.types.generated_poc.format_id.FormatId" href="generated_poc/format_id.html#adcp.types.generated_poc.format_id.FormatId">FormatId</a></li>
+<li><a title="adcp.types.generated_poc.frequency_cap.FrequencyCap" href="generated_poc/frequency_cap.html#adcp.types.generated_poc.frequency_cap.FrequencyCap">FrequencyCap</a></li>
+<li><a title="adcp.types.generated_poc.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest" href="generated_poc/get_media_buy_delivery_request.html#adcp.types.generated_poc.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest">GetMediaBuyDeliveryRequest</a></li>
+<li><a title="adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals" href="generated_poc/get_media_buy_delivery_response.html#adcp.types.generated_poc.get_media_buy_delivery_response.AggregatedTotals">AggregatedTotals</a></li>
+<li><a title="adcp.types.generated_poc.get_media_buy_delivery_response.DailyBreakdownItem" href="generated_poc/get_media_buy_delivery_response.html#adcp.types.generated_poc.get_media_buy_delivery_response.DailyBreakdownItem">DailyBreakdownItem</a></li>
+<li><a title="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse" href="generated_poc/get_media_buy_delivery_response.html#adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse">GetMediaBuyDeliveryResponse</a></li>
+<li><a title="adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery" href="generated_poc/get_media_buy_delivery_response.html#adcp.types.generated_poc.get_media_buy_delivery_response.MediaBuyDelivery">MediaBuyDelivery</a></li>
+<li><a title="adcp.types.generated_poc.get_media_buy_delivery_response.ReportingPeriod" href="generated_poc/get_media_buy_delivery_response.html#adcp.types.generated_poc.get_media_buy_delivery_response.ReportingPeriod">ReportingPeriod</a></li>
+<li><a title="adcp.types.generated_poc.get_products_request.Filters" href="generated_poc/get_products_request.html#adcp.types.generated_poc.get_products_request.Filters">Filters</a></li>
+<li><a title="adcp.types.generated_poc.get_products_request.GetProductsRequest" href="generated_poc/get_products_request.html#adcp.types.generated_poc.get_products_request.GetProductsRequest">GetProductsRequest</a></li>
+<li><a title="adcp.types.generated_poc.get_products_response.GetProductsResponse" href="generated_poc/get_products_response.html#adcp.types.generated_poc.get_products_response.GetProductsResponse">GetProductsResponse</a></li>
+<li><a title="adcp.types.generated_poc.get_signals_request.DeliverTo" href="generated_poc/get_signals_request.html#adcp.types.generated_poc.get_signals_request.DeliverTo">DeliverTo</a></li>
+<li><a title="adcp.types.generated_poc.get_signals_request.Filters" href="generated_poc/get_signals_request.html#adcp.types.generated_poc.get_signals_request.Filters">Filters</a></li>
+<li><a title="adcp.types.generated_poc.get_signals_request.GetSignalsRequest" href="generated_poc/get_signals_request.html#adcp.types.generated_poc.get_signals_request.GetSignalsRequest">GetSignalsRequest</a></li>
+<li><a title="adcp.types.generated_poc.get_signals_response.GetSignalsResponse" href="generated_poc/get_signals_response.html#adcp.types.generated_poc.get_signals_response.GetSignalsResponse">GetSignalsResponse</a></li>
+<li><a title="adcp.types.generated_poc.get_signals_response.Pricing" href="generated_poc/get_signals_response.html#adcp.types.generated_poc.get_signals_response.Pricing">Pricing</a></li>
+<li><a title="adcp.types.generated_poc.get_signals_response.Signal" href="generated_poc/get_signals_response.html#adcp.types.generated_poc.get_signals_response.Signal">Signal</a></li>
+<li><a title="adcp.types.generated_poc.html_asset.HtmlAsset" href="generated_poc/html_asset.html#adcp.types.generated_poc.html_asset.HtmlAsset">HtmlAsset</a></li>
+<li><a title="adcp.types.generated_poc.image_asset.ImageAsset" href="generated_poc/image_asset.html#adcp.types.generated_poc.image_asset.ImageAsset">ImageAsset</a></li>
+<li><a title="adcp.types.generated_poc.javascript_asset.JavascriptAsset" href="generated_poc/javascript_asset.html#adcp.types.generated_poc.javascript_asset.JavascriptAsset">JavascriptAsset</a></li>
+<li><a title="adcp.types.generated_poc.list_authorized_properties_request.ListAuthorizedPropertiesRequest" href="generated_poc/list_authorized_properties_request.html#adcp.types.generated_poc.list_authorized_properties_request.ListAuthorizedPropertiesRequest">ListAuthorizedPropertiesRequest</a></li>
+<li><a title="adcp.types.generated_poc.list_authorized_properties_response.ListAuthorizedPropertiesResponse" href="generated_poc/list_authorized_properties_response.html#adcp.types.generated_poc.list_authorized_properties_response.ListAuthorizedPropertiesResponse">ListAuthorizedPropertiesResponse</a></li>
+<li><a title="adcp.types.generated_poc.list_creative_formats_request.ListCreativeFormatsRequest" href="generated_poc/list_creative_formats_request.html#adcp.types.generated_poc.list_creative_formats_request.ListCreativeFormatsRequest">ListCreativeFormatsRequest</a></li>
+<li><a title="adcp.types.generated_poc.list_creative_formats_response.CreativeAgent" href="generated_poc/list_creative_formats_response.html#adcp.types.generated_poc.list_creative_formats_response.CreativeAgent">CreativeAgent</a></li>
+<li><a title="adcp.types.generated_poc.list_creative_formats_response.ListCreativeFormatsResponse" href="generated_poc/list_creative_formats_response.html#adcp.types.generated_poc.list_creative_formats_response.ListCreativeFormatsResponse">ListCreativeFormatsResponse</a></li>
+<li><a title="adcp.types.generated_poc.list_creatives_request.Filters" href="generated_poc/list_creatives_request.html#adcp.types.generated_poc.list_creatives_request.Filters">Filters</a></li>
+<li><a title="adcp.types.generated_poc.list_creatives_request.ListCreativesRequest" href="generated_poc/list_creatives_request.html#adcp.types.generated_poc.list_creatives_request.ListCreativesRequest">ListCreativesRequest</a></li>
+<li><a title="adcp.types.generated_poc.list_creatives_request.Pagination" href="generated_poc/list_creatives_request.html#adcp.types.generated_poc.list_creatives_request.Pagination">Pagination</a></li>
+<li><a title="adcp.types.generated_poc.list_creatives_request.Sort" href="generated_poc/list_creatives_request.html#adcp.types.generated_poc.list_creatives_request.Sort">Sort</a></li>
+<li><a title="adcp.types.generated_poc.list_creatives_response.AssignedPackage" href="generated_poc/list_creatives_response.html#adcp.types.generated_poc.list_creatives_response.AssignedPackage">AssignedPackage</a></li>
+<li><a title="adcp.types.generated_poc.list_creatives_response.Assignments" href="generated_poc/list_creatives_response.html#adcp.types.generated_poc.list_creatives_response.Assignments">Assignments</a></li>
+<li><a title="adcp.types.generated_poc.list_creatives_response.Creative" href="generated_poc/list_creatives_response.html#adcp.types.generated_poc.list_creatives_response.Creative">Creative</a></li>
+<li><a title="adcp.types.generated_poc.list_creatives_response.ListCreativesResponse" href="generated_poc/list_creatives_response.html#adcp.types.generated_poc.list_creatives_response.ListCreativesResponse">ListCreativesResponse</a></li>
+<li><a title="adcp.types.generated_poc.list_creatives_response.Pagination" href="generated_poc/list_creatives_response.html#adcp.types.generated_poc.list_creatives_response.Pagination">Pagination</a></li>
+<li><a title="adcp.types.generated_poc.list_creatives_response.Performance" href="generated_poc/list_creatives_response.html#adcp.types.generated_poc.list_creatives_response.Performance">Performance</a></li>
+<li><a title="adcp.types.generated_poc.list_creatives_response.QuerySummary" href="generated_poc/list_creatives_response.html#adcp.types.generated_poc.list_creatives_response.QuerySummary">QuerySummary</a></li>
+<li><a title="adcp.types.generated_poc.list_creatives_response.SortApplied" href="generated_poc/list_creatives_response.html#adcp.types.generated_poc.list_creatives_response.SortApplied">SortApplied</a></li>
+<li><a title="adcp.types.generated_poc.list_creatives_response.StatusSummary" href="generated_poc/list_creatives_response.html#adcp.types.generated_poc.list_creatives_response.StatusSummary">StatusSummary</a></li>
+<li><a title="adcp.types.generated_poc.markdown_asset.MarkdownAsset" href="generated_poc/markdown_asset.html#adcp.types.generated_poc.markdown_asset.MarkdownAsset">MarkdownAsset</a></li>
+<li><a title="adcp.types.generated_poc.measurement.Measurement" href="generated_poc/measurement.html#adcp.types.generated_poc.measurement.Measurement">Measurement</a></li>
+<li><a title="adcp.types.generated_poc.media_buy.MediaBuy" href="generated_poc/media_buy.html#adcp.types.generated_poc.media_buy.MediaBuy">MediaBuy</a></li>
+<li><a title="adcp.types.generated_poc.package.Package" href="generated_poc/package.html#adcp.types.generated_poc.package.Package">Package</a></li>
+<li><a title="adcp.types.generated_poc.package_request.PackageRequest" href="generated_poc/package_request.html#adcp.types.generated_poc.package_request.PackageRequest">PackageRequest</a></li>
+<li><a title="adcp.types.generated_poc.performance_feedback.MeasurementPeriod" href="generated_poc/performance_feedback.html#adcp.types.generated_poc.performance_feedback.MeasurementPeriod">MeasurementPeriod</a></li>
+<li><a title="adcp.types.generated_poc.performance_feedback.PerformanceFeedback" href="generated_poc/performance_feedback.html#adcp.types.generated_poc.performance_feedback.PerformanceFeedback">PerformanceFeedback</a></li>
+<li><a title="adcp.types.generated_poc.placement.Placement" href="generated_poc/placement.html#adcp.types.generated_poc.placement.Placement">Placement</a></li>
+<li><a title="adcp.types.generated_poc.preview_creative_request.Input" href="generated_poc/preview_creative_request.html#adcp.types.generated_poc.preview_creative_request.Input">Input</a></li>
+<li><a title="adcp.types.generated_poc.preview_creative_request.Input2" href="generated_poc/preview_creative_request.html#adcp.types.generated_poc.preview_creative_request.Input2">Input2</a></li>
+<li><a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1" href="generated_poc/preview_creative_request.html#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1">PreviewCreativeRequest1</a></li>
+<li><a title="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2" href="generated_poc/preview_creative_request.html#adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2">PreviewCreativeRequest2</a></li>
+<li><a title="adcp.types.generated_poc.preview_creative_request.Request" href="generated_poc/preview_creative_request.html#adcp.types.generated_poc.preview_creative_request.Request">Request</a></li>
+<li><a title="adcp.types.generated_poc.preview_creative_response.Error" href="generated_poc/preview_creative_response.html#adcp.types.generated_poc.preview_creative_response.Error">Error</a></li>
+<li><a title="adcp.types.generated_poc.preview_creative_response.Input" href="generated_poc/preview_creative_response.html#adcp.types.generated_poc.preview_creative_response.Input">Input</a></li>
+<li><a title="adcp.types.generated_poc.preview_creative_response.Input4" href="generated_poc/preview_creative_response.html#adcp.types.generated_poc.preview_creative_response.Input4">Input4</a></li>
+<li><a title="adcp.types.generated_poc.preview_creative_response.Preview" href="generated_poc/preview_creative_response.html#adcp.types.generated_poc.preview_creative_response.Preview">Preview</a></li>
+<li><a title="adcp.types.generated_poc.preview_creative_response.Preview1" href="generated_poc/preview_creative_response.html#adcp.types.generated_poc.preview_creative_response.Preview1">Preview1</a></li>
+<li><a title="adcp.types.generated_poc.preview_creative_response.PreviewCreativeResponse1" href="generated_poc/preview_creative_response.html#adcp.types.generated_poc.preview_creative_response.PreviewCreativeResponse1">PreviewCreativeResponse1</a></li>
+<li><a title="adcp.types.generated_poc.preview_creative_response.PreviewCreativeResponse2" href="generated_poc/preview_creative_response.html#adcp.types.generated_poc.preview_creative_response.PreviewCreativeResponse2">PreviewCreativeResponse2</a></li>
+<li><a title="adcp.types.generated_poc.preview_creative_response.Response" href="generated_poc/preview_creative_response.html#adcp.types.generated_poc.preview_creative_response.Response">Response</a></li>
+<li><a title="adcp.types.generated_poc.preview_creative_response.Response1" href="generated_poc/preview_creative_response.html#adcp.types.generated_poc.preview_creative_response.Response1">Response1</a></li>
+<li><a title="adcp.types.generated_poc.preview_creative_response.Results" href="generated_poc/preview_creative_response.html#adcp.types.generated_poc.preview_creative_response.Results">Results</a></li>
+<li><a title="adcp.types.generated_poc.preview_creative_response.Results1" href="generated_poc/preview_creative_response.html#adcp.types.generated_poc.preview_creative_response.Results1">Results1</a></li>
+<li><a title="adcp.types.generated_poc.preview_render.Dimensions" href="generated_poc/preview_render.html#adcp.types.generated_poc.preview_render.Dimensions">Dimensions</a></li>
+<li><a title="adcp.types.generated_poc.preview_render.Embedding" href="generated_poc/preview_render.html#adcp.types.generated_poc.preview_render.Embedding">Embedding</a></li>
+<li><a title="adcp.types.generated_poc.preview_render.PreviewRender1" href="generated_poc/preview_render.html#adcp.types.generated_poc.preview_render.PreviewRender1">PreviewRender1</a></li>
+<li><a title="adcp.types.generated_poc.preview_render.PreviewRender2" href="generated_poc/preview_render.html#adcp.types.generated_poc.preview_render.PreviewRender2">PreviewRender2</a></li>
+<li><a title="adcp.types.generated_poc.preview_render.PreviewRender3" href="generated_poc/preview_render.html#adcp.types.generated_poc.preview_render.PreviewRender3">PreviewRender3</a></li>
+<li><a title="adcp.types.generated_poc.product.DeliveryMeasurement" href="generated_poc/product.html#adcp.types.generated_poc.product.DeliveryMeasurement">DeliveryMeasurement</a></li>
+<li><a title="adcp.types.generated_poc.product.Product" href="generated_poc/product.html#adcp.types.generated_poc.product.Product">Product</a></li>
+<li><a title="adcp.types.generated_poc.product.ProductCard" href="generated_poc/product.html#adcp.types.generated_poc.product.ProductCard">ProductCard</a></li>
+<li><a title="adcp.types.generated_poc.product.ProductCardDetailed" href="generated_poc/product.html#adcp.types.generated_poc.product.ProductCardDetailed">ProductCardDetailed</a></li>
+<li><a title="adcp.types.generated_poc.product.PublisherProperties" href="generated_poc/product.html#adcp.types.generated_poc.product.PublisherProperties">PublisherProperties</a></li>
+<li><a title="adcp.types.generated_poc.product.PublisherProperties4" href="generated_poc/product.html#adcp.types.generated_poc.product.PublisherProperties4">PublisherProperties4</a></li>
+<li><a title="adcp.types.generated_poc.product.PublisherProperties5" href="generated_poc/product.html#adcp.types.generated_poc.product.PublisherProperties5">PublisherProperties5</a></li>
+<li><a title="adcp.types.generated_poc.promoted_offerings.AssetSelectors" href="generated_poc/promoted_offerings.html#adcp.types.generated_poc.promoted_offerings.AssetSelectors">AssetSelectors</a></li>
+<li><a title="adcp.types.generated_poc.promoted_offerings.Offering" href="generated_poc/promoted_offerings.html#adcp.types.generated_poc.promoted_offerings.Offering">Offering</a></li>
+<li><a title="adcp.types.generated_poc.promoted_offerings.PromotedOfferings" href="generated_poc/promoted_offerings.html#adcp.types.generated_poc.promoted_offerings.PromotedOfferings">PromotedOfferings</a></li>
+<li><a title="adcp.types.generated_poc.promoted_products.PromotedProducts" href="generated_poc/promoted_products.html#adcp.types.generated_poc.promoted_products.PromotedProducts">PromotedProducts</a></li>
+<li><a title="adcp.types.generated_poc.property.Identifier" href="generated_poc/property.html#adcp.types.generated_poc.property.Identifier">Identifier</a></li>
+<li><a title="adcp.types.generated_poc.property.Property" href="generated_poc/property.html#adcp.types.generated_poc.property.Property">Property</a></li>
+<li><a title="adcp.types.generated_poc.protocol_envelope.ProtocolEnvelope" href="generated_poc/protocol_envelope.html#adcp.types.generated_poc.protocol_envelope.ProtocolEnvelope">ProtocolEnvelope</a></li>
+<li><a title="adcp.types.generated_poc.provide_performance_feedback_request.MeasurementPeriod" href="generated_poc/provide_performance_feedback_request.html#adcp.types.generated_poc.provide_performance_feedback_request.MeasurementPeriod">MeasurementPeriod</a></li>
+<li><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest" href="generated_poc/provide_performance_feedback_request.html#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest">ProvidePerformanceFeedbackRequest</a></li>
+<li><a title="adcp.types.generated_poc.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse1" href="generated_poc/provide_performance_feedback_response.html#adcp.types.generated_poc.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse1">ProvidePerformanceFeedbackResponse1</a></li>
+<li><a title="adcp.types.generated_poc.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse2" href="generated_poc/provide_performance_feedback_response.html#adcp.types.generated_poc.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse2">ProvidePerformanceFeedbackResponse2</a></li>
+<li><a title="adcp.types.generated_poc.push_notification_config.Authentication" href="generated_poc/push_notification_config.html#adcp.types.generated_poc.push_notification_config.Authentication">Authentication</a></li>
+<li><a title="adcp.types.generated_poc.push_notification_config.PushNotificationConfig" href="generated_poc/push_notification_config.html#adcp.types.generated_poc.push_notification_config.PushNotificationConfig">PushNotificationConfig</a></li>
+<li><a title="adcp.types.generated_poc.reporting_capabilities.ReportingCapabilities" href="generated_poc/reporting_capabilities.html#adcp.types.generated_poc.reporting_capabilities.ReportingCapabilities">ReportingCapabilities</a></li>
+<li><a title="adcp.types.generated_poc.response.ProtocolResponse" href="generated_poc/response.html#adcp.types.generated_poc.response.ProtocolResponse">ProtocolResponse</a></li>
+<li><a title="adcp.types.generated_poc.sub_asset.SubAsset1" href="generated_poc/sub_asset.html#adcp.types.generated_poc.sub_asset.SubAsset1">SubAsset1</a></li>
+<li><a title="adcp.types.generated_poc.sub_asset.SubAsset2" href="generated_poc/sub_asset.html#adcp.types.generated_poc.sub_asset.SubAsset2">SubAsset2</a></li>
+<li><a title="adcp.types.generated_poc.sync_creatives_request.SyncCreativesRequest" href="generated_poc/sync_creatives_request.html#adcp.types.generated_poc.sync_creatives_request.SyncCreativesRequest">SyncCreativesRequest</a></li>
+<li><a title="adcp.types.generated_poc.sync_creatives_response.Creative" href="generated_poc/sync_creatives_response.html#adcp.types.generated_poc.sync_creatives_response.Creative">Creative</a></li>
+<li><a title="adcp.types.generated_poc.sync_creatives_response.SyncCreativesResponse1" href="generated_poc/sync_creatives_response.html#adcp.types.generated_poc.sync_creatives_response.SyncCreativesResponse1">SyncCreativesResponse1</a></li>
+<li><a title="adcp.types.generated_poc.sync_creatives_response.SyncCreativesResponse2" href="generated_poc/sync_creatives_response.html#adcp.types.generated_poc.sync_creatives_response.SyncCreativesResponse2">SyncCreativesResponse2</a></li>
+<li><a title="adcp.types.generated_poc.targeting.TargetingOverlay" href="generated_poc/targeting.html#adcp.types.generated_poc.targeting.TargetingOverlay">TargetingOverlay</a></li>
+<li><a title="adcp.types.generated_poc.tasks_get_request.TasksGetRequest" href="generated_poc/tasks_get_request.html#adcp.types.generated_poc.tasks_get_request.TasksGetRequest">TasksGetRequest</a></li>
+<li><a title="adcp.types.generated_poc.tasks_get_response.Details" href="generated_poc/tasks_get_response.html#adcp.types.generated_poc.tasks_get_response.Details">Details</a></li>
+<li><a title="adcp.types.generated_poc.tasks_get_response.Error" href="generated_poc/tasks_get_response.html#adcp.types.generated_poc.tasks_get_response.Error">Error</a></li>
+<li><a title="adcp.types.generated_poc.tasks_get_response.HistoryItem" href="generated_poc/tasks_get_response.html#adcp.types.generated_poc.tasks_get_response.HistoryItem">HistoryItem</a></li>
+<li><a title="adcp.types.generated_poc.tasks_get_response.Progress" href="generated_poc/tasks_get_response.html#adcp.types.generated_poc.tasks_get_response.Progress">Progress</a></li>
+<li><a title="adcp.types.generated_poc.tasks_get_response.TasksGetResponse" href="generated_poc/tasks_get_response.html#adcp.types.generated_poc.tasks_get_response.TasksGetResponse">TasksGetResponse</a></li>
+<li><a title="adcp.types.generated_poc.tasks_list_request.Filters" href="generated_poc/tasks_list_request.html#adcp.types.generated_poc.tasks_list_request.Filters">Filters</a></li>
+<li><a title="adcp.types.generated_poc.tasks_list_request.Pagination" href="generated_poc/tasks_list_request.html#adcp.types.generated_poc.tasks_list_request.Pagination">Pagination</a></li>
+<li><a title="adcp.types.generated_poc.tasks_list_request.Sort" href="generated_poc/tasks_list_request.html#adcp.types.generated_poc.tasks_list_request.Sort">Sort</a></li>
+<li><a title="adcp.types.generated_poc.tasks_list_request.TasksListRequest" href="generated_poc/tasks_list_request.html#adcp.types.generated_poc.tasks_list_request.TasksListRequest">TasksListRequest</a></li>
+<li><a title="adcp.types.generated_poc.tasks_list_response.DomainBreakdown" href="generated_poc/tasks_list_response.html#adcp.types.generated_poc.tasks_list_response.DomainBreakdown">DomainBreakdown</a></li>
+<li><a title="adcp.types.generated_poc.tasks_list_response.Pagination" href="generated_poc/tasks_list_response.html#adcp.types.generated_poc.tasks_list_response.Pagination">Pagination</a></li>
+<li><a title="adcp.types.generated_poc.tasks_list_response.QuerySummary" href="generated_poc/tasks_list_response.html#adcp.types.generated_poc.tasks_list_response.QuerySummary">QuerySummary</a></li>
+<li><a title="adcp.types.generated_poc.tasks_list_response.SortApplied" href="generated_poc/tasks_list_response.html#adcp.types.generated_poc.tasks_list_response.SortApplied">SortApplied</a></li>
+<li><a title="adcp.types.generated_poc.tasks_list_response.Task" href="generated_poc/tasks_list_response.html#adcp.types.generated_poc.tasks_list_response.Task">Task</a></li>
+<li><a title="adcp.types.generated_poc.tasks_list_response.TasksListResponse" href="generated_poc/tasks_list_response.html#adcp.types.generated_poc.tasks_list_response.TasksListResponse">TasksListResponse</a></li>
+<li><a title="adcp.types.generated_poc.text_asset.TextAsset" href="generated_poc/text_asset.html#adcp.types.generated_poc.text_asset.TextAsset">TextAsset</a></li>
+<li><a title="adcp.types.generated_poc.update_media_buy_request.Packages" href="generated_poc/update_media_buy_request.html#adcp.types.generated_poc.update_media_buy_request.Packages">Packages</a></li>
+<li><a title="adcp.types.generated_poc.update_media_buy_request.Packages1" href="generated_poc/update_media_buy_request.html#adcp.types.generated_poc.update_media_buy_request.Packages1">Packages1</a></li>
+<li><a title="adcp.types.generated_poc.update_media_buy_request.UpdateMediaBuyRequest1" href="generated_poc/update_media_buy_request.html#adcp.types.generated_poc.update_media_buy_request.UpdateMediaBuyRequest1">UpdateMediaBuyRequest1</a></li>
+<li><a title="adcp.types.generated_poc.update_media_buy_request.UpdateMediaBuyRequest2" href="generated_poc/update_media_buy_request.html#adcp.types.generated_poc.update_media_buy_request.UpdateMediaBuyRequest2">UpdateMediaBuyRequest2</a></li>
+<li><a title="adcp.types.generated_poc.update_media_buy_response.AffectedPackage" href="generated_poc/update_media_buy_response.html#adcp.types.generated_poc.update_media_buy_response.AffectedPackage">AffectedPackage</a></li>
+<li><a title="adcp.types.generated_poc.update_media_buy_response.UpdateMediaBuyResponse1" href="generated_poc/update_media_buy_response.html#adcp.types.generated_poc.update_media_buy_response.UpdateMediaBuyResponse1">UpdateMediaBuyResponse1</a></li>
+<li><a title="adcp.types.generated_poc.update_media_buy_response.UpdateMediaBuyResponse2" href="generated_poc/update_media_buy_response.html#adcp.types.generated_poc.update_media_buy_response.UpdateMediaBuyResponse2">UpdateMediaBuyResponse2</a></li>
+<li><a title="adcp.types.generated_poc.url_asset.UrlAsset" href="generated_poc/url_asset.html#adcp.types.generated_poc.url_asset.UrlAsset">UrlAsset</a></li>
+<li><a title="adcp.types.generated_poc.vast_asset.VastAsset1" href="generated_poc/vast_asset.html#adcp.types.generated_poc.vast_asset.VastAsset1">VastAsset1</a></li>
+<li><a title="adcp.types.generated_poc.vast_asset.VastAsset2" href="generated_poc/vast_asset.html#adcp.types.generated_poc.vast_asset.VastAsset2">VastAsset2</a></li>
+<li><a title="adcp.types.generated_poc.vcpm_auction_option.PriceGuidance" href="generated_poc/vcpm_auction_option.html#adcp.types.generated_poc.vcpm_auction_option.PriceGuidance">PriceGuidance</a></li>
+<li><a title="adcp.types.generated_poc.vcpm_auction_option.VcpmAuctionPricingOption" href="generated_poc/vcpm_auction_option.html#adcp.types.generated_poc.vcpm_auction_option.VcpmAuctionPricingOption">VcpmAuctionPricingOption</a></li>
+<li><a title="adcp.types.generated_poc.vcpm_fixed_option.VcpmFixedRatePricingOption" href="generated_poc/vcpm_fixed_option.html#adcp.types.generated_poc.vcpm_fixed_option.VcpmFixedRatePricingOption">VcpmFixedRatePricingOption</a></li>
+<li><a title="adcp.types.generated_poc.video_asset.VideoAsset" href="generated_poc/video_asset.html#adcp.types.generated_poc.video_asset.VideoAsset">VideoAsset</a></li>
+<li><a title="adcp.types.generated_poc.webhook_asset.Security" href="generated_poc/webhook_asset.html#adcp.types.generated_poc.webhook_asset.Security">Security</a></li>
+<li><a title="adcp.types.generated_poc.webhook_asset.WebhookAsset" href="generated_poc/webhook_asset.html#adcp.types.generated_poc.webhook_asset.WebhookAsset">WebhookAsset</a></li>
+<li><a title="adcp.types.generated_poc.webhook_payload.Progress" href="generated_poc/webhook_payload.html#adcp.types.generated_poc.webhook_payload.Progress">Progress</a></li>
+<li><a title="adcp.types.generated_poc.webhook_payload.WebhookPayload" href="generated_poc/webhook_payload.html#adcp.types.generated_poc.webhook_payload.WebhookPayload">WebhookPayload</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.base.AdCPBaseModel.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.types.base.AdCPBaseModel.model_dump"><code class="name flex">
+<span>def <span class="ident">model_dump</span></span>(<span>self, **kwargs: Any) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def model_dump(self, **kwargs: Any) -&gt; dict[str, Any]:
+    if &#34;exclude_none&#34; not in kwargs:
+        kwargs[&#34;exclude_none&#34;] = True
+    return super().model_dump(**kwargs)</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/serialization.md#python-mode"><code>model_dump</code></a></p>
+</div>
+<p>Generate a dictionary representation of the model, optionally specifying which fields to include or exclude.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>mode</code></strong></dt>
+<dd>The mode in which <code>to_python</code> should run.
+If mode is 'json', the output will only contain JSON serializable types.
+If mode is 'python', the output may contain non-JSON-serializable Python objects.</dd>
+<dt><strong><code>include</code></strong></dt>
+<dd>A set of fields to include in the output.</dd>
+<dt><strong><code>exclude</code></strong></dt>
+<dd>A set of fields to exclude from the output.</dd>
+<dt><strong><code>context</code></strong></dt>
+<dd>Additional context to pass to the serializer.</dd>
+<dt><strong><code>by_alias</code></strong></dt>
+<dd>Whether to use the field's alias in the dictionary key if defined.</dd>
+<dt><strong><code>exclude_unset</code></strong></dt>
+<dd>Whether to exclude fields that have not been explicitly set.</dd>
+<dt><strong><code>exclude_defaults</code></strong></dt>
+<dd>Whether to exclude fields that are set to their default value.</dd>
+<dt><strong><code>exclude_none</code></strong></dt>
+<dd>Whether to exclude fields that have a value of <code>None</code>.</dd>
+<dt><strong><code>exclude_computed_fields</code></strong></dt>
+<dd>Whether to exclude computed fields.
+While this can be useful for round-tripping, it is usually recommended to use the dedicated
+<code>round_trip</code> parameter instead.</dd>
+<dt><strong><code>round_trip</code></strong></dt>
+<dd>If True, dumped values should be valid as input for non-idempotent types such as Json[T].</dd>
+<dt><strong><code>warnings</code></strong></dt>
+<dd>How to handle serialization errors. False/"none" ignores them, True/"warn" logs errors,
+"error" raises a [<code>PydanticSerializationError</code>][pydantic_core.PydanticSerializationError].</dd>
+<dt><strong><code>fallback</code></strong></dt>
+<dd>A function to call when an unknown value is encountered. If not provided,
+a [<code>PydanticSerializationError</code>][pydantic_core.PydanticSerializationError] error is raised.</dd>
+<dt><strong><code>serialize_as_any</code></strong></dt>
+<dd>Whether to serialize fields with duck-typing serialization behavior.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>A dictionary representation of the model.</p></div>
+</dd>
+<dt id="adcp.types.base.AdCPBaseModel.model_dump_json"><code class="name flex">
+<span>def <span class="ident">model_dump_json</span></span>(<span>self, **kwargs: Any) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def model_dump_json(self, **kwargs: Any) -&gt; str:
+    if &#34;exclude_none&#34; not in kwargs:
+        kwargs[&#34;exclude_none&#34;] = True
+    return super().model_dump_json(**kwargs)</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/serialization.md#json-mode"><code>model_dump_json</code></a></p>
+</div>
+<p>Generates a JSON representation of the model using Pydantic's <code>to_json</code> method.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>indent</code></strong></dt>
+<dd>Indentation to use in the JSON output. If None is passed, the output will be compact.</dd>
+<dt><strong><code>ensure_ascii</code></strong></dt>
+<dd>If <code>True</code>, the output is guaranteed to have all incoming non-ASCII characters escaped.
+If <code>False</code> (the default), these characters will be output as-is.</dd>
+<dt><strong><code>include</code></strong></dt>
+<dd>Field(s) to include in the JSON output.</dd>
+<dt><strong><code>exclude</code></strong></dt>
+<dd>Field(s) to exclude from the JSON output.</dd>
+<dt><strong><code>context</code></strong></dt>
+<dd>Additional context to pass to the serializer.</dd>
+<dt><strong><code>by_alias</code></strong></dt>
+<dd>Whether to serialize using field aliases.</dd>
+<dt><strong><code>exclude_unset</code></strong></dt>
+<dd>Whether to exclude fields that have not been explicitly set.</dd>
+<dt><strong><code>exclude_defaults</code></strong></dt>
+<dd>Whether to exclude fields that are set to their default value.</dd>
+<dt><strong><code>exclude_none</code></strong></dt>
+<dd>Whether to exclude fields that have a value of <code>None</code>.</dd>
+<dt><strong><code>exclude_computed_fields</code></strong></dt>
+<dd>Whether to exclude computed fields.
+While this can be useful for round-tripping, it is usually recommended to use the dedicated
+<code>round_trip</code> parameter instead.</dd>
+<dt><strong><code>round_trip</code></strong></dt>
+<dd>If True, dumped values should be valid as input for non-idempotent types such as Json[T].</dd>
+<dt><strong><code>warnings</code></strong></dt>
+<dd>How to handle serialization errors. False/"none" ignores them, True/"warn" logs errors,
+"error" raises a [<code>PydanticSerializationError</code>][pydantic_core.PydanticSerializationError].</dd>
+<dt><strong><code>fallback</code></strong></dt>
+<dd>A function to call when an unknown value is encountered. If not provided,
+a [<code>PydanticSerializationError</code>][pydantic_core.PydanticSerializationError] error is raised.</dd>
+<dt><strong><code>serialize_as_any</code></strong></dt>
+<dd>Whether to serialize fields with duck-typing serialization behavior.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>A JSON string representation of the model.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types" href="index.html">adcp.types</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.base.AdCPBaseModel" href="#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_config" href="#adcp.types.base.AdCPBaseModel.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

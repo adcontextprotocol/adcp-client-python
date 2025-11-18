@@ -1,0 +1,1234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.format API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.format</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.format.Asset"><code class="flex name class">
+<span>class <span class="ident">Asset</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Asset(AdCPBaseModel):
+    asset_id: Annotated[str, Field(description=&#39;Identifier for this asset within the group&#39;)]
+    asset_role: Annotated[
+        str | None,
+        Field(
+            description=&#34;Optional descriptive label for this asset&#39;s purpose (e.g., &#39;hero_image&#39;, &#39;logo&#39;). Not used for referencing assets in manifests—use asset_id instead. This field is for human-readable documentation and UI display only.&#34;
+        ),
+    ] = None
+    asset_type: Annotated[AssetType, Field(description=&#39;Type of asset&#39;)]
+    required: Annotated[
+        bool | None, Field(description=&#39;Whether this asset is required in each repetition&#39;)
+    ] = None
+    requirements: Annotated[
+        dict[str, Any] | None, Field(description=&#39;Technical requirements for this asset&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.format.Asset.asset_id"><code class="name">var <span class="ident">asset_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Asset.asset_role"><code class="name">var <span class="ident">asset_role</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Asset.asset_type"><code class="name">var <span class="ident">asset_type</span> : <a title="adcp.types.generated_poc.format.AssetType" href="#adcp.types.generated_poc.format.AssetType">AssetType</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Asset.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Asset.required"><code class="name">var <span class="ident">required</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Asset.requirements"><code class="name">var <span class="ident">requirements</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetType"><code class="flex name class">
+<span>class <span class="ident">AssetType</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AssetType(Enum):
+    image = &#39;image&#39;
+    video = &#39;video&#39;
+    audio = &#39;audio&#39;
+    vast = &#39;vast&#39;
+    daast = &#39;daast&#39;
+    text = &#39;text&#39;
+    markdown = &#39;markdown&#39;
+    html = &#39;html&#39;
+    css = &#39;css&#39;
+    javascript = &#39;javascript&#39;
+    url = &#39;url&#39;
+    webhook = &#39;webhook&#39;
+    promoted_offerings = &#39;promoted_offerings&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.format.AssetType.audio"><code class="name">var <span class="ident">audio</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetType.css"><code class="name">var <span class="ident">css</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetType.daast"><code class="name">var <span class="ident">daast</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetType.html"><code class="name">var <span class="ident">html</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetType.image"><code class="name">var <span class="ident">image</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetType.javascript"><code class="name">var <span class="ident">javascript</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetType.markdown"><code class="name">var <span class="ident">markdown</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetType.promoted_offerings"><code class="name">var <span class="ident">promoted_offerings</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetType.text"><code class="name">var <span class="ident">text</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetType.url"><code class="name">var <span class="ident">url</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetType.vast"><code class="name">var <span class="ident">vast</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetType.video"><code class="name">var <span class="ident">video</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetType.webhook"><code class="name">var <span class="ident">webhook</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetsRequired"><code class="flex name class">
+<span>class <span class="ident">AssetsRequired</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AssetsRequired(AdCPBaseModel):
+    asset_id: Annotated[
+        str,
+        Field(
+            description=&#39;Unique identifier for this asset. Creative manifests MUST use this exact value as the key in the assets object.&#39;
+        ),
+    ]
+    asset_role: Annotated[
+        str | None,
+        Field(
+            description=&#34;Optional descriptive label for this asset&#39;s purpose (e.g., &#39;hero_image&#39;, &#39;logo&#39;). Not used for referencing assets in manifests—use asset_id instead. This field is for human-readable documentation and UI display only.&#34;
+        ),
+    ] = None
+    asset_type: Annotated[AssetType, Field(description=&#39;Type of asset&#39;)]
+    item_type: Annotated[
+        Literal[&#39;individual&#39;],
+        Field(description=&#39;Discriminator indicating this is an individual asset requirement&#39;),
+    ]
+    required: Annotated[bool | None, Field(description=&#39;Whether this asset is required&#39;)] = None
+    requirements: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Technical requirements for this asset (dimensions, file size, duration, etc.)&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.format.AssetsRequired.asset_id"><code class="name">var <span class="ident">asset_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetsRequired.asset_role"><code class="name">var <span class="ident">asset_role</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetsRequired.asset_type"><code class="name">var <span class="ident">asset_type</span> : <a title="adcp.types.generated_poc.format.AssetType" href="#adcp.types.generated_poc.format.AssetType">AssetType</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetsRequired.item_type"><code class="name">var <span class="ident">item_type</span> : Literal['individual']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetsRequired.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetsRequired.required"><code class="name">var <span class="ident">required</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetsRequired.requirements"><code class="name">var <span class="ident">requirements</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetsRequired1"><code class="flex name class">
+<span>class <span class="ident">AssetsRequired1</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AssetsRequired1(AdCPBaseModel):
+    asset_group_id: Annotated[
+        str, Field(description=&#34;Identifier for this asset group (e.g., &#39;product&#39;, &#39;slide&#39;, &#39;card&#39;)&#34;)
+    ]
+    assets: Annotated[list[Asset], Field(description=&#39;Assets within each repetition of this group&#39;)]
+    item_type: Annotated[
+        Literal[&#39;repeatable_group&#39;],
+        Field(description=&#39;Discriminator indicating this is a repeatable asset group&#39;),
+    ]
+    max_count: Annotated[int, Field(description=&#39;Maximum number of repetitions allowed&#39;, ge=1)]
+    min_count: Annotated[int, Field(description=&#39;Minimum number of repetitions required&#39;, ge=1)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.format.AssetsRequired1.asset_group_id"><code class="name">var <span class="ident">asset_group_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetsRequired1.assets"><code class="name">var <span class="ident">assets</span> : list[<a title="adcp.types.generated_poc.format.Asset" href="#adcp.types.generated_poc.format.Asset">Asset</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetsRequired1.item_type"><code class="name">var <span class="ident">item_type</span> : Literal['repeatable_group']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetsRequired1.max_count"><code class="name">var <span class="ident">max_count</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetsRequired1.min_count"><code class="name">var <span class="ident">min_count</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.AssetsRequired1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.format.Dimensions"><code class="flex name class">
+<span>class <span class="ident">Dimensions</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Dimensions(AdCPBaseModel):
+    aspect_ratio: Annotated[
+        str | None,
+        Field(
+            description=&#34;Fixed aspect ratio constraint (e.g., &#39;16:9&#39;, &#39;4:3&#39;, &#39;1:1&#39;)&#34;,
+            pattern=&#39;^\\d+:\\d+$&#39;,
+        ),
+    ] = None
+    height: Annotated[
+        float | None, Field(description=&#39;Fixed height in specified units&#39;, ge=0.0)
+    ] = None
+    max_height: Annotated[
+        float | None, Field(description=&#39;Maximum height for responsive renders&#39;, ge=0.0)
+    ] = None
+    max_width: Annotated[
+        float | None, Field(description=&#39;Maximum width for responsive renders&#39;, ge=0.0)
+    ] = None
+    min_height: Annotated[
+        float | None, Field(description=&#39;Minimum height for responsive renders&#39;, ge=0.0)
+    ] = None
+    min_width: Annotated[
+        float | None, Field(description=&#39;Minimum width for responsive renders&#39;, ge=0.0)
+    ] = None
+    responsive: Annotated[
+        Responsive | None, Field(description=&#39;Indicates which dimensions are responsive/fluid&#39;)
+    ] = None
+    unit: Annotated[Unit, Field(description=&#39;Unit of measurement for dimensions&#39;)]
+    width: Annotated[float | None, Field(description=&#39;Fixed width in specified units&#39;, ge=0.0)] = (
+        None
+    )</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.format.Dimensions.aspect_ratio"><code class="name">var <span class="ident">aspect_ratio</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Dimensions.height"><code class="name">var <span class="ident">height</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Dimensions.max_height"><code class="name">var <span class="ident">max_height</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Dimensions.max_width"><code class="name">var <span class="ident">max_width</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Dimensions.min_height"><code class="name">var <span class="ident">min_height</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Dimensions.min_width"><code class="name">var <span class="ident">min_width</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Dimensions.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Dimensions.responsive"><code class="name">var <span class="ident">responsive</span> : <a title="adcp.types.generated_poc.format.Responsive" href="#adcp.types.generated_poc.format.Responsive">Responsive</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Dimensions.unit"><code class="name">var <span class="ident">unit</span> : <a title="adcp.types.generated_poc.format.Unit" href="#adcp.types.generated_poc.format.Unit">Unit</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Dimensions.width"><code class="name">var <span class="ident">width</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.format.Format"><code class="flex name class">
+<span>class <span class="ident">Format</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Format(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    assets_required: Annotated[
+        list[AssetsRequired | AssetsRequired1] | None,
+        Field(
+            description=&#39;Array of required assets or asset groups for this format. Each asset is identified by its asset_id, which must be used as the key in creative manifests. Can contain individual assets or repeatable asset sequences (e.g., carousel products, slideshow frames).&#39;
+        ),
+    ] = None
+    delivery: Annotated[
+        dict[str, Any] | None,
+        Field(description=&#39;Delivery method specifications (e.g., hosted, VAST, third-party tags)&#39;),
+    ] = None
+    description: Annotated[
+        str | None,
+        Field(
+            description=&#39;Plain text explanation of what this format does and what assets it requires&#39;
+        ),
+    ] = None
+    example_url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#39;Optional URL to showcase page with examples and interactive demos of this format&#39;
+        ),
+    ] = None
+    format_card: Annotated[
+        FormatCard | None,
+        Field(
+            description=&#39;Optional standard visual card (300x400px) for displaying this format in user interfaces. Can be rendered via preview_creative or pre-generated.&#39;
+        ),
+    ] = None
+    format_card_detailed: Annotated[
+        FormatCardDetailed | None,
+        Field(
+            description=&#39;Optional detailed card with carousel and full specifications. Provides rich format documentation similar to ad spec pages.&#39;
+        ),
+    ] = None
+    format_id: Annotated[
+        format_id_1.FormatId,
+        Field(description=&#39;Structured format identifier with agent URL and format name&#39;),
+    ]
+    name: Annotated[str, Field(description=&#39;Human-readable format name&#39;)]
+    output_format_ids: Annotated[
+        list[format_id_1.FormatId] | None,
+        Field(
+            description=&#39;For generative formats: array of format IDs that this format can generate. When a format accepts inputs like brand_manifest and message, this specifies what concrete output formats can be produced (e.g., a generative banner format might output standard image banner formats).&#39;
+        ),
+    ] = None
+    preview_image: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#39;DEPRECATED: Use format_card instead. Optional preview image URL for format browsing/discovery UI. Should be 400x300px (4:3 aspect ratio) PNG or JPG. Used as thumbnail/card image in format browsers. This field is maintained for backward compatibility but format_card provides a more flexible, structured approach.&#39;
+        ),
+    ] = None
+    renders: Annotated[
+        list[Render] | None,
+        Field(
+            description=&#39;Specification of rendered pieces for this format. Most formats produce a single render. Companion ad formats (video + banner), adaptive formats, and multi-placement formats produce multiple renders. Each render specifies its role and dimensions.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    supported_macros: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;List of universal macros supported by this format (e.g., MEDIA_BUY_ID, CACHEBUSTER, DEVICE_ID). Used for validation and developer tooling.&#39;
+        ),
+    ] = None
+    type: Annotated[
+        Type,
+        Field(
+            description=&#39;Media type of this format - determines rendering method and asset requirements&#39;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.format.Format.assets_required"><code class="name">var <span class="ident">assets_required</span> : list[<a title="adcp.types.generated_poc.format.AssetsRequired" href="#adcp.types.generated_poc.format.AssetsRequired">AssetsRequired</a> | <a title="adcp.types.generated_poc.format.AssetsRequired1" href="#adcp.types.generated_poc.format.AssetsRequired1">AssetsRequired1</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Format.delivery"><code class="name">var <span class="ident">delivery</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Format.description"><code class="name">var <span class="ident">description</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Format.example_url"><code class="name">var <span class="ident">example_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Format.format_card"><code class="name">var <span class="ident">format_card</span> : <a title="adcp.types.generated_poc.format.FormatCard" href="#adcp.types.generated_poc.format.FormatCard">FormatCard</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Format.format_card_detailed"><code class="name">var <span class="ident">format_card_detailed</span> : <a title="adcp.types.generated_poc.format.FormatCardDetailed" href="#adcp.types.generated_poc.format.FormatCardDetailed">FormatCardDetailed</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Format.format_id"><code class="name">var <span class="ident">format_id</span> : <a title="adcp.types.generated_poc.format_id.FormatId" href="format_id.html#adcp.types.generated_poc.format_id.FormatId">FormatId</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Format.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Format.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Format.output_format_ids"><code class="name">var <span class="ident">output_format_ids</span> : list[<a title="adcp.types.generated_poc.format_id.FormatId" href="format_id.html#adcp.types.generated_poc.format_id.FormatId">FormatId</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Format.preview_image"><code class="name">var <span class="ident">preview_image</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Format.renders"><code class="name">var <span class="ident">renders</span> : list[<a title="adcp.types.generated_poc.format.Render" href="#adcp.types.generated_poc.format.Render">Render</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Format.supported_macros"><code class="name">var <span class="ident">supported_macros</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Format.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.format.Type" href="#adcp.types.generated_poc.format.Type">Type</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.format.FormatCard"><code class="flex name class">
+<span>class <span class="ident">FormatCard</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FormatCard(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    format_id: Annotated[
+        format_id_1.FormatId,
+        Field(
+            description=&#39;Creative format defining the card layout (typically format_card_standard)&#39;
+        ),
+    ]
+    manifest: Annotated[
+        dict[str, Any],
+        Field(description=&#39;Asset manifest for rendering the card, structure defined by the format&#39;),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.format.FormatCard.format_id"><code class="name">var <span class="ident">format_id</span> : <a title="adcp.types.generated_poc.format_id.FormatId" href="format_id.html#adcp.types.generated_poc.format_id.FormatId">FormatId</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.FormatCard.manifest"><code class="name">var <span class="ident">manifest</span> : dict[str, typing.Any]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.FormatCard.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.format.FormatCardDetailed"><code class="flex name class">
+<span>class <span class="ident">FormatCardDetailed</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FormatCardDetailed(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    format_id: Annotated[
+        format_id_1.FormatId,
+        Field(
+            description=&#39;Creative format defining the detailed card layout (typically format_card_detailed)&#39;
+        ),
+    ]
+    manifest: Annotated[
+        dict[str, Any],
+        Field(
+            description=&#39;Asset manifest for rendering the detailed card, structure defined by the format&#39;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.format.FormatCardDetailed.format_id"><code class="name">var <span class="ident">format_id</span> : <a title="adcp.types.generated_poc.format_id.FormatId" href="format_id.html#adcp.types.generated_poc.format_id.FormatId">FormatId</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.FormatCardDetailed.manifest"><code class="name">var <span class="ident">manifest</span> : dict[str, typing.Any]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.FormatCardDetailed.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.format.Render"><code class="flex name class">
+<span>class <span class="ident">Render</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Render(AdCPBaseModel):
+    dimensions: Annotated[Dimensions, Field(description=&#39;Dimensions for this rendered piece&#39;)]
+    role: Annotated[
+        str,
+        Field(
+            description=&#34;Semantic role of this rendered piece (e.g., &#39;primary&#39;, &#39;companion&#39;, &#39;mobile_variant&#39;)&#34;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.format.Render.dimensions"><code class="name">var <span class="ident">dimensions</span> : <a title="adcp.types.generated_poc.format.Dimensions" href="#adcp.types.generated_poc.format.Dimensions">Dimensions</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Render.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Render.role"><code class="name">var <span class="ident">role</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.format.Responsive"><code class="flex name class">
+<span>class <span class="ident">Responsive</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Responsive(AdCPBaseModel):
+    height: bool
+    width: bool</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.format.Responsive.height"><code class="name">var <span class="ident">height</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Responsive.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Responsive.width"><code class="name">var <span class="ident">width</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.format.Type"><code class="flex name class">
+<span>class <span class="ident">Type</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Type(Enum):
+    audio = &#39;audio&#39;
+    video = &#39;video&#39;
+    display = &#39;display&#39;
+    native = &#39;native&#39;
+    dooh = &#39;dooh&#39;
+    rich_media = &#39;rich_media&#39;
+    universal = &#39;universal&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.format.Type.audio"><code class="name">var <span class="ident">audio</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Type.display"><code class="name">var <span class="ident">display</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Type.dooh"><code class="name">var <span class="ident">dooh</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Type.native"><code class="name">var <span class="ident">native</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Type.rich_media"><code class="name">var <span class="ident">rich_media</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Type.universal"><code class="name">var <span class="ident">universal</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Type.video"><code class="name">var <span class="ident">video</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.format.Unit"><code class="flex name class">
+<span>class <span class="ident">Unit</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Unit(Enum):
+    px = &#39;px&#39;
+    dp = &#39;dp&#39;
+    inches = &#39;inches&#39;
+    cm = &#39;cm&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.format.Unit.cm"><code class="name">var <span class="ident">cm</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Unit.dp"><code class="name">var <span class="ident">dp</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Unit.inches"><code class="name">var <span class="ident">inches</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.format.Unit.px"><code class="name">var <span class="ident">px</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc" href="index.html">adcp.types.generated_poc</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.format.Asset" href="#adcp.types.generated_poc.format.Asset">Asset</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.format.Asset.asset_id" href="#adcp.types.generated_poc.format.Asset.asset_id">asset_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Asset.asset_role" href="#adcp.types.generated_poc.format.Asset.asset_role">asset_role</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Asset.asset_type" href="#adcp.types.generated_poc.format.Asset.asset_type">asset_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Asset.model_config" href="#adcp.types.generated_poc.format.Asset.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Asset.required" href="#adcp.types.generated_poc.format.Asset.required">required</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Asset.requirements" href="#adcp.types.generated_poc.format.Asset.requirements">requirements</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.format.AssetType" href="#adcp.types.generated_poc.format.AssetType">AssetType</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.format.AssetType.audio" href="#adcp.types.generated_poc.format.AssetType.audio">audio</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetType.css" href="#adcp.types.generated_poc.format.AssetType.css">css</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetType.daast" href="#adcp.types.generated_poc.format.AssetType.daast">daast</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetType.html" href="#adcp.types.generated_poc.format.AssetType.html">html</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetType.image" href="#adcp.types.generated_poc.format.AssetType.image">image</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetType.javascript" href="#adcp.types.generated_poc.format.AssetType.javascript">javascript</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetType.markdown" href="#adcp.types.generated_poc.format.AssetType.markdown">markdown</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetType.promoted_offerings" href="#adcp.types.generated_poc.format.AssetType.promoted_offerings">promoted_offerings</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetType.text" href="#adcp.types.generated_poc.format.AssetType.text">text</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetType.url" href="#adcp.types.generated_poc.format.AssetType.url">url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetType.vast" href="#adcp.types.generated_poc.format.AssetType.vast">vast</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetType.video" href="#adcp.types.generated_poc.format.AssetType.video">video</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetType.webhook" href="#adcp.types.generated_poc.format.AssetType.webhook">webhook</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.format.AssetsRequired" href="#adcp.types.generated_poc.format.AssetsRequired">AssetsRequired</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.format.AssetsRequired.asset_id" href="#adcp.types.generated_poc.format.AssetsRequired.asset_id">asset_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetsRequired.asset_role" href="#adcp.types.generated_poc.format.AssetsRequired.asset_role">asset_role</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetsRequired.asset_type" href="#adcp.types.generated_poc.format.AssetsRequired.asset_type">asset_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetsRequired.item_type" href="#adcp.types.generated_poc.format.AssetsRequired.item_type">item_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetsRequired.model_config" href="#adcp.types.generated_poc.format.AssetsRequired.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetsRequired.required" href="#adcp.types.generated_poc.format.AssetsRequired.required">required</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetsRequired.requirements" href="#adcp.types.generated_poc.format.AssetsRequired.requirements">requirements</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.format.AssetsRequired1" href="#adcp.types.generated_poc.format.AssetsRequired1">AssetsRequired1</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.format.AssetsRequired1.asset_group_id" href="#adcp.types.generated_poc.format.AssetsRequired1.asset_group_id">asset_group_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetsRequired1.assets" href="#adcp.types.generated_poc.format.AssetsRequired1.assets">assets</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetsRequired1.item_type" href="#adcp.types.generated_poc.format.AssetsRequired1.item_type">item_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetsRequired1.max_count" href="#adcp.types.generated_poc.format.AssetsRequired1.max_count">max_count</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetsRequired1.min_count" href="#adcp.types.generated_poc.format.AssetsRequired1.min_count">min_count</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.AssetsRequired1.model_config" href="#adcp.types.generated_poc.format.AssetsRequired1.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.format.Dimensions" href="#adcp.types.generated_poc.format.Dimensions">Dimensions</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.format.Dimensions.aspect_ratio" href="#adcp.types.generated_poc.format.Dimensions.aspect_ratio">aspect_ratio</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Dimensions.height" href="#adcp.types.generated_poc.format.Dimensions.height">height</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Dimensions.max_height" href="#adcp.types.generated_poc.format.Dimensions.max_height">max_height</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Dimensions.max_width" href="#adcp.types.generated_poc.format.Dimensions.max_width">max_width</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Dimensions.min_height" href="#adcp.types.generated_poc.format.Dimensions.min_height">min_height</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Dimensions.min_width" href="#adcp.types.generated_poc.format.Dimensions.min_width">min_width</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Dimensions.model_config" href="#adcp.types.generated_poc.format.Dimensions.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Dimensions.responsive" href="#adcp.types.generated_poc.format.Dimensions.responsive">responsive</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Dimensions.unit" href="#adcp.types.generated_poc.format.Dimensions.unit">unit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Dimensions.width" href="#adcp.types.generated_poc.format.Dimensions.width">width</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.format.Format" href="#adcp.types.generated_poc.format.Format">Format</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.format.Format.assets_required" href="#adcp.types.generated_poc.format.Format.assets_required">assets_required</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Format.delivery" href="#adcp.types.generated_poc.format.Format.delivery">delivery</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Format.description" href="#adcp.types.generated_poc.format.Format.description">description</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Format.example_url" href="#adcp.types.generated_poc.format.Format.example_url">example_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Format.format_card" href="#adcp.types.generated_poc.format.Format.format_card">format_card</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Format.format_card_detailed" href="#adcp.types.generated_poc.format.Format.format_card_detailed">format_card_detailed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Format.format_id" href="#adcp.types.generated_poc.format.Format.format_id">format_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Format.model_config" href="#adcp.types.generated_poc.format.Format.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Format.name" href="#adcp.types.generated_poc.format.Format.name">name</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Format.output_format_ids" href="#adcp.types.generated_poc.format.Format.output_format_ids">output_format_ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Format.preview_image" href="#adcp.types.generated_poc.format.Format.preview_image">preview_image</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Format.renders" href="#adcp.types.generated_poc.format.Format.renders">renders</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Format.supported_macros" href="#adcp.types.generated_poc.format.Format.supported_macros">supported_macros</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Format.type" href="#adcp.types.generated_poc.format.Format.type">type</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.format.FormatCard" href="#adcp.types.generated_poc.format.FormatCard">FormatCard</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.format.FormatCard.format_id" href="#adcp.types.generated_poc.format.FormatCard.format_id">format_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.FormatCard.manifest" href="#adcp.types.generated_poc.format.FormatCard.manifest">manifest</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.FormatCard.model_config" href="#adcp.types.generated_poc.format.FormatCard.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.format.FormatCardDetailed" href="#adcp.types.generated_poc.format.FormatCardDetailed">FormatCardDetailed</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.format.FormatCardDetailed.format_id" href="#adcp.types.generated_poc.format.FormatCardDetailed.format_id">format_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.FormatCardDetailed.manifest" href="#adcp.types.generated_poc.format.FormatCardDetailed.manifest">manifest</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.FormatCardDetailed.model_config" href="#adcp.types.generated_poc.format.FormatCardDetailed.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.format.Render" href="#adcp.types.generated_poc.format.Render">Render</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.format.Render.dimensions" href="#adcp.types.generated_poc.format.Render.dimensions">dimensions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Render.model_config" href="#adcp.types.generated_poc.format.Render.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Render.role" href="#adcp.types.generated_poc.format.Render.role">role</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.format.Responsive" href="#adcp.types.generated_poc.format.Responsive">Responsive</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.format.Responsive.height" href="#adcp.types.generated_poc.format.Responsive.height">height</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Responsive.model_config" href="#adcp.types.generated_poc.format.Responsive.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Responsive.width" href="#adcp.types.generated_poc.format.Responsive.width">width</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.format.Type" href="#adcp.types.generated_poc.format.Type">Type</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.format.Type.audio" href="#adcp.types.generated_poc.format.Type.audio">audio</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Type.display" href="#adcp.types.generated_poc.format.Type.display">display</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Type.dooh" href="#adcp.types.generated_poc.format.Type.dooh">dooh</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Type.native" href="#adcp.types.generated_poc.format.Type.native">native</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Type.rich_media" href="#adcp.types.generated_poc.format.Type.rich_media">rich_media</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Type.universal" href="#adcp.types.generated_poc.format.Type.universal">universal</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Type.video" href="#adcp.types.generated_poc.format.Type.video">video</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.format.Unit" href="#adcp.types.generated_poc.format.Unit">Unit</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.format.Unit.cm" href="#adcp.types.generated_poc.format.Unit.cm">cm</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Unit.dp" href="#adcp.types.generated_poc.format.Unit.dp">dp</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Unit.inches" href="#adcp.types.generated_poc.format.Unit.inches">inches</a></code></li>
+<li><code><a title="adcp.types.generated_poc.format.Unit.px" href="#adcp.types.generated_poc.format.Unit.px">px</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>
