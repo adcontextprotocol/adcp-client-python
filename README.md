@@ -138,6 +138,18 @@ async with ADCPMultiAgentClient(
 # Connections automatically cleaned up here
 ```
 
+## Documentation
+
+- **[API Reference](https://adcontextprotocol.github.io/adcp-client-python/)** - Complete API documentation with type signatures and examples
+- **[Protocol Spec](https://github.com/adcontextprotocol/adcp)** - Ad Context Protocol specification
+- **[Examples](examples/)** - Code examples and usage patterns
+
+The API reference documentation is automatically generated from the code and includes:
+- Full type signatures for all methods
+- Field descriptions from JSON Schema
+- Method documentation with examples
+- Searchable interface
+
 ## Features
 
 ### Test Helpers
@@ -737,6 +749,7 @@ Apache 2.0 License - see [LICENSE](LICENSE) file for details.
 
 ## Support
 
-- **Documentation**: [docs.adcontextprotocol.org](https://docs.adcontextprotocol.org)
+- **API Reference**: [adcontextprotocol.github.io/adcp-client-python](https://adcontextprotocol.github.io/adcp-client-python/)
+- **Protocol Documentation**: [docs.adcontextprotocol.org](https://docs.adcontextprotocol.org)
 - **Issues**: [GitHub Issues](https://github.com/adcontextprotocol/adcp-client-python/issues)
 - **Protocol Spec**: [AdCP Specification](https://github.com/adcontextprotocol/adcp)

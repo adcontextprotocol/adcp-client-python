@@ -47,6 +47,9 @@ dev = [
     "ruff>=0.1.0",
     "datamodel-code-generator[http]>=0.35.0",
 ]
+docs = [
+    "pdoc3>=0.10.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/adcontextprotocol/adcp-client-python"
