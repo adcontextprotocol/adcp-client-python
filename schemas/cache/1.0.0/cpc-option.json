@@ -15,6 +15,11 @@
       "pattern": "^[A-Z]{3}$",
       "type": "string"
     },
+    "is_fixed": {
+      "const": true,
+      "description": "Whether this is a fixed rate (true) or auction-based (false)",
+      "type": "boolean"
+    },
     "min_spend_per_package": {
       "description": "Minimum spend requirement per package using this pricing option, in the specified currency",
       "minimum": 0,
@@ -39,7 +44,8 @@
     "pricing_option_id",
     "pricing_model",
     "rate",
-    "currency"
+    "currency",
+    "is_fixed"
   ],
   "title": "CPC Pricing Option",
   "type": "object"
