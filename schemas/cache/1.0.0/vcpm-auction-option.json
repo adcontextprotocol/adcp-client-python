@@ -15,6 +15,11 @@
       "pattern": "^[A-Z]{3}$",
       "type": "string"
     },
+    "is_fixed": {
+      "const": false,
+      "description": "Whether this is a fixed rate (true) or auction-based (false)",
+      "type": "boolean"
+    },
     "min_spend_per_package": {
       "description": "Minimum spend requirement per package using this pricing option, in the specified currency",
       "minimum": 0,
@@ -68,7 +73,8 @@
     "pricing_option_id",
     "pricing_model",
     "currency",
-    "price_guidance"
+    "price_guidance",
+    "is_fixed"
   ],
   "title": "vCPM Auction Pricing Option",
   "type": "object"
