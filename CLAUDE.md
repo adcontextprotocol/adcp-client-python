@@ -148,6 +148,12 @@ Edit `scripts/post_generate_fixes.py` and add a new function. The script:
 - **Activation Keys** (discriminated by identifier type):
   - `PropertyIdActivationKey`/`PropertyTagActivationKey`
 
+**Note on Pricing Types:**
+
+Pricing option types (`CpcPricingOption`, `CpmAuctionPricingOption`, `CpmFixedRatePricingOption`, etc.) already have clear semantic names from the schema generator, so they don't need aliases. These types now include an `is_fixed` discriminator:
+- Fixed-rate pricing: `is_fixed=Literal[True]` (CPC, CPCV, CPM Fixed, vCPM Fixed, Flat Rate)
+- Auction-based pricing: `is_fixed=Literal[False]` (CPM Auction, vCPM Auction)
+
 **Guidelines for Choosing What to Alias:**
 
 ✅ **DO create aliases for:**
@@ -197,6 +203,54 @@ Edit `scripts/post_generate_fixes.py` and add a new function. The script:
 toolname = "package.__main__:main"
 ```
 This enables `uvx toolname` and `pip install toolname` to work correctly.
+
+## Development Environment & Tools
+
+**Using uv for Package Management**
+
+This project uses `uv` for fast, reliable Python package management. ALWAYS use `uv` commands rather than bare `python` or `pip`:
+
+```bash
+# Install dependencies (including dev dependencies)
+uv sync --extra dev
+
+# Run scripts with the virtual environment
+uv run pytest                        # Run tests
+uv run python scripts/sync_schemas.py    # Sync schemas
+uv run python scripts/generate_types.py  # Generate types
+
+# Activate the virtual environment (if needed for multiple commands)
+source .venv/bin/activate
+# OR use .venv/bin/python directly
+.venv/bin/python scripts/generate_types.py
+```
+
+**Schema Update Workflow**
+
+When pulling in updated schemas from upstream:
+
+1. **Sync schemas**: `python3 scripts/sync_schemas.py` (no venv needed, uses stdlib)
+   - Downloads latest schemas from AdCP GitHub
+   - Uses content hashing to only update changed schemas
+   - Updates `schemas/cache/.hashes.json` for tracking
+
+2. **Generate types**: `uv run python scripts/generate_types.py` (requires dev dependencies)
+   - Requires `datamodel-code-generator` from dev dependencies
+   - Regenerates all Pydantic models from schemas
+   - Runs post-generation fixes automatically
+   - Consolidates exports into `generated.py`
+
+3. **Verify changes**: `uv run pytest`
+   - All 258+ tests should pass
+   - Verifies backward compatibility
+
+4. **Review for semantic aliases**: Check if new discriminated unions need aliases
+   - Look for numbered types (Type1, Type2) in generated files
+   - Add semantic aliases to `src/adcp/types/aliases.py` if needed
+   - Update exports in `src/adcp/__init__.py`
+   - Add tests in `tests/test_type_aliases.py`
+
+**Important**: The sync_schemas.py script uses only Python stdlib (urllib, json, pathlib) and doesn't require the virtual environment. The generate_types.py script requires dev dependencies and must use `uv run` or the venv python.
 
 ## Python-Specific Patterns
 
