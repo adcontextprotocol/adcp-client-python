@@ -98,7 +98,7 @@ def test_client_types_are_exported():
 
     client_types = [
         "ADCPClient",
-        "SimpleADCPClient",
+        "ADCPMultiAgentClient",
         "AgentConfig",
         "Protocol",
     ]
@@ -147,8 +147,8 @@ def test_format_has_expected_public_fields():
         "format_id",
         "name",
         "description",
-        "width",
-        "height",
+        "assets_required",
+        "delivery",
     ]
 
     model_fields = Format.model_fields

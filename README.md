@@ -277,7 +277,7 @@ See `examples/type_aliases_demo.py` for more examples.
 **Import guidelines:**
 - ✅ **DO**: Import from main package: `from adcp import GetProductsRequest`
 - ✅ **DO**: Use semantic aliases: `from adcp import CreateMediaBuySuccessResponse`
-- ⚠️ **AVOID**: Import from internal modules: `from adcp.types.generated import CreateMediaBuyResponse1`
+- ⚠️ **AVOID**: Import from internal modules: `from adcp.types._generated import CreateMediaBuyResponse1`
 
 The main package exports provide a stable API while internal generated types may change.
 

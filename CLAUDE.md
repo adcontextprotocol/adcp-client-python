@@ -34,7 +34,7 @@ from adcp.types.stable import BrandManifest, Product
 
 # ❌ WRONG - Internal generated types (will break)
 from adcp.types.generated_poc.brand_manifest import BrandManifest1
-from adcp.types.generated import BrandManifest1
+from adcp.types._generated import BrandManifest1
 ```
 
 The stable API (`src/adcp/types/stable.py`) provides:
@@ -69,7 +69,7 @@ When consolidating exports in `generated.py`, we use a "first wins" strategy (al
 
 ```python
 # Access the "winning" version
-from adcp.types.generated import Asset
+from adcp.types._generated import Asset
 
 # Access specific versions
 from adcp.types.generated_poc.brand_manifest import Asset as BrandAsset
@@ -120,7 +120,7 @@ Edit `scripts/post_generate_fixes.py` and add a new function. The script:
 3. **Create semantic aliases in `aliases.py`**:
    ```python
    # Import the generated types
-   from adcp.types.generated import PreviewRender1, PreviewRender2, PreviewRender3
+   from adcp.types._generated import PreviewRender1, PreviewRender2, PreviewRender3
 
    # Create semantic aliases based on discriminator values
    UrlPreviewRender = PreviewRender1  # output_format='url'
