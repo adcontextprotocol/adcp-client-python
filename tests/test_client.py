@@ -194,7 +194,7 @@ async def test_method_calls_correct_tool_name(method_name, request_class, reques
     """
     from unittest.mock import patch
 
-    import adcp.types.generated as gen
+    import adcp.types._generated as gen
     from adcp.types.core import TaskResult, TaskStatus
 
     config = AgentConfig(

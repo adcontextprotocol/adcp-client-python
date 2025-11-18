@@ -17,14 +17,6 @@ from adcp.exceptions import ADCPWebhookSignatureError
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.base import ProtocolAdapter
 from adcp.protocols.mcp import MCPAdapter
-from adcp.types.core import (
-    Activity,
-    ActivityType,
-    AgentConfig,
-    Protocol,
-    TaskResult,
-    TaskStatus,
-)
 from adcp.types._generated import (
     ActivateSignalRequest,
     ActivateSignalResponse,
@@ -47,6 +39,14 @@ from adcp.types._generated import (
     SyncCreativesRequest,
     SyncCreativesResponse,
     WebhookPayload,
+)
+from adcp.types.core import (
+    Activity,
+    ActivityType,
+    AgentConfig,
+    Protocol,
+    TaskResult,
+    TaskStatus,
 )
 from adcp.types.generated_poc.task_status import TaskStatus as GeneratedTaskStatus
 from adcp.utils.operation_id import create_operation_id

@@ -56,40 +56,6 @@ from adcp.testing import (
 from adcp.types import _generated as generated
 from adcp.types import aliases
 
-# Re-export semantic type aliases for better ergonomics
-from adcp.types.aliases import (
-    ActivateSignalErrorResponse,
-    ActivateSignalSuccessResponse,
-    BothPreviewRender,
-    BuildCreativeErrorResponse,
-    BuildCreativeSuccessResponse,
-    CreateMediaBuyErrorResponse,
-    CreateMediaBuySuccessResponse,
-    HtmlPreviewRender,
-    InlineDaastAsset,
-    InlineVastAsset,
-    MediaSubAsset,
-    PreviewCreativeFormatRequest,
-    PreviewCreativeInteractiveResponse,
-    PreviewCreativeManifestRequest,
-    PreviewCreativeStaticResponse,
-    PropertyIdActivationKey,
-    PropertyTagActivationKey,
-    ProvidePerformanceFeedbackErrorResponse,
-    ProvidePerformanceFeedbackSuccessResponse,
-    SyncCreativesErrorResponse,
-    SyncCreativesSuccessResponse,
-    TextSubAsset,
-    UpdateMediaBuyErrorResponse,
-    UpdateMediaBuyPackagesRequest,
-    UpdateMediaBuyPropertiesRequest,
-    UpdateMediaBuySuccessResponse,
-    UrlDaastAsset,
-    UrlPreviewRender,
-    UrlVastAsset,
-)
-from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus, WebhookMetadata
-
 # Re-export commonly-used request/response types for convenience
 # Users should import from main package (e.g., `from adcp import GetProductsRequest`)
 # rather than internal modules for better API stability
@@ -130,6 +96,40 @@ from adcp.types._generated import (
     UpdateMediaBuyResponse,
 )
 from adcp.types._generated import TaskStatus as GeneratedTaskStatus
+
+# Re-export semantic type aliases for better ergonomics
+from adcp.types.aliases import (
+    ActivateSignalErrorResponse,
+    ActivateSignalSuccessResponse,
+    BothPreviewRender,
+    BuildCreativeErrorResponse,
+    BuildCreativeSuccessResponse,
+    CreateMediaBuyErrorResponse,
+    CreateMediaBuySuccessResponse,
+    HtmlPreviewRender,
+    InlineDaastAsset,
+    InlineVastAsset,
+    MediaSubAsset,
+    PreviewCreativeFormatRequest,
+    PreviewCreativeInteractiveResponse,
+    PreviewCreativeManifestRequest,
+    PreviewCreativeStaticResponse,
+    PropertyIdActivationKey,
+    PropertyTagActivationKey,
+    ProvidePerformanceFeedbackErrorResponse,
+    ProvidePerformanceFeedbackSuccessResponse,
+    SyncCreativesErrorResponse,
+    SyncCreativesSuccessResponse,
+    TextSubAsset,
+    UpdateMediaBuyErrorResponse,
+    UpdateMediaBuyPackagesRequest,
+    UpdateMediaBuyPropertiesRequest,
+    UpdateMediaBuySuccessResponse,
+    UrlDaastAsset,
+    UrlPreviewRender,
+    UrlVastAsset,
+)
+from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus, WebhookMetadata
 
 # Re-export core domain types and pricing options from stable API
 # These are commonly used in typical workflows

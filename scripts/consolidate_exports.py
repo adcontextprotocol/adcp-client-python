@@ -113,7 +113,7 @@ def generate_consolidated_exports() -> str:
         "Generated from: https://github.com/adcontextprotocol/adcp/tree/main/schemas",
         f"Generation date: {generation_date}",
         '"""',
-        "",
+        "# ruff: noqa: E501, I001",
         "from __future__ import annotations",
         "",
         "# Import all types from generated_poc modules",
@@ -138,13 +138,34 @@ def generate_consolidated_exports() -> str:
             alias_lines.append(f"{alias} = {target}")
 
     lines.extend(alias_lines)
-    lines.extend([
-        "",
-        "# Explicit exports",
-        f"__all__ = {sorted(list(all_exports_with_aliases))}",
-        "",
-    ])
 
+    # Format __all__ list with proper line breaks (max 100 chars per line)
+    exports_list = sorted(list(all_exports_with_aliases))
+    all_lines = ["", "# Explicit exports", "__all__ = ["]
+
+    current_line = "    "
+    for i, export in enumerate(exports_list):
+        export_str = f'"{export}"'
+        if i < len(exports_list) - 1:
+            export_str += ","
+
+        # Check if adding this export would exceed line length
+        test_line = current_line + export_str + " "
+        if len(test_line) > 100 and current_line.strip():
+            # Start new line
+            all_lines.append(current_line.rstrip())
+            current_line = "    " + export_str + " "
+        else:
+            current_line += export_str + " "
+
+    # Add last line
+    if current_line.strip():
+        all_lines.append(current_line.rstrip())
+
+    all_lines.append("]")
+    all_lines.append("")
+
+    lines.extend(all_lines)
     return "\n".join(lines)
 
 
