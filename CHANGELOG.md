@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.4.0...v2.4.1) (2025-11-18)
+
+
+### Bug Fixes
+
+* remove stale generated files and improve type generation ([#58](https://github.com/adcontextprotocol/adcp-client-python/issues/58)) ([574ec90](https://github.com/adcontextprotocol/adcp-client-python/commit/574ec9080c5d79b39ad857f940ca666e3e67fa5e))
+
 ## [2.4.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.3.0...v2.4.0) (2025-11-18)
 
 
