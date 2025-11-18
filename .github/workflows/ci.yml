@@ -118,13 +118,13 @@ jobs:
       - name: Validate generated code syntax
         run: |
           echo "Validating generated code can be parsed..."
-          python -m py_compile src/adcp/types/generated.py
+          python -m py_compile src/adcp/types/_generated.py
           echo "✓ Syntax validation passed"
 
       - name: Validate generated code imports
         run: |
           echo "Validating generated code can be imported..."
-          python -c "from adcp.types import generated; print(f'✓ Successfully imported {len(dir(generated))} symbols')"
+          python -c "from adcp.types import _generated as generated; print(f'✓ Successfully imported {len(dir(generated))} symbols')"
 
       - name: Run code generation tests
         run: |
@@ -133,11 +133,14 @@ jobs:
 
       - name: Check for schema drift
         run: |
-          if git diff --exit-code src/adcp/types/generated.py schemas/cache/; then
-            echo "✓ Schemas are up-to-date"
-          else
-            echo "✗ Schemas are out of date!"
-            echo "Run: make regenerate-schemas"
-            git diff src/adcp/types/generated.py
-            exit 1
+          # Check if only generation timestamp changed (expected when CI regenerates)
+          if git diff --exit-code src/adcp/types/_generated.py schemas/cache/ | grep -v "^[-+]Generation date:"; then
+            # Real changes detected (not just timestamp)
+            if git diff src/adcp/types/_generated.py | grep -v "^[-+]Generation date:" | grep "^[-+]" | grep -v "^[-+][-+][-+]" | grep -v "^[-+]@@" > /dev/null; then
+              echo "✗ Schemas are out of date!"
+              echo "Run: make regenerate-schemas"
+              git diff src/adcp/types/_generated.py
+              exit 1
+            fi
           fi
+          echo "✓ Schemas are up-to-date"

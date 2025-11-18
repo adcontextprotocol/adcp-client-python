@@ -51,47 +51,15 @@ from adcp.testing import (
     test_agent_no_auth,
 )
 
-# Import all generated types - users can import what they need from adcp.types.generated
-from adcp.types import aliases, generated
-
-# Re-export semantic type aliases for better ergonomics
-from adcp.types.aliases import (
-    ActivateSignalErrorResponse,
-    ActivateSignalSuccessResponse,
-    BothPreviewRender,
-    BuildCreativeErrorResponse,
-    BuildCreativeSuccessResponse,
-    CreateMediaBuyErrorResponse,
-    CreateMediaBuySuccessResponse,
-    HtmlPreviewRender,
-    InlineDaastAsset,
-    InlineVastAsset,
-    MediaSubAsset,
-    PreviewCreativeFormatRequest,
-    PreviewCreativeInteractiveResponse,
-    PreviewCreativeManifestRequest,
-    PreviewCreativeStaticResponse,
-    PropertyIdActivationKey,
-    PropertyTagActivationKey,
-    ProvidePerformanceFeedbackErrorResponse,
-    ProvidePerformanceFeedbackSuccessResponse,
-    SyncCreativesErrorResponse,
-    SyncCreativesSuccessResponse,
-    TextSubAsset,
-    UpdateMediaBuyErrorResponse,
-    UpdateMediaBuyPackagesRequest,
-    UpdateMediaBuyPropertiesRequest,
-    UpdateMediaBuySuccessResponse,
-    UrlDaastAsset,
-    UrlPreviewRender,
-    UrlVastAsset,
-)
-from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus, WebhookMetadata
+# Import generated types modules - for internal use
+# Note: Users should import specific types, not the whole module
+from adcp.types import _generated as generated
+from adcp.types import aliases
 
 # Re-export commonly-used request/response types for convenience
 # Users should import from main package (e.g., `from adcp import GetProductsRequest`)
 # rather than internal modules for better API stability
-from adcp.types.generated import (
+from adcp.types._generated import (
     # Audience & Targeting
     ActivateSignalRequest,
     ActivateSignalResponse,
@@ -127,7 +95,67 @@ from adcp.types.generated import (
     UpdateMediaBuyRequest,
     UpdateMediaBuyResponse,
 )
-from adcp.types.generated import TaskStatus as GeneratedTaskStatus
+from adcp.types._generated import TaskStatus as GeneratedTaskStatus
+
+# Re-export semantic type aliases for better ergonomics
+from adcp.types.aliases import (
+    ActivateSignalErrorResponse,
+    ActivateSignalSuccessResponse,
+    BothPreviewRender,
+    BuildCreativeErrorResponse,
+    BuildCreativeSuccessResponse,
+    CreateMediaBuyErrorResponse,
+    CreateMediaBuySuccessResponse,
+    HtmlPreviewRender,
+    InlineDaastAsset,
+    InlineVastAsset,
+    MediaSubAsset,
+    PreviewCreativeFormatRequest,
+    PreviewCreativeInteractiveResponse,
+    PreviewCreativeManifestRequest,
+    PreviewCreativeStaticResponse,
+    PropertyIdActivationKey,
+    PropertyTagActivationKey,
+    ProvidePerformanceFeedbackErrorResponse,
+    ProvidePerformanceFeedbackSuccessResponse,
+    SyncCreativesErrorResponse,
+    SyncCreativesSuccessResponse,
+    TextSubAsset,
+    UpdateMediaBuyErrorResponse,
+    UpdateMediaBuyPackagesRequest,
+    UpdateMediaBuyPropertiesRequest,
+    UpdateMediaBuySuccessResponse,
+    UrlDaastAsset,
+    UrlPreviewRender,
+    UrlVastAsset,
+)
+from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus, WebhookMetadata
+
+# Re-export core domain types and pricing options from stable API
+# These are commonly used in typical workflows
+from adcp.types.stable import (
+    # Core domain types
+    BrandManifest,
+    # Pricing options (all 9 types for product creation)
+    CpcPricingOption,
+    CpcvPricingOption,
+    CpmAuctionPricingOption,
+    CpmFixedRatePricingOption,
+    CppPricingOption,
+    CpvPricingOption,
+    Creative,
+    CreativeManifest,
+    # Status enums (for control flow)
+    CreativeStatus,
+    FlatRatePricingOption,
+    MediaBuy,
+    MediaBuyStatus,
+    Package,
+    PackageStatus,
+    PricingModel,
+    VcpmAuctionPricingOption,
+    VcpmFixedRatePricingOption,
+)
 from adcp.validation import (
     ValidationError,
     validate_adagents,
@@ -179,6 +207,27 @@ __all__ = [
     "Format",
     "Product",
     "Property",
+    # Core domain types (from stable API)
+    "BrandManifest",
+    "Creative",
+    "CreativeManifest",
+    "MediaBuy",
+    "Package",
+    # Status enums (for control flow)
+    "CreativeStatus",
+    "MediaBuyStatus",
+    "PackageStatus",
+    "PricingModel",
+    # Pricing options (all 9 types)
+    "CpcPricingOption",
+    "CpcvPricingOption",
+    "CpmAuctionPricingOption",
+    "CpmFixedRatePricingOption",
+    "CppPricingOption",
+    "CpvPricingOption",
+    "FlatRatePricingOption",
+    "VcpmAuctionPricingOption",
+    "VcpmFixedRatePricingOption",
     # Adagents validation
     "AuthorizationContext",
     "fetch_adagents",

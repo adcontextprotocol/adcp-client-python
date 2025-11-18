@@ -112,7 +112,7 @@ async def _dispatch_tool(client: ADCPClient, tool_name: str, payload: dict[str, 
     """
     from pydantic import ValidationError
 
-    from adcp.types import generated as gen
+    from adcp.types import _generated as gen
     from adcp.types.core import TaskResult, TaskStatus
 
     # Lazy initialization of request types (avoid circular imports)

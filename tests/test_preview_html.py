@@ -7,7 +7,7 @@ import pytest
 from adcp import ADCPClient
 from adcp.types import AgentConfig, Protocol
 from adcp.types.core import TaskResult, TaskStatus
-from adcp.types.generated import (
+from adcp.types._generated import (
     CreativeManifest,
     Format,
     FormatId,
@@ -34,7 +34,7 @@ def make_format_id(id_str: str) -> FormatId:
 @pytest.mark.asyncio
 async def test_preview_creative():
     """Test preview_creative method."""
-    from adcp.types.generated import PreviewCreativeRequest1
+    from adcp.types._generated import PreviewCreativeRequest1
 
     config = AgentConfig(
         id="creative_agent",
@@ -408,7 +408,7 @@ async def test_list_creative_formats_with_preview_urls():
 
 def test_create_sample_asset():
     """Test sample asset creation."""
-    from adcp.types.generated import HtmlAsset, ImageAsset, TextAsset, UrlAsset, VideoAsset
+    from adcp.types._generated import HtmlAsset, ImageAsset, TextAsset, UrlAsset, VideoAsset
 
     image_asset = _create_sample_asset("image")
     assert isinstance(image_asset, ImageAsset)

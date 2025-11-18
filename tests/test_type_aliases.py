@@ -48,7 +48,7 @@ from adcp.types.aliases import (
 )
 
 # Test that generated types still exist
-from adcp.types.generated import (
+from adcp.types._generated import (
     ActivateSignalResponse1,
     ActivateSignalResponse2,
     BuildCreativeResponse1,
@@ -212,7 +212,7 @@ def test_all_asset_type_aliases_exported():
 
 def test_discriminated_union_aliases_point_to_correct_types():
     """Test that discriminated union aliases point to the correct generated types."""
-    from adcp.types.generated import (
+    from adcp.types._generated import (
         DaastAsset1,
         DaastAsset2,
         PreviewRender1,
