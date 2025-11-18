@@ -14,15 +14,12 @@
                 "vast_version": "4.1"
               }
             },
-            "click_url": "https://example.com/products",
             "created_date": "2024-01-15T10:30:00Z",
             "creative_id": "hero_video_30s",
-            "duration": 30000,
             "format_id": {
               "agent_url": "https://creative.adcontextprotocol.org",
               "id": "video_30s_vast"
             },
-            "height": 1080,
             "name": "Brand Hero Video 30s",
             "status": "approved",
             "tags": [
@@ -30,8 +27,7 @@
               "video",
               "brand_awareness"
             ],
-            "updated_date": "2024-01-15T14:20:00Z",
-            "width": 1920
+            "updated_date": "2024-01-15T14:20:00Z"
           }
         ],
         "format_summary": {
@@ -129,37 +125,37 @@
               "^[a-zA-Z0-9_-]+$": {
                 "oneOf": [
                   {
-                    "$ref": "image-asset.json"
+                    "$ref": "/schemas/v1/core/assets/image-asset.json"
                   },
                   {
-                    "$ref": "video-asset.json"
+                    "$ref": "/schemas/v1/core/assets/video-asset.json"
                   },
                   {
-                    "$ref": "audio-asset.json"
+                    "$ref": "/schemas/v1/core/assets/audio-asset.json"
                   },
                   {
-                    "$ref": "text-asset.json"
+                    "$ref": "/schemas/v1/core/assets/text-asset.json"
                   },
                   {
-                    "$ref": "html-asset.json"
+                    "$ref": "/schemas/v1/core/assets/html-asset.json"
                   },
                   {
-                    "$ref": "css-asset.json"
+                    "$ref": "/schemas/v1/core/assets/css-asset.json"
                   },
                   {
-                    "$ref": "javascript-asset.json"
+                    "$ref": "/schemas/v1/core/assets/javascript-asset.json"
                   },
                   {
-                    "$ref": "vast-asset.json"
+                    "$ref": "/schemas/v1/core/assets/vast-asset.json"
                   },
                   {
-                    "$ref": "daast-asset.json"
+                    "$ref": "/schemas/v1/core/assets/daast-asset.json"
                   },
                   {
-                    "$ref": "promoted-offerings.json"
+                    "$ref": "/schemas/v1/core/promoted-offerings.json"
                   },
                   {
-                    "$ref": "url-asset.json"
+                    "$ref": "/schemas/v1/core/assets/url-asset.json"
                   }
                 ]
               }
@@ -218,11 +214,6 @@
             ],
             "type": "object"
           },
-          "click_url": {
-            "description": "Landing page URL for the creative",
-            "format": "uri",
-            "type": "string"
-          },
           "created_date": {
             "description": "When the creative was uploaded to the library",
             "format": "date-time",
@@ -232,24 +223,9 @@
             "description": "Unique identifier for the creative",
             "type": "string"
           },
-          "duration": {
-            "description": "Duration in milliseconds (for video/audio)",
-            "minimum": 0,
-            "type": "number"
-          },
           "format_id": {
-            "$ref": "format-id.json",
+            "$ref": "/schemas/v1/core/format-id.json",
             "description": "Format identifier specifying which format this creative conforms to"
-          },
-          "height": {
-            "description": "Height in pixels (for video/display)",
-            "minimum": 0,
-            "type": "number"
-          },
-          "media_url": {
-            "description": "URL of the creative file (for hosted assets)",
-            "format": "uri",
-            "type": "string"
           },
           "name": {
             "description": "Human-readable creative name",
@@ -299,13 +275,13 @@
             "type": "object"
           },
           "status": {
-            "$ref": "creative-status.json",
+            "$ref": "/schemas/v1/enums/creative-status.json",
             "description": "Current approval status of the creative"
           },
           "sub_assets": {
             "description": "Sub-assets for multi-asset formats (included when include_sub_assets=true)",
             "items": {
-              "$ref": "sub-asset.json"
+              "$ref": "/schemas/v1/core/sub-asset.json"
             },
             "type": "array"
           },
@@ -320,11 +296,6 @@
             "description": "When the creative was last modified",
             "format": "date-time",
             "type": "string"
-          },
-          "width": {
-            "description": "Width in pixels (for video/display)",
-            "minimum": 0,
-            "type": "number"
           }
         },
         "required": [

@@ -13,7 +13,7 @@ import asyncio
 
 # Import test agents
 from adcp.testing import creative_agent, test_agent
-from adcp.types.generated import GetProductsRequest
+from adcp.types._generated import GetProductsRequest
 
 
 async def demo_simple_api():

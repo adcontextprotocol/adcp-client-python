@@ -14,7 +14,7 @@ from pathlib import Path
 
 from adcp import ADCPClient
 from adcp.types import AgentConfig, Protocol
-from adcp.types.generated import ListCreativeFormatsRequest
+from adcp.types._generated import ListCreativeFormatsRequest
 
 
 async def main():

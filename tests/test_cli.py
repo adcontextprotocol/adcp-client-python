@@ -32,7 +32,7 @@ class TestCLIBasics:
             [
                 sys.executable,
                 "-c",
-                "import adcp.__main__; from adcp.types.generated_poc.brand_manifest import Contact",
+                "import adcp.__main__; from adcp import BrandManifest",
             ],
             capture_output=True,
             text=True,

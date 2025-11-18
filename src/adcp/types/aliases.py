@@ -32,7 +32,7 @@ immediately rather than at runtime when users try to use the aliases.
 from __future__ import annotations
 
 # Import all generated types that need semantic aliases
-from adcp.types.generated import (
+from adcp.types._generated import (
     # Activation responses
     ActivateSignalResponse1,
     ActivateSignalResponse2,

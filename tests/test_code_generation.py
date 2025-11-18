@@ -12,7 +12,7 @@ from __future__ import annotations
 
 def test_generated_types_can_import():
     """Test that generated types module can be imported."""
-    from adcp.types import generated
+    from adcp.types import _generated as generated
 
     # Should have a reasonable number of exported symbols
     symbols = dir(generated)
@@ -27,7 +27,7 @@ def test_generated_types_can_import():
 
 def test_generated_poc_types_can_import():
     """Test that generated_poc types can be imported."""
-    from adcp.types import generated_poc
+    from adcp.types import _generated as generated_poc
 
     # The generated_poc package should exist
     assert generated_poc is not None
@@ -35,7 +35,7 @@ def test_generated_poc_types_can_import():
 
 def test_product_type_structure():
     """Test that Product type has expected structure."""
-    from adcp.types.generated_poc.product import Product
+    from adcp import Product
 
     # Product should be a Pydantic model
     assert hasattr(Product, "model_validate")
@@ -51,7 +51,7 @@ def test_product_type_structure():
 
 def test_format_type_structure():
     """Test that Format type has expected structure."""
-    from adcp.types.generated_poc.format import Format
+    from adcp import Format
 
     # Format should be a Pydantic model
     assert hasattr(Format, "model_validate")

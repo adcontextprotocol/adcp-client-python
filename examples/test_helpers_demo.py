@@ -16,7 +16,7 @@ from adcp.testing import (
     test_agent_client,
     test_agent_no_auth,
 )
-from adcp.types.generated import GetProductsRequest, ListCreativeFormatsRequest
+from adcp.types._generated import GetProductsRequest, ListCreativeFormatsRequest
 
 
 async def simplest_example() -> None:

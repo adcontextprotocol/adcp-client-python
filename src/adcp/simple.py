@@ -23,7 +23,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from adcp.exceptions import ADCPSimpleAPIError
-from adcp.types.generated import (
+from adcp.types._generated import (
     ActivateSignalRequest,
     ActivateSignalResponse,
     GetMediaBuyDeliveryRequest,
