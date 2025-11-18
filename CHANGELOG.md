@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.3.0...v2.4.0) (2025-11-18)
+
+
+### Features
+
+* Add is_fixed discriminator to pricing types ([#56](https://github.com/adcontextprotocol/adcp-client-python/issues/56)) ([e47ff66](https://github.com/adcontextprotocol/adcp-client-python/commit/e47ff66e0b1a58132fe8e940f4bfc8917642113d))
+
 ## [2.3.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.2.0...v2.3.0) (2025-11-17)
 
 
