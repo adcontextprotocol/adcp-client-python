@@ -207,10 +207,16 @@ client = ADCPClient(config)
 
 ### Type Safety
 
-Full type hints with Pydantic validation and auto-generated types from the AdCP spec:
+Full type hints with Pydantic validation and auto-generated types from the AdCP spec. All commonly-used types are exported from the main `adcp` package for convenience:
 
 ```python
-from adcp import GetProductsRequest
+from adcp import (
+    GetProductsRequest,
+    BrandManifest,
+    Package,
+    CpmFixedRatePricingOption,
+    MediaBuyStatus,
+)
 
 # All methods require typed request objects
 request = GetProductsRequest(brief="Coffee brands", max_results=10)
@@ -220,7 +226,26 @@ result = await agent.get_products(request)
 if result.success:
     for product in result.data.products:
         print(product.name, product.pricing_options)  # Full IDE autocomplete!
+
+# Type-safe pricing with discriminators
+pricing = CpmFixedRatePricingOption(
+    pricing_option_id="cpm_usd",
+    pricing_model="cpm",
+    is_fixed=True,  # Literal[True] - type checked!
+    currency="USD",
+    rate=5.0
+)
+
+# Type-safe status enums
+if media_buy.status == MediaBuyStatus.active:
+    print("Media buy is active")
 ```
+
+**Exported from main package:**
+- **Core domain types**: `BrandManifest`, `Creative`, `CreativeManifest`, `MediaBuy`, `Package`
+- **Status enums**: `CreativeStatus`, `MediaBuyStatus`, `PackageStatus`, `PricingModel`
+- **All 9 pricing options**: `CpcPricingOption`, `CpmFixedRatePricingOption`, `VcpmAuctionPricingOption`, etc.
+- **Request/Response types**: All 16 operations with full request/response types
 
 #### Semantic Type Aliases
 
