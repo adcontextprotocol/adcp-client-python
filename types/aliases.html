@@ -756,6 +756,184 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.aliases.Package"><code class="flex name class">
+<span>class <span class="ident">CreatedPackageReference</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Package(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for the package&#34;)]
+    package_id: Annotated[str, Field(description=&#34;Publisher&#39;s unique identifier for the package&#34;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.Package.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Package.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Package.package_id"><code class="name">var <span class="ident">package_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.aliases.Package"><code class="flex name class">
+<span>class <span class="ident">Package</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Package(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    bid_price: Annotated[
+        float | None,
+        Field(
+            description=&#39;Bid price for auction-based CPM pricing (present if using cpm-auction-option)&#39;,
+            ge=0.0,
+        ),
+    ] = None
+    budget: Annotated[
+        float | None,
+        Field(
+            description=&#39;Budget allocation for this package in the currency specified by the pricing option&#39;,
+            ge=0.0,
+        ),
+    ] = None
+    buyer_ref: Annotated[
+        str | None, Field(description=&#34;Buyer&#39;s reference identifier for this package&#34;)
+    ] = None
+    creative_assignments: Annotated[
+        list[creative_assignment.CreativeAssignment] | None,
+        Field(description=&#39;Creative assets assigned to this package&#39;),
+    ] = None
+    format_ids_to_provide: Annotated[
+        list[format_id.FormatId] | None,
+        Field(description=&#39;Format IDs that creative assets will be provided for this package&#39;),
+    ] = None
+    impressions: Annotated[
+        float | None, Field(description=&#39;Impression goal for this package&#39;, ge=0.0)
+    ] = None
+    pacing: pacing_1.Pacing | None = None
+    package_id: Annotated[str, Field(description=&#34;Publisher&#39;s unique identifier for the package&#34;)]
+    pricing_option_id: Annotated[
+        str | None,
+        Field(
+            description=&#34;ID of the selected pricing option from the product&#39;s pricing_options array&#34;
+        ),
+    ] = None
+    product_id: Annotated[
+        str | None, Field(description=&#39;ID of the product this package is based on&#39;)
+    ] = None
+    status: package_status.PackageStatus
+    targeting_overlay: targeting.TargetingOverlay | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.Package.bid_price"><code class="name">var <span class="ident">bid_price</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Package.budget"><code class="name">var <span class="ident">budget</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Package.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Package.creative_assignments"><code class="name">var <span class="ident">creative_assignments</span> : list[<a title="adcp.types.generated_poc.creative_assignment.CreativeAssignment" href="generated_poc/creative_assignment.html#adcp.types.generated_poc.creative_assignment.CreativeAssignment">CreativeAssignment</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Package.format_ids_to_provide"><code class="name">var <span class="ident">format_ids_to_provide</span> : list[<a title="adcp.types.generated_poc.format_id.FormatId" href="generated_poc/format_id.html#adcp.types.generated_poc.format_id.FormatId">FormatId</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Package.impressions"><code class="name">var <span class="ident">impressions</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Package.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Package.pacing"><code class="name">var <span class="ident">pacing</span> : <a title="adcp.types.generated_poc.pacing.Pacing" href="generated_poc/pacing.html#adcp.types.generated_poc.pacing.Pacing">Pacing</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Package.package_id"><code class="name">var <span class="ident">package_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Package.pricing_option_id"><code class="name">var <span class="ident">pricing_option_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Package.product_id"><code class="name">var <span class="ident">product_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Package.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.package_status.PackageStatus" href="generated_poc/package_status.html#adcp.types.generated_poc.package_status.PackageStatus">PackageStatus</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Package.targeting_overlay"><code class="name">var <span class="ident">targeting_overlay</span> : <a title="adcp.types.generated_poc.targeting.TargetingOverlay" href="generated_poc/targeting.html#adcp.types.generated_poc.targeting.TargetingOverlay">TargetingOverlay</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.aliases.PreviewCreativeRequest1"><code class="flex name class">
 <span>class <span class="ident">PreviewCreativeFormatRequest</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -2444,6 +2622,32 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.DaastAsset2.duration_ms" href="#adcp.types.aliases.DaastAsset2.duration_ms">duration_ms</a></code></li>
 <li><code><a title="adcp.types.aliases.DaastAsset2.model_config" href="#adcp.types.aliases.DaastAsset2.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.aliases.DaastAsset2.tracking_events" href="#adcp.types.aliases.DaastAsset2.tracking_events">tracking_events</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.Package" href="#adcp.types.aliases.Package">Package</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.Package.buyer_ref" href="#adcp.types.aliases.Package.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.aliases.Package.model_config" href="#adcp.types.aliases.Package.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.Package.package_id" href="#adcp.types.aliases.Package.package_id">package_id</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.Package" href="#adcp.types.aliases.Package">Package</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.Package.bid_price" href="#adcp.types.aliases.Package.bid_price">bid_price</a></code></li>
+<li><code><a title="adcp.types.aliases.Package.budget" href="#adcp.types.aliases.Package.budget">budget</a></code></li>
+<li><code><a title="adcp.types.aliases.Package.buyer_ref" href="#adcp.types.aliases.Package.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.aliases.Package.creative_assignments" href="#adcp.types.aliases.Package.creative_assignments">creative_assignments</a></code></li>
+<li><code><a title="adcp.types.aliases.Package.format_ids_to_provide" href="#adcp.types.aliases.Package.format_ids_to_provide">format_ids_to_provide</a></code></li>
+<li><code><a title="adcp.types.aliases.Package.impressions" href="#adcp.types.aliases.Package.impressions">impressions</a></code></li>
+<li><code><a title="adcp.types.aliases.Package.model_config" href="#adcp.types.aliases.Package.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.Package.pacing" href="#adcp.types.aliases.Package.pacing">pacing</a></code></li>
+<li><code><a title="adcp.types.aliases.Package.package_id" href="#adcp.types.aliases.Package.package_id">package_id</a></code></li>
+<li><code><a title="adcp.types.aliases.Package.pricing_option_id" href="#adcp.types.aliases.Package.pricing_option_id">pricing_option_id</a></code></li>
+<li><code><a title="adcp.types.aliases.Package.product_id" href="#adcp.types.aliases.Package.product_id">product_id</a></code></li>
+<li><code><a title="adcp.types.aliases.Package.status" href="#adcp.types.aliases.Package.status">status</a></code></li>
+<li><code><a title="adcp.types.aliases.Package.targeting_overlay" href="#adcp.types.aliases.Package.targeting_overlay">targeting_overlay</a></code></li>
 </ul>
 </li>
 <li>
