@@ -27,6 +27,14 @@ Files in `src/adcp/types/generated_poc/` and `src/adcp/types/generated.py` are a
 
 We use `scripts/post_generate_fixes.py` which runs automatically after type generation to apply necessary modifications that can't be generated.
 
+**Preventing Stale Files:**
+
+The generation script (`scripts/generate_types.py`) **deletes the entire output directory** before regenerating types. This prevents stale files from persisting when schemas are renamed or removed. Without this, old generated files could remain checked in indefinitely, causing import errors and confusion about which types are actually current.
+
+**Avoiding Noisy Commits:**
+
+After generation, the script automatically restores files where only the timestamp changed (e.g., `#   timestamp: 2025-11-18T03:32:03+00:00`). This prevents commits with 100+ file changes where the only difference is the generation timestamp, making actual changes easier to review.
+
 **Type Name Collisions:**
 
 The upstream AdCP schemas define multiple types with the same name (e.g., `Contact`, `Asset`, `Status`) in different schema files. These are **genuinely different types** with different fields, not duplicates.
@@ -58,6 +66,14 @@ from adcp.types.generated_poc.format import Asset as FormatAsset
    - `promoted_offerings.py`
    - `create_media_buy_request.py`
    - `get_products_request.py`
+
+**Note on Pricing Options:**
+
+The code generator creates individual files for each pricing option (e.g., `cpm_fixed_option.py`, `cpm_auction_option.py`) with the `is_fixed` discriminator field already included:
+- Fixed-rate options: `is_fixed: Annotated[Literal[True], ...]`
+- Auction options: `is_fixed: Annotated[Literal[False], ...]`
+
+These are used via union types in `Product.pricing_options`. No post-generation fix is needed for pricing options.
 
 **To add new post-generation fixes:**
 Edit `scripts/post_generate_fixes.py` and add a new function. The script:

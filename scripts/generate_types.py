@@ -179,6 +179,76 @@ def generate_types(input_dir: Path):
     return True
 
 
+def normalize_timestamp(content: str) -> str:
+    """Remove timestamp from generated file for comparison.
+
+    Timestamps look like:
+    #   timestamp: 2025-11-18T03:32:03+00:00
+    """
+    return re.sub(r"#\s+timestamp:.*\n", "", content)
+
+
+def restore_unchanged_files():
+    """Restore files where only the timestamp changed.
+
+    This prevents noisy commits where the only change is the generation timestamp.
+    We compare file contents ignoring timestamp lines.
+    """
+    print("Checking for timestamp-only changes...")
+
+    # Get git status to see modified files
+    result = subprocess.run(
+        ["git", "diff", "--name-only", str(OUTPUT_DIR)],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+    )
+
+    if result.returncode != 0:
+        print("  Could not check git status (skipping restoration)")
+        return
+
+    modified_files = [f for f in result.stdout.strip().split("\n") if f]
+    restored_count = 0
+
+    for rel_path in modified_files:
+        file_path = REPO_ROOT / rel_path
+        if not file_path.exists():
+            continue
+
+        # Get current (new) content
+        with open(file_path) as f:
+            new_content = f.read()
+
+        # Get old content from git
+        git_result = subprocess.run(
+            ["git", "show", f"HEAD:{rel_path}"],
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+        )
+
+        if git_result.returncode != 0:
+            continue
+
+        old_content = git_result.stdout
+
+        # Compare without timestamps
+        if normalize_timestamp(old_content) == normalize_timestamp(new_content):
+            # Only timestamp changed, restore old version
+            subprocess.run(
+                ["git", "checkout", "HEAD", "--", rel_path],
+                cwd=REPO_ROOT,
+                capture_output=True,
+            )
+            restored_count += 1
+
+    if restored_count > 0:
+        print(f"  ✓ Restored {restored_count} file(s) with only timestamp changes")
+    else:
+        print("  No timestamp-only changes found")
+
+
 def apply_post_generation_fixes():
     """Apply post-generation fixes using the dedicated script."""
     print("Running post-generation fixes...")
@@ -211,6 +281,13 @@ def main():
 
     temp_schemas = None
     try:
+        # Clean output directory to prevent stale files
+        # This ensures old/renamed schema files don't persist
+        if OUTPUT_DIR.exists():
+            print("Cleaning output directory...")
+            shutil.rmtree(OUTPUT_DIR)
+            print("  ✓ Removed stale generated files\n")
+
         # Ensure output directory exists
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -227,6 +304,9 @@ def main():
         # Apply post-generation fixes
         if not apply_post_generation_fixes():
             return 1
+
+        # Restore files where only timestamp changed
+        restore_unchanged_files()
 
         # Count generated files
         py_files = list(OUTPUT_DIR.glob("*.py"))
