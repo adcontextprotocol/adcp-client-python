@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.5.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.4.1...v2.5.0) (2025-11-18)
+
+
+### Features
+
+* Add API reference documentation with pdoc3 ([#59](https://github.com/adcontextprotocol/adcp-client-python/issues/59)) ([6f7fdf1](https://github.com/adcontextprotocol/adcp-client-python/commit/6f7fdf164eb2e1f9c0b471392cf94b43296765fc))
+
+
+### Bug Fixes
+
+* resolve Package type name collision with semantic aliases ([#62](https://github.com/adcontextprotocol/adcp-client-python/issues/62)) ([b4028b7](https://github.com/adcontextprotocol/adcp-client-python/commit/b4028b714eebcb3bf035529fa1f8320e568df287))
+
 ## [2.4.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.4.0...v2.4.1) (2025-11-18)
 
 
