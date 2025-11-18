@@ -21,6 +21,8 @@ Schema Evolution:
 
 from __future__ import annotations
 
+from pydantic import AnyUrl
+
 # Import all generated types
 from adcp.types.generated import (
     # Core request/response types
@@ -98,6 +100,11 @@ from adcp.types.generated import (
 # These provide a clean public API that hides schema evolution details
 BrandManifest = BrandManifest1
 
+# Union types for oneOf schemas
+# BrandManifestReference represents the union from brand-manifest-ref.json:
+# either an inline BrandManifest object OR a URL string pointing to a hosted manifest
+BrandManifestReference = BrandManifest1 | AnyUrl
+
 # Re-export all stable types
 __all__ = [
     # Request/Response types
@@ -133,6 +140,7 @@ __all__ = [
     "UpdateMediaBuyResponse",
     # Domain types
     "BrandManifest",  # Stable alias for BrandManifest1
+    "BrandManifestReference",  # Union type: BrandManifest | AnyUrl
     "Creative",
     "CreativeManifest",
     "Error",
