@@ -165,7 +165,7 @@ from adcp.validation import (
     validate_publisher_properties_item,
 )
 
-__version__ = "2.4.1"
+__version__ = "2.5.0"
 
 __all__ = [
     # Client classes
