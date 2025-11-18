@@ -17,6 +17,11 @@ from adcp.types.aliases import (
     InlineDaastAsset,
     InlineVastAsset,
     MediaSubAsset,
+    PropertyId,
+    PropertyTag,
+    PublisherPropertiesAll,
+    PublisherPropertiesById,
+    PublisherPropertiesByTag,
     TextSubAsset,
     UrlDaastAsset,
     UrlPreviewRender,
@@ -89,6 +94,13 @@ __all__ = [
     "UrlVastAsset",
     # Package type aliases
     "CreatedPackageReference",
+    # Publisher properties types
+    "PropertyId",
+    "PropertyTag",
+    # Publisher properties aliases
+    "PublisherPropertiesAll",
+    "PublisherPropertiesById",
+    "PublisherPropertiesByTag",
     # Stable API types (commonly used)
     "BrandManifest",
     "Creative",

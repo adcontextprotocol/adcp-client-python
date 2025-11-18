@@ -84,6 +84,15 @@ from adcp.types.generated_poc.create_media_buy_response import (
 )
 from adcp.types.generated_poc.package import Package as FullPackageInternal
 
+# Import PublisherProperties types and related types from product module
+from adcp.types.generated_poc.product import (
+    PropertyId,
+    PropertyTag,
+    PublisherProperties as PublisherPropertiesInternal,
+    PublisherProperties4 as PublisherPropertiesByIdInternal,
+    PublisherProperties5 as PublisherPropertiesByTagInternal,
+)
+
 # ============================================================================
 # RESPONSE TYPE ALIASES - Success/Error Discriminated Unions
 # ============================================================================
@@ -253,6 +262,95 @@ Fields: buyer_ref, package_id only
 """
 
 # ============================================================================
+# PUBLISHER PROPERTIES ALIASES - Selection Type Discriminated Unions
+# ============================================================================
+# The AdCP schemas define PublisherProperties as a discriminated union with
+# three variants based on the `selection_type` field:
+#
+# 1. All Properties (selection_type='all'):
+#    - Includes all properties from the publisher
+#    - Only requires publisher_domain
+#
+# 2. By ID (selection_type='by_id'):
+#    - Specific properties selected by property_id
+#    - Requires publisher_domain + property_ids array
+#
+# 3. By Tag (selection_type='by_tag'):
+#    - Properties selected by tags
+#    - Requires publisher_domain + property_tags array
+#
+# These semantic aliases match the discriminator values and make code more
+# readable when constructing or pattern-matching publisher properties.
+
+PublisherPropertiesAll = PublisherPropertiesInternal
+"""Publisher properties covering all properties from the publisher.
+
+This variant uses selection_type='all' and includes all properties listed
+in the publisher's adagents.json file.
+
+Fields:
+- publisher_domain: Domain where adagents.json is hosted
+- selection_type: Literal['all']
+
+Example:
+    ```python
+    from adcp import PublisherPropertiesAll
+
+    props = PublisherPropertiesAll(
+        publisher_domain="example.com",
+        selection_type="all"
+    )
+    ```
+"""
+
+PublisherPropertiesById = PublisherPropertiesByIdInternal
+"""Publisher properties selected by specific property IDs.
+
+This variant uses selection_type='by_id' and specifies an explicit list
+of property IDs from the publisher's adagents.json file.
+
+Fields:
+- publisher_domain: Domain where adagents.json is hosted
+- selection_type: Literal['by_id']
+- property_ids: List of PropertyId (non-empty)
+
+Example:
+    ```python
+    from adcp import PublisherPropertiesById, PropertyId
+
+    props = PublisherPropertiesById(
+        publisher_domain="example.com",
+        selection_type="by_id",
+        property_ids=[PropertyId("homepage"), PropertyId("sports_section")]
+    )
+    ```
+"""
+
+PublisherPropertiesByTag = PublisherPropertiesByTagInternal
+"""Publisher properties selected by tags.
+
+This variant uses selection_type='by_tag' and specifies property tags.
+The product covers all properties in the publisher's adagents.json that
+have these tags.
+
+Fields:
+- publisher_domain: Domain where adagents.json is hosted
+- selection_type: Literal['by_tag']
+- property_tags: List of PropertyTag (non-empty)
+
+Example:
+    ```python
+    from adcp import PublisherPropertiesByTag, PropertyTag
+
+    props = PublisherPropertiesByTag(
+        publisher_domain="example.com",
+        selection_type="by_tag",
+        property_tags=[PropertyTag("premium"), PropertyTag("video")]
+    )
+    ```
+"""
+
+# ============================================================================
 # EXPORTS
 # ============================================================================
 
@@ -300,4 +398,11 @@ __all__ = [
     # Package type aliases
     "CreatedPackageReference",
     "Package",
+    # Publisher properties types
+    "PropertyId",
+    "PropertyTag",
+    # Publisher properties aliases
+    "PublisherPropertiesAll",
+    "PublisherPropertiesById",
+    "PublisherPropertiesByTag",
 ]

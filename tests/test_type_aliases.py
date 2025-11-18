@@ -396,3 +396,157 @@ def test_stable_package_export_is_full_package():
     assert "budget" in stable_fields
     assert "pricing_option_id" in stable_fields
     assert "product_id" in stable_fields
+
+
+def test_publisher_properties_aliases_imports():
+    """Test that PublisherProperties aliases can be imported."""
+    from adcp import (
+        PropertyId,
+        PropertyTag,
+        PublisherPropertiesAll,
+        PublisherPropertiesById,
+        PublisherPropertiesByTag,
+    )
+    from adcp.types.aliases import (
+        PropertyId as AliasPropertyId,
+    )
+    from adcp.types.aliases import (
+        PropertyTag as AliasPropertyTag,
+    )
+    from adcp.types.aliases import (
+        PublisherPropertiesAll as AliasPublisherPropertiesAll,
+    )
+    from adcp.types.aliases import (
+        PublisherPropertiesById as AliasPublisherPropertiesById,
+    )
+    from adcp.types.aliases import (
+        PublisherPropertiesByTag as AliasPublisherPropertiesByTag,
+    )
+
+    # Verify all import paths work
+    assert PropertyId is AliasPropertyId
+    assert PropertyTag is AliasPropertyTag
+    assert PublisherPropertiesAll is AliasPublisherPropertiesAll
+    assert PublisherPropertiesById is AliasPublisherPropertiesById
+    assert PublisherPropertiesByTag is AliasPublisherPropertiesByTag
+
+
+def test_publisher_properties_aliases_point_to_correct_types():
+    """Test that PublisherProperties aliases point to the correct generated types."""
+    from adcp import PublisherPropertiesAll, PublisherPropertiesById, PublisherPropertiesByTag
+    from adcp.types.generated_poc.product import (
+        PublisherProperties,
+        PublisherProperties4,
+        PublisherProperties5,
+    )
+
+    # Verify aliases point to correct types
+    assert PublisherPropertiesAll is PublisherProperties
+    assert PublisherPropertiesById is PublisherProperties4
+    assert PublisherPropertiesByTag is PublisherProperties5
+
+    # Verify they're different types
+    assert PublisherPropertiesAll is not PublisherPropertiesById
+    assert PublisherPropertiesAll is not PublisherPropertiesByTag
+    assert PublisherPropertiesById is not PublisherPropertiesByTag
+
+
+def test_publisher_properties_aliases_have_correct_discriminators():
+    """Test that PublisherProperties aliases have the correct discriminator values."""
+    from adcp import PublisherPropertiesAll, PublisherPropertiesById, PublisherPropertiesByTag
+
+    # Check that discriminator field has correct literal type
+    all_selection_type = PublisherPropertiesAll.__annotations__["selection_type"]
+    by_id_selection_type = PublisherPropertiesById.__annotations__["selection_type"]
+    by_tag_selection_type = PublisherPropertiesByTag.__annotations__["selection_type"]
+
+    # Verify the annotations contain Literal types
+    assert "selection_type" in PublisherPropertiesAll.__annotations__
+    assert "selection_type" in PublisherPropertiesById.__annotations__
+    assert "selection_type" in PublisherPropertiesByTag.__annotations__
+
+
+def test_publisher_properties_aliases_can_instantiate():
+    """Test that PublisherProperties aliases can be used to create instances."""
+    from adcp import (
+        PropertyId,
+        PropertyTag,
+        PublisherPropertiesAll,
+        PublisherPropertiesById,
+        PublisherPropertiesByTag,
+    )
+
+    # Create PublisherPropertiesAll
+    props_all = PublisherPropertiesAll(
+        publisher_domain="example.com", selection_type="all"
+    )
+    assert props_all.publisher_domain == "example.com"
+    assert props_all.selection_type == "all"
+
+    # Create PublisherPropertiesById
+    props_by_id = PublisherPropertiesById(
+        publisher_domain="example.com",
+        selection_type="by_id",
+        property_ids=[PropertyId("homepage"), PropertyId("sports")],
+    )
+    assert props_by_id.publisher_domain == "example.com"
+    assert props_by_id.selection_type == "by_id"
+    assert len(props_by_id.property_ids) == 2
+
+    # Create PublisherPropertiesByTag
+    props_by_tag = PublisherPropertiesByTag(
+        publisher_domain="example.com",
+        selection_type="by_tag",
+        property_tags=[PropertyTag("premium"), PropertyTag("video")],
+    )
+    assert props_by_tag.publisher_domain == "example.com"
+    assert props_by_tag.selection_type == "by_tag"
+    assert len(props_by_tag.property_tags) == 2
+
+
+def test_publisher_properties_aliases_in_exports():
+    """Test that PublisherProperties aliases are properly exported."""
+    import adcp
+    import adcp.types.aliases as aliases_module
+
+    # Check main package exports
+    assert hasattr(adcp, "PropertyId")
+    assert hasattr(adcp, "PropertyTag")
+    assert hasattr(adcp, "PublisherPropertiesAll")
+    assert hasattr(adcp, "PublisherPropertiesById")
+    assert hasattr(adcp, "PublisherPropertiesByTag")
+
+    assert "PropertyId" in adcp.__all__
+    assert "PropertyTag" in adcp.__all__
+    assert "PublisherPropertiesAll" in adcp.__all__
+    assert "PublisherPropertiesById" in adcp.__all__
+    assert "PublisherPropertiesByTag" in adcp.__all__
+
+    # Check aliases module exports
+    assert hasattr(aliases_module, "PropertyId")
+    assert hasattr(aliases_module, "PropertyTag")
+    assert hasattr(aliases_module, "PublisherPropertiesAll")
+    assert hasattr(aliases_module, "PublisherPropertiesById")
+    assert hasattr(aliases_module, "PublisherPropertiesByTag")
+
+    assert "PropertyId" in aliases_module.__all__
+    assert "PropertyTag" in aliases_module.__all__
+    assert "PublisherPropertiesAll" in aliases_module.__all__
+    assert "PublisherPropertiesById" in aliases_module.__all__
+    assert "PublisherPropertiesByTag" in aliases_module.__all__
+
+
+def test_property_id_and_tag_are_root_models():
+    """Test that PropertyId and PropertyTag are properly constrained string types."""
+    from adcp import PropertyId, PropertyTag
+
+    # Create valid PropertyId and PropertyTag
+    prop_id = PropertyId("my_property_id")
+    prop_tag = PropertyTag("premium")
+
+    # Verify they are created successfully
+    assert prop_id.root == "my_property_id"
+    assert prop_tag.root == "premium"
+
+    # PropertyTag should be a subclass of PropertyId
+    assert issubclass(PropertyTag, PropertyId)
