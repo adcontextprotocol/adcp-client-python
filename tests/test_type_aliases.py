@@ -550,3 +550,116 @@ def test_property_id_and_tag_are_root_models():
 
     # PropertyTag should be a subclass of PropertyId
     assert issubclass(PropertyTag, PropertyId)
+
+
+def test_deployment_aliases_imports():
+    """Test that Deployment aliases can be imported."""
+    from adcp import AgentDeployment, PlatformDeployment
+    from adcp.types.aliases import AgentDeployment as AliasAgentDeployment
+    from adcp.types.aliases import PlatformDeployment as AliasPlatformDeployment
+
+    # Verify all import paths work
+    assert PlatformDeployment is AliasPlatformDeployment
+    assert AgentDeployment is AliasAgentDeployment
+
+
+def test_deployment_aliases_point_to_correct_types():
+    """Test that Deployment aliases point to the correct generated types."""
+    from adcp import AgentDeployment, PlatformDeployment
+    from adcp.types.generated_poc.deployment import Deployment1, Deployment2
+
+    # Verify aliases point to correct types
+    assert PlatformDeployment is Deployment1
+    assert AgentDeployment is Deployment2
+
+    # Verify they're different types
+    assert PlatformDeployment is not AgentDeployment
+
+
+def test_deployment_aliases_can_instantiate():
+    """Test that Deployment aliases can be used to create instances."""
+    from adcp import AgentDeployment, PlatformDeployment
+    from datetime import datetime, timezone
+
+    # Create PlatformDeployment
+    platform_deployment = PlatformDeployment(
+        type="platform", platform="the-trade-desk", is_live=True
+    )
+    assert platform_deployment.type == "platform"
+    assert platform_deployment.platform == "the-trade-desk"
+    assert platform_deployment.is_live is True
+
+    # Create AgentDeployment
+    agent_deployment = AgentDeployment(
+        type="agent", agent_url="https://agent.example.com", is_live=False
+    )
+    assert agent_deployment.type == "agent"
+    assert str(agent_deployment.agent_url) == "https://agent.example.com/"
+    assert agent_deployment.is_live is False
+
+
+def test_destination_aliases_imports():
+    """Test that Destination aliases can be imported."""
+    from adcp import AgentDestination, PlatformDestination
+    from adcp.types.aliases import AgentDestination as AliasAgentDestination
+    from adcp.types.aliases import PlatformDestination as AliasPlatformDestination
+
+    # Verify all import paths work
+    assert PlatformDestination is AliasPlatformDestination
+    assert AgentDestination is AliasAgentDestination
+
+
+def test_destination_aliases_point_to_correct_types():
+    """Test that Destination aliases point to the correct generated types."""
+    from adcp import AgentDestination, PlatformDestination
+    from adcp.types.generated_poc.destination import Destination1, Destination2
+
+    # Verify aliases point to correct types
+    assert PlatformDestination is Destination1
+    assert AgentDestination is Destination2
+
+    # Verify they're different types
+    assert PlatformDestination is not AgentDestination
+
+
+def test_destination_aliases_can_instantiate():
+    """Test that Destination aliases can be used to create instances."""
+    from adcp import AgentDestination, PlatformDestination
+
+    # Create PlatformDestination
+    platform_dest = PlatformDestination(type="platform", platform="amazon-dsp")
+    assert platform_dest.type == "platform"
+    assert platform_dest.platform == "amazon-dsp"
+
+    # Create AgentDestination
+    agent_dest = AgentDestination(type="agent", agent_url="https://agent.example.com")
+    assert agent_dest.type == "agent"
+    assert str(agent_dest.agent_url) == "https://agent.example.com/"
+
+
+def test_deployment_destination_aliases_in_exports():
+    """Test that Deployment and Destination aliases are properly exported."""
+    import adcp
+    import adcp.types.aliases as aliases_module
+
+    # Check main package exports
+    assert hasattr(adcp, "PlatformDeployment")
+    assert hasattr(adcp, "AgentDeployment")
+    assert hasattr(adcp, "PlatformDestination")
+    assert hasattr(adcp, "AgentDestination")
+
+    assert "PlatformDeployment" in adcp.__all__
+    assert "AgentDeployment" in adcp.__all__
+    assert "PlatformDestination" in adcp.__all__
+    assert "AgentDestination" in adcp.__all__
+
+    # Check aliases module exports
+    assert hasattr(aliases_module, "PlatformDeployment")
+    assert hasattr(aliases_module, "AgentDeployment")
+    assert hasattr(aliases_module, "PlatformDestination")
+    assert hasattr(aliases_module, "AgentDestination")
+
+    assert "PlatformDeployment" in aliases_module.__all__
+    assert "AgentDeployment" in aliases_module.__all__
+    assert "PlatformDestination" in aliases_module.__all__
+    assert "AgentDestination" in aliases_module.__all__

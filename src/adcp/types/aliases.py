@@ -48,6 +48,12 @@ from adcp.types._generated import (
     # DAAST assets
     DaastAsset1,
     DaastAsset2,
+    # Deployment types
+    Deployment1,
+    Deployment2,
+    # Destination types
+    Destination1,
+    Destination2,
     # Preview creative requests
     PreviewCreativeRequest1,
     PreviewCreativeRequest2,
@@ -351,6 +357,124 @@ Example:
 """
 
 # ============================================================================
+# DEPLOYMENT & DESTINATION ALIASES - Signal Deployment Type Discriminated Unions
+# ============================================================================
+# The AdCP schemas define Deployment and Destination as discriminated unions
+# with two variants based on the `type` field:
+#
+# Deployment (where a signal is activated):
+# - Platform (type='platform'): DSP platform with platform ID
+# - Agent (type='agent'): Sales agent with agent URL
+#
+# Destination (where a signal can be activated):
+# - Platform (type='platform'): Target DSP platform
+# - Agent (type='agent'): Target sales agent
+#
+# These are used in GetSignalsResponse to describe signal availability and
+# activation status across different advertising platforms and agents.
+
+PlatformDeployment = Deployment1
+"""Signal deployment to a DSP platform.
+
+This variant uses type='platform' for platform-based signal deployments
+like The Trade Desk, Amazon DSP, etc.
+
+Fields:
+- type: Literal['platform']
+- platform: Platform identifier (e.g., 'the-trade-desk')
+- account: Optional account identifier
+- is_live: Whether signal is currently active
+- deployed_at: Activation timestamp if live
+- activation_key: Targeting key if live and accessible
+- estimated_activation_duration_minutes: Time to complete activation
+
+Example:
+    ```python
+    from adcp import PlatformDeployment
+
+    deployment = PlatformDeployment(
+        type="platform",
+        platform="the-trade-desk",
+        account="advertiser-123",
+        is_live=True,
+        deployed_at=datetime.now(timezone.utc)
+    )
+    ```
+"""
+
+AgentDeployment = Deployment2
+"""Signal deployment to a sales agent.
+
+This variant uses type='agent' for agent-based signal deployments
+using agent URLs.
+
+Fields:
+- type: Literal['agent']
+- agent_url: URL identifying the destination agent
+- account: Optional account identifier
+- is_live: Whether signal is currently active
+- deployed_at: Activation timestamp if live
+- activation_key: Targeting key if live and accessible
+- estimated_activation_duration_minutes: Time to complete activation
+
+Example:
+    ```python
+    from adcp import AgentDeployment
+
+    deployment = AgentDeployment(
+        type="agent",
+        agent_url="https://agent.example.com",
+        is_live=False,
+        estimated_activation_duration_minutes=30.0
+    )
+    ```
+"""
+
+PlatformDestination = Destination1
+"""Available signal destination on a DSP platform.
+
+This variant uses type='platform' for platform-based signal destinations.
+
+Fields:
+- type: Literal['platform']
+- platform: Platform identifier (e.g., 'the-trade-desk', 'amazon-dsp')
+- account: Optional account identifier on the platform
+
+Example:
+    ```python
+    from adcp import PlatformDestination
+
+    destination = PlatformDestination(
+        type="platform",
+        platform="the-trade-desk",
+        account="advertiser-123"
+    )
+    ```
+"""
+
+AgentDestination = Destination2
+"""Available signal destination via a sales agent.
+
+This variant uses type='agent' for agent-based signal destinations.
+
+Fields:
+- type: Literal['agent']
+- agent_url: URL identifying the destination agent
+- account: Optional account identifier on the agent
+
+Example:
+    ```python
+    from adcp import AgentDestination
+
+    destination = AgentDestination(
+        type="agent",
+        agent_url="https://agent.example.com",
+        account="partner-456"
+    )
+    ```
+"""
+
+# ============================================================================
 # EXPORTS
 # ============================================================================
 
@@ -405,4 +529,10 @@ __all__ = [
     "PublisherPropertiesAll",
     "PublisherPropertiesById",
     "PublisherPropertiesByTag",
+    # Deployment aliases
+    "PlatformDeployment",
+    "AgentDeployment",
+    # Destination aliases
+    "PlatformDestination",
+    "AgentDestination",
 ]
