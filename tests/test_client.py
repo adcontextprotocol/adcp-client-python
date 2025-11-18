@@ -77,8 +77,8 @@ async def test_get_products():
     """Test get_products method with mock adapter."""
     from unittest.mock import patch
 
-    from adcp.types.core import TaskResult, TaskStatus
     from adcp.types._generated import GetProductsRequest, GetProductsResponse
+    from adcp.types.core import TaskResult, TaskStatus
 
     config = AgentConfig(
         id="test_agent",
@@ -229,8 +229,8 @@ async def test_multi_agent_parallel_execution():
     """Test parallel execution across multiple agents."""
     from unittest.mock import patch
 
-    from adcp.types.core import TaskResult, TaskStatus
     from adcp.types._generated import GetProductsRequest
+    from adcp.types.core import TaskResult, TaskStatus
 
     agents = [
         AgentConfig(
@@ -280,8 +280,8 @@ async def test_list_creative_formats_parses_mcp_response():
     import json
     from unittest.mock import patch
 
-    from adcp.types.core import TaskResult, TaskStatus
     from adcp.types._generated import ListCreativeFormatsRequest, ListCreativeFormatsResponse
+    from adcp.types.core import TaskResult, TaskStatus
 
     config = AgentConfig(
         id="creative_agent",
@@ -330,8 +330,8 @@ async def test_list_creative_formats_parses_a2a_response():
     """Test that list_creative_formats parses A2A dict response into structured response."""
     from unittest.mock import patch
 
-    from adcp.types.core import TaskResult, TaskStatus
     from adcp.types._generated import ListCreativeFormatsRequest, ListCreativeFormatsResponse
+    from adcp.types.core import TaskResult, TaskStatus
 
     config = AgentConfig(
         id="creative_agent",
@@ -374,8 +374,8 @@ async def test_list_creative_formats_handles_invalid_response():
     """Test that list_creative_formats handles invalid response gracefully."""
     from unittest.mock import patch
 
-    from adcp.types.core import TaskResult, TaskStatus
     from adcp.types._generated import ListCreativeFormatsRequest
+    from adcp.types.core import TaskResult, TaskStatus
 
     config = AgentConfig(
         id="creative_agent",

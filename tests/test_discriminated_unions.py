@@ -16,7 +16,6 @@ from adcp import (
     InlineDaastAsset,
     InlineVastAsset,
     MediaSubAsset,
-    Product,
     TextSubAsset,
     UrlDaastAsset,
     UrlPreviewRender,
@@ -34,7 +33,6 @@ from adcp.types._generated import (
     Deployment2,  # Agent
     Destination1,  # Platform
     Destination2,  # Agent
-    PublisherProperties,  # selection_type='all'
     PublisherProperties4,  # selection_type='by_id'
     PublisherProperties5,  # selection_type='by_tag'
 )
@@ -86,7 +84,7 @@ class TestAuthorizationDiscriminatedUnions:
         assert "authorization_type" in error_msg.lower()
 
     def test_property_tags_authorization(self):
-        """AuthorizedAgents1 (property_tags variant) requires property_tags and authorization_type."""
+        """AuthorizedAgents1 requires property_tags and authorization_type."""
         agent = AuthorizedAgents1(
             url="https://agent.example.com",
             authorized_for="All properties",
@@ -98,7 +96,7 @@ class TestAuthorizationDiscriminatedUnions:
         assert not hasattr(agent, "property_ids")
 
     def test_inline_properties_authorization(self):
-        """AuthorizedAgents2 (inline_properties variant) requires properties and authorization_type."""
+        """AuthorizedAgents2 requires properties and authorization_type."""
         agent = AuthorizedAgents2(
             url="https://agent.example.com",
             authorized_for="All properties",
@@ -136,7 +134,7 @@ class TestAuthorizationDiscriminatedUnions:
         assert len(agent.properties) == 1
 
     def test_publisher_properties_authorization(self):
-        """AuthorizedAgents3 (publisher_properties variant) requires publisher_properties and authorization_type."""
+        """AuthorizedAgents3 requires publisher_properties and type."""
         agent = AuthorizedAgents3(
             url="https://agent.example.com",
             authorized_for="All properties",

@@ -7,13 +7,13 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from adcp.testing import test_agent
-from adcp.types.core import TaskResult, TaskStatus
 from adcp.types._generated import (
     GetProductsResponse,
     ListCreativeFormatsResponse,
     PreviewCreativeResponse1,
     Product,
 )
+from adcp.types.core import TaskResult, TaskStatus
 
 
 @pytest.mark.asyncio

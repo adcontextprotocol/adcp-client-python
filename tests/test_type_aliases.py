@@ -27,6 +27,16 @@ from adcp import (
     UrlVastAsset,
 )
 
+# Test that generated types still exist
+from adcp.types._generated import (
+    ActivateSignalResponse1,
+    ActivateSignalResponse2,
+    BuildCreativeResponse1,
+    BuildCreativeResponse2,
+    CreateMediaBuyResponse1,
+    CreateMediaBuyResponse2,
+)
+
 # Test that aliases can also be imported from the aliases module
 from adcp.types.aliases import (
     ActivateSignalErrorResponse as AliasActivateSignalErrorResponse,
@@ -45,16 +55,6 @@ from adcp.types.aliases import (
 )
 from adcp.types.aliases import (
     CreateMediaBuySuccessResponse as AliasCreateMediaBuySuccessResponse,
-)
-
-# Test that generated types still exist
-from adcp.types._generated import (
-    ActivateSignalResponse1,
-    ActivateSignalResponse2,
-    BuildCreativeResponse1,
-    BuildCreativeResponse2,
-    CreateMediaBuyResponse1,
-    CreateMediaBuyResponse2,
 )
 
 
@@ -337,12 +337,18 @@ def test_package_type_aliases_have_correct_fields():
         "status",
         "targeting_overlay",
     }
-    assert package_fields == expected_package_fields, f"Package fields mismatch. Expected: {expected_package_fields}, Got: {package_fields}"
+    assert package_fields == expected_package_fields, (
+        f"Package fields mismatch. "
+        f"Expected: {expected_package_fields}, Got: {package_fields}"
+    )
 
     # CreatedPackageReference should only have IDs
     created_fields = set(CreatedPackageReference.__annotations__.keys())
     expected_created_fields = {"buyer_ref", "package_id"}
-    assert created_fields == expected_created_fields, f"CreatedPackageReference fields mismatch. Expected: {expected_created_fields}, Got: {created_fields}"
+    assert created_fields == expected_created_fields, (
+        f"CreatedPackageReference fields mismatch. "
+        f"Expected: {expected_created_fields}, Got: {created_fields}"
+    )
 
 
 def test_package_type_aliases_in_exports():

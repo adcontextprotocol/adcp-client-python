@@ -6,7 +6,6 @@ import pytest
 
 from adcp import ADCPClient
 from adcp.types import AgentConfig, Protocol
-from adcp.types.core import TaskResult, TaskStatus
 from adcp.types._generated import (
     CreativeManifest,
     Format,
@@ -19,6 +18,7 @@ from adcp.types._generated import (
     PreviewCreativeResponse1,
     Product,
 )
+from adcp.types.core import TaskResult, TaskStatus
 from adcp.utils.preview_cache import (
     PreviewURLGenerator,
     _create_sample_asset,

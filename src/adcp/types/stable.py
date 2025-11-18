@@ -21,10 +21,6 @@ Schema Evolution:
 
 from __future__ import annotations
 
-# Import all generated types from internal consolidated module
-# Import Package directly from its module to avoid collision with Response Package
-from adcp.types.generated_poc.package import Package
-
 from adcp.types._generated import (
     # Core request/response types
     ActivateSignalRequest,
@@ -95,6 +91,10 @@ from adcp.types._generated import (
     VideoAsset,
     WebhookAsset,
 )
+
+# Import all generated types from internal consolidated module
+# Import Package directly from its module to avoid collision with Response Package
+from adcp.types.generated_poc.package import Package
 
 # Note: BrandManifest is currently split into BrandManifest1/2 due to upstream schema
 # using anyOf incorrectly. This will be fixed upstream to create a single BrandManifest type.

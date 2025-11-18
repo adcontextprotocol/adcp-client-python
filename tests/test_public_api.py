@@ -109,17 +109,20 @@ def test_client_types_are_exported():
 
 def test_public_api_types_are_pydantic_models():
     """Core types from public API are valid Pydantic models."""
-    from adcp import Product, Format, MediaBuy, Property, BrandManifest
+    from adcp import BrandManifest, Format, MediaBuy, Product, Property
 
     types_to_test = [Product, Format, MediaBuy, Property, BrandManifest]
 
     for model_class in types_to_test:
         # Should have Pydantic model methods
-        assert hasattr(model_class, "model_validate"), f"{model_class.__name__} missing model_validate"
-        assert hasattr(model_class, "model_dump"), f"{model_class.__name__} missing model_dump"
-        assert hasattr(model_class, "model_validate_json"), f"{model_class.__name__} missing model_validate_json"
-        assert hasattr(model_class, "model_dump_json"), f"{model_class.__name__} missing model_dump_json"
-        assert hasattr(model_class, "model_fields"), f"{model_class.__name__} missing model_fields"
+        name = model_class.__name__
+        assert hasattr(model_class, "model_validate"), f"{name} missing model_validate"
+        assert hasattr(model_class, "model_dump"), f"{name} missing model_dump"
+        assert hasattr(model_class, "model_validate_json"), (
+            f"{name} missing model_validate_json"
+        )
+        assert hasattr(model_class, "model_dump_json"), f"{name} missing model_dump_json"
+        assert hasattr(model_class, "model_fields"), f"{name} missing model_fields"
 
 
 def test_product_has_expected_public_fields():
@@ -158,26 +161,32 @@ def test_format_has_expected_public_fields():
 
 def test_pricing_options_are_discriminated_by_is_fixed():
     """Pricing option types have is_fixed discriminator field."""
-    from adcp import CpmFixedRatePricingOption, CpmAuctionPricingOption, CpcPricingOption
+    from adcp import CpcPricingOption, CpmAuctionPricingOption, CpmFixedRatePricingOption
 
     # Fixed-rate options should have is_fixed discriminator
     fixed_types = [CpmFixedRatePricingOption, CpcPricingOption]
     for pricing_type in fixed_types:
-        assert "is_fixed" in pricing_type.model_fields, f"{pricing_type.__name__} missing is_fixed discriminator"
+        name = pricing_type.__name__
+        assert "is_fixed" in pricing_type.model_fields, (
+            f"{name} missing is_fixed discriminator"
+        )
 
     # Auction options should have is_fixed discriminator
     auction_types = [CpmAuctionPricingOption]
     for pricing_type in auction_types:
-        assert "is_fixed" in pricing_type.model_fields, f"{pricing_type.__name__} missing is_fixed discriminator"
+        name = pricing_type.__name__
+        assert "is_fixed" in pricing_type.model_fields, (
+            f"{name} missing is_fixed discriminator"
+        )
 
 
 def test_semantic_aliases_point_to_discriminated_variants():
     """Semantic aliases successfully construct their respective variants."""
     from adcp import (
-        UrlPreviewRender,
-        HtmlPreviewRender,
-        CreateMediaBuySuccessResponse,
         CreateMediaBuyErrorResponse,
+        CreateMediaBuySuccessResponse,
+        HtmlPreviewRender,
+        UrlPreviewRender,
     )
 
     # URL preview render should accept url output format
