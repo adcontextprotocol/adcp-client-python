@@ -118,7 +118,7 @@ jobs:
       - name: Validate generated code syntax
         run: |
           echo "Validating generated code can be parsed..."
-          python -m py_compile src/adcp/types/generated.py
+          python -m py_compile src/adcp/types/_generated.py
           echo "✓ Syntax validation passed"
 
       - name: Validate generated code imports
