@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.8.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.7.0...v2.8.0) (2025-11-19)
+
+
+### Features
+
+* expose all types through stable public API ([#69](https://github.com/adcontextprotocol/adcp-client-python/issues/69)) ([3abef14](https://github.com/adcontextprotocol/adcp-client-python/commit/3abef1489813b663bfa5c4b3ab7cca755dc63b53))
+
 ## [2.7.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.6.0...v2.7.0) (2025-11-19)
 
 
