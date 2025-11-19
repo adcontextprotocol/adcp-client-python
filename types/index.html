@@ -236,8 +236,6 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.generated_poc.adagents.AuthorizedAgents3" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.AuthorizedAgents3">AuthorizedAgents3</a></li>
 <li><a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.AuthorizedSalesAgents">AuthorizedSalesAgents</a></li>
 <li><a title="adcp.types.generated_poc.adagents.Contact" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.Contact">Contact</a></li>
-<li><a title="adcp.types.generated_poc.adagents.PublisherProperties" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.PublisherProperties">PublisherProperties</a></li>
-<li><a title="adcp.types.generated_poc.adagents.PublisherProperties1" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.PublisherProperties1">PublisherProperties1</a></li>
 <li><a title="adcp.types.generated_poc.adagents.Tags" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.Tags">Tags</a></li>
 <li><a title="adcp.types.generated_poc.asset_type.AssetTypeSchema" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.AssetTypeSchema">AssetTypeSchema</a></li>
 <li><a title="adcp.types.generated_poc.asset_type.ContentLength" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.ContentLength">ContentLength</a></li>
@@ -372,9 +370,6 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.generated_poc.product.Product" href="generated_poc/product.html#adcp.types.generated_poc.product.Product">Product</a></li>
 <li><a title="adcp.types.generated_poc.product.ProductCard" href="generated_poc/product.html#adcp.types.generated_poc.product.ProductCard">ProductCard</a></li>
 <li><a title="adcp.types.generated_poc.product.ProductCardDetailed" href="generated_poc/product.html#adcp.types.generated_poc.product.ProductCardDetailed">ProductCardDetailed</a></li>
-<li><a title="adcp.types.generated_poc.product.PublisherProperties" href="generated_poc/product.html#adcp.types.generated_poc.product.PublisherProperties">PublisherProperties</a></li>
-<li><a title="adcp.types.generated_poc.product.PublisherProperties4" href="generated_poc/product.html#adcp.types.generated_poc.product.PublisherProperties4">PublisherProperties4</a></li>
-<li><a title="adcp.types.generated_poc.product.PublisherProperties5" href="generated_poc/product.html#adcp.types.generated_poc.product.PublisherProperties5">PublisherProperties5</a></li>
 <li><a title="adcp.types.generated_poc.promoted_offerings.AssetSelectors" href="generated_poc/promoted_offerings.html#adcp.types.generated_poc.promoted_offerings.AssetSelectors">AssetSelectors</a></li>
 <li><a title="adcp.types.generated_poc.promoted_offerings.Offering" href="generated_poc/promoted_offerings.html#adcp.types.generated_poc.promoted_offerings.Offering">Offering</a></li>
 <li><a title="adcp.types.generated_poc.promoted_offerings.PromotedOfferings" href="generated_poc/promoted_offerings.html#adcp.types.generated_poc.promoted_offerings.PromotedOfferings">PromotedOfferings</a></li>
@@ -386,6 +381,9 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest" href="generated_poc/provide_performance_feedback_request.html#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest">ProvidePerformanceFeedbackRequest</a></li>
 <li><a title="adcp.types.generated_poc.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse1" href="generated_poc/provide_performance_feedback_response.html#adcp.types.generated_poc.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse1">ProvidePerformanceFeedbackResponse1</a></li>
 <li><a title="adcp.types.generated_poc.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse2" href="generated_poc/provide_performance_feedback_response.html#adcp.types.generated_poc.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse2">ProvidePerformanceFeedbackResponse2</a></li>
+<li><a title="adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector1" href="generated_poc/publisher_property_selector.html#adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector1">PublisherPropertySelector1</a></li>
+<li><a title="adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector2" href="generated_poc/publisher_property_selector.html#adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector2">PublisherPropertySelector2</a></li>
+<li><a title="adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector3" href="generated_poc/publisher_property_selector.html#adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector3">PublisherPropertySelector3</a></li>
 <li><a title="adcp.types.generated_poc.push_notification_config.Authentication" href="generated_poc/push_notification_config.html#adcp.types.generated_poc.push_notification_config.Authentication">Authentication</a></li>
 <li><a title="adcp.types.generated_poc.push_notification_config.PushNotificationConfig" href="generated_poc/push_notification_config.html#adcp.types.generated_poc.push_notification_config.PushNotificationConfig">PushNotificationConfig</a></li>
 <li><a title="adcp.types.generated_poc.reporting_capabilities.ReportingCapabilities" href="generated_poc/reporting_capabilities.html#adcp.types.generated_poc.reporting_capabilities.ReportingCapabilities">ReportingCapabilities</a></li>
@@ -3124,7 +3122,11 @@ attributes &ndash; see the documentation for details.</p></div>
     ] = None
     product_id: Annotated[str, Field(description=&#39;Unique identifier for the product&#39;)]
     publisher_properties: Annotated[
-        list[PublisherProperties | PublisherProperties4 | PublisherProperties5],
+        list[
+            publisher_property_selector.PublisherPropertySelector1
+            | publisher_property_selector.PublisherPropertySelector2
+            | publisher_property_selector.PublisherPropertySelector3
+        ],
         Field(
             description=&#34;Publisher properties covered by this product. Buyers fetch actual property definitions from each publisher&#39;s adagents.json and validate agent authorization. Selection patterns mirror the authorization patterns in adagents.json for consistency.&#34;,
             min_length=1,
@@ -3215,7 +3217,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.Product.publisher_properties"><code class="name">var <span class="ident">publisher_properties</span> : list[<a title="adcp.types.generated_poc.product.PublisherProperties" href="generated_poc/product.html#adcp.types.generated_poc.product.PublisherProperties">PublisherProperties</a> | <a title="adcp.types.generated_poc.product.PublisherProperties4" href="generated_poc/product.html#adcp.types.generated_poc.product.PublisherProperties4">PublisherProperties4</a> | <a title="adcp.types.generated_poc.product.PublisherProperties5" href="generated_poc/product.html#adcp.types.generated_poc.product.PublisherProperties5">PublisherProperties5</a>]</code></dt>
+<dt id="adcp.types.Product.publisher_properties"><code class="name">var <span class="ident">publisher_properties</span> : list[<a title="adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector1" href="generated_poc/publisher_property_selector.html#adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector1">PublisherPropertySelector1</a> | <a title="adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector2" href="generated_poc/publisher_property_selector.html#adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector2">PublisherPropertySelector2</a> | <a title="adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector3" href="generated_poc/publisher_property_selector.html#adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector3">PublisherPropertySelector3</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3367,7 +3369,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.product.PropertyTag" href="generated_poc/product.html#adcp.types.generated_poc.product.PropertyTag">PropertyTag</a></li>
+<li><a title="adcp.types.generated_poc.adagents.PropertyTag" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.PropertyTag">PropertyTag</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -3415,7 +3417,7 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.product.PropertyId" href="generated_poc/product.html#adcp.types.generated_poc.product.PropertyId">PropertyId</a></li>
+<li><a title="adcp.types.generated_poc.adagents.PropertyId" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.PropertyId">PropertyId</a></li>
 <li>pydantic.root_model.RootModel[str]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
@@ -3462,7 +3464,7 @@ validated to form a valid model.</p>
 </dd>
 </dl>
 </dd>
-<dt id="adcp.types.PublisherProperties"><code class="flex name class">
+<dt id="adcp.types.PublisherPropertySelector1"><code class="flex name class">
 <span>class <span class="ident">PublisherPropertiesAll</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
@@ -3471,7 +3473,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PublisherProperties(AdCPBaseModel):
+<pre><code class="python">class PublisherPropertySelector1(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
@@ -3504,15 +3506,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.PublisherProperties.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.PublisherPropertySelector1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.PublisherProperties.publisher_domain"><code class="name">var <span class="ident">publisher_domain</span> : str</code></dt>
+<dt id="adcp.types.PublisherPropertySelector1.publisher_domain"><code class="name">var <span class="ident">publisher_domain</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.PublisherProperties.selection_type"><code class="name">var <span class="ident">selection_type</span> : Literal['all']</code></dt>
+<dt id="adcp.types.PublisherPropertySelector1.selection_type"><code class="name">var <span class="ident">selection_type</span> : Literal['all']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3527,7 +3529,7 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.PublisherProperties4"><code class="flex name class">
+<dt id="adcp.types.PublisherPropertySelector2"><code class="flex name class">
 <span>class <span class="ident">PublisherPropertiesById</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
@@ -3536,7 +3538,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PublisherProperties4(AdCPBaseModel):
+<pre><code class="python">class PublisherPropertySelector2(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
@@ -3571,19 +3573,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.PublisherProperties4.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.PublisherPropertySelector2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.PublisherProperties4.property_ids"><code class="name">var <span class="ident">property_ids</span> : list[<a title="adcp.types.generated_poc.product.PropertyId" href="generated_poc/product.html#adcp.types.generated_poc.product.PropertyId">PropertyId</a>]</code></dt>
+<dt id="adcp.types.PublisherPropertySelector2.property_ids"><code class="name">var <span class="ident">property_ids</span> : list[<a title="adcp.types.generated_poc.publisher_property_selector.PropertyId" href="generated_poc/publisher_property_selector.html#adcp.types.generated_poc.publisher_property_selector.PropertyId">PropertyId</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.PublisherProperties4.publisher_domain"><code class="name">var <span class="ident">publisher_domain</span> : str</code></dt>
+<dt id="adcp.types.PublisherPropertySelector2.publisher_domain"><code class="name">var <span class="ident">publisher_domain</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.PublisherProperties4.selection_type"><code class="name">var <span class="ident">selection_type</span> : Literal['by_id']</code></dt>
+<dt id="adcp.types.PublisherPropertySelector2.selection_type"><code class="name">var <span class="ident">selection_type</span> : Literal['by_id']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3598,7 +3600,7 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.PublisherProperties5"><code class="flex name class">
+<dt id="adcp.types.PublisherPropertySelector3"><code class="flex name class">
 <span>class <span class="ident">PublisherPropertiesByTag</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
@@ -3607,14 +3609,14 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PublisherProperties5(AdCPBaseModel):
+<pre><code class="python">class PublisherPropertySelector3(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
     property_tags: Annotated[
         list[PropertyTag],
         Field(
-            description=&#34;Property tags from the publisher&#39;s adagents.json. Product covers all properties with these tags&#34;,
+            description=&#34;Property tags from the publisher&#39;s adagents.json. Selector covers all properties with these tags&#34;,
             min_length=1,
         ),
     ]
@@ -3644,19 +3646,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.PublisherProperties5.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.PublisherPropertySelector3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.PublisherProperties5.property_tags"><code class="name">var <span class="ident">property_tags</span> : list[<a title="adcp.types.generated_poc.product.PropertyTag" href="generated_poc/product.html#adcp.types.generated_poc.product.PropertyTag">PropertyTag</a>]</code></dt>
+<dt id="adcp.types.PublisherPropertySelector3.property_tags"><code class="name">var <span class="ident">property_tags</span> : list[<a title="adcp.types.generated_poc.publisher_property_selector.PropertyTag" href="generated_poc/publisher_property_selector.html#adcp.types.generated_poc.publisher_property_selector.PropertyTag">PropertyTag</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.PublisherProperties5.publisher_domain"><code class="name">var <span class="ident">publisher_domain</span> : str</code></dt>
+<dt id="adcp.types.PublisherPropertySelector3.publisher_domain"><code class="name">var <span class="ident">publisher_domain</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.PublisherProperties5.selection_type"><code class="name">var <span class="ident">selection_type</span> : Literal['by_tag']</code></dt>
+<dt id="adcp.types.PublisherPropertySelector3.selection_type"><code class="name">var <span class="ident">selection_type</span> : Literal['by_tag']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -4836,29 +4838,29 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.PublisherProperties" href="#adcp.types.PublisherProperties">PublisherProperties</a></code></h4>
+<h4><code><a title="adcp.types.PublisherPropertySelector1" href="#adcp.types.PublisherPropertySelector1">PublisherPropertySelector1</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.PublisherProperties.model_config" href="#adcp.types.PublisherProperties.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.PublisherProperties.publisher_domain" href="#adcp.types.PublisherProperties.publisher_domain">publisher_domain</a></code></li>
-<li><code><a title="adcp.types.PublisherProperties.selection_type" href="#adcp.types.PublisherProperties.selection_type">selection_type</a></code></li>
+<li><code><a title="adcp.types.PublisherPropertySelector1.model_config" href="#adcp.types.PublisherPropertySelector1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.PublisherPropertySelector1.publisher_domain" href="#adcp.types.PublisherPropertySelector1.publisher_domain">publisher_domain</a></code></li>
+<li><code><a title="adcp.types.PublisherPropertySelector1.selection_type" href="#adcp.types.PublisherPropertySelector1.selection_type">selection_type</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.PublisherProperties4" href="#adcp.types.PublisherProperties4">PublisherProperties4</a></code></h4>
+<h4><code><a title="adcp.types.PublisherPropertySelector2" href="#adcp.types.PublisherPropertySelector2">PublisherPropertySelector2</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.PublisherProperties4.model_config" href="#adcp.types.PublisherProperties4.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.PublisherProperties4.property_ids" href="#adcp.types.PublisherProperties4.property_ids">property_ids</a></code></li>
-<li><code><a title="adcp.types.PublisherProperties4.publisher_domain" href="#adcp.types.PublisherProperties4.publisher_domain">publisher_domain</a></code></li>
-<li><code><a title="adcp.types.PublisherProperties4.selection_type" href="#adcp.types.PublisherProperties4.selection_type">selection_type</a></code></li>
+<li><code><a title="adcp.types.PublisherPropertySelector2.model_config" href="#adcp.types.PublisherPropertySelector2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.PublisherPropertySelector2.property_ids" href="#adcp.types.PublisherPropertySelector2.property_ids">property_ids</a></code></li>
+<li><code><a title="adcp.types.PublisherPropertySelector2.publisher_domain" href="#adcp.types.PublisherPropertySelector2.publisher_domain">publisher_domain</a></code></li>
+<li><code><a title="adcp.types.PublisherPropertySelector2.selection_type" href="#adcp.types.PublisherPropertySelector2.selection_type">selection_type</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.PublisherProperties5" href="#adcp.types.PublisherProperties5">PublisherProperties5</a></code></h4>
+<h4><code><a title="adcp.types.PublisherPropertySelector3" href="#adcp.types.PublisherPropertySelector3">PublisherPropertySelector3</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.PublisherProperties5.model_config" href="#adcp.types.PublisherProperties5.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.PublisherProperties5.property_tags" href="#adcp.types.PublisherProperties5.property_tags">property_tags</a></code></li>
-<li><code><a title="adcp.types.PublisherProperties5.publisher_domain" href="#adcp.types.PublisherProperties5.publisher_domain">publisher_domain</a></code></li>
-<li><code><a title="adcp.types.PublisherProperties5.selection_type" href="#adcp.types.PublisherProperties5.selection_type">selection_type</a></code></li>
+<li><code><a title="adcp.types.PublisherPropertySelector3.model_config" href="#adcp.types.PublisherPropertySelector3.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.PublisherPropertySelector3.property_tags" href="#adcp.types.PublisherPropertySelector3.property_tags">property_tags</a></code></li>
+<li><code><a title="adcp.types.PublisherPropertySelector3.publisher_domain" href="#adcp.types.PublisherPropertySelector3.publisher_domain">publisher_domain</a></code></li>
+<li><code><a title="adcp.types.PublisherPropertySelector3.selection_type" href="#adcp.types.PublisherPropertySelector3.selection_type">selection_type</a></code></li>
 </ul>
 </li>
 <li>

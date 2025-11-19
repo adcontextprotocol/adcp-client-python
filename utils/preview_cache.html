@@ -311,7 +311,7 @@ el.replaceWith(d);
         Returns:
             Preview data with preview_url and metadata, or None if generation fails
         &#34;&#34;&#34;
-        from adcp.types._generated import PreviewCreativeRequest1
+        from adcp.types.aliases import PreviewCreativeFormatRequest
 
         cache_key = _make_manifest_cache_key(format_id, manifest.model_dump(exclude_none=True))
 
@@ -319,7 +319,7 @@ el.replaceWith(d);
             return self._preview_cache[cache_key]
 
         try:
-            request = PreviewCreativeRequest1(
+            request = PreviewCreativeFormatRequest(
                 request_type=&#34;single&#34;,
                 format_id=format_id,
                 creative_manifest=manifest,
@@ -367,7 +367,7 @@ el.replaceWith(d);
         Returns:
             List of preview data dicts (or None for failures), in same order as requests
         &#34;&#34;&#34;
-        from adcp.types._generated import PreviewCreativeRequest
+        from adcp.types.stable import PreviewCreativeRequest
 
         if not requests:
             return []
@@ -486,7 +486,7 @@ el.replaceWith(d);
     Returns:
         List of preview data dicts (or None for failures), in same order as requests
     &#34;&#34;&#34;
-    from adcp.types._generated import PreviewCreativeRequest
+    from adcp.types.stable import PreviewCreativeRequest
 
     if not requests:
         return []
@@ -607,7 +607,7 @@ el.replaceWith(d);
     Returns:
         Preview data with preview_url and metadata, or None if generation fails
     &#34;&#34;&#34;
-    from adcp.types._generated import PreviewCreativeRequest1
+    from adcp.types.aliases import PreviewCreativeFormatRequest
 
     cache_key = _make_manifest_cache_key(format_id, manifest.model_dump(exclude_none=True))
 
@@ -615,7 +615,7 @@ el.replaceWith(d);
         return self._preview_cache[cache_key]
 
     try:
-        request = PreviewCreativeRequest1(
+        request = PreviewCreativeFormatRequest(
             request_type=&#34;single&#34;,
             format_id=format_id,
             creative_manifest=manifest,

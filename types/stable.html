@@ -4109,7 +4109,11 @@ attributes &ndash; see the documentation for details.</p></div>
     ] = None
     product_id: Annotated[str, Field(description=&#39;Unique identifier for the product&#39;)]
     publisher_properties: Annotated[
-        list[PublisherProperties | PublisherProperties4 | PublisherProperties5],
+        list[
+            publisher_property_selector.PublisherPropertySelector1
+            | publisher_property_selector.PublisherPropertySelector2
+            | publisher_property_selector.PublisherPropertySelector3
+        ],
         Field(
             description=&#34;Publisher properties covered by this product. Buyers fetch actual property definitions from each publisher&#39;s adagents.json and validate agent authorization. Selection patterns mirror the authorization patterns in adagents.json for consistency.&#34;,
             min_length=1,
@@ -4200,7 +4204,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.stable.Product.publisher_properties"><code class="name">var <span class="ident">publisher_properties</span> : list[<a title="adcp.types.generated_poc.product.PublisherProperties" href="generated_poc/product.html#adcp.types.generated_poc.product.PublisherProperties">PublisherProperties</a> | <a title="adcp.types.generated_poc.product.PublisherProperties4" href="generated_poc/product.html#adcp.types.generated_poc.product.PublisherProperties4">PublisherProperties4</a> | <a title="adcp.types.generated_poc.product.PublisherProperties5" href="generated_poc/product.html#adcp.types.generated_poc.product.PublisherProperties5">PublisherProperties5</a>]</code></dt>
+<dt id="adcp.types.stable.Product.publisher_properties"><code class="name">var <span class="ident">publisher_properties</span> : list[<a title="adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector1" href="generated_poc/publisher_property_selector.html#adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector1">PublisherPropertySelector1</a> | <a title="adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector2" href="generated_poc/publisher_property_selector.html#adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector2">PublisherPropertySelector2</a> | <a title="adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector3" href="generated_poc/publisher_property_selector.html#adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector3">PublisherPropertySelector3</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -5793,6 +5797,155 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.stable.WebhookPayload"><code class="flex name class">
+<span>class <span class="ident">WebhookPayload</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class WebhookPayload(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    context_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters.&#39;
+        ),
+    ] = None
+    domain: Annotated[
+        Domain | None,
+        Field(
+            description=&#39;AdCP domain this task belongs to. Helps classify the operation type at a high level.&#39;
+        ),
+    ] = None
+    error: Annotated[
+        str | None,
+        Field(description=&#34;Error message for failed tasks. Only present when status is &#39;failed&#39;.&#34;),
+    ] = None
+    message: Annotated[
+        str | None,
+        Field(
+            description=&#39;Human-readable summary of the current task state. Provides context about what happened and what action may be needed.&#39;
+        ),
+    ] = None
+    operation_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Publisher-defined operation identifier correlating a sequence of task updates across webhooks.&#39;
+        ),
+    ] = None
+    progress: Annotated[
+        Progress | None,
+        Field(
+            description=&#34;Progress information for tasks still in &#39;working&#39; state. Rarely seen in webhooks since &#39;working&#39; tasks typically complete synchronously, but may appear if a task transitions from &#39;submitted&#39; to &#39;working&#39;.&#34;
+        ),
+    ] = None
+    result: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Task-specific payload for this status update. Validated against the appropriate response schema based on task_type.&#39;
+        ),
+    ] = None
+    status: Annotated[
+        task_status.TaskStatus,
+        Field(
+            description=&#39;Current task status. Webhooks are only triggered for status changes after initial submission (e.g., submitted → input-required, submitted → completed, submitted → failed).&#39;
+        ),
+    ]
+    task_id: Annotated[
+        str,
+        Field(
+            description=&#39;Unique identifier for this task. Use this to correlate webhook notifications with the original task submission.&#39;
+        ),
+    ]
+    task_type: Annotated[
+        task_type_1.TaskType,
+        Field(
+            description=&#39;Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic.&#39;
+        ),
+    ]
+    timestamp: Annotated[
+        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when this webhook was generated.&#39;)
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.stable.WebhookPayload.context_id"><code class="name">var <span class="ident">context_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.WebhookPayload.domain"><code class="name">var <span class="ident">domain</span> : <a title="adcp.types.generated_poc.webhook_payload.Domain" href="generated_poc/webhook_payload.html#adcp.types.generated_poc.webhook_payload.Domain">Domain</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.WebhookPayload.error"><code class="name">var <span class="ident">error</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.WebhookPayload.message"><code class="name">var <span class="ident">message</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.WebhookPayload.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.WebhookPayload.operation_id"><code class="name">var <span class="ident">operation_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.WebhookPayload.progress"><code class="name">var <span class="ident">progress</span> : <a title="adcp.types.generated_poc.webhook_payload.Progress" href="generated_poc/webhook_payload.html#adcp.types.generated_poc.webhook_payload.Progress">Progress</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.WebhookPayload.result"><code class="name">var <span class="ident">result</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.WebhookPayload.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.task_status.TaskStatus" href="generated_poc/task_status.html#adcp.types.generated_poc.task_status.TaskStatus">TaskStatus</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.WebhookPayload.task_id"><code class="name">var <span class="ident">task_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.WebhookPayload.task_type"><code class="name">var <span class="ident">task_type</span> : <a title="adcp.types.generated_poc.task_type.TaskType" href="generated_poc/task_type.html#adcp.types.generated_poc.task_type.TaskType">TaskType</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.WebhookPayload.timestamp"><code class="name">var <span class="ident">timestamp</span> : pydantic.types.AwareDatetime</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 </dl>
 </section>
 </article>
@@ -6537,6 +6690,23 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.stable.WebhookAsset.supported_macros" href="#adcp.types.stable.WebhookAsset.supported_macros">supported_macros</a></code></li>
 <li><code><a title="adcp.types.stable.WebhookAsset.timeout_ms" href="#adcp.types.stable.WebhookAsset.timeout_ms">timeout_ms</a></code></li>
 <li><code><a title="adcp.types.stable.WebhookAsset.url" href="#adcp.types.stable.WebhookAsset.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.stable.WebhookPayload" href="#adcp.types.stable.WebhookPayload">WebhookPayload</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.stable.WebhookPayload.context_id" href="#adcp.types.stable.WebhookPayload.context_id">context_id</a></code></li>
+<li><code><a title="adcp.types.stable.WebhookPayload.domain" href="#adcp.types.stable.WebhookPayload.domain">domain</a></code></li>
+<li><code><a title="adcp.types.stable.WebhookPayload.error" href="#adcp.types.stable.WebhookPayload.error">error</a></code></li>
+<li><code><a title="adcp.types.stable.WebhookPayload.message" href="#adcp.types.stable.WebhookPayload.message">message</a></code></li>
+<li><code><a title="adcp.types.stable.WebhookPayload.model_config" href="#adcp.types.stable.WebhookPayload.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.stable.WebhookPayload.operation_id" href="#adcp.types.stable.WebhookPayload.operation_id">operation_id</a></code></li>
+<li><code><a title="adcp.types.stable.WebhookPayload.progress" href="#adcp.types.stable.WebhookPayload.progress">progress</a></code></li>
+<li><code><a title="adcp.types.stable.WebhookPayload.result" href="#adcp.types.stable.WebhookPayload.result">result</a></code></li>
+<li><code><a title="adcp.types.stable.WebhookPayload.status" href="#adcp.types.stable.WebhookPayload.status">status</a></code></li>
+<li><code><a title="adcp.types.stable.WebhookPayload.task_id" href="#adcp.types.stable.WebhookPayload.task_id">task_id</a></code></li>
+<li><code><a title="adcp.types.stable.WebhookPayload.task_type" href="#adcp.types.stable.WebhookPayload.task_type">task_type</a></code></li>
+<li><code><a title="adcp.types.stable.WebhookPayload.timestamp" href="#adcp.types.stable.WebhookPayload.timestamp">timestamp</a></code></li>
 </ul>
 </li>
 </ul>
