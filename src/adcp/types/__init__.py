@@ -29,11 +29,11 @@ from adcp.types.aliases import (
     # Build creative responses
     BuildCreativeErrorResponse,
     BuildCreativeSuccessResponse,
+    # Package aliases
+    CreatedPackageReference,
     # Create media buy responses
     CreateMediaBuyErrorResponse,
     CreateMediaBuySuccessResponse,
-    # Package aliases
-    CreatedPackageReference,
     # Deployment union
     Deployment,
     # Destination union
@@ -108,9 +108,9 @@ from adcp.types.stable import (
     AggregatedTotals,
     Asset,
     AssetSelectors,
+    AssetsRequired,
     AssetType,
     AssetTypeSchema,
-    AssetsRequired,
     AssignedPackage,
     Assignments,
     AudioAsset,
@@ -162,8 +162,8 @@ from adcp.types.stable import (
     Duration,
     Embedding,
     Error,
-    FeedFormat,
     FeedbackSource,
+    FeedFormat,
     FieldModel,
     FileSize,
     Filters,
@@ -282,7 +282,6 @@ from adcp.types.stable import (
     TasksGetResponse,
     TasksListRequest,
     TasksListResponse,
-    TaskStatus as GeneratedTaskStatus,
     TaskType,
     TextAsset,
     Totals,
@@ -304,6 +303,9 @@ from adcp.types.stable import (
     WebhookAsset,
     WebhookPayload,
 )
+from adcp.types.stable import (
+    TaskStatus as GeneratedTaskStatus,
+)
 
 # Note: CoreTaskStatus is for internal task tracking
 # GeneratedTaskStatus from AdCP schema is available via adcp.types.stable
@@ -317,6 +319,7 @@ __all__ = [
     "Protocol",
     "TaskResult",
     "TaskStatus",
+    "GeneratedTaskStatus",
     "WebhookMetadata",
     "Activity",
     "ActivityType",

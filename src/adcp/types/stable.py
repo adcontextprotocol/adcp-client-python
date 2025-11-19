@@ -22,18 +22,18 @@ Schema Evolution:
 from __future__ import annotations
 
 from adcp.types._generated import (
+    Action,
     # Core request/response types
     ActivateSignalRequest,
     ActivateSignalResponse,
-    Action,
     AffectedPackage,
     AggregatedTotals,
     # Assets
     Asset,
     AssetSelectors,
+    AssetsRequired,
     AssetType,
     AssetTypeSchema,
-    AssetsRequired,
     AssignedPackage,
     Assignments,
     AudioAsset,
@@ -88,8 +88,8 @@ from adcp.types._generated import (
     Duration,
     Embedding,
     Error,
-    FeedFormat,
     FeedbackSource,
+    FeedFormat,
     FieldModel,
     FileSize,
     Filters,
