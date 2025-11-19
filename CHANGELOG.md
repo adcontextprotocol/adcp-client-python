@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.7.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.6.0...v2.7.0) (2025-11-19)
+
+
+### Features
+
+* export FormatId, PackageRequest, PushNotificationConfig, and PriceGuidance from stable API ([#68](https://github.com/adcontextprotocol/adcp-client-python/issues/68)) ([654f882](https://github.com/adcontextprotocol/adcp-client-python/commit/654f8826455bf67f5b9cfb5717c6cd1af84b648e))
+
+
+### Bug Fixes
+
+* trigger 2.6.1 release for import boundary enforcement ([#66](https://github.com/adcontextprotocol/adcp-client-python/issues/66)) ([ee8017a](https://github.com/adcontextprotocol/adcp-client-python/commit/ee8017a455e6fb4bdb8c0928214c41f33a59f529))
+
 ## [2.6.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.5.0...v2.6.0) (2025-11-19)
 
 
