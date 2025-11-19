@@ -5642,6 +5642,337 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.Deployment1"><code class="flex name class">
+<span>class <span class="ident">PlatformDeployment</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Deployment1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
+    activation_key: Annotated[
+        activation_key_1.ActivationKey1 | activation_key_1.ActivationKey2 | None,
+        Field(
+            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this destination.&#39;,
+            title=&#39;Activation Key&#39;,
+        ),
+    ] = None
+    deployed_at: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;Timestamp when activation completed (if is_live=true)&#39;),
+    ] = None
+    estimated_activation_duration_minutes: Annotated[
+        float | None,
+        Field(
+            description=&#39;Estimated time to activate if not live, or to complete activation if in progress&#39;,
+            ge=0.0,
+        ),
+    ] = None
+    is_live: Annotated[
+        bool, Field(description=&#39;Whether signal is currently active on this destination&#39;)
+    ]
+    platform: Annotated[str, Field(description=&#39;Platform identifier for DSPs&#39;)]
+    type: Annotated[
+        Literal[&#39;platform&#39;],
+        Field(description=&#39;Discriminator indicating this is a platform-based deployment&#39;),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="types/base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.Deployment1.account"><code class="name">var <span class="ident">account</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Deployment1.activation_key"><code class="name">var <span class="ident">activation_key</span> : <a title="adcp.types.generated_poc.activation_key.ActivationKey1" href="types/generated_poc/activation_key.html#adcp.types.generated_poc.activation_key.ActivationKey1">ActivationKey1</a> | <a title="adcp.types.generated_poc.activation_key.ActivationKey2" href="types/generated_poc/activation_key.html#adcp.types.generated_poc.activation_key.ActivationKey2">ActivationKey2</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Deployment1.deployed_at"><code class="name">var <span class="ident">deployed_at</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Deployment1.estimated_activation_duration_minutes"><code class="name">var <span class="ident">estimated_activation_duration_minutes</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Deployment1.is_live"><code class="name">var <span class="ident">is_live</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Deployment1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Deployment1.platform"><code class="name">var <span class="ident">platform</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Deployment1.type"><code class="name">var <span class="ident">type</span> : Literal['platform']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="types/base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="types/base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="types/base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.Deployment2"><code class="flex name class">
+<span>class <span class="ident">AgentDeployment</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Deployment2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
+    activation_key: Annotated[
+        activation_key_1.ActivationKey1 | activation_key_1.ActivationKey2 | None,
+        Field(
+            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this destination.&#39;,
+            title=&#39;Activation Key&#39;,
+        ),
+    ] = None
+    agent_url: Annotated[AnyUrl, Field(description=&#39;URL identifying the destination agent&#39;)]
+    deployed_at: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;Timestamp when activation completed (if is_live=true)&#39;),
+    ] = None
+    estimated_activation_duration_minutes: Annotated[
+        float | None,
+        Field(
+            description=&#39;Estimated time to activate if not live, or to complete activation if in progress&#39;,
+            ge=0.0,
+        ),
+    ] = None
+    is_live: Annotated[
+        bool, Field(description=&#39;Whether signal is currently active on this destination&#39;)
+    ]
+    type: Annotated[
+        Literal[&#39;agent&#39;],
+        Field(description=&#39;Discriminator indicating this is an agent URL-based deployment&#39;),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="types/base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.Deployment2.account"><code class="name">var <span class="ident">account</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Deployment2.activation_key"><code class="name">var <span class="ident">activation_key</span> : <a title="adcp.types.generated_poc.activation_key.ActivationKey1" href="types/generated_poc/activation_key.html#adcp.types.generated_poc.activation_key.ActivationKey1">ActivationKey1</a> | <a title="adcp.types.generated_poc.activation_key.ActivationKey2" href="types/generated_poc/activation_key.html#adcp.types.generated_poc.activation_key.ActivationKey2">ActivationKey2</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Deployment2.agent_url"><code class="name">var <span class="ident">agent_url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Deployment2.deployed_at"><code class="name">var <span class="ident">deployed_at</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Deployment2.estimated_activation_duration_minutes"><code class="name">var <span class="ident">estimated_activation_duration_minutes</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Deployment2.is_live"><code class="name">var <span class="ident">is_live</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Deployment2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Deployment2.type"><code class="name">var <span class="ident">type</span> : Literal['agent']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="types/base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="types/base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="types/base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.Destination1"><code class="flex name class">
+<span>class <span class="ident">PlatformDestination</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Destination1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    account: Annotated[
+        str | None, Field(description=&#39;Optional account identifier on the platform&#39;)
+    ] = None
+    platform: Annotated[
+        str,
+        Field(description=&#34;Platform identifier for DSPs (e.g., &#39;the-trade-desk&#39;, &#39;amazon-dsp&#39;)&#34;),
+    ]
+    type: Annotated[
+        Literal[&#39;platform&#39;],
+        Field(description=&#39;Discriminator indicating this is a platform-based destination&#39;),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="types/base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.Destination1.account"><code class="name">var <span class="ident">account</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Destination1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Destination1.platform"><code class="name">var <span class="ident">platform</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Destination1.type"><code class="name">var <span class="ident">type</span> : Literal['platform']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="types/base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="types/base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="types/base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.Destination2"><code class="flex name class">
+<span>class <span class="ident">AgentDestination</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Destination2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    account: Annotated[
+        str | None, Field(description=&#39;Optional account identifier on the agent&#39;)
+    ] = None
+    agent_url: Annotated[
+        AnyUrl, Field(description=&#39;URL identifying the destination agent (for sales agents, etc.)&#39;)
+    ]
+    type: Annotated[
+        Literal[&#39;agent&#39;],
+        Field(description=&#39;Discriminator indicating this is an agent URL-based destination&#39;),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="types/base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.Destination2.account"><code class="name">var <span class="ident">account</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Destination2.agent_url"><code class="name">var <span class="ident">agent_url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Destination2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Destination2.type"><code class="name">var <span class="ident">type</span> : Literal['agent']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="types/base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="types/base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="types/base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.Error"><code class="flex name class">
 <span>class <span class="ident">Error</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -8713,6 +9044,109 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.PropertyId"><code class="flex name class">
+<span>class <span class="ident">PropertyId</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PropertyId(RootModel[str]):
+    root: Annotated[str, Field(pattern=&#39;^[a-z0-9_]+$&#39;)]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[str]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.product.PropertyTag" href="types/generated_poc/product.html#adcp.types.generated_poc.product.PropertyTag">PropertyTag</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.PropertyId.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.PropertyId.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.PropertyTag"><code class="flex name class">
+<span>class <span class="ident">PropertyTag</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PropertyTag(PropertyId):
+    pass</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.product.PropertyId" href="types/generated_poc/product.html#adcp.types.generated_poc.product.PropertyId">PropertyId</a></li>
+<li>pydantic.root_model.RootModel[str]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.PropertyTag.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.Protocol"><code class="flex name class">
 <span>class <span class="ident">Protocol</span></span>
 <span>(</span><span>*args, **kwds)</span>
@@ -9032,6 +9466,215 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.ProvidePerformanceFeedbackResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="types/base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="types/base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="types/base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.PublisherProperties"><code class="flex name class">
+<span>class <span class="ident">PublisherPropertiesAll</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PublisherProperties(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    publisher_domain: Annotated[
+        str,
+        Field(
+            description=&#34;Domain where publisher&#39;s adagents.json is hosted (e.g., &#39;cnn.com&#39;)&#34;,
+            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+        ),
+    ]
+    selection_type: Annotated[
+        Literal[&#39;all&#39;],
+        Field(
+            description=&#39;Discriminator indicating all properties from this publisher are included&#39;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="types/base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.PublisherProperties.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.PublisherProperties.publisher_domain"><code class="name">var <span class="ident">publisher_domain</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.PublisherProperties.selection_type"><code class="name">var <span class="ident">selection_type</span> : Literal['all']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="types/base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="types/base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="types/base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.PublisherProperties4"><code class="flex name class">
+<span>class <span class="ident">PublisherPropertiesById</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PublisherProperties4(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    property_ids: Annotated[
+        list[PropertyId],
+        Field(description=&#34;Specific property IDs from the publisher&#39;s adagents.json&#34;, min_length=1),
+    ]
+    publisher_domain: Annotated[
+        str,
+        Field(
+            description=&#34;Domain where publisher&#39;s adagents.json is hosted (e.g., &#39;cnn.com&#39;)&#34;,
+            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+        ),
+    ]
+    selection_type: Annotated[
+        Literal[&#39;by_id&#39;],
+        Field(description=&#39;Discriminator indicating selection by specific property IDs&#39;),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="types/base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.PublisherProperties4.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.PublisherProperties4.property_ids"><code class="name">var <span class="ident">property_ids</span> : list[<a title="adcp.types.generated_poc.product.PropertyId" href="types/generated_poc/product.html#adcp.types.generated_poc.product.PropertyId">PropertyId</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.PublisherProperties4.publisher_domain"><code class="name">var <span class="ident">publisher_domain</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.PublisherProperties4.selection_type"><code class="name">var <span class="ident">selection_type</span> : Literal['by_id']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="types/base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="types/base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="types/base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.PublisherProperties5"><code class="flex name class">
+<span>class <span class="ident">PublisherPropertiesByTag</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PublisherProperties5(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    property_tags: Annotated[
+        list[PropertyTag],
+        Field(
+            description=&#34;Property tags from the publisher&#39;s adagents.json. Product covers all properties with these tags&#34;,
+            min_length=1,
+        ),
+    ]
+    publisher_domain: Annotated[
+        str,
+        Field(
+            description=&#34;Domain where publisher&#39;s adagents.json is hosted (e.g., &#39;cnn.com&#39;)&#34;,
+            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+        ),
+    ]
+    selection_type: Annotated[
+        Literal[&#39;by_tag&#39;], Field(description=&#39;Discriminator indicating selection by property tags&#39;)
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="types/base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.PublisherProperties5.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.PublisherProperties5.property_tags"><code class="name">var <span class="ident">property_tags</span> : list[<a title="adcp.types.generated_poc.product.PropertyTag" href="types/generated_poc/product.html#adcp.types.generated_poc.product.PropertyTag">PropertyTag</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.PublisherProperties5.publisher_domain"><code class="name">var <span class="ident">publisher_domain</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.PublisherProperties5.selection_type"><code class="name">var <span class="ident">selection_type</span> : Literal['by_tag']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -11076,6 +11719,50 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.Deployment1" href="#adcp.Deployment1">Deployment1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.Deployment1.account" href="#adcp.Deployment1.account">account</a></code></li>
+<li><code><a title="adcp.Deployment1.activation_key" href="#adcp.Deployment1.activation_key">activation_key</a></code></li>
+<li><code><a title="adcp.Deployment1.deployed_at" href="#adcp.Deployment1.deployed_at">deployed_at</a></code></li>
+<li><code><a title="adcp.Deployment1.estimated_activation_duration_minutes" href="#adcp.Deployment1.estimated_activation_duration_minutes">estimated_activation_duration_minutes</a></code></li>
+<li><code><a title="adcp.Deployment1.is_live" href="#adcp.Deployment1.is_live">is_live</a></code></li>
+<li><code><a title="adcp.Deployment1.model_config" href="#adcp.Deployment1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.Deployment1.platform" href="#adcp.Deployment1.platform">platform</a></code></li>
+<li><code><a title="adcp.Deployment1.type" href="#adcp.Deployment1.type">type</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.Deployment2" href="#adcp.Deployment2">Deployment2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.Deployment2.account" href="#adcp.Deployment2.account">account</a></code></li>
+<li><code><a title="adcp.Deployment2.activation_key" href="#adcp.Deployment2.activation_key">activation_key</a></code></li>
+<li><code><a title="adcp.Deployment2.agent_url" href="#adcp.Deployment2.agent_url">agent_url</a></code></li>
+<li><code><a title="adcp.Deployment2.deployed_at" href="#adcp.Deployment2.deployed_at">deployed_at</a></code></li>
+<li><code><a title="adcp.Deployment2.estimated_activation_duration_minutes" href="#adcp.Deployment2.estimated_activation_duration_minutes">estimated_activation_duration_minutes</a></code></li>
+<li><code><a title="adcp.Deployment2.is_live" href="#adcp.Deployment2.is_live">is_live</a></code></li>
+<li><code><a title="adcp.Deployment2.model_config" href="#adcp.Deployment2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.Deployment2.type" href="#adcp.Deployment2.type">type</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.Destination1" href="#adcp.Destination1">Destination1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.Destination1.account" href="#adcp.Destination1.account">account</a></code></li>
+<li><code><a title="adcp.Destination1.model_config" href="#adcp.Destination1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.Destination1.platform" href="#adcp.Destination1.platform">platform</a></code></li>
+<li><code><a title="adcp.Destination1.type" href="#adcp.Destination1.type">type</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.Destination2" href="#adcp.Destination2">Destination2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.Destination2.account" href="#adcp.Destination2.account">account</a></code></li>
+<li><code><a title="adcp.Destination2.agent_url" href="#adcp.Destination2.agent_url">agent_url</a></code></li>
+<li><code><a title="adcp.Destination2.model_config" href="#adcp.Destination2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.Destination2.type" href="#adcp.Destination2.type">type</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.Error" href="#adcp.Error">Error</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.Error.code" href="#adcp.Error.code">code</a></code></li>
@@ -11463,6 +12150,19 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.PropertyId" href="#adcp.PropertyId">PropertyId</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.PropertyId.model_config" href="#adcp.PropertyId.model_config">model_config</a></code></li>
+<li><code><a title="adcp.PropertyId.root" href="#adcp.PropertyId.root">root</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.PropertyTag" href="#adcp.PropertyTag">PropertyTag</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.PropertyTag.model_config" href="#adcp.PropertyTag.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.Protocol" href="#adcp.Protocol">Protocol</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.Protocol.A2A" href="#adcp.Protocol.A2A">A2A</a></code></li>
@@ -11504,6 +12204,32 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.ProvidePerformanceFeedbackResponse2.context" href="#adcp.ProvidePerformanceFeedbackResponse2.context">context</a></code></li>
 <li><code><a title="adcp.ProvidePerformanceFeedbackResponse2.errors" href="#adcp.ProvidePerformanceFeedbackResponse2.errors">errors</a></code></li>
 <li><code><a title="adcp.ProvidePerformanceFeedbackResponse2.model_config" href="#adcp.ProvidePerformanceFeedbackResponse2.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.PublisherProperties" href="#adcp.PublisherProperties">PublisherProperties</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.PublisherProperties.model_config" href="#adcp.PublisherProperties.model_config">model_config</a></code></li>
+<li><code><a title="adcp.PublisherProperties.publisher_domain" href="#adcp.PublisherProperties.publisher_domain">publisher_domain</a></code></li>
+<li><code><a title="adcp.PublisherProperties.selection_type" href="#adcp.PublisherProperties.selection_type">selection_type</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.PublisherProperties4" href="#adcp.PublisherProperties4">PublisherProperties4</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.PublisherProperties4.model_config" href="#adcp.PublisherProperties4.model_config">model_config</a></code></li>
+<li><code><a title="adcp.PublisherProperties4.property_ids" href="#adcp.PublisherProperties4.property_ids">property_ids</a></code></li>
+<li><code><a title="adcp.PublisherProperties4.publisher_domain" href="#adcp.PublisherProperties4.publisher_domain">publisher_domain</a></code></li>
+<li><code><a title="adcp.PublisherProperties4.selection_type" href="#adcp.PublisherProperties4.selection_type">selection_type</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.PublisherProperties5" href="#adcp.PublisherProperties5">PublisherProperties5</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.PublisherProperties5.model_config" href="#adcp.PublisherProperties5.model_config">model_config</a></code></li>
+<li><code><a title="adcp.PublisherProperties5.property_tags" href="#adcp.PublisherProperties5.property_tags">property_tags</a></code></li>
+<li><code><a title="adcp.PublisherProperties5.publisher_domain" href="#adcp.PublisherProperties5.publisher_domain">publisher_domain</a></code></li>
+<li><code><a title="adcp.PublisherProperties5.selection_type" href="#adcp.PublisherProperties5.selection_type">selection_type</a></code></li>
 </ul>
 </li>
 <li>
