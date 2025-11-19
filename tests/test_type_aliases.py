@@ -435,15 +435,15 @@ def test_publisher_properties_aliases_point_to_correct_types():
     """Test that PublisherProperties aliases point to the correct generated types."""
     from adcp import PublisherPropertiesAll, PublisherPropertiesById, PublisherPropertiesByTag
     from adcp.types._generated import (
-        _PublisherProperties4FromProduct,
-        _PublisherProperties5FromProduct,
-        _PublisherPropertiesFromProduct,
+        PublisherPropertySelector1,
+        PublisherPropertySelector2,
+        PublisherPropertySelector3,
     )
 
-    # Verify aliases point to correct types (from product module, not adagents)
-    assert PublisherPropertiesAll is _PublisherPropertiesFromProduct
-    assert PublisherPropertiesById is _PublisherProperties4FromProduct
-    assert PublisherPropertiesByTag is _PublisherProperties5FromProduct
+    # Verify aliases point to correct types (from shared publisher_property_selector module)
+    assert PublisherPropertiesAll is PublisherPropertySelector1
+    assert PublisherPropertiesById is PublisherPropertySelector2
+    assert PublisherPropertiesByTag is PublisherPropertySelector3
 
     # Verify they're different types
     assert PublisherPropertiesAll is not PublisherPropertiesById

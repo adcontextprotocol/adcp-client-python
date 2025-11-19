@@ -33,13 +33,13 @@ from adcp.types._generated import (
     Deployment2,  # Agent
     Destination1,  # Platform
     Destination2,  # Agent
-    _PublisherProperties4FromProduct,  # selection_type='by_id' (qualified name)
-    _PublisherProperties5FromProduct,  # selection_type='by_tag' (qualified name)
+    PublisherPropertySelector2,  # selection_type='by_id' (shared schema)
+    PublisherPropertySelector3,  # selection_type='by_tag' (shared schema)
 )
 
-# Use qualified names for local aliases in this test
-PublisherProperties4 = _PublisherProperties4FromProduct
-PublisherProperties5 = _PublisherProperties5FromProduct
+# Use shorter names for local aliases in this test
+PublisherProperties4 = PublisherPropertySelector2
+PublisherProperties5 = PublisherPropertySelector3
 
 
 class TestAuthorizationDiscriminatedUnions:

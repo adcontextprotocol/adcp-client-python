@@ -62,9 +62,6 @@ def generate_consolidated_exports() -> str:
     # We need BOTH versions of these types available, so import them with qualified names
     KNOWN_COLLISIONS = {
         "Package": {"package", "create_media_buy_response"},
-        "PublisherProperties": {"product", "adagents"},
-        "PublisherProperties4": {"product", "adagents"},
-        "PublisherProperties5": {"product", "adagents"},
     }
 
     special_imports = []

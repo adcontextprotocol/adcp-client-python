@@ -318,7 +318,7 @@
               "properties": {
                 "description": "Specific properties this agent is authorized for (alternative to property_ids/property_tags)",
                 "items": {
-                  "$ref": "property.json"
+                  "$ref": "/schemas/v1/core/property.json"
                 },
                 "minItems": 1,
                 "type": "array"
@@ -354,68 +354,7 @@
               "publisher_properties": {
                 "description": "Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell",
                 "items": {
-                  "oneOf": [
-                    {
-                      "additionalProperties": false,
-                      "properties": {
-                        "property_ids": {
-                          "description": "Specific property IDs from the publisher's adagents.json properties array",
-                          "items": {
-                            "pattern": "^[a-z0-9_]+$",
-                            "type": "string"
-                          },
-                          "minItems": 1,
-                          "type": "array"
-                        },
-                        "publisher_domain": {
-                          "description": "Domain where the publisher's adagents.json is hosted (e.g., 'cnn.com')",
-                          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
-                          "type": "string"
-                        },
-                        "selection_type": {
-                          "const": "by_id",
-                          "description": "Discriminator indicating selection by specific property IDs",
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "publisher_domain",
-                        "selection_type",
-                        "property_ids"
-                      ],
-                      "type": "object"
-                    },
-                    {
-                      "additionalProperties": false,
-                      "properties": {
-                        "property_tags": {
-                          "description": "Property tags from the publisher's adagents.json tags. Agent is authorized for all properties with these tags",
-                          "items": {
-                            "pattern": "^[a-z0-9_]+$",
-                            "type": "string"
-                          },
-                          "minItems": 1,
-                          "type": "array"
-                        },
-                        "publisher_domain": {
-                          "description": "Domain where the publisher's adagents.json is hosted (e.g., 'cnn.com')",
-                          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
-                          "type": "string"
-                        },
-                        "selection_type": {
-                          "const": "by_tag",
-                          "description": "Discriminator indicating selection by property tags",
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "publisher_domain",
-                        "selection_type",
-                        "property_tags"
-                      ],
-                      "type": "object"
-                    }
-                  ]
+                  "$ref": "/schemas/v1/core/publisher-property-selector.json"
                 },
                 "minItems": 1,
                 "type": "array"
@@ -487,7 +426,7 @@
     "properties": {
       "description": "Array of all properties covered by this adagents.json file. Same structure as list_authorized_properties response.",
       "items": {
-        "$ref": "property.json"
+        "$ref": "/schemas/v1/core/property.json"
       },
       "minItems": 1,
       "type": "array"

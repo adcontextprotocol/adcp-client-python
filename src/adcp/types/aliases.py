@@ -85,6 +85,15 @@ from adcp.types._generated import (
     VastAsset1,
     VastAsset2,
 )
+from adcp.types._generated import (
+    PublisherPropertySelector1 as PublisherPropertiesInternal,
+)
+from adcp.types._generated import (
+    PublisherPropertySelector2 as PublisherPropertiesByIdInternal,
+)
+from adcp.types._generated import (
+    PublisherPropertySelector3 as PublisherPropertiesByTagInternal,
+)
 
 # Import all generated types that need semantic aliases
 from adcp.types._generated import (
@@ -93,15 +102,6 @@ from adcp.types._generated import (
 )
 from adcp.types._generated import (
     _PackageFromPackage as FullPackageInternal,
-)
-from adcp.types._generated import (
-    _PublisherProperties4FromProduct as PublisherPropertiesByIdInternal,
-)
-from adcp.types._generated import (
-    _PublisherProperties5FromProduct as PublisherPropertiesByTagInternal,
-)
-from adcp.types._generated import (
-    _PublisherPropertiesFromProduct as PublisherPropertiesInternal,
 )
 
 # ============================================================================
