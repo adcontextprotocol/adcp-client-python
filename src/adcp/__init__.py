@@ -132,6 +132,7 @@ from adcp.types.stable import (
     Error,
     FlatRatePricingOption,
     Format,
+    FormatId,
     GetMediaBuyDeliveryRequest,
     GetMediaBuyDeliveryResponse,
     GetProductsRequest,
@@ -147,14 +148,17 @@ from adcp.types.stable import (
     MediaBuy,
     MediaBuyStatus,
     Package,
+    PackageRequest,
     PackageStatus,
     PreviewCreativeRequest,
     PreviewCreativeResponse,
+    PriceGuidance,
     PricingModel,
     Product,
     Property,
     ProvidePerformanceFeedbackRequest,
     ProvidePerformanceFeedbackResponse,
+    PushNotificationConfig,
     SyncCreativesRequest,
     SyncCreativesResponse,
     UpdateMediaBuyRequest,
@@ -214,6 +218,7 @@ __all__ = [
     "ProvidePerformanceFeedbackResponse",
     "Error",
     "Format",
+    "FormatId",
     "Product",
     "Property",
     # Core domain types (from stable API)
@@ -222,6 +227,7 @@ __all__ = [
     "CreativeManifest",
     "MediaBuy",
     "Package",
+    "PackageRequest",
     # Package type aliases
     "CreatedPackageReference",
     # Status enums (for control flow)
@@ -229,7 +235,7 @@ __all__ = [
     "MediaBuyStatus",
     "PackageStatus",
     "PricingModel",
-    # Pricing options (all 9 types)
+    # Pricing-related types
     "CpcPricingOption",
     "CpcvPricingOption",
     "CpmAuctionPricingOption",
@@ -237,8 +243,11 @@ __all__ = [
     "CppPricingOption",
     "CpvPricingOption",
     "FlatRatePricingOption",
+    "PriceGuidance",
     "VcpmAuctionPricingOption",
     "VcpmFixedRatePricingOption",
+    # Configuration types
+    "PushNotificationConfig",
     # Adagents validation
     "AuthorizationContext",
     "fetch_adagents",
