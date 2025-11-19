@@ -56,47 +56,6 @@ from adcp.testing import (
 from adcp.types import _generated as generated
 from adcp.types import aliases
 
-# Re-export commonly-used request/response types for convenience
-# Users should import from main package (e.g., `from adcp import GetProductsRequest`)
-# rather than internal modules for better API stability
-from adcp.types.stable import (
-    # Audience & Targeting
-    ActivateSignalRequest,
-    ActivateSignalResponse,
-    # Creative Operations
-    BuildCreativeRequest,
-    BuildCreativeResponse,
-    # Media Buy Operations
-    CreateMediaBuyRequest,
-    CreateMediaBuyResponse,
-    # Common data types
-    Error,
-    Format,
-    GetMediaBuyDeliveryRequest,
-    GetMediaBuyDeliveryResponse,
-    GetProductsRequest,
-    GetProductsResponse,
-    GetSignalsRequest,
-    GetSignalsResponse,
-    ListAuthorizedPropertiesRequest,
-    ListAuthorizedPropertiesResponse,
-    ListCreativeFormatsRequest,
-    ListCreativeFormatsResponse,
-    ListCreativesRequest,
-    ListCreativesResponse,
-    PreviewCreativeRequest,
-    PreviewCreativeResponse,
-    Product,
-    Property,
-    ProvidePerformanceFeedbackRequest,
-    ProvidePerformanceFeedbackResponse,
-    SyncCreativesRequest,
-    SyncCreativesResponse,
-    TaskStatus as GeneratedTaskStatus,
-    UpdateMediaBuyRequest,
-    UpdateMediaBuyResponse,
-)
-
 # Re-export semantic type aliases for better ergonomics
 from adcp.types.aliases import (
     ActivateSignalErrorResponse,
@@ -141,11 +100,20 @@ from adcp.types.aliases import (
 )
 from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus, WebhookMetadata
 
+# Re-export commonly-used request/response types for convenience
+# Users should import from main package (e.g., `from adcp import GetProductsRequest`)
+# rather than internal modules for better API stability
 # Re-export core domain types and pricing options from stable API
 # These are commonly used in typical workflows
 from adcp.types.stable import (
+    # Audience & Targeting
+    ActivateSignalRequest,
+    ActivateSignalResponse,
     # Core domain types
     BrandManifest,
+    # Creative Operations
+    BuildCreativeRequest,
+    BuildCreativeResponse,
     # Pricing options (all 9 types for product creation)
     CpcPricingOption,
     CpcvPricingOption,
@@ -153,18 +121,49 @@ from adcp.types.stable import (
     CpmFixedRatePricingOption,
     CppPricingOption,
     CpvPricingOption,
+    # Media Buy Operations
+    CreateMediaBuyRequest,
+    CreateMediaBuyResponse,
     Creative,
     CreativeManifest,
     # Status enums (for control flow)
     CreativeStatus,
+    # Common data types
+    Error,
     FlatRatePricingOption,
+    Format,
+    GetMediaBuyDeliveryRequest,
+    GetMediaBuyDeliveryResponse,
+    GetProductsRequest,
+    GetProductsResponse,
+    GetSignalsRequest,
+    GetSignalsResponse,
+    ListAuthorizedPropertiesRequest,
+    ListAuthorizedPropertiesResponse,
+    ListCreativeFormatsRequest,
+    ListCreativeFormatsResponse,
+    ListCreativesRequest,
+    ListCreativesResponse,
     MediaBuy,
     MediaBuyStatus,
     Package,
     PackageStatus,
+    PreviewCreativeRequest,
+    PreviewCreativeResponse,
     PricingModel,
+    Product,
+    Property,
+    ProvidePerformanceFeedbackRequest,
+    ProvidePerformanceFeedbackResponse,
+    SyncCreativesRequest,
+    SyncCreativesResponse,
+    UpdateMediaBuyRequest,
+    UpdateMediaBuyResponse,
     VcpmAuctionPricingOption,
     VcpmFixedRatePricingOption,
+)
+from adcp.types.stable import (
+    TaskStatus as GeneratedTaskStatus,
 )
 from adcp.validation import (
     ValidationError,

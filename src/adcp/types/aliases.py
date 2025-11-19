@@ -31,11 +31,7 @@ immediately rather than at runtime when users try to use the aliases.
 
 from __future__ import annotations
 
-# Import all generated types that need semantic aliases
 from adcp.types._generated import (
-    # Package types (from name collision resolution)
-    _PackageFromCreateMediaBuyResponse as CreatedPackageInternal,
-    _PackageFromPackage as FullPackageInternal,
     # Activation responses
     ActivateSignalResponse1,
     ActivateSignalResponse2,
@@ -67,15 +63,12 @@ from adcp.types._generated import (
     PreviewRender1,
     PreviewRender2,
     PreviewRender3,
-    # Performance feedback responses
-    ProvidePerformanceFeedbackResponse1,
-    ProvidePerformanceFeedbackResponse2,
     # Publisher properties types
     PropertyId,
     PropertyTag,
-    PublisherProperties as PublisherPropertiesInternal,
-    PublisherProperties4 as PublisherPropertiesByIdInternal,
-    PublisherProperties5 as PublisherPropertiesByTagInternal,
+    # Performance feedback responses
+    ProvidePerformanceFeedbackResponse1,
+    ProvidePerformanceFeedbackResponse2,
     # SubAssets
     SubAsset1,
     SubAsset2,
@@ -91,6 +84,24 @@ from adcp.types._generated import (
     # VAST assets
     VastAsset1,
     VastAsset2,
+)
+from adcp.types._generated import (
+    PublisherProperties as PublisherPropertiesInternal,
+)
+from adcp.types._generated import (
+    PublisherProperties4 as PublisherPropertiesByIdInternal,
+)
+from adcp.types._generated import (
+    PublisherProperties5 as PublisherPropertiesByTagInternal,
+)
+
+# Import all generated types that need semantic aliases
+from adcp.types._generated import (
+    # Package types (from name collision resolution)
+    _PackageFromCreateMediaBuyResponse as CreatedPackageInternal,
+)
+from adcp.types._generated import (
+    _PackageFromPackage as FullPackageInternal,
 )
 
 # ============================================================================
