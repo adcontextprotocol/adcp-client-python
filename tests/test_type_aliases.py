@@ -561,7 +561,7 @@ def test_deployment_aliases_imports():
 def test_deployment_aliases_point_to_correct_types():
     """Test that Deployment aliases point to the correct generated types."""
     from adcp import AgentDeployment, PlatformDeployment
-    from adcp.types.generated_poc.deployment import Deployment1, Deployment2
+    from adcp.types._generated import Deployment1, Deployment2
 
     # Verify aliases point to correct types
     assert PlatformDeployment is Deployment1
@@ -607,7 +607,7 @@ def test_destination_aliases_imports():
 def test_destination_aliases_point_to_correct_types():
     """Test that Destination aliases point to the correct generated types."""
     from adcp import AgentDestination, PlatformDestination
-    from adcp.types.generated_poc.destination import Destination1, Destination2
+    from adcp.types._generated import Destination1, Destination2
 
     # Verify aliases point to correct types
     assert PlatformDestination is Destination1

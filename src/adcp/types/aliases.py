@@ -38,6 +38,11 @@ from adcp.types._generated import (
     # Activation keys
     ActivationKey1,
     ActivationKey2,
+    # Authorized agents
+    AuthorizedAgents,
+    AuthorizedAgents1,
+    AuthorizedAgents2,
+    AuthorizedAgents3,
     # Build creative responses
     BuildCreativeResponse1,
     BuildCreativeResponse2,
@@ -480,6 +485,226 @@ Example:
 """
 
 # ============================================================================
+# AUTHORIZED AGENTS ALIASES - Authorization Type Discriminated Unions
+# ============================================================================
+# The AdCP adagents.json schema defines AuthorizedAgents as a discriminated
+# union with four variants based on the `authorization_type` field:
+#
+# 1. Property IDs (authorization_type='property_ids'):
+#    - Agent authorized for specific property IDs
+#    - Requires property_ids array
+#
+# 2. Property Tags (authorization_type='property_tags'):
+#    - Agent authorized for properties matching tags
+#    - Requires property_tags array
+#
+# 3. Inline Properties (authorization_type='inline_properties'):
+#    - Agent authorized with inline property definitions
+#    - Requires properties array with full Property objects
+#
+# 4. Publisher Properties (authorization_type='publisher_properties'):
+#    - Agent authorized for properties from other publisher domains
+#    - Requires publisher_properties array
+#
+# These define which sales agents are authorized to sell inventory and which
+# properties they can access.
+
+AuthorizedAgentsByPropertyId = AuthorizedAgents
+"""Authorized agent with specific property IDs.
+
+This variant uses authorization_type='property_ids' for agents authorized
+to sell specific properties identified by their IDs.
+
+Fields:
+- authorization_type: Literal['property_ids']
+- authorized_for: Human-readable description
+- property_ids: List of PropertyId (non-empty)
+- url: Agent's API endpoint URL
+
+Example:
+    ```python
+    from adcp.types.aliases import AuthorizedAgentsByPropertyId, PropertyId
+
+    agent = AuthorizedAgentsByPropertyId(
+        authorization_type="property_ids",
+        authorized_for="Premium display inventory",
+        property_ids=[PropertyId("homepage"), PropertyId("sports")],
+        url="https://agent.example.com"
+    )
+    ```
+"""
+
+AuthorizedAgentsByPropertyTag = AuthorizedAgents1
+"""Authorized agent with property tags.
+
+This variant uses authorization_type='property_tags' for agents authorized
+to sell properties identified by matching tags.
+
+Fields:
+- authorization_type: Literal['property_tags']
+- authorized_for: Human-readable description
+- property_tags: List of PropertyTag (non-empty)
+- url: Agent's API endpoint URL
+
+Example:
+    ```python
+    from adcp.types.aliases import AuthorizedAgentsByPropertyTag, PropertyTag
+
+    agent = AuthorizedAgentsByPropertyTag(
+        authorization_type="property_tags",
+        authorized_for="Video inventory",
+        property_tags=[PropertyTag("video"), PropertyTag("premium")],
+        url="https://agent.example.com"
+    )
+    ```
+"""
+
+AuthorizedAgentsByInlineProperties = AuthorizedAgents2
+"""Authorized agent with inline property definitions.
+
+This variant uses authorization_type='inline_properties' for agents with
+inline Property objects rather than references to the top-level properties array.
+
+Fields:
+- authorization_type: Literal['inline_properties']
+- authorized_for: Human-readable description
+- properties: List of Property objects (non-empty)
+- url: Agent's API endpoint URL
+
+Example:
+    ```python
+    from adcp.types.aliases import AuthorizedAgentsByInlineProperties
+    from adcp.types.stable import Property
+
+    agent = AuthorizedAgentsByInlineProperties(
+        authorization_type="inline_properties",
+        authorized_for="Custom inventory bundle",
+        properties=[...],  # Full Property objects
+        url="https://agent.example.com"
+    )
+    ```
+"""
+
+AuthorizedAgentsByPublisherProperties = AuthorizedAgents3
+"""Authorized agent for properties from other publishers.
+
+This variant uses authorization_type='publisher_properties' for agents
+authorized to sell inventory from other publisher domains.
+
+Fields:
+- authorization_type: Literal['publisher_properties']
+- authorized_for: Human-readable description
+- publisher_properties: List of PublisherPropertySelector variants (non-empty)
+- url: Agent's API endpoint URL
+
+Example:
+    ```python
+    from adcp.types.aliases import (
+        AuthorizedAgentsByPublisherProperties,
+        PublisherPropertiesAll
+    )
+
+    agent = AuthorizedAgentsByPublisherProperties(
+        authorization_type="publisher_properties",
+        authorized_for="Network inventory across publishers",
+        publisher_properties=[
+            PublisherPropertiesAll(
+                publisher_domain="publisher1.com",
+                selection_type="all"
+            )
+        ],
+        url="https://agent.example.com"
+    )
+    ```
+"""
+
+# ============================================================================
+# UNION TYPE ALIASES - For Type Hints and Pattern Matching
+# ============================================================================
+# These union aliases provide convenient types for function signatures,
+# type hints, and pattern matching without having to manually construct
+# the union each time.
+
+# Deployment union (for signals)
+Deployment = PlatformDeployment | AgentDeployment
+"""Union type for all deployment variants.
+
+Use this for type hints when a function accepts any deployment type:
+
+Example:
+    ```python
+    def process_deployment(deployment: Deployment) -> None:
+        if isinstance(deployment, PlatformDeployment):
+            print(f"Platform: {deployment.platform}")
+        elif isinstance(deployment, AgentDeployment):
+            print(f"Agent: {deployment.agent_url}")
+    ```
+"""
+
+# Destination union (for signals)
+Destination = PlatformDestination | AgentDestination
+"""Union type for all destination variants.
+
+Use this for type hints when a function accepts any destination type:
+
+Example:
+    ```python
+    def format_destination(dest: Destination) -> str:
+        if isinstance(dest, PlatformDestination):
+            return f"Platform: {dest.platform}"
+        elif isinstance(dest, AgentDestination):
+            return f"Agent: {dest.agent_url}"
+    ```
+"""
+
+# Authorized agent union (for adagents.json)
+AuthorizedAgent = (
+    AuthorizedAgentsByPropertyId
+    | AuthorizedAgentsByPropertyTag
+    | AuthorizedAgentsByInlineProperties
+    | AuthorizedAgentsByPublisherProperties
+)
+"""Union type for all authorized agent variants.
+
+Use this for type hints when processing agents from adagents.json:
+
+Example:
+    ```python
+    def validate_agent(agent: AuthorizedAgent) -> bool:
+        match agent.authorization_type:
+            case "property_ids":
+                return len(agent.property_ids) > 0
+            case "property_tags":
+                return len(agent.property_tags) > 0
+            case "inline_properties":
+                return len(agent.properties) > 0
+            case "publisher_properties":
+                return len(agent.publisher_properties) > 0
+    ```
+"""
+
+# Publisher properties union (for product requests)
+PublisherProperties = (
+    PublisherPropertiesAll | PublisherPropertiesById | PublisherPropertiesByTag
+)
+"""Union type for all publisher properties variants.
+
+Use this for type hints in product filtering:
+
+Example:
+    ```python
+    def filter_products(props: PublisherProperties) -> None:
+        match props.selection_type:
+            case "all":
+                print("All properties from publisher")
+            case "by_id":
+                print(f"Properties: {props.property_ids}")
+            case "by_tag":
+                print(f"Tags: {props.property_tags}")
+    ```
+"""
+
+# ============================================================================
 # EXPORTS
 # ============================================================================
 
@@ -500,6 +725,13 @@ __all__ = [
     "UrlDaastAsset",
     "UrlPreviewRender",
     "UrlVastAsset",
+    # Authorized agent variants
+    "AuthorizedAgentsByPropertyId",
+    "AuthorizedAgentsByPropertyTag",
+    "AuthorizedAgentsByInlineProperties",
+    "AuthorizedAgentsByPublisherProperties",
+    # Authorized agent union
+    "AuthorizedAgent",
     # Build creative responses
     "BuildCreativeSuccessResponse",
     "BuildCreativeErrorResponse",
@@ -530,14 +762,20 @@ __all__ = [
     # Publisher properties types
     "PropertyId",
     "PropertyTag",
-    # Publisher properties aliases
+    # Publisher properties variants
     "PublisherPropertiesAll",
     "PublisherPropertiesById",
     "PublisherPropertiesByTag",
-    # Deployment aliases
+    # Publisher properties union
+    "PublisherProperties",
+    # Deployment variants
     "PlatformDeployment",
     "AgentDeployment",
-    # Destination aliases
+    # Deployment union
+    "Deployment",
+    # Destination variants
     "PlatformDestination",
     "AgentDestination",
+    # Destination union
+    "Destination",
 ]
