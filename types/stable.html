@@ -2021,6 +2021,71 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.stable.FormatId"><code class="flex name class">
+<span>class <span class="ident">FormatId</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FormatId(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    agent_url: Annotated[
+        AnyUrl,
+        Field(
+            description=&#34;URL of the agent that defines this format (e.g., &#39;https://creatives.adcontextprotocol.org&#39; for standard formats, or &#39;https://publisher.com/.well-known/adcp/sales&#39; for custom formats)&#34;
+        ),
+    ]
+    id: Annotated[
+        str,
+        Field(
+            description=&#34;Format identifier within the agent&#39;s namespace (e.g., &#39;display_300x250&#39;, &#39;video_standard_30s&#39;)&#34;,
+            pattern=&#39;^[a-zA-Z0-9_-]+$&#39;,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.stable.FormatId.agent_url"><code class="name">var <span class="ident">agent_url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.FormatId.id"><code class="name">var <span class="ident">id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.FormatId.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.stable.GetMediaBuyDeliveryRequest"><code class="flex name class">
 <span>class <span class="ident">GetMediaBuyDeliveryRequest</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -3751,6 +3816,131 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.stable.PackageRequest"><code class="flex name class">
+<span>class <span class="ident">PackageRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PackageRequest(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    bid_price: Annotated[
+        float | None,
+        Field(
+            description=&#39;Bid price for auction-based CPM pricing (required if using cpm-auction-option)&#39;,
+            ge=0.0,
+        ),
+    ] = None
+    budget: Annotated[
+        float,
+        Field(description=&#34;Budget allocation for this package in the media buy&#39;s currency&#34;, ge=0.0),
+    ]
+    buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this package&#34;)]
+    creative_ids: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Creative IDs to assign to this package at creation time (references existing library creatives)&#39;
+        ),
+    ] = None
+    creatives: Annotated[
+        list[creative_asset.CreativeAsset] | None,
+        Field(
+            description=&#39;Full creative objects to upload and assign to this package at creation time (alternative to creative_ids - creatives will be added to library). Supports both static and generative creatives.&#39;,
+            max_length=100,
+        ),
+    ] = None
+    format_ids: Annotated[
+        list[format_id.FormatId] | None,
+        Field(
+            description=&#39;Array of format IDs that will be used for this package - must be supported by the product. If omitted, defaults to all formats supported by the product.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    pacing: pacing_1.Pacing | None = None
+    pricing_option_id: Annotated[
+        str,
+        Field(
+            description=&#34;ID of the selected pricing option from the product&#39;s pricing_options array&#34;
+        ),
+    ]
+    product_id: Annotated[str, Field(description=&#39;Product ID for this package&#39;)]
+    targeting_overlay: targeting.TargetingOverlay | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.stable.PackageRequest.bid_price"><code class="name">var <span class="ident">bid_price</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.PackageRequest.budget"><code class="name">var <span class="ident">budget</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.PackageRequest.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.PackageRequest.creative_ids"><code class="name">var <span class="ident">creative_ids</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.PackageRequest.creatives"><code class="name">var <span class="ident">creatives</span> : list[<a title="adcp.types.generated_poc.creative_asset.CreativeAsset" href="generated_poc/creative_asset.html#adcp.types.generated_poc.creative_asset.CreativeAsset">CreativeAsset</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.PackageRequest.format_ids"><code class="name">var <span class="ident">format_ids</span> : list[<a title="adcp.types.generated_poc.format_id.FormatId" href="generated_poc/format_id.html#adcp.types.generated_poc.format_id.FormatId">FormatId</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.PackageRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.PackageRequest.pacing"><code class="name">var <span class="ident">pacing</span> : <a title="adcp.types.generated_poc.pacing.Pacing" href="generated_poc/pacing.html#adcp.types.generated_poc.pacing.Pacing">Pacing</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.PackageRequest.pricing_option_id"><code class="name">var <span class="ident">pricing_option_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.PackageRequest.product_id"><code class="name">var <span class="ident">product_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.PackageRequest.targeting_overlay"><code class="name">var <span class="ident">targeting_overlay</span> : <a title="adcp.types.generated_poc.targeting.TargetingOverlay" href="generated_poc/targeting.html#adcp.types.generated_poc.targeting.TargetingOverlay">TargetingOverlay</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.stable.PackageStatus"><code class="flex name class">
 <span>class <span class="ident">PackageStatus</span></span>
 <span>(</span><span>*args, **kwds)</span>
@@ -3938,6 +4128,77 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 </dl>
+</dd>
+<dt id="adcp.types.stable.PriceGuidance"><code class="flex name class">
+<span>class <span class="ident">PriceGuidance</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PriceGuidance(AdCPBaseModel):
+    floor: Annotated[
+        float,
+        Field(
+            description=&#39;Minimum bid price - publisher will reject bids under this value&#39;, ge=0.0
+        ),
+    ]
+    p25: Annotated[float | None, Field(description=&#39;25th percentile winning price&#39;, ge=0.0)] = None
+    p50: Annotated[float | None, Field(description=&#39;Median winning price&#39;, ge=0.0)] = None
+    p75: Annotated[float | None, Field(description=&#39;75th percentile winning price&#39;, ge=0.0)] = None
+    p90: Annotated[float | None, Field(description=&#39;90th percentile winning price&#39;, ge=0.0)] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.stable.PriceGuidance.floor"><code class="name">var <span class="ident">floor</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.PriceGuidance.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.PriceGuidance.p25"><code class="name">var <span class="ident">p25</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.PriceGuidance.p50"><code class="name">var <span class="ident">p50</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.PriceGuidance.p75"><code class="name">var <span class="ident">p75</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.PriceGuidance.p90"><code class="name">var <span class="ident">p90</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
 </dd>
 <dt id="adcp.types.stable.PricingModel"><code class="flex name class">
 <span>class <span class="ident">PricingModel</span></span>
@@ -4487,6 +4748,78 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 </dl>
+</dd>
+<dt id="adcp.types.stable.PushNotificationConfig"><code class="flex name class">
+<span>class <span class="ident">PushNotificationConfig</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PushNotificationConfig(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    authentication: Annotated[
+        Authentication,
+        Field(description=&#39;Authentication configuration for webhook delivery (A2A-compatible)&#39;),
+    ]
+    token: Annotated[
+        str | None,
+        Field(
+            description=&#39;Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.&#39;,
+            min_length=16,
+        ),
+    ] = None
+    url: Annotated[AnyUrl, Field(description=&#39;Webhook endpoint URL for task status notifications&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.create_media_buy_request.ReportingWebhook" href="generated_poc/create_media_buy_request.html#adcp.types.generated_poc.create_media_buy_request.ReportingWebhook">ReportingWebhook</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.stable.PushNotificationConfig.authentication"><code class="name">var <span class="ident">authentication</span> : <a title="adcp.types.generated_poc.push_notification_config.Authentication" href="generated_poc/push_notification_config.html#adcp.types.generated_poc.push_notification_config.Authentication">Authentication</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.PushNotificationConfig.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.PushNotificationConfig.token"><code class="name">var <span class="ident">token</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.PushNotificationConfig.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
 </dd>
 <dt id="adcp.types.stable.SyncCreativesRequest"><code class="flex name class">
 <span>class <span class="ident">SyncCreativesRequest</span></span>
@@ -6207,6 +6540,14 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.stable.FormatId" href="#adcp.types.stable.FormatId">FormatId</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.stable.FormatId.agent_url" href="#adcp.types.stable.FormatId.agent_url">agent_url</a></code></li>
+<li><code><a title="adcp.types.stable.FormatId.id" href="#adcp.types.stable.FormatId.id">id</a></code></li>
+<li><code><a title="adcp.types.stable.FormatId.model_config" href="#adcp.types.stable.FormatId.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.stable.GetMediaBuyDeliveryRequest" href="#adcp.types.stable.GetMediaBuyDeliveryRequest">GetMediaBuyDeliveryRequest</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.stable.GetMediaBuyDeliveryRequest.buyer_refs" href="#adcp.types.stable.GetMediaBuyDeliveryRequest.buyer_refs">buyer_refs</a></code></li>
@@ -6428,6 +6769,22 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.stable.PackageRequest" href="#adcp.types.stable.PackageRequest">PackageRequest</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.stable.PackageRequest.bid_price" href="#adcp.types.stable.PackageRequest.bid_price">bid_price</a></code></li>
+<li><code><a title="adcp.types.stable.PackageRequest.budget" href="#adcp.types.stable.PackageRequest.budget">budget</a></code></li>
+<li><code><a title="adcp.types.stable.PackageRequest.buyer_ref" href="#adcp.types.stable.PackageRequest.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.stable.PackageRequest.creative_ids" href="#adcp.types.stable.PackageRequest.creative_ids">creative_ids</a></code></li>
+<li><code><a title="adcp.types.stable.PackageRequest.creatives" href="#adcp.types.stable.PackageRequest.creatives">creatives</a></code></li>
+<li><code><a title="adcp.types.stable.PackageRequest.format_ids" href="#adcp.types.stable.PackageRequest.format_ids">format_ids</a></code></li>
+<li><code><a title="adcp.types.stable.PackageRequest.model_config" href="#adcp.types.stable.PackageRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.stable.PackageRequest.pacing" href="#adcp.types.stable.PackageRequest.pacing">pacing</a></code></li>
+<li><code><a title="adcp.types.stable.PackageRequest.pricing_option_id" href="#adcp.types.stable.PackageRequest.pricing_option_id">pricing_option_id</a></code></li>
+<li><code><a title="adcp.types.stable.PackageRequest.product_id" href="#adcp.types.stable.PackageRequest.product_id">product_id</a></code></li>
+<li><code><a title="adcp.types.stable.PackageRequest.targeting_overlay" href="#adcp.types.stable.PackageRequest.targeting_overlay">targeting_overlay</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.stable.PackageStatus" href="#adcp.types.stable.PackageStatus">PackageStatus</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.stable.PackageStatus.active" href="#adcp.types.stable.PackageStatus.active">active</a></code></li>
@@ -6448,6 +6805,17 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.stable.PreviewCreativeResponse.model_config" href="#adcp.types.stable.PreviewCreativeResponse.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.stable.PreviewCreativeResponse.root" href="#adcp.types.stable.PreviewCreativeResponse.root">root</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.stable.PriceGuidance" href="#adcp.types.stable.PriceGuidance">PriceGuidance</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.stable.PriceGuidance.floor" href="#adcp.types.stable.PriceGuidance.floor">floor</a></code></li>
+<li><code><a title="adcp.types.stable.PriceGuidance.model_config" href="#adcp.types.stable.PriceGuidance.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.stable.PriceGuidance.p25" href="#adcp.types.stable.PriceGuidance.p25">p25</a></code></li>
+<li><code><a title="adcp.types.stable.PriceGuidance.p50" href="#adcp.types.stable.PriceGuidance.p50">p50</a></code></li>
+<li><code><a title="adcp.types.stable.PriceGuidance.p75" href="#adcp.types.stable.PriceGuidance.p75">p75</a></code></li>
+<li><code><a title="adcp.types.stable.PriceGuidance.p90" href="#adcp.types.stable.PriceGuidance.p90">p90</a></code></li>
 </ul>
 </li>
 <li>
@@ -6517,6 +6885,15 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.stable.ProvidePerformanceFeedbackResponse.model_config" href="#adcp.types.stable.ProvidePerformanceFeedbackResponse.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.stable.ProvidePerformanceFeedbackResponse.root" href="#adcp.types.stable.ProvidePerformanceFeedbackResponse.root">root</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.stable.PushNotificationConfig" href="#adcp.types.stable.PushNotificationConfig">PushNotificationConfig</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.stable.PushNotificationConfig.authentication" href="#adcp.types.stable.PushNotificationConfig.authentication">authentication</a></code></li>
+<li><code><a title="adcp.types.stable.PushNotificationConfig.model_config" href="#adcp.types.stable.PushNotificationConfig.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.stable.PushNotificationConfig.token" href="#adcp.types.stable.PushNotificationConfig.token">token</a></code></li>
+<li><code><a title="adcp.types.stable.PushNotificationConfig.url" href="#adcp.types.stable.PushNotificationConfig.url">url</a></code></li>
 </ul>
 </li>
 <li>
