@@ -71,6 +71,65 @@ immediately rather than at runtime when users try to use the aliases.</p>
 <section>
 </section>
 <section>
+<h2 class="section-title" id="header-variables">Global variables</h2>
+<dl>
+<dt id="adcp.types.aliases.AuthorizedAgent"><code class="name">var <span class="ident">AuthorizedAgent</span></code></dt>
+<dd>
+<div class="desc"><p>Union type for all authorized agent variants.</p>
+<p>Use this for type hints when processing agents from adagents.json:</p>
+<h2 id="example">Example</h2>
+<pre><code class="language-python">def validate_agent(agent: AuthorizedAgent) -&gt; bool:
+    match agent.authorization_type:
+        case &quot;property_ids&quot;:
+            return len(agent.property_ids) &gt; 0
+        case &quot;property_tags&quot;:
+            return len(agent.property_tags) &gt; 0
+        case &quot;inline_properties&quot;:
+            return len(agent.properties) &gt; 0
+        case &quot;publisher_properties&quot;:
+            return len(agent.publisher_properties) &gt; 0
+</code></pre></div>
+</dd>
+<dt id="adcp.types.aliases.Deployment"><code class="name">var <span class="ident">Deployment</span></code></dt>
+<dd>
+<div class="desc"><p>Union type for all deployment variants.</p>
+<p>Use this for type hints when a function accepts any deployment type:</p>
+<h2 id="example">Example</h2>
+<pre><code class="language-python">def process_deployment(deployment: Deployment) -&gt; None:
+    if isinstance(deployment, PlatformDeployment):
+        print(f&quot;Platform: {deployment.platform}&quot;)
+    elif isinstance(deployment, AgentDeployment):
+        print(f&quot;Agent: {deployment.agent_url}&quot;)
+</code></pre></div>
+</dd>
+<dt id="adcp.types.aliases.Destination"><code class="name">var <span class="ident">Destination</span></code></dt>
+<dd>
+<div class="desc"><p>Union type for all destination variants.</p>
+<p>Use this for type hints when a function accepts any destination type:</p>
+<h2 id="example">Example</h2>
+<pre><code class="language-python">def format_destination(dest: Destination) -&gt; str:
+    if isinstance(dest, PlatformDestination):
+        return f&quot;Platform: {dest.platform}&quot;
+    elif isinstance(dest, AgentDestination):
+        return f&quot;Agent: {dest.agent_url}&quot;
+</code></pre></div>
+</dd>
+<dt id="adcp.types.aliases.PublisherProperties"><code class="name">var <span class="ident">PublisherProperties</span></code></dt>
+<dd>
+<div class="desc"><p>Union type for all publisher properties variants.</p>
+<p>Use this for type hints in product filtering:</p>
+<h2 id="example">Example</h2>
+<pre><code class="language-python">def filter_products(props: PublisherProperties) -&gt; None:
+    match props.selection_type:
+        case &quot;all&quot;:
+            print(&quot;All properties from publisher&quot;)
+        case &quot;by_id&quot;:
+            print(f&quot;Properties: {props.property_ids}&quot;)
+        case &quot;by_tag&quot;:
+            print(f&quot;Tags: {props.property_tags}&quot;)
+</code></pre></div>
+</dd>
+</dl>
 </section>
 <section>
 </section>
@@ -306,6 +365,332 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.aliases.ActivationKey2.value"><code class="name">var <span class="ident">value</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.AuthorizedAgents"><code class="flex name class">
+<span>class <span class="ident">AuthorizedAgentsByPropertyId</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AuthorizedAgents(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    authorization_type: Annotated[
+        Literal[&#39;property_ids&#39;],
+        Field(description=&#39;Discriminator indicating authorization by specific property IDs&#39;),
+    ]
+    authorized_for: Annotated[
+        str,
+        Field(
+            description=&#39;Human-readable description of what this agent is authorized to sell&#39;,
+            max_length=500,
+            min_length=1,
+        ),
+    ]
+    property_ids: Annotated[
+        list[PropertyId],
+        Field(
+            description=&#39;Property IDs this agent is authorized for. Resolved against the top-level properties array in this file&#39;,
+            min_length=1,
+        ),
+    ]
+    url: Annotated[AnyUrl, Field(description=&#34;The authorized agent&#39;s API endpoint URL&#34;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.AuthorizedAgents.authorization_type"><code class="name">var <span class="ident">authorization_type</span> : Literal['property_ids']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.AuthorizedAgents.authorized_for"><code class="name">var <span class="ident">authorized_for</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.AuthorizedAgents.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.AuthorizedAgents.property_ids"><code class="name">var <span class="ident">property_ids</span> : list[<a title="adcp.types.generated_poc.adagents.PropertyId" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.PropertyId">PropertyId</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.AuthorizedAgents.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.AuthorizedAgents1"><code class="flex name class">
+<span>class <span class="ident">AuthorizedAgentsByPropertyTag</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AuthorizedAgents1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    authorization_type: Annotated[
+        Literal[&#39;property_tags&#39;],
+        Field(description=&#39;Discriminator indicating authorization by property tags&#39;),
+    ]
+    authorized_for: Annotated[
+        str,
+        Field(
+            description=&#39;Human-readable description of what this agent is authorized to sell&#39;,
+            max_length=500,
+            min_length=1,
+        ),
+    ]
+    property_tags: Annotated[
+        list[PropertyTag],
+        Field(
+            description=&#39;Tags identifying which properties this agent is authorized for. Resolved against the top-level properties array in this file using tag matching&#39;,
+            min_length=1,
+        ),
+    ]
+    url: Annotated[AnyUrl, Field(description=&#34;The authorized agent&#39;s API endpoint URL&#34;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.AuthorizedAgents1.authorization_type"><code class="name">var <span class="ident">authorization_type</span> : Literal['property_tags']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.AuthorizedAgents1.authorized_for"><code class="name">var <span class="ident">authorized_for</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.AuthorizedAgents1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.AuthorizedAgents1.property_tags"><code class="name">var <span class="ident">property_tags</span> : list[<a title="adcp.types.generated_poc.adagents.PropertyTag" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.PropertyTag">PropertyTag</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.AuthorizedAgents1.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.AuthorizedAgents2"><code class="flex name class">
+<span>class <span class="ident">AuthorizedAgentsByInlineProperties</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AuthorizedAgents2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    authorization_type: Annotated[
+        Literal[&#39;inline_properties&#39;],
+        Field(description=&#39;Discriminator indicating authorization by inline property definitions&#39;),
+    ]
+    authorized_for: Annotated[
+        str,
+        Field(
+            description=&#39;Human-readable description of what this agent is authorized to sell&#39;,
+            max_length=500,
+            min_length=1,
+        ),
+    ]
+    properties: Annotated[
+        list[property.Property],
+        Field(
+            description=&#39;Specific properties this agent is authorized for (alternative to property_ids/property_tags)&#39;,
+            min_length=1,
+        ),
+    ]
+    url: Annotated[AnyUrl, Field(description=&#34;The authorized agent&#39;s API endpoint URL&#34;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.AuthorizedAgents2.authorization_type"><code class="name">var <span class="ident">authorization_type</span> : Literal['inline_properties']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.AuthorizedAgents2.authorized_for"><code class="name">var <span class="ident">authorized_for</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.AuthorizedAgents2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.AuthorizedAgents2.properties"><code class="name">var <span class="ident">properties</span> : list[<a title="adcp.types.generated_poc.property.Property" href="generated_poc/property.html#adcp.types.generated_poc.property.Property">Property</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.AuthorizedAgents2.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.AuthorizedAgents3"><code class="flex name class">
+<span>class <span class="ident">AuthorizedAgentsByPublisherProperties</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AuthorizedAgents3(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    authorization_type: Annotated[
+        Literal[&#39;publisher_properties&#39;],
+        Field(
+            description=&#39;Discriminator indicating authorization for properties from other publisher domains&#39;
+        ),
+    ]
+    authorized_for: Annotated[
+        str,
+        Field(
+            description=&#39;Human-readable description of what this agent is authorized to sell&#39;,
+            max_length=500,
+            min_length=1,
+        ),
+    ]
+    publisher_properties: Annotated[
+        list[
+            publisher_property_selector.PublisherPropertySelector1
+            | publisher_property_selector.PublisherPropertySelector2
+            | publisher_property_selector.PublisherPropertySelector3
+        ],
+        Field(
+            description=&#39;Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell&#39;,
+            min_length=1,
+        ),
+    ]
+    url: Annotated[AnyUrl, Field(description=&#34;The authorized agent&#39;s API endpoint URL&#34;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.AuthorizedAgents3.authorization_type"><code class="name">var <span class="ident">authorization_type</span> : Literal['publisher_properties']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.AuthorizedAgents3.authorized_for"><code class="name">var <span class="ident">authorized_for</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.AuthorizedAgents3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.AuthorizedAgents3.publisher_properties"><code class="name">var <span class="ident">publisher_properties</span> : list[<a title="adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector1" href="generated_poc/publisher_property_selector.html#adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector1">PublisherPropertySelector1</a> | <a title="adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector2" href="generated_poc/publisher_property_selector.html#adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector2">PublisherPropertySelector2</a> | <a title="adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector3" href="generated_poc/publisher_property_selector.html#adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector3">PublisherPropertySelector3</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.AuthorizedAgents3.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3173,6 +3558,14 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types" href="index.html">adcp.types</a></code></li>
 </ul>
 </li>
+<li><h3><a href="#header-variables">Global variables</a></h3>
+<ul class="">
+<li><code><a title="adcp.types.aliases.AuthorizedAgent" href="#adcp.types.aliases.AuthorizedAgent">AuthorizedAgent</a></code></li>
+<li><code><a title="adcp.types.aliases.Deployment" href="#adcp.types.aliases.Deployment">Deployment</a></code></li>
+<li><code><a title="adcp.types.aliases.Destination" href="#adcp.types.aliases.Destination">Destination</a></code></li>
+<li><code><a title="adcp.types.aliases.PublisherProperties" href="#adcp.types.aliases.PublisherProperties">PublisherProperties</a></code></li>
+</ul>
+</li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
@@ -3206,6 +3599,46 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.ActivationKey2.model_config" href="#adcp.types.aliases.ActivationKey2.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.aliases.ActivationKey2.type" href="#adcp.types.aliases.ActivationKey2.type">type</a></code></li>
 <li><code><a title="adcp.types.aliases.ActivationKey2.value" href="#adcp.types.aliases.ActivationKey2.value">value</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.AuthorizedAgents" href="#adcp.types.aliases.AuthorizedAgents">AuthorizedAgents</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.AuthorizedAgents.authorization_type" href="#adcp.types.aliases.AuthorizedAgents.authorization_type">authorization_type</a></code></li>
+<li><code><a title="adcp.types.aliases.AuthorizedAgents.authorized_for" href="#adcp.types.aliases.AuthorizedAgents.authorized_for">authorized_for</a></code></li>
+<li><code><a title="adcp.types.aliases.AuthorizedAgents.model_config" href="#adcp.types.aliases.AuthorizedAgents.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.AuthorizedAgents.property_ids" href="#adcp.types.aliases.AuthorizedAgents.property_ids">property_ids</a></code></li>
+<li><code><a title="adcp.types.aliases.AuthorizedAgents.url" href="#adcp.types.aliases.AuthorizedAgents.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.AuthorizedAgents1" href="#adcp.types.aliases.AuthorizedAgents1">AuthorizedAgents1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.AuthorizedAgents1.authorization_type" href="#adcp.types.aliases.AuthorizedAgents1.authorization_type">authorization_type</a></code></li>
+<li><code><a title="adcp.types.aliases.AuthorizedAgents1.authorized_for" href="#adcp.types.aliases.AuthorizedAgents1.authorized_for">authorized_for</a></code></li>
+<li><code><a title="adcp.types.aliases.AuthorizedAgents1.model_config" href="#adcp.types.aliases.AuthorizedAgents1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.AuthorizedAgents1.property_tags" href="#adcp.types.aliases.AuthorizedAgents1.property_tags">property_tags</a></code></li>
+<li><code><a title="adcp.types.aliases.AuthorizedAgents1.url" href="#adcp.types.aliases.AuthorizedAgents1.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.AuthorizedAgents2" href="#adcp.types.aliases.AuthorizedAgents2">AuthorizedAgents2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.AuthorizedAgents2.authorization_type" href="#adcp.types.aliases.AuthorizedAgents2.authorization_type">authorization_type</a></code></li>
+<li><code><a title="adcp.types.aliases.AuthorizedAgents2.authorized_for" href="#adcp.types.aliases.AuthorizedAgents2.authorized_for">authorized_for</a></code></li>
+<li><code><a title="adcp.types.aliases.AuthorizedAgents2.model_config" href="#adcp.types.aliases.AuthorizedAgents2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.AuthorizedAgents2.properties" href="#adcp.types.aliases.AuthorizedAgents2.properties">properties</a></code></li>
+<li><code><a title="adcp.types.aliases.AuthorizedAgents2.url" href="#adcp.types.aliases.AuthorizedAgents2.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.AuthorizedAgents3" href="#adcp.types.aliases.AuthorizedAgents3">AuthorizedAgents3</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.AuthorizedAgents3.authorization_type" href="#adcp.types.aliases.AuthorizedAgents3.authorization_type">authorization_type</a></code></li>
+<li><code><a title="adcp.types.aliases.AuthorizedAgents3.authorized_for" href="#adcp.types.aliases.AuthorizedAgents3.authorized_for">authorized_for</a></code></li>
+<li><code><a title="adcp.types.aliases.AuthorizedAgents3.model_config" href="#adcp.types.aliases.AuthorizedAgents3.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.AuthorizedAgents3.publisher_properties" href="#adcp.types.aliases.AuthorizedAgents3.publisher_properties">publisher_properties</a></code></li>
+<li><code><a title="adcp.types.aliases.AuthorizedAgents3.url" href="#adcp.types.aliases.AuthorizedAgents3.url">url</a></code></li>
 </ul>
 </li>
 <li>
