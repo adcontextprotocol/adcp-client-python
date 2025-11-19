@@ -94,8 +94,14 @@ from adcp.types.generated_poc.package import Package as FullPackageInternal
 from adcp.types.generated_poc.product import (
     PropertyId,
     PropertyTag,
+)
+from adcp.types.generated_poc.product import (
     PublisherProperties as PublisherPropertiesInternal,
+)
+from adcp.types.generated_poc.product import (
     PublisherProperties4 as PublisherPropertiesByIdInternal,
+)
+from adcp.types.generated_poc.product import (
     PublisherProperties5 as PublisherPropertiesByTagInternal,
 )
 
