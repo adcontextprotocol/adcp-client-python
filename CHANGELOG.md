@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.6.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.5.0...v2.6.0) (2025-11-19)
+
+
+### Features
+
+* complete semantic alias coverage for discriminated unions ([#63](https://github.com/adcontextprotocol/adcp-client-python/issues/63)) ([ab49c98](https://github.com/adcontextprotocol/adcp-client-python/commit/ab49c98b584cc75fccb7cf9b5810b5c883b16ce4))
+
 ## [2.5.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.4.1...v2.5.0) (2025-11-18)
 
 
