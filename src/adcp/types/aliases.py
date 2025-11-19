@@ -33,6 +33,9 @@ from __future__ import annotations
 
 # Import all generated types that need semantic aliases
 from adcp.types._generated import (
+    # Package types (from name collision resolution)
+    _PackageFromCreateMediaBuyResponse as CreatedPackageInternal,
+    _PackageFromPackage as FullPackageInternal,
     # Activation responses
     ActivateSignalResponse1,
     ActivateSignalResponse2,
@@ -67,6 +70,12 @@ from adcp.types._generated import (
     # Performance feedback responses
     ProvidePerformanceFeedbackResponse1,
     ProvidePerformanceFeedbackResponse2,
+    # Publisher properties types
+    PropertyId,
+    PropertyTag,
+    PublisherProperties as PublisherPropertiesInternal,
+    PublisherProperties4 as PublisherPropertiesByIdInternal,
+    PublisherProperties5 as PublisherPropertiesByTagInternal,
     # SubAssets
     SubAsset1,
     SubAsset2,
@@ -82,27 +91,6 @@ from adcp.types._generated import (
     # VAST assets
     VastAsset1,
     VastAsset2,
-)
-
-# Import Package types directly from their modules to avoid collision issues
-from adcp.types.generated_poc.create_media_buy_response import (
-    Package as CreatedPackageInternal,
-)
-from adcp.types.generated_poc.package import Package as FullPackageInternal
-
-# Import PublisherProperties types and related types from product module
-from adcp.types.generated_poc.product import (
-    PropertyId,
-    PropertyTag,
-)
-from adcp.types.generated_poc.product import (
-    PublisherProperties as PublisherPropertiesInternal,
-)
-from adcp.types.generated_poc.product import (
-    PublisherProperties4 as PublisherPropertiesByIdInternal,
-)
-from adcp.types.generated_poc.product import (
-    PublisherProperties5 as PublisherPropertiesByTagInternal,
 )
 
 # ============================================================================

@@ -38,6 +38,7 @@ from adcp.types._generated import (
     ProvidePerformanceFeedbackResponse,
     SyncCreativesRequest,
     SyncCreativesResponse,
+    TaskStatus as GeneratedTaskStatus,
     WebhookPayload,
 )
 from adcp.types.core import (
@@ -48,7 +49,6 @@ from adcp.types.core import (
     TaskResult,
     TaskStatus,
 )
-from adcp.types.generated_poc.task_status import TaskStatus as GeneratedTaskStatus
 from adcp.utils.operation_id import create_operation_id
 
 logger = logging.getLogger(__name__)
