@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from adcp.client import ADCPClient
-    from adcp.types._generated import CreativeManifest, Format, FormatId, Product
+    from adcp.types.stable import CreativeManifest, Format, FormatId, Product
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ class PreviewURLGenerator:
         Returns:
             Preview data with preview_url and metadata, or None if generation fails
         """
-        from adcp.types._generated import PreviewCreativeRequest1
+        from adcp.types.aliases import PreviewCreativeFormatRequest
 
         cache_key = _make_manifest_cache_key(format_id, manifest.model_dump(exclude_none=True))
 
@@ -75,7 +75,7 @@ class PreviewURLGenerator:
             return self._preview_cache[cache_key]
 
         try:
-            request = PreviewCreativeRequest1(
+            request = PreviewCreativeFormatRequest(
                 request_type="single",
                 format_id=format_id,
                 creative_manifest=manifest,
@@ -123,7 +123,7 @@ class PreviewURLGenerator:
         Returns:
             List of preview data dicts (or None for failures), in same order as requests
         """
-        from adcp.types._generated import PreviewCreativeRequest
+        from adcp.types.stable import PreviewCreativeRequest
 
         if not requests:
             return []
@@ -396,7 +396,7 @@ def _create_sample_manifest_for_format(fmt: Format) -> CreativeManifest | None:
     Returns:
         Sample CreativeManifest, or None if unable to create one
     """
-    from adcp.types._generated import CreativeManifest
+    from adcp.types.stable import CreativeManifest
 
     if not fmt.assets_required:
         return None
@@ -436,7 +436,7 @@ def _create_sample_manifest_for_format_id(
     Returns:
         Sample CreativeManifest with placeholder assets
     """
-    from adcp.types._generated import CreativeManifest, ImageAsset, UrlAsset
+    from adcp.types.stable import CreativeManifest, ImageAsset, UrlAsset
 
     assets = {
         "primary_asset": ImageAsset(url="https://example.com/sample-image.jpg"),
@@ -456,7 +456,7 @@ def _create_sample_asset(asset_type: str | None) -> Any:
     Returns:
         Sample asset object (Pydantic model)
     """
-    from adcp.types._generated import (
+    from adcp.types.stable import (
         HtmlAsset,
         ImageAsset,
         TextAsset,

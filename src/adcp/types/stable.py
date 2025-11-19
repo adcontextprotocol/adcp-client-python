@@ -90,6 +90,7 @@ from adcp.types._generated import (
     VcpmFixedRatePricingOption,
     VideoAsset,
     WebhookAsset,
+    WebhookPayload,
 )
 
 # Import all generated types from internal consolidated module
@@ -174,4 +175,5 @@ __all__ = [
     "UrlAsset",
     "VideoAsset",
     "WebhookAsset",
+    "WebhookPayload",
 ]

@@ -17,7 +17,7 @@ from adcp.exceptions import ADCPWebhookSignatureError
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.base import ProtocolAdapter
 from adcp.protocols.mcp import MCPAdapter
-from adcp.types._generated import (
+from adcp.types.stable import (
     ActivateSignalRequest,
     ActivateSignalResponse,
     GetMediaBuyDeliveryRequest,

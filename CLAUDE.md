@@ -17,31 +17,84 @@ FormatId = str
 PackageRequest = dict[str, Any]
 ```
 
-**Stable Public API Layer**
+**Stable Public API Layer - Import Architecture**
 
-**CRITICAL**: The `generated_poc` directory is internal implementation. **Never import directly from it**.
+**CRITICAL**: Both `generated_poc/` and `_generated.py` are internal implementation. Source code must ONLY import from `stable.py` or `aliases.py`.
 
-Generated types in `src/adcp/types/generated_poc/` may have:
-- Numbered suffixes (e.g., `BrandManifest1`, `BrandManifest2`) due to schema evolution
-- Structural changes between minor versions
-- Files added/removed as schemas evolve
+### Import Architecture
 
-**Always use the stable API:**
-```python
-# ✅ CORRECT - Stable public API
-from adcp.types import BrandManifest, Product, CpmFixedRatePricingOption
-from adcp.types.stable import BrandManifest, Product
+The type system has a strict layering to prevent brittleness:
 
-# ❌ WRONG - Internal generated types (will break)
-from adcp.types.generated_poc.brand_manifest import BrandManifest1
-from adcp.types._generated import BrandManifest1
+```
+generated_poc/*.py (internal, auto-generated from schemas)
+    ↓
+_generated.py (internal consolidation, handles name collisions)
+    ↓
+stable.py (public API for base types) + aliases.py (public API for discriminated unions)
+    ↓
+__init__.py (user-facing exports)
 ```
 
-The stable API (`src/adcp/types/stable.py`) provides:
-1. **Clean names** - `BrandManifest` not `BrandManifest1`
-2. **Stability** - Aliases are updated when schemas evolve
-3. **Versioning** - Breaking changes require major version bumps
-4. **Deprecation warnings** - Direct `generated_poc` imports trigger warnings
+### Import Rules for Source Code
+
+**✅ CORRECT - Public API only:**
+```python
+# For base types (requests, responses, domain models)
+from adcp.types.stable import (
+    GetProductsRequest,
+    GetProductsResponse,
+    Product,
+    Package,
+    BrandManifest,
+)
+
+# For semantic aliases (discriminated unions)
+from adcp.types.aliases import (
+    CreateMediaBuySuccessResponse,
+    CreateMediaBuyErrorResponse,
+    PreviewCreativeFormatRequest,
+)
+
+# Or from main package
+from adcp import Product, CreateMediaBuySuccessResponse
+```
+
+**❌ WRONG - Internal implementation (brittle):**
+```python
+# Never import from _generated - it's internal consolidation
+from adcp.types._generated import GetProductsRequest
+
+# Never import from generated_poc - it's internal generated code
+from adcp.types.generated_poc.product import Product
+
+# Never import numbered types directly - use semantic aliases
+from adcp.types._generated import CreateMediaBuyResponse1
+```
+
+### Why This Matters
+
+1. **`generated_poc/`** may have:
+   - Numbered suffixes (e.g., `Response1`, `Response2`)
+   - Files added/removed as schemas evolve
+   - Name collisions between modules
+
+2. **`_generated.py`** may have:
+   - Collision-resolution qualifiers (e.g., `_PackageFromPackage`)
+   - Internal consolidation logic
+   - Changes when collision handling evolves
+
+3. **`stable.py` and `aliases.py`** provide:
+   - Clean, semantic names
+   - Stability guarantees within major versions
+   - Explicit public API
+
+### Special Cases
+
+**Only `stable.py` and `aliases.py` may import from `_generated.py`:**
+- `stable.py`: Imports base types and re-exports with clean names
+- `aliases.py`: Imports numbered discriminated union types and creates semantic aliases
+
+**All other source files must import from `stable.py` or `aliases.py`.**
 
 **NEVER Modify Generated Files Directly**
 

@@ -59,7 +59,7 @@ from adcp.types import aliases
 # Re-export commonly-used request/response types for convenience
 # Users should import from main package (e.g., `from adcp import GetProductsRequest`)
 # rather than internal modules for better API stability
-from adcp.types._generated import (
+from adcp.types.stable import (
     # Audience & Targeting
     ActivateSignalRequest,
     ActivateSignalResponse,
@@ -92,10 +92,10 @@ from adcp.types._generated import (
     ProvidePerformanceFeedbackResponse,
     SyncCreativesRequest,
     SyncCreativesResponse,
+    TaskStatus as GeneratedTaskStatus,
     UpdateMediaBuyRequest,
     UpdateMediaBuyResponse,
 )
-from adcp.types._generated import TaskStatus as GeneratedTaskStatus
 
 # Re-export semantic type aliases for better ergonomics
 from adcp.types.aliases import (
