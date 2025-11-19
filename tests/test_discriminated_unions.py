@@ -22,8 +22,8 @@ from adcp import (
     UrlVastAsset,
 )
 
-# Keep using generated names for authorization/deployment/destination variants
-# since these don't have semantic aliases yet
+# Keep using generated names for authorization variants
+# Deployment and Destination now have semantic aliases
 from adcp.types._generated import (
     AuthorizedAgents,  # property_ids variant
     AuthorizedAgents1,  # property_tags variant
@@ -33,9 +33,13 @@ from adcp.types._generated import (
     Deployment2,  # Agent
     Destination1,  # Platform
     Destination2,  # Agent
-    PublisherProperties4,  # selection_type='by_id'
-    PublisherProperties5,  # selection_type='by_tag'
+    _PublisherProperties4FromProduct,  # selection_type='by_id' (qualified name)
+    _PublisherProperties5FromProduct,  # selection_type='by_tag' (qualified name)
 )
+
+# Use qualified names for local aliases in this test
+PublisherProperties4 = _PublisherProperties4FromProduct
+PublisherProperties5 = _PublisherProperties5FromProduct
 
 
 class TestAuthorizationDiscriminatedUnions:

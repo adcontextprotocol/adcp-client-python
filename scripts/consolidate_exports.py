@@ -58,10 +58,17 @@ def generate_consolidated_exports() -> str:
     all_exports = set()
     collisions = []
 
-    # Special handling for known collision: Package type
-    # We need BOTH Package types available, so import them with qualified names
+    # Special handling for known collisions
+    # We need BOTH versions of these types available, so import them with qualified names
+    KNOWN_COLLISIONS = {
+        "Package": {"package", "create_media_buy_response"},
+        "PublisherProperties": {"product", "adagents"},
+        "PublisherProperties4": {"product", "adagents"},
+        "PublisherProperties5": {"product", "adagents"},
+    }
+
     special_imports = []
-    package_modules_seen = set()
+    collision_modules_seen: dict[str, set[str]] = {name: set() for name in KNOWN_COLLISIONS}
 
     for module_path in modules:
         module_name = module_path.stem
@@ -73,9 +80,9 @@ def generate_consolidated_exports() -> str:
         # Filter out names that collide with already-exported names
         unique_exports = set()
         for export_name in exports:
-            # Special case: Package collision - track all modules that define it
-            if export_name == "Package" and module_name in ("package", "create_media_buy_response"):
-                package_modules_seen.add(module_name)
+            # Special case: Known collisions - track all modules that define them
+            if export_name in KNOWN_COLLISIONS and module_name in KNOWN_COLLISIONS[export_name]:
+                collision_modules_seen[export_name].add(module_name)
                 export_to_module[export_name] = module_name  # Track that we've seen it
                 continue  # Don't add to unique_exports, we'll handle specially
 
@@ -102,13 +109,17 @@ def generate_consolidated_exports() -> str:
 
         all_exports.update(unique_exports)
 
-    # Generate special imports for Package collision
-    if package_modules_seen:
-        collisions.append(f"  Package: defined in {sorted(package_modules_seen)} (both exported with qualified names)")
-        for module_name in sorted(package_modules_seen):
-            qualified_name = f"_PackageFrom{module_name.replace('_', ' ').title().replace(' ', '')}"
+    # Generate special imports for all known collisions
+    for type_name, modules_seen in collision_modules_seen.items():
+        if not modules_seen:
+            continue
+        collisions.append(
+            f"  {type_name}: defined in {sorted(modules_seen)} (all exported with qualified names)"
+        )
+        for module_name in sorted(modules_seen):
+            qualified_name = f"_{type_name}From{module_name.replace('_', ' ').title().replace(' ', '')}"
             special_imports.append(
-                f"from adcp.types.generated_poc.{module_name} import Package as {qualified_name}"
+                f"from adcp.types.generated_poc.{module_name} import {type_name} as {qualified_name}"
             )
             all_exports.add(qualified_name)
 
@@ -144,7 +155,7 @@ def generate_consolidated_exports() -> str:
 
     # Add special imports for name collisions
     if special_imports:
-        lines.extend(["", "# Special imports for name collisions (Package type)"])
+        lines.extend(["", "# Special imports for name collisions (qualified names for types defined in multiple modules)"])
         lines.extend(special_imports)
 
     # Add backward compatibility aliases (only if source exists)

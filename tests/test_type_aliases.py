@@ -302,16 +302,16 @@ def test_package_type_aliases_imports():
 def test_package_type_aliases_point_to_correct_modules():
     """Test that Package aliases point to the correct generated types."""
     from adcp import CreatedPackageReference, Package
-    from adcp.types.generated_poc.create_media_buy_response import (
-        Package as ResponsePackage,
+    from adcp.types._generated import (
+        _PackageFromCreateMediaBuyResponse,
+        _PackageFromPackage,
     )
-    from adcp.types.generated_poc.package import Package as DomainPackage
 
     # Package should point to the full domain package
-    assert Package is DomainPackage
+    assert Package is _PackageFromPackage
 
     # CreatedPackageReference should point to the response package
-    assert CreatedPackageReference is ResponsePackage
+    assert CreatedPackageReference is _PackageFromCreateMediaBuyResponse
 
     # Verify they're different types
     assert Package is not CreatedPackageReference
@@ -434,16 +434,16 @@ def test_publisher_properties_aliases_imports():
 def test_publisher_properties_aliases_point_to_correct_types():
     """Test that PublisherProperties aliases point to the correct generated types."""
     from adcp import PublisherPropertiesAll, PublisherPropertiesById, PublisherPropertiesByTag
-    from adcp.types.generated_poc.product import (
-        PublisherProperties,
-        PublisherProperties4,
-        PublisherProperties5,
+    from adcp.types._generated import (
+        _PublisherProperties4FromProduct,
+        _PublisherProperties5FromProduct,
+        _PublisherPropertiesFromProduct,
     )
 
-    # Verify aliases point to correct types
-    assert PublisherPropertiesAll is PublisherProperties
-    assert PublisherPropertiesById is PublisherProperties4
-    assert PublisherPropertiesByTag is PublisherProperties5
+    # Verify aliases point to correct types (from product module, not adagents)
+    assert PublisherPropertiesAll is _PublisherPropertiesFromProduct
+    assert PublisherPropertiesById is _PublisherProperties4FromProduct
+    assert PublisherPropertiesByTag is _PublisherProperties5FromProduct
 
     # Verify they're different types
     assert PublisherPropertiesAll is not PublisherPropertiesById
@@ -455,12 +455,7 @@ def test_publisher_properties_aliases_have_correct_discriminators():
     """Test that PublisherProperties aliases have the correct discriminator values."""
     from adcp import PublisherPropertiesAll, PublisherPropertiesById, PublisherPropertiesByTag
 
-    # Check that discriminator field has correct literal type
-    all_selection_type = PublisherPropertiesAll.__annotations__["selection_type"]
-    by_id_selection_type = PublisherPropertiesById.__annotations__["selection_type"]
-    by_tag_selection_type = PublisherPropertiesByTag.__annotations__["selection_type"]
-
-    # Verify the annotations contain Literal types
+    # Verify the annotations contain selection_type discriminator field
     assert "selection_type" in PublisherPropertiesAll.__annotations__
     assert "selection_type" in PublisherPropertiesById.__annotations__
     assert "selection_type" in PublisherPropertiesByTag.__annotations__
@@ -469,8 +464,6 @@ def test_publisher_properties_aliases_have_correct_discriminators():
 def test_publisher_properties_aliases_can_instantiate():
     """Test that PublisherProperties aliases can be used to create instances."""
     from adcp import (
-        PropertyId,
-        PropertyTag,
         PublisherPropertiesAll,
         PublisherPropertiesById,
         PublisherPropertiesByTag,
@@ -484,20 +477,22 @@ def test_publisher_properties_aliases_can_instantiate():
     assert props_all.selection_type == "all"
 
     # Create PublisherPropertiesById
+    # Note: property_ids should be plain strings (PropertyId is a constrained string type)
     props_by_id = PublisherPropertiesById(
         publisher_domain="example.com",
         selection_type="by_id",
-        property_ids=[PropertyId("homepage"), PropertyId("sports")],
+        property_ids=["homepage", "sports"],
     )
     assert props_by_id.publisher_domain == "example.com"
     assert props_by_id.selection_type == "by_id"
     assert len(props_by_id.property_ids) == 2
 
     # Create PublisherPropertiesByTag
+    # Note: property_tags should be plain strings (PropertyTag is a constrained string type)
     props_by_tag = PublisherPropertiesByTag(
         publisher_domain="example.com",
         selection_type="by_tag",
-        property_tags=[PropertyTag("premium"), PropertyTag("video")],
+        property_tags=["premium", "video"],
     )
     assert props_by_tag.publisher_domain == "example.com"
     assert props_by_tag.selection_type == "by_tag"
@@ -578,8 +573,8 @@ def test_deployment_aliases_point_to_correct_types():
 
 def test_deployment_aliases_can_instantiate():
     """Test that Deployment aliases can be used to create instances."""
+
     from adcp import AgentDeployment, PlatformDeployment
-    from datetime import datetime, timezone
 
     # Create PlatformDeployment
     platform_deployment = PlatformDeployment(
