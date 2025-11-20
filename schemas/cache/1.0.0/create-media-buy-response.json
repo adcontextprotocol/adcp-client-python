@@ -31,24 +31,9 @@
           "type": "string"
         },
         "packages": {
-          "description": "Array of created packages",
+          "description": "Array of created packages with complete state information",
           "items": {
-            "additionalProperties": false,
-            "properties": {
-              "buyer_ref": {
-                "description": "Buyer's reference identifier for the package",
-                "type": "string"
-              },
-              "package_id": {
-                "description": "Publisher's unique identifier for the package",
-                "type": "string"
-              }
-            },
-            "required": [
-              "package_id",
-              "buyer_ref"
-            ],
-            "type": "object"
+            "$ref": "/schemas/v1/core/package.json"
           },
           "type": "array"
         }
@@ -91,7 +76,7 @@
         "errors": {
           "description": "Array of errors explaining why the operation failed",
           "items": {
-            "$ref": "error.json"
+            "$ref": "/schemas/v1/core/error.json"
           },
           "minItems": 1,
           "type": "array"

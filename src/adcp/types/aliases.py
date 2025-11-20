@@ -102,10 +102,6 @@ from adcp.types._generated import (
 
 # Import all generated types that need semantic aliases
 from adcp.types._generated import (
-    # Package types (from name collision resolution)
-    _PackageFromCreateMediaBuyResponse as CreatedPackageInternal,
-)
-from adcp.types._generated import (
     _PackageFromPackage as FullPackageInternal,
 )
 
@@ -265,17 +261,8 @@ Fields include: budget, pricing_option_id, product_id, status, bid_price,
 creative_assignments, format_ids_to_provide, impressions, pacing, targeting_overlay
 """
 
-CreatedPackageReference = CreatedPackageInternal
-"""Minimal package reference with only IDs returned after creation.
-
-This is NOT the full Package type - it's a lightweight reference returned
-in CreateMediaBuySuccessResponse to indicate which packages were created.
-
-Used in:
-- CreateMediaBuySuccessResponse.packages (list of created package references)
-
-Fields: buyer_ref, package_id only
-"""
+# Note: CreatedPackageReference was removed as the schema now uses the canonical
+# Package type everywhere. Use `Package` directly instead.
 
 # ============================================================================
 # PUBLISHER PROPERTIES ALIASES - Selection Type Discriminated Unions
@@ -757,7 +744,6 @@ __all__ = [
     "UpdateMediaBuySuccessResponse",
     "UpdateMediaBuyErrorResponse",
     # Package type aliases
-    "CreatedPackageReference",
     "Package",
     # Publisher properties types
     "PropertyId",

@@ -210,6 +210,10 @@
     "enums": {
       "description": "Enumerated types and constants",
       "schemas": {
+        "asset-content-type": {
+          "$ref": "/schemas/v1/enums/asset-content-type.json",
+          "description": "Types of content that can be used as creative assets (image, video, html, etc.)"
+        },
         "channels": {
           "$ref": "/schemas/v1/enums/channels.json",
           "description": "Advertising channels (display, video, dooh, ctv, audio, etc.)"
@@ -221,6 +225,10 @@
         "delivery-type": {
           "$ref": "/schemas/v1/enums/delivery-type.json",
           "description": "Type of inventory delivery"
+        },
+        "format-category": {
+          "$ref": "/schemas/v1/enums/format-category.json",
+          "description": "High-level categories for creative formats (audio, video, display, native, dooh, rich_media, universal)"
         },
         "frequency-cap-scope": {
           "$ref": "/schemas/v1/enums/frequency-cap-scope.json",

@@ -12,7 +12,7 @@
     "errors": {
       "description": "Task-specific errors and warnings (e.g., signal discovery or pricing issues)",
       "items": {
-        "$ref": "error.json"
+        "$ref": "/schemas/v1/core/error.json"
       },
       "type": "array"
     },
@@ -32,9 +32,9 @@
             "type": "string"
           },
           "deployments": {
-            "description": "Array of destination deployments",
+            "description": "Array of deployment targets",
             "items": {
-              "$ref": "deployment.json"
+              "$ref": "/schemas/v1/core/deployment.json"
             },
             "type": "array"
           },

@@ -28,6 +28,10 @@ from adcp.types.core import (
 from adcp.types.stable import (
     ActivateSignalRequest,
     ActivateSignalResponse,
+    BuildCreativeRequest,
+    BuildCreativeResponse,
+    CreateMediaBuyRequest,
+    CreateMediaBuyResponse,
     GetMediaBuyDeliveryRequest,
     GetMediaBuyDeliveryResponse,
     GetProductsRequest,
@@ -46,6 +50,8 @@ from adcp.types.stable import (
     ProvidePerformanceFeedbackResponse,
     SyncCreativesRequest,
     SyncCreativesResponse,
+    UpdateMediaBuyRequest,
+    UpdateMediaBuyResponse,
     WebhookPayload,
 )
 from adcp.types.stable import (
@@ -573,6 +579,200 @@ class ADCPClient:
         )
 
         return self.adapter._parse_response(raw_result, ProvidePerformanceFeedbackResponse)
+
+    async def create_media_buy(
+        self,
+        request: CreateMediaBuyRequest,
+    ) -> TaskResult[CreateMediaBuyResponse]:
+        """
+        Create a new media buy reservation.
+
+        Requests the agent to reserve inventory for a campaign. The agent returns a
+        media_buy_id that tracks this reservation and can be used for updates.
+
+        Args:
+            request: Media buy creation parameters including:
+                - brand_manifest: Advertiser brand information and creative assets
+                - packages: List of package requests specifying desired inventory
+                - publisher_properties: Target properties for ad placement
+                - budget: Optional budget constraints
+                - start_date/end_date: Campaign flight dates
+
+        Returns:
+            TaskResult containing CreateMediaBuyResponse with:
+                - media_buy_id: Unique identifier for this reservation
+                - status: Current state of the media buy
+                - packages: Confirmed package details
+                - Additional platform-specific metadata
+
+        Example:
+            >>> from adcp import ADCPClient, CreateMediaBuyRequest
+            >>> client = ADCPClient(agent_config)
+            >>> request = CreateMediaBuyRequest(
+            ...     brand_manifest=brand,
+            ...     packages=[package_request],
+            ...     publisher_properties=properties
+            ... )
+            >>> result = await client.create_media_buy(request)
+            >>> if result.success:
+            ...     media_buy_id = result.data.media_buy_id
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="create_media_buy",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.create_media_buy(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="create_media_buy",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, CreateMediaBuyResponse)
+
+    async def update_media_buy(
+        self,
+        request: UpdateMediaBuyRequest,
+    ) -> TaskResult[UpdateMediaBuyResponse]:
+        """
+        Update an existing media buy reservation.
+
+        Modifies a previously created media buy by updating packages or publisher
+        properties. The update operation uses discriminated unions to specify what
+        to change - either package details or targeting properties.
+
+        Args:
+            request: Media buy update parameters including:
+                - media_buy_id: Identifier from create_media_buy response
+                - updates: Discriminated union specifying update type:
+                    * UpdateMediaBuyPackagesRequest: Modify package selections
+                    * UpdateMediaBuyPropertiesRequest: Change targeting properties
+
+        Returns:
+            TaskResult containing UpdateMediaBuyResponse with:
+                - media_buy_id: The updated media buy identifier
+                - status: Updated state of the media buy
+                - packages: Updated package configurations
+                - Additional platform-specific metadata
+
+        Example:
+            >>> from adcp import ADCPClient, UpdateMediaBuyPackagesRequest
+            >>> client = ADCPClient(agent_config)
+            >>> request = UpdateMediaBuyPackagesRequest(
+            ...     media_buy_id="mb_123",
+            ...     packages=[updated_package]
+            ... )
+            >>> result = await client.update_media_buy(request)
+            >>> if result.success:
+            ...     updated_packages = result.data.packages
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="update_media_buy",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.update_media_buy(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="update_media_buy",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, UpdateMediaBuyResponse)
+
+    async def build_creative(
+        self,
+        request: BuildCreativeRequest,
+    ) -> TaskResult[BuildCreativeResponse]:
+        """
+        Generate production-ready creative assets.
+
+        Requests the creative agent to build final deliverable assets in the target
+        format (e.g., VAST, DAAST, HTML5). This is typically called after previewing
+        and approving a creative manifest.
+
+        Args:
+            request: Creative build parameters including:
+                - manifest: Creative manifest with brand info and content
+                - target_format_id: Desired output format identifier
+                - inputs: Optional user-provided inputs for template variables
+                - deployment: Platform or agent deployment configuration
+
+        Returns:
+            TaskResult containing BuildCreativeResponse with:
+                - assets: Production-ready creative files (URLs or inline content)
+                - format_id: The generated format identifier
+                - manifest: The creative manifest used for generation
+                - metadata: Additional platform-specific details
+
+        Example:
+            >>> from adcp import ADCPClient, BuildCreativeRequest
+            >>> client = ADCPClient(agent_config)
+            >>> request = BuildCreativeRequest(
+            ...     manifest=creative_manifest,
+            ...     target_format_id="vast_2.0",
+            ...     inputs={"duration": 30}
+            ... )
+            >>> result = await client.build_creative(request)
+            >>> if result.success:
+            ...     vast_url = result.data.assets[0].url
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="build_creative",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.build_creative(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="build_creative",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, BuildCreativeResponse)
 
     async def list_tools(self) -> list[str]:
         """

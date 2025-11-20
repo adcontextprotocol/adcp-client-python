@@ -65,7 +65,6 @@ from adcp.types.aliases import (
     BothPreviewRender,
     BuildCreativeErrorResponse,
     BuildCreativeSuccessResponse,
-    CreatedPackageReference,
     CreateMediaBuyErrorResponse,
     CreateMediaBuySuccessResponse,
     HtmlPreviewRender,
@@ -228,8 +227,6 @@ __all__ = [
     "MediaBuy",
     "Package",
     "PackageRequest",
-    # Package type aliases
-    "CreatedPackageReference",
     # Status enums (for control flow)
     "CreativeStatus",
     "MediaBuyStatus",

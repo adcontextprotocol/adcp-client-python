@@ -141,6 +141,10 @@ async def test_all_client_methods():
     assert hasattr(client, "get_signals")
     assert hasattr(client, "activate_signal")
     assert hasattr(client, "provide_performance_feedback")
+    assert hasattr(client, "preview_creative")
+    assert hasattr(client, "create_media_buy")
+    assert hasattr(client, "update_media_buy")
+    assert hasattr(client, "build_creative")
 
 
 @pytest.mark.parametrize(
@@ -159,7 +163,7 @@ async def test_all_client_methods():
                 "signal_spec": "test",
                 "deliver_to": {
                     "countries": ["US"],
-                    "destinations": [{"type": "platform", "platform": "test"}],
+                    "deployments": [{"type": "platform", "platform": "test"}],
                 },
             },
         ),
@@ -168,7 +172,7 @@ async def test_all_client_methods():
             "ActivateSignalRequest",
             {
                 "signal_agent_segment_id": "test",
-                "destinations": [{"type": "platform", "platform": "test"}],
+                "deployments": [{"type": "platform", "platform": "test"}],
             },
         ),
         (
@@ -183,6 +187,8 @@ async def test_all_client_methods():
                 "performance_index": 0.5,
             },
         ),
+        # Note: preview_creative, create_media_buy, update_media_buy, and build_creative
+        # are tested separately with full request validation since their schemas are complex
     ],
 )
 @pytest.mark.asyncio
