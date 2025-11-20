@@ -137,6 +137,21 @@ class ProtocolAdapter(ABC):
         pass
 
     @abstractmethod
+    async def create_media_buy(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Create media buy."""
+        pass
+
+    @abstractmethod
+    async def update_media_buy(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Update media buy."""
+        pass
+
+    @abstractmethod
+    async def build_creative(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Build creative."""
+        pass
+
+    @abstractmethod
     async def list_tools(self) -> list[str]:
         """
         List available tools from the agent.

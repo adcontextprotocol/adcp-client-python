@@ -28,6 +28,10 @@ from adcp.types.core import (
 from adcp.types.stable import (
     ActivateSignalRequest,
     ActivateSignalResponse,
+    BuildCreativeRequest,
+    BuildCreativeResponse,
+    CreateMediaBuyRequest,
+    CreateMediaBuyResponse,
     GetMediaBuyDeliveryRequest,
     GetMediaBuyDeliveryResponse,
     GetProductsRequest,
@@ -46,6 +50,8 @@ from adcp.types.stable import (
     ProvidePerformanceFeedbackResponse,
     SyncCreativesRequest,
     SyncCreativesResponse,
+    UpdateMediaBuyRequest,
+    UpdateMediaBuyResponse,
     WebhookPayload,
 )
 from adcp.types.stable import (
@@ -573,6 +579,129 @@ class ADCPClient:
         )
 
         return self.adapter._parse_response(raw_result, ProvidePerformanceFeedbackResponse)
+
+    async def create_media_buy(
+        self,
+        request: CreateMediaBuyRequest,
+    ) -> TaskResult[CreateMediaBuyResponse]:
+        """
+        Create Media Buy.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing CreateMediaBuyResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="create_media_buy",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.create_media_buy(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="create_media_buy",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, CreateMediaBuyResponse)
+
+    async def update_media_buy(
+        self,
+        request: UpdateMediaBuyRequest,
+    ) -> TaskResult[UpdateMediaBuyResponse]:
+        """
+        Update Media Buy.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing UpdateMediaBuyResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="update_media_buy",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.update_media_buy(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="update_media_buy",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, UpdateMediaBuyResponse)
+
+    async def build_creative(
+        self,
+        request: BuildCreativeRequest,
+    ) -> TaskResult[BuildCreativeResponse]:
+        """
+        Build Creative.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing BuildCreativeResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="build_creative",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.build_creative(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="build_creative",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, BuildCreativeResponse)
 
     async def list_tools(self) -> list[str]:
         """

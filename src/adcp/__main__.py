@@ -88,8 +88,12 @@ TOOL_DISPATCH: dict[str, tuple[str, type | None]] = {
     "list_tools": ("list_tools", None),  # Protocol introspection - no request type
     "get_products": ("get_products", None),
     "list_creative_formats": ("list_creative_formats", None),
+    "preview_creative": ("preview_creative", None),
+    "build_creative": ("build_creative", None),
     "sync_creatives": ("sync_creatives", None),
     "list_creatives": ("list_creatives", None),
+    "create_media_buy": ("create_media_buy", None),
+    "update_media_buy": ("update_media_buy", None),
     "get_media_buy_delivery": ("get_media_buy_delivery", None),
     "list_authorized_properties": ("list_authorized_properties", None),
     "get_signals": ("get_signals", None),
@@ -124,8 +128,12 @@ async def _dispatch_tool(client: ADCPClient, tool_name: str, payload: dict[str, 
             "list_creative_formats",
             gen.ListCreativeFormatsRequest,
         )
+        TOOL_DISPATCH["preview_creative"] = ("preview_creative", gen.PreviewCreativeRequest)
+        TOOL_DISPATCH["build_creative"] = ("build_creative", gen.BuildCreativeRequest)
         TOOL_DISPATCH["sync_creatives"] = ("sync_creatives", gen.SyncCreativesRequest)
         TOOL_DISPATCH["list_creatives"] = ("list_creatives", gen.ListCreativesRequest)
+        TOOL_DISPATCH["create_media_buy"] = ("create_media_buy", gen.CreateMediaBuyRequest)
+        TOOL_DISPATCH["update_media_buy"] = ("update_media_buy", gen.UpdateMediaBuyRequest)
         TOOL_DISPATCH["get_media_buy_delivery"] = (
             "get_media_buy_delivery",
             gen.GetMediaBuyDeliveryRequest,
