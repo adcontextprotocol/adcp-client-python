@@ -83,7 +83,9 @@ async def execute_tool(
 
 # Tool dispatch mapping - single source of truth for ADCP methods
 # Types are filled at runtime to avoid circular imports
+# Special case: list_tools takes no parameters (None means no request type)
 TOOL_DISPATCH: dict[str, tuple[str, type | None]] = {
+    "list_tools": ("list_tools", None),  # Protocol introspection - no request type
     "get_products": ("get_products", None),
     "list_creative_formats": ("list_creative_formats", None),
     "sync_creatives": ("sync_creatives", None),
@@ -144,20 +146,37 @@ async def _dispatch_tool(client: ADCPClient, tool_name: str, payload: dict[str, 
         available = ", ".join(sorted(TOOL_DISPATCH.keys()))
         return TaskResult(
             status=TaskStatus.FAILED,
+            success=False,
             error=f"Unknown tool: {tool_name}. Available tools: {available}",
         )
 
     # Get method and request type
     method_name, request_type = TOOL_DISPATCH[tool_name]
+    method = getattr(client, method_name)
 
-    # Type guard - request_type should be initialized by this point
+    # Special case: list_tools takes no parameters and returns list[str], not TaskResult
+    if tool_name == "list_tools":
+        try:
+            tools = await method()
+            return TaskResult(
+                status=TaskStatus.COMPLETED,
+                data={"tools": tools},
+                success=True,
+            )
+        except Exception as e:
+            return TaskResult(
+                status=TaskStatus.FAILED,
+                success=False,
+                error=f"Failed to list tools: {e}",
+            )
+
+    # Type guard - request_type should be initialized by this point for non-list_tools
     if request_type is None:
         return TaskResult(
             status=TaskStatus.FAILED,
+            success=False,
             error=f"Internal error: {tool_name} request type not initialized",
         )
-
-    method = getattr(client, method_name)
 
     # Validate and invoke
     try:
@@ -173,6 +192,7 @@ async def _dispatch_tool(client: ADCPClient, tool_name: str, payload: dict[str, 
 
         return TaskResult(
             status=TaskStatus.FAILED,
+            success=False,
             error=f"Invalid request payload for {tool_name}:\n" + "\n".join(error_details),
         )
 
