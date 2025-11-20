@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.9.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.8.0...v2.9.0) (2025-11-20)
+
+
+### Features
+
+* add missing AdCP protocol methods to CLI and client ([#71](https://github.com/adcontextprotocol/adcp-client-python/issues/71)) ([f9432a3](https://github.com/adcontextprotocol/adcp-client-python/commit/f9432a34d49ac250e7fb3c2d626cd889c4ef0e6c))
+* integrate AdCP schema improvements (PR [#222](https://github.com/adcontextprotocol/adcp-client-python/issues/222) + [#223](https://github.com/adcontextprotocol/adcp-client-python/issues/223)) ([#73](https://github.com/adcontextprotocol/adcp-client-python/issues/73)) ([d61ca33](https://github.com/adcontextprotocol/adcp-client-python/commit/d61ca33c68848ffa951e05b85c969cd6685f8fc6))
+
 ## [2.8.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.7.0...v2.8.0) (2025-11-19)
 
 
