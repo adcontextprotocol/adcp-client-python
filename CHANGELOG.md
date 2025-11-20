@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.10.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.9.0...v2.10.0) (2025-11-20)
+
+
+### Features
+
+* add create_media_buy, update_media_buy, and build_creative to SimpleAPI ([#74](https://github.com/adcontextprotocol/adcp-client-python/issues/74)) ([5545071](https://github.com/adcontextprotocol/adcp-client-python/commit/55450715ee1bfd6e01a886488c5d13b5f4da514e))
+
 ## [2.9.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.8.0...v2.9.0) (2025-11-20)
 
 
