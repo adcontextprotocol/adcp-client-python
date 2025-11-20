@@ -40,14 +40,15 @@ for pkg in response.packages:
     print(f"  Pricing: {pkg.pricing_option_id}")
 ```
 
-### Upstream Recommendations Submitted
+### Upstream Schema Quality
 
-Based on this integration work, we've identified and shared with the AdCP team:
+The AdCP team removed orphaned schemas as part of PR #222 - `asset-type.json` was properly cleaned up from the repository. This SDK release reflects that cleanup.
 
-1. **Orphaned schema file**: `asset-type.json` is no longer referenced after PR #222 and should be removed
-2. **Enum organization**: Consider consolidating all reusable enums into `/schemas/v1/enums/` directory
-3. **Discriminator standardization**: Multiple patterns used (`type`, `output_format`, `delivery_type`, etc.) - could standardize on `type`
-4. **Schema-level validation**: Add JSON Schema 2019-09 `discriminator` keyword for better tooling support
-5. **Enum versioning policy**: Document whether new enum values are minor vs. major version changes
+Additional opportunities for future schema improvements:
+
+1. **Enum organization**: Consider consolidating all reusable enums into `/schemas/v1/enums/` directory
+2. **Discriminator standardization**: Multiple patterns used (`type`, `output_format`, `delivery_type`, etc.) - could standardize on `type`
+3. **Schema-level validation**: Add JSON Schema 2019-09 `discriminator` keyword for better tooling support
+4. **Enum versioning policy**: Document whether new enum values are minor vs. major version changes
 
 Overall, the AdCP schemas are in excellent shape - these are minor polish suggestions.
