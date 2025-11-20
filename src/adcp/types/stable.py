@@ -32,8 +32,6 @@ from adcp.types._generated import (
     AssetContentType,  # New from PR #222: consolidated asset content types
     AssetSelectors,
     AssetsRequired,
-    AssetType,  # Old name, still exported from generated (asset-type.json schema)
-    AssetTypeSchema,
     AssignedPackage,
     Assignments,
     AudioAsset,
@@ -52,7 +50,6 @@ from adcp.types._generated import (
     CoBranding,
     Colors,
     Contact,
-    ContentLength,
     Country,
     # Pricing options
     CpcPricingOption,
@@ -79,19 +76,16 @@ from adcp.types._generated import (
     DeliveryMetrics,
     DeliveryType,
     Details,
-    Dimensions,
     Direction,
     Disclaimer,
     Domain,
     DomainBreakdown,
     DoohMetrics,
-    Duration,
     Embedding,
     Error,
     FeedbackSource,
     FeedFormat,
     FieldModel,
-    FileSize,
     Filters,
     FlatRatePricingOption,
     Fonts,
@@ -173,7 +167,6 @@ from adcp.types._generated import (
     PublisherDomain,
     PublisherIdentifierTypes,
     PushNotificationConfig,
-    Quality,
     QuartileData,
     QuerySummary,
     Render,
@@ -183,7 +176,6 @@ from adcp.types._generated import (
     ReportingWebhook,
     Request,
     RequestedMetric,
-    Requirements,
     Response,
     ResponseType,
     Responsive,
@@ -300,7 +292,6 @@ __all__ = [
     "AssetContentType",  # New canonical name from PR #222
     "AssetType",  # Deprecated alias for AssetContentType
     "FormatCategory",  # New from PR #222
-    "AssetTypeSchema",
     "AssetsRequired",
     "AssignedPackage",
     "Assignments",
@@ -375,18 +366,14 @@ __all__ = [
     "VcpmFixedRatePricingOption",
     # Status enums & simple types
     "CatalogType",
-    "ContentLength",
     "Country",
     "CreativeStatus",
     "DaastVersion",
     "DeliverTo",
     "DeliveryType",
-    "Dimensions",
     "Direction",
-    "Duration",
     "FeedbackSource",
     "FieldModel",
-    "FileSize",
     "FormatType",
     "FrequencyCap",
     "FrequencyCapScope",
@@ -409,7 +396,6 @@ __all__ = [
     "PropertyType",
     "PublisherDomain",
     "PublisherIdentifierTypes",
-    "Quality",
     "ResponseType",
     "Responsive",
     "SignalType",
@@ -456,3 +442,6 @@ __all__ = [
     "WebhookAsset",
     "WebhookPayload",
 ]
+
+# Deprecated aliases for backward compatibility - will be removed in 3.0.0
+AssetType = AssetContentType  # Use AssetContentType instead

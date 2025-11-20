@@ -21,8 +21,8 @@
   "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/core/creative-manifest.json": "160d56152c35f56dc9a26b6906e7e1f9d0e80826d25a006aba56487fa627e1eb",
   "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/core/creative-policy.json": "f65903eae4ccf16b8c738be36b74edb31101698c30bf7e167a9c73c2a7417444",
   "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/core/delivery-metrics.json": "4a2c3c6b684668d47eb954132ecc522dde989cec5e74bd9acaa10306b9e72d68",
-  "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/core/deployment.json": "ed9081ab01fa591d64d84fcb85e6fec796668e7c5c84cbf41394ca8c0120b231",
-  "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/core/destination.json": "6288199198075a827b4669a2964dc3c2cf3228195503506ab3bf5f637baee76f",
+  "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/core/deployment.json": "7681b552be408d132cbbf431a09a49f06b34fb7c535fb8cece2ff80097c6e708",
+  "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/core/destination.json": "26dfdaae419537512e4fbe961317fd7386e76c2d33d6945ef43e00e074df8e17",
   "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/core/error.json": "8ef7f825f398f28f63c3ec6a1631e49cd1fe08034d2e4c24b5153cad3e75e389",
   "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/core/format-id.json": "13811721d182f84d2bfd28670c4ecc85cd15c0392a57ababd9d87fe7befd6b13",
   "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/core/format.json": "bc3980756be32803fca4c293dfe17db8c3c75897e9c74d3e48b10e2c78c15466",
@@ -101,8 +101,8 @@
   "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/pricing-options/flat-rate-option.json": "133ebe6814dacb72989d79da945437321baabdf85a3e5b14c2a3b695ee471bee",
   "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/pricing-options/vcpm-auction-option.json": "67aa8d6695991dc65f9abc9a126e82a031a5fabc7a611f8d29699c2fd5e38c82",
   "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/pricing-options/vcpm-fixed-option.json": "b560ed8eb0196a793d6d1304a4dea62dc3a1fd06b1fb676b95aa93b68618fce9",
-  "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/signals/activate-signal-request.json": "6d60816d28aa28d188b9180c909e089954eca6b3dc734bd315d639ff345a9679",
-  "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/signals/activate-signal-response.json": "90e3b5875040b3ba3d7d0f2a1279cf9c7ab5015d0dfa2fd0849cf38f734bd5b3",
-  "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/signals/get-signals-request.json": "38f802f555aa3df77ebbb0e48f2bd93ae15571a2bbb3982bd2ee7e73a19451d5",
-  "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/signals/get-signals-response.json": "e23e1fcfeff0edef4b8a1d47d594b206acb51b9377d30e77fb2d190992638076"
+  "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/signals/activate-signal-request.json": "bb4d0e0e3e767856f8541488d2f847161b6f6bfc620d7d98efad6b76558811cc",
+  "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/signals/activate-signal-response.json": "efb5ed2da9088c421f0a8b4c2582e98e44a0d015917c0e8c1d172ef5330206a1",
+  "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/signals/get-signals-request.json": "5284a89c1b36f5ff17e0c638b5594b644eaf53e5c53b60dce58a7561025ba2c7",
+  "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/signals/get-signals-response.json": "28bf87189c808b1a5c3263e7b53a99407f9bf50e140974cdfc5feac582b9fe1b"
 }

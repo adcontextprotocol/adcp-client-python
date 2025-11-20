@@ -5,7 +5,7 @@
   "oneOf": [
     {
       "additionalProperties": false,
-      "description": "Success response - signal activated successfully to one or more destinations",
+      "description": "Success response - signal activated successfully to one or more deployment targets",
       "not": {
         "required": [
           "errors"
@@ -18,9 +18,9 @@
           "type": "object"
         },
         "deployments": {
-          "description": "Array of deployment results for each destination",
+          "description": "Array of deployment results for each deployment target",
           "items": {
-            "$ref": "deployment.json"
+            "$ref": "/schemas/v1/core/deployment.json"
           },
           "type": "array"
         }
@@ -47,7 +47,7 @@
         "errors": {
           "description": "Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)",
           "items": {
-            "$ref": "error.json"
+            "$ref": "/schemas/v1/core/error.json"
           },
           "minItems": 1,
           "type": "array"
