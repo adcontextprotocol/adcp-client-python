@@ -14,7 +14,7 @@
       "then": {
         "properties": {
           "result": {
-            "$ref": "create-media-buy-response.json"
+            "$ref": "/schemas/v1/media-buy/create-media-buy-response.json"
           }
         }
       }
@@ -30,7 +30,7 @@
       "then": {
         "properties": {
           "result": {
-            "$ref": "update-media-buy-response.json"
+            "$ref": "/schemas/v1/media-buy/update-media-buy-response.json"
           }
         }
       }
@@ -46,7 +46,7 @@
       "then": {
         "properties": {
           "result": {
-            "$ref": "sync-creatives-response.json"
+            "$ref": "/schemas/v1/media-buy/sync-creatives-response.json"
           }
         }
       }
@@ -62,7 +62,7 @@
       "then": {
         "properties": {
           "result": {
-            "$ref": "activate-signal-response.json"
+            "$ref": "/schemas/v1/signals/activate-signal-response.json"
           }
         }
       }
@@ -78,7 +78,7 @@
       "then": {
         "properties": {
           "result": {
-            "$ref": "get-signals-response.json"
+            "$ref": "/schemas/v1/signals/get-signals-response.json"
           }
         }
       }
@@ -119,8 +119,20 @@
           "media_buy_id": "mb_12345",
           "packages": [
             {
+              "budget": 60000,
               "buyer_ref": "nike_ctv_package",
-              "package_id": "pkg_12345_001"
+              "creative_assignments": [],
+              "format_ids_to_provide": [
+                {
+                  "agent_url": "https://creative.adcontextprotocol.org",
+                  "id": "video_standard_30s"
+                }
+              ],
+              "pacing": "even",
+              "package_id": "pkg_12345_001",
+              "pricing_option_id": "cpm-fixed-sports",
+              "product_id": "ctv_sports_premium",
+              "status": "active"
             }
           ]
         },
@@ -214,7 +226,7 @@
       ]
     },
     "status": {
-      "$ref": "task-status.json",
+      "$ref": "/schemas/v1/enums/task-status.json",
       "description": "Current task status. Webhooks are only triggered for status changes after initial submission (e.g., submitted \u2192 input-required, submitted \u2192 completed, submitted \u2192 failed)."
     },
     "task_id": {
@@ -222,7 +234,7 @@
       "type": "string"
     },
     "task_type": {
-      "$ref": "task-type.json",
+      "$ref": "/schemas/v1/enums/task-type.json",
       "description": "Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic."
     },
     "timestamp": {

@@ -26,13 +26,13 @@ from adcp.types._generated import (
     # Core request/response types
     ActivateSignalRequest,
     ActivateSignalResponse,
-    AffectedPackage,
     AggregatedTotals,
     # Assets
     Asset,
+    AssetContentType,  # New from PR #222: consolidated asset content types
     AssetSelectors,
     AssetsRequired,
-    AssetType,
+    AssetType,  # Old name, still exported from generated (asset-type.json schema)
     AssetTypeSchema,
     AssignedPackage,
     Assignments,
@@ -98,6 +98,7 @@ from adcp.types._generated import (
     Format,
     FormatCard,
     FormatCardDetailed,
+    FormatCategory,  # New from PR #222: format categories (display, video, native, etc.)
     FormatId,
     FormatType,
     FrequencyCap,
@@ -137,6 +138,7 @@ from adcp.types._generated import (
     NotificationType,
     Offering,
     OutputFormat,
+    _PackageFromPackage as Package,  # Still uses qualified name internally PR #223 unified responses, no more collision
     Pacing,
     PackageRequest,
     Packages,
@@ -230,10 +232,6 @@ from adcp.types._generated import (
     WebhookPayload,
 )
 
-# Import all generated types from internal consolidated module
-# Import Package from _generated (uses qualified name to avoid collision)
-from adcp.types._generated import _PackageFromPackage as Package
-
 # Note: BrandManifest is currently split into BrandManifest1/2 due to upstream schema
 # using anyOf incorrectly. This will be fixed upstream to create a single BrandManifest type.
 # For now, users should use BrandManifest1 (url required) which is most common.
@@ -241,13 +239,17 @@ from adcp.types._generated import _PackageFromPackage as Package
 # Note: BrandManifest is now a single clean type
 # Re-export BrandManifest directly (no alias needed)
 
+# Backward compatibility notes:
+# - AssetType is maintained as an alias to AssetContentType for backward compatibility
+# - Will be removed in 3.0.0
+# - Package collision resolved by PR #223 (unified responses)
+
 # Re-export all stable types
 __all__ = [
     # Request/Response types
     "ActivateSignalRequest",
     "ActivateSignalResponse",
     "Action",
-    "AffectedPackage",
     "AggregatedTotals",
     "BuildCreativeRequest",
     "BuildCreativeResponse",
@@ -295,7 +297,9 @@ __all__ = [
     # Domain types
     "Asset",
     "AssetSelectors",
-    "AssetType",
+    "AssetContentType",  # New canonical name from PR #222
+    "AssetType",  # Deprecated alias for AssetContentType
+    "FormatCategory",  # New from PR #222
     "AssetTypeSchema",
     "AssetsRequired",
     "AssignedPackage",

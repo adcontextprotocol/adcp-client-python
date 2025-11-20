@@ -65,7 +65,6 @@ from adcp.types.aliases import (
     BothPreviewRender,
     BuildCreativeErrorResponse,
     BuildCreativeSuccessResponse,
-    CreatedPackageReference,
     CreateMediaBuyErrorResponse,
     CreateMediaBuySuccessResponse,
     HtmlPreviewRender,
@@ -109,6 +108,9 @@ from adcp.types.stable import (
     # Audience & Targeting
     ActivateSignalRequest,
     ActivateSignalResponse,
+    # Type enums from PR #222
+    AssetContentType,
+    FormatCategory,
     # Core domain types
     BrandManifest,
     # Creative Operations
@@ -219,6 +221,9 @@ __all__ = [
     "Error",
     "Format",
     "FormatId",
+    # New type enums from PR #222
+    "AssetContentType",
+    "FormatCategory",
     "Product",
     "Property",
     # Core domain types (from stable API)
@@ -228,8 +233,6 @@ __all__ = [
     "MediaBuy",
     "Package",
     "PackageRequest",
-    # Package type aliases
-    "CreatedPackageReference",
     # Status enums (for control flow)
     "CreativeStatus",
     "MediaBuyStatus",

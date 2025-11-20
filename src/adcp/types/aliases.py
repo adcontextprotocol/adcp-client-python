@@ -100,14 +100,11 @@ from adcp.types._generated import (
     PublisherPropertySelector3 as PublisherPropertiesByTagInternal,
 )
 
-# Import all generated types that need semantic aliases
-from adcp.types._generated import (
-    # Package types (from name collision resolution)
-    _PackageFromCreateMediaBuyResponse as CreatedPackageInternal,
-)
-from adcp.types._generated import (
-    _PackageFromPackage as FullPackageInternal,
-)
+# Note: Package collision resolved by PR #223
+# Both create_media_buy and update_media_buy now return full Package objects
+# No more separate reference type needed
+# Import Package from _generated (still uses qualified name for internal reasons)
+from adcp.types._generated import _PackageFromPackage as Package
 
 # ============================================================================
 # RESPONSE TYPE ALIASES - Success/Error Discriminated Unions
@@ -242,40 +239,11 @@ TextSubAsset = SubAsset2
 #    - Used in MediaBuy, update operations, and package management
 #    - Has 12+ fields for full package configuration
 #
-# 2. Created Package (from create-media-buy-response.json schema):
-#    - Minimal response type with only IDs (buyer_ref, package_id)
-#    - Used in CreateMediaBuy success responses
-#    - Only 2 fields - represents newly created package references
-#
-# The code generator's "first wins" collision handling exports the Created Package
-# as "Package", shadowing the Full Package. These semantic aliases provide clear,
-# unambiguous names for both types.
-
-Package = FullPackageInternal
-"""Complete package configuration with all operational fields.
-
-This is the canonical Package type used throughout AdCP for package management.
-
-Used in:
-- MediaBuy.packages (list of full package details)
-- Update operations (modifying existing packages)
-- Package management (creating/configuring packages)
-
-Fields include: budget, pricing_option_id, product_id, status, bid_price,
-creative_assignments, format_ids_to_provide, impressions, pacing, targeting_overlay
-"""
-
-CreatedPackageReference = CreatedPackageInternal
-"""Minimal package reference with only IDs returned after creation.
-
-This is NOT the full Package type - it's a lightweight reference returned
-in CreateMediaBuySuccessResponse to indicate which packages were created.
-
-Used in:
-- CreateMediaBuySuccessResponse.packages (list of created package references)
-
-Fields: buyer_ref, package_id only
-"""
+# Package collision resolved by PR #223:
+# - create-media-buy-response.json now returns full Package objects (not minimal refs)
+# - update-media-buy-response.json already returned full Package objects
+# - Both operations return identical Package structures
+# - Single Package type imported above, no aliases needed
 
 # ============================================================================
 # PUBLISHER PROPERTIES ALIASES - Selection Type Discriminated Unions
@@ -757,7 +725,6 @@ __all__ = [
     "UpdateMediaBuySuccessResponse",
     "UpdateMediaBuyErrorResponse",
     # Package type aliases
-    "CreatedPackageReference",
     "Package",
     # Publisher properties types
     "PropertyId",
