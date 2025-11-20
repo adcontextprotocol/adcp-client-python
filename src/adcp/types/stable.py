@@ -26,7 +26,6 @@ from adcp.types._generated import (
     # Core request/response types
     ActivateSignalRequest,
     ActivateSignalResponse,
-    AffectedPackage,
     AggregatedTotals,
     # Assets
     Asset,
@@ -247,7 +246,6 @@ __all__ = [
     "ActivateSignalRequest",
     "ActivateSignalResponse",
     "Action",
-    "AffectedPackage",
     "AggregatedTotals",
     "BuildCreativeRequest",
     "BuildCreativeResponse",

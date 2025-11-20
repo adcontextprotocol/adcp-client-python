@@ -1,7 +1,7 @@
 {
   "$id": "/schemas/v1/core/deployment.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "description": "A signal deployment to a specific destination platform with activation status and key",
+  "description": "A signal deployment to a specific deployment target with activation status and key",
   "oneOf": [
     {
       "additionalProperties": false,
@@ -11,8 +11,8 @@
           "type": "string"
         },
         "activation_key": {
-          "$ref": "activation-key.json",
-          "description": "The key to use for targeting. Only present if is_live=true AND requester has access to this destination."
+          "$ref": "/schemas/v1/core/activation-key.json",
+          "description": "The key to use for targeting. Only present if is_live=true AND requester has access to this deployment."
         },
         "deployed_at": {
           "description": "Timestamp when activation completed (if is_live=true)",
@@ -25,7 +25,7 @@
           "type": "number"
         },
         "is_live": {
-          "description": "Whether signal is currently active on this destination",
+          "description": "Whether signal is currently active on this deployment",
           "type": "boolean"
         },
         "platform": {
@@ -53,11 +53,11 @@
           "type": "string"
         },
         "activation_key": {
-          "$ref": "activation-key.json",
-          "description": "The key to use for targeting. Only present if is_live=true AND requester has access to this destination."
+          "$ref": "/schemas/v1/core/activation-key.json",
+          "description": "The key to use for targeting. Only present if is_live=true AND requester has access to this deployment."
         },
         "agent_url": {
-          "description": "URL identifying the destination agent",
+          "description": "URL identifying the deployment agent",
           "format": "uri",
           "type": "string"
         },
@@ -72,7 +72,7 @@
           "type": "number"
         },
         "is_live": {
-          "description": "Whether signal is currently active on this destination",
+          "description": "Whether signal is currently active on this deployment",
           "type": "boolean"
         },
         "type": {

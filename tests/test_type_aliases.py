@@ -285,41 +285,28 @@ def test_semantic_aliases_can_be_imported_from_main_package():
 
 
 def test_package_type_aliases_imports():
-    """Test that Package type aliases can be imported."""
-    from adcp import CreatedPackageReference, Package
-    from adcp.types import CreatedPackageReference as TypesCreatedPackageReference
+    """Test that Package type alias can be imported."""
+    from adcp import Package
     from adcp.types import Package as TypesPackage
-    from adcp.types.aliases import CreatedPackageReference as AliasCreatedPackageReference
     from adcp.types.aliases import Package as AliasPackage
 
     # Verify all import paths work
     assert Package is TypesPackage
     assert Package is AliasPackage
-    assert CreatedPackageReference is TypesCreatedPackageReference
-    assert CreatedPackageReference is AliasCreatedPackageReference
 
 
 def test_package_type_aliases_point_to_correct_modules():
-    """Test that Package aliases point to the correct generated types."""
-    from adcp import CreatedPackageReference, Package
-    from adcp.types._generated import (
-        _PackageFromCreateMediaBuyResponse,
-        _PackageFromPackage,
-    )
+    """Test that Package alias points to the correct generated type."""
+    from adcp import Package
+    from adcp.types._generated import _PackageFromPackage
 
     # Package should point to the full domain package
     assert Package is _PackageFromPackage
 
-    # CreatedPackageReference should point to the response package
-    assert CreatedPackageReference is _PackageFromCreateMediaBuyResponse
-
-    # Verify they're different types
-    assert Package is not CreatedPackageReference
-
 
 def test_package_type_aliases_have_correct_fields():
-    """Test that Package type aliases have the expected fields."""
-    from adcp import CreatedPackageReference, Package
+    """Test that Package type alias has the expected fields."""
+    from adcp import Package
 
     # Package should have all operational fields
     package_fields = set(Package.__annotations__.keys())
@@ -342,42 +329,25 @@ def test_package_type_aliases_have_correct_fields():
         f"Expected: {expected_package_fields}, Got: {package_fields}"
     )
 
-    # CreatedPackageReference should only have IDs
-    created_fields = set(CreatedPackageReference.__annotations__.keys())
-    expected_created_fields = {"buyer_ref", "package_id"}
-    assert created_fields == expected_created_fields, (
-        f"CreatedPackageReference fields mismatch. "
-        f"Expected: {expected_created_fields}, Got: {created_fields}"
-    )
-
 
 def test_package_type_aliases_in_exports():
-    """Test that Package type aliases are properly exported."""
+    """Test that Package type alias is properly exported."""
     import adcp
     import adcp.types.aliases as aliases_module
 
     # Check main package exports
     assert hasattr(adcp, "Package")
-    assert hasattr(adcp, "CreatedPackageReference")
     assert "Package" in adcp.__all__
-    assert "CreatedPackageReference" in adcp.__all__
 
     # Check aliases module exports
     assert hasattr(aliases_module, "Package")
-    assert hasattr(aliases_module, "CreatedPackageReference")
     assert "Package" in aliases_module.__all__
-    assert "CreatedPackageReference" in aliases_module.__all__
 
 
 def test_package_aliases_can_instantiate():
-    """Test that Package type aliases can be used to create instances."""
-    from adcp import CreatedPackageReference, Package
+    """Test that Package type alias can be used to create instances."""
+    from adcp import Package
     from adcp.types import PackageStatus
-
-    # Create a CreatedPackageReference (minimal fields)
-    created = CreatedPackageReference(buyer_ref="buyer-123", package_id="pkg-456")
-    assert created.buyer_ref == "buyer-123"
-    assert created.package_id == "pkg-456"
 
     # Create a Package (all required fields)
     pkg = Package(package_id="pkg-789", status=PackageStatus.draft)

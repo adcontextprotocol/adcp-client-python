@@ -29,8 +29,6 @@ from adcp.types.aliases import (
     # Build creative responses
     BuildCreativeErrorResponse,
     BuildCreativeSuccessResponse,
-    # Package aliases
-    CreatedPackageReference,
     # Create media buy responses
     CreateMediaBuyErrorResponse,
     CreateMediaBuySuccessResponse,
@@ -104,7 +102,6 @@ from adcp.types.stable import (
     Action,
     ActivateSignalRequest,
     ActivateSignalResponse,
-    AffectedPackage,
     AggregatedTotals,
     Asset,
     AssetSelectors,
@@ -330,7 +327,6 @@ __all__ = [
     "ActivateSignalRequest",
     "ActivateSignalResponse",
     "ActivateSignalSuccessResponse",
-    "AffectedPackage",
     "AgentDeployment",
     "AgentDestination",
     "AggregatedTotals",
@@ -376,7 +372,6 @@ __all__ = [
     "CreateMediaBuyRequest",
     "CreateMediaBuyResponse",
     "CreateMediaBuySuccessResponse",
-    "CreatedPackageReference",
     "Creative",
     "CreativeAgent",
     "CreativeAsset",
