@@ -26,6 +26,10 @@ from adcp.exceptions import ADCPSimpleAPIError
 from adcp.types.stable import (
     ActivateSignalRequest,
     ActivateSignalResponse,
+    BuildCreativeRequest,
+    BuildCreativeResponse,
+    CreateMediaBuyRequest,
+    CreateMediaBuyResponse,
     GetMediaBuyDeliveryRequest,
     GetMediaBuyDeliveryResponse,
     GetProductsRequest,
@@ -44,6 +48,8 @@ from adcp.types.stable import (
     ProvidePerformanceFeedbackResponse,
     SyncCreativesRequest,
     SyncCreativesResponse,
+    UpdateMediaBuyRequest,
+    UpdateMediaBuyResponse,
 )
 
 if TYPE_CHECKING:
@@ -341,6 +347,104 @@ class SimpleAPI:
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
                 operation="provide_performance_feedback",
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def create_media_buy(
+        self,
+        **kwargs: Any,
+    ) -> CreateMediaBuyResponse:
+        """Create media buy.
+
+        Args:
+            **kwargs: Arguments passed to CreateMediaBuyRequest
+
+        Returns:
+            CreateMediaBuyResponse
+
+        Raises:
+            Exception: If the request fails
+
+        Example:
+            media_buy = await client.simple.create_media_buy(
+                brand_manifest=brand,
+                packages=[package_request],
+                publisher_properties=properties
+            )
+            print(f"Created media buy: {media_buy.media_buy_id}")
+        """
+        request = CreateMediaBuyRequest(**kwargs)
+        result = await self._client.create_media_buy(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation="create_media_buy",
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def update_media_buy(
+        self,
+        **kwargs: Any,
+    ) -> UpdateMediaBuyResponse:
+        """Update media buy.
+
+        Args:
+            **kwargs: Arguments passed to UpdateMediaBuyRequest
+
+        Returns:
+            UpdateMediaBuyResponse
+
+        Raises:
+            Exception: If the request fails
+
+        Example:
+            updated = await client.simple.update_media_buy(
+                media_buy_id="mb_123",
+                packages=[updated_package]
+            )
+            print(f"Updated media buy: {updated.media_buy_id}")
+        """
+        request = UpdateMediaBuyRequest(**kwargs)
+        result = await self._client.update_media_buy(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation="update_media_buy",
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def build_creative(
+        self,
+        **kwargs: Any,
+    ) -> BuildCreativeResponse:
+        """Build creative.
+
+        Args:
+            **kwargs: Arguments passed to BuildCreativeRequest
+
+        Returns:
+            BuildCreativeResponse
+
+        Raises:
+            Exception: If the request fails
+
+        Example:
+            creative = await client.simple.build_creative(
+                manifest=creative_manifest,
+                target_format_id="vast_2.0",
+                inputs={"duration": 30}
+            )
+            print(f"Built creative: {creative.assets[0].url}")
+        """
+        request = BuildCreativeRequest(**kwargs)
+        result = await self._client.build_creative(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation="build_creative",
                 error_message=result.error,
                 agent_id=self._client.agent_config.id,
             )

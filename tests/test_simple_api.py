@@ -198,9 +198,15 @@ def test_simple_api_methods():
     assert hasattr(test_agent.simple, "get_signals")
     assert hasattr(test_agent.simple, "activate_signal")
     assert hasattr(test_agent.simple, "provide_performance_feedback")
+    assert hasattr(test_agent.simple, "create_media_buy")
+    assert hasattr(test_agent.simple, "update_media_buy")
+    assert hasattr(test_agent.simple, "build_creative")
 
     # Verify they're all async methods (not sync)
     import inspect
 
     assert inspect.iscoroutinefunction(test_agent.simple.get_products)
     assert inspect.iscoroutinefunction(test_agent.simple.list_creative_formats)
+    assert inspect.iscoroutinefunction(test_agent.simple.create_media_buy)
+    assert inspect.iscoroutinefunction(test_agent.simple.update_media_buy)
+    assert inspect.iscoroutinefunction(test_agent.simple.build_creative)
