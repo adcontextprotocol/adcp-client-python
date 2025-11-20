@@ -110,7 +110,6 @@ from adcp.types.stable import (
     ActivateSignalResponse,
     # Type enums from PR #222
     AssetContentType,
-    FormatCategory,
     # Core domain types
     BrandManifest,
     # Creative Operations
@@ -134,6 +133,7 @@ from adcp.types.stable import (
     Error,
     FlatRatePricingOption,
     Format,
+    FormatCategory,
     FormatId,
     GetMediaBuyDeliveryRequest,
     GetMediaBuyDeliveryResponse,

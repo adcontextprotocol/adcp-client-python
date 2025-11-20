@@ -132,7 +132,6 @@ from adcp.types._generated import (
     NotificationType,
     Offering,
     OutputFormat,
-    _PackageFromPackage as Package,  # Still uses qualified name internally PR #223 unified responses, no more collision
     Pacing,
     PackageRequest,
     Packages,
@@ -222,6 +221,10 @@ from adcp.types._generated import (
     ViewThreshold,
     WebhookAsset,
     WebhookPayload,
+)
+from adcp.types._generated import (
+    # PR #223 unified responses, no more collision
+    _PackageFromPackage as Package,
 )
 
 # Note: BrandManifest is currently split into BrandManifest1/2 due to upstream schema
@@ -426,7 +429,6 @@ __all__ = [
     "ReportingPeriod",
     "ReportingWebhook",
     "RequestedMetric",
-    "Requirements",
     "Scheme",
     "Security",
     # Assets
