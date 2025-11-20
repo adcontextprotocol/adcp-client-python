@@ -248,6 +248,18 @@ class A2AAdapter(ProtocolAdapter):
         """Generate preview URLs for a creative manifest."""
         return await self._call_a2a_tool("preview_creative", params)
 
+    async def create_media_buy(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Create media buy."""
+        return await self._call_a2a_tool("create_media_buy", params)
+
+    async def update_media_buy(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Update media buy."""
+        return await self._call_a2a_tool("update_media_buy", params)
+
+    async def build_creative(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Build creative."""
+        return await self._call_a2a_tool("build_creative", params)
+
     async def list_tools(self) -> list[str]:
         """
         List available tools from A2A agent.

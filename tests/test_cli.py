@@ -279,6 +279,59 @@ class TestCLIErrorHandling:
 class TestCLIIntegration:
     """Integration tests for CLI (with mocked network calls)."""
 
+    @pytest.mark.asyncio
+    async def test_list_tools_dispatch(self):
+        """Test that list_tools is in TOOL_DISPATCH and handled correctly."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from adcp.__main__ import _dispatch_tool
+        from adcp.client import ADCPClient
+        from adcp.types.core import AgentConfig, Protocol
+
+        # Create mock client
+        config = AgentConfig(
+            id="test",
+            agent_uri="https://test.example.com",
+            protocol=Protocol.MCP,
+        )
+
+        client = ADCPClient(config)
+
+        # Mock the list_tools method to return a list of tools
+        client.list_tools = AsyncMock(return_value=["get_products", "list_creative_formats"])
+
+        # Test that list_tools can be dispatched
+        result = await _dispatch_tool(client, "list_tools", {})
+
+        assert result.success is True
+        assert result.data == {"tools": ["get_products", "list_creative_formats"]}
+
+    @pytest.mark.asyncio
+    async def test_invalid_tool_name(self):
+        """Test that invalid tool names return proper error."""
+        from unittest.mock import AsyncMock
+
+        from adcp.__main__ import _dispatch_tool
+        from adcp.client import ADCPClient
+        from adcp.types.core import AgentConfig, Protocol, TaskStatus
+
+        # Create mock client
+        config = AgentConfig(
+            id="test",
+            agent_uri="https://test.example.com",
+            protocol=Protocol.MCP,
+        )
+
+        client = ADCPClient(config)
+
+        # Test invalid tool name
+        result = await _dispatch_tool(client, "invalid_tool_name", {})
+
+        assert result.success is False
+        assert result.status == TaskStatus.FAILED
+        assert "Unknown tool" in result.error
+        assert "list_tools" in result.error  # Should be in available tools list
+
 
 class TestSpecialCharactersInPayload:
     """Test that CLI handles special characters in payloads."""

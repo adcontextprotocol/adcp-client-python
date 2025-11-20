@@ -466,11 +466,182 @@ All AdCP tools with full type safety:
 - `list_creatives()` - List creative assets
 - `get_media_buy_delivery()` - Get delivery performance
 
+**Creative Management:**
+- `preview_creative()` - Preview creative before building
+- `build_creative()` - Generate production-ready creative assets
+
 **Audience & Targeting:**
 - `list_authorized_properties()` - Get authorized properties
 - `get_signals()` - Get audience signals
 - `activate_signal()` - Activate audience signals
 - `provide_performance_feedback()` - Send performance feedback
+
+## Workflow Examples
+
+### Complete Media Buy Workflow
+
+A typical media buy workflow involves discovering products, creating the buy, and managing creatives:
+
+```python
+from adcp import ADCPClient, AgentConfig, GetProductsRequest, CreateMediaBuyRequest
+from adcp import BrandManifest, PublisherPropertiesAll
+
+# 1. Connect to agent
+config = AgentConfig(id="sales_agent", agent_uri="https://...", protocol="mcp")
+async with ADCPClient(config) as client:
+
+    # 2. Discover available products
+    products_result = await client.get_products(
+        GetProductsRequest(brief="Premium video inventory for coffee brand")
+    )
+
+    if products_result.success:
+        product = products_result.data.products[0]
+        print(f"Found product: {product.name}")
+
+    # 3. Create media buy reservation
+    media_buy_result = await client.create_media_buy(
+        CreateMediaBuyRequest(
+            brand_manifest=BrandManifest(
+                name="Coffee Co",
+                brand_url="https://coffeeco.com",
+                logo_url="https://coffeeco.com/logo.png",
+                # ... additional brand details
+            ),
+            packages=[{
+                "package_id": product.packages[0].package_id,
+                "quantity": 1000000  # impressions
+            }],
+            publisher_properties=PublisherPropertiesAll(
+                selection_type="all"  # Target all authorized properties
+            )
+        )
+    )
+
+    if media_buy_result.success:
+        media_buy_id = media_buy_result.data.media_buy_id
+        print(f"✅ Media buy created: {media_buy_id}")
+
+    # 4. Update media buy if needed
+    from adcp import UpdateMediaBuyPackagesRequest
+
+    update_result = await client.update_media_buy(
+        UpdateMediaBuyPackagesRequest(
+            media_buy_id=media_buy_id,
+            packages=[{
+                "package_id": product.packages[0].package_id,
+                "quantity": 1500000  # Increase budget
+            }]
+        )
+    )
+
+    if update_result.success:
+        print("✅ Media buy updated")
+```
+
+### Complete Creative Workflow
+
+Build and deliver production-ready creatives:
+
+```python
+from adcp import ADCPClient, AgentConfig
+from adcp import PreviewCreativeFormatRequest, BuildCreativeRequest
+from adcp import CreativeManifest, PlatformDeployment
+
+# 1. Connect to creative agent
+config = AgentConfig(id="creative_agent", agent_uri="https://...", protocol="mcp")
+async with ADCPClient(config) as client:
+
+    # 2. List available formats
+    formats_result = await client.list_creative_formats()
+
+    if formats_result.success:
+        format_id = formats_result.data.formats[0].format_id
+        print(f"Using format: {format_id.id}")
+
+    # 3. Preview creative (test before building)
+    preview_result = await client.preview_creative(
+        PreviewCreativeFormatRequest(
+            target_format_id=format_id.id,
+            inputs={
+                "headline": "Fresh Coffee Daily",
+                "cta": "Order Now"
+            },
+            output_format="url"  # Get preview URL
+        )
+    )
+
+    if preview_result.success:
+        preview_url = preview_result.data.renders[0].url
+        print(f"Preview at: {preview_url}")
+
+    # 4. Build production creative
+    build_result = await client.build_creative(
+        BuildCreativeRequest(
+            manifest=CreativeManifest(
+                format_id=format_id,
+                brand_url="https://coffeeco.com",
+                # ... creative content
+            ),
+            target_format_id=format_id.id,
+            deployment=PlatformDeployment(
+                type="platform",
+                platform_id="google_admanager"
+            )
+        )
+    )
+
+    if build_result.success:
+        vast_url = build_result.data.assets[0].url
+        print(f"✅ Creative ready: {vast_url}")
+```
+
+### Integrated Workflow: Media Buy + Creatives
+
+Combine both workflows for a complete campaign setup:
+
+```python
+from adcp import ADCPMultiAgentClient, AgentConfig
+from adcp import GetProductsRequest, CreateMediaBuyRequest, BuildCreativeRequest
+
+# Connect to both sales and creative agents
+async with ADCPMultiAgentClient(
+    agents=[
+        AgentConfig(id="sales", agent_uri="https://sales-agent.com", protocol="mcp"),
+        AgentConfig(id="creative", agent_uri="https://creative-agent.com", protocol="mcp"),
+    ]
+) as client:
+
+    # 1. Get products from sales agent
+    sales_agent = client.agent("sales")
+    products = await sales_agent.simple.get_products(
+        brief="Premium video inventory"
+    )
+
+    # 2. Get creative formats from creative agent
+    creative_agent = client.agent("creative")
+    formats = await creative_agent.simple.list_creative_formats()
+
+    # 3. Build creative asset
+    creative_result = await creative_agent.build_creative(
+        BuildCreativeRequest(
+            manifest=creative_manifest,
+            target_format_id=formats.formats[0].format_id.id
+        )
+    )
+
+    # 4. Create media buy with creative
+    media_buy_result = await sales_agent.create_media_buy(
+        CreateMediaBuyRequest(
+            brand_manifest=brand_manifest,
+            packages=[{"package_id": products.products[0].packages[0].package_id}],
+            publisher_properties=publisher_properties,
+            creative_urls=[creative_result.data.assets[0].url]
+        )
+    )
+
+    print(f"✅ Campaign live: {media_buy_result.data.media_buy_id}")
+```
 
 ## Property Discovery (AdCP v2.2.0)
 
