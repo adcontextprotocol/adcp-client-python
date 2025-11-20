@@ -6,6 +6,12 @@ This script downloads ALL AdCP schemas from the repository directory structure,
 not just those listed in index.json. This ensures we get all schemas including
 asset types (vast-asset.json, daast-asset.json) with discriminators from PR #189.
 
+Features:
+- Content-based change detection (only updates files when content changes)
+- Automatic cleanup of orphaned schemas (files removed upstream)
+- Preserves directory structure from upstream
+- Symlink to latest version for convenience
+
 Usage:
     python scripts/sync_schemas.py          # Normal sync (uses content hashing)
     python scripts/sync_schemas.py --force  # Force re-download all schemas
@@ -207,6 +213,7 @@ def main():
         print("Downloading schemas:")
         updated_count = 0
         cached_count = 0
+        removed_count = 0
 
         for url in schema_urls:
             was_updated, new_hash = download_schema_file(url, version, hash_cache, force=args.force)
@@ -218,6 +225,37 @@ def main():
 
             if new_hash:
                 updated_hashes[url] = new_hash
+
+        # Clean up orphaned schemas (files that exist locally but not upstream)
+        version_dir = CACHE_DIR / version
+        if version_dir.exists():
+            # Get list of expected filenames from URLs
+            expected_files = {url.split("/")[-1] for url in schema_urls}
+            # Also allow the hash cache file
+            expected_files.add(".hashes.json")
+
+            # Find orphaned JSON files
+            orphaned_files = []
+            for json_file in version_dir.rglob("*.json"):
+                if json_file.name not in expected_files and json_file.name != ".hashes.json":
+                    orphaned_files.append(json_file)
+
+            # Remove orphaned files
+            if orphaned_files:
+                print("\nCleaning up orphaned schemas:")
+                for orphan in orphaned_files:
+                    rel_path = orphan.relative_to(version_dir)
+                    print(f"  ✗ {rel_path} (removed - no longer in upstream)")
+                    orphan.unlink()
+                    removed_count += 1
+
+                    # Remove empty directories
+                    parent = orphan.parent
+                    try:
+                        if parent != version_dir and not any(parent.iterdir()):
+                            parent.rmdir()
+                    except OSError:
+                        pass
 
         # Save updated hash cache
         if updated_hashes:
@@ -237,6 +275,8 @@ def main():
         print(f"  Location: {version_dir}")
         print(f"  Updated: {updated_count}")
         print(f"  Cached: {cached_count}")
+        if removed_count > 0:
+            print(f"  Removed: {removed_count} (orphaned)")
 
     except Exception as e:
         print(f"\n✗ Error syncing schemas: {e}", file=sys.stderr)
