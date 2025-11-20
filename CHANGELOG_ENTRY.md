@@ -1,9 +1,11 @@
 ## Type System Updates (AdCP PR #222 + #223)
 
+This release integrates upstream schema improvements that resolved all type naming collisions in the AdCP protocol, enabling cleaner SDK APIs and better type safety.
+
 ### New Types
 
-- `AssetContentType`: Consolidated enum for asset content types (replaces multiple `AssetType` variants)
-- `FormatCategory`: New enum for format categories (display, video, native, dooh, etc.)
+- `AssetContentType`: Consolidated enum for asset content types (13 values: image, video, audio, text, html, css, javascript, vast, daast, promoted_offerings, url, markdown, webhook)
+- `FormatCategory`: New enum for format categories (7 values: audio, video, display, native, dooh, rich_media, universal)
 
 ### Breaking Changes
 
@@ -12,23 +14,40 @@
 
 ### Improvements
 
-- **Package collision resolved**: create_media_buy and update_media_buy now return identical Package structures
-- **Enum collision resolved**: Clear semantic names for asset content types vs. format categories
-- **Backward compatibility**: `AssetType` maintained as deprecated alias to `AssetContentType` (will be removed in 3.0.0)
+- **Package collision resolved**: `create_media_buy` and `update_media_buy` now return identical Package structures with all fields (budget, status, creative_assignments, etc.)
+- **Enum collisions resolved**: Clear semantic separation between `AssetContentType` (what an asset contains) and `FormatCategory` (how a format renders)
+- **No more qualified imports**: All types now cleanly exported from stable API - no need for `_PackageFromPackage` or similar workarounds
+- **Backward compatibility**: SDK maintains `AssetType` as deprecated alias during 2.x releases (will be removed in 3.0.0)
 
 ### Migration Guide
 
 ```python
-# Before
+# Before (using internal generated types)
 from adcp.types.generated_poc.brand_manifest import AssetType
 from adcp.types.generated_poc.format import Type
 
-# After
+# After (using stable public API)
 from adcp import AssetContentType, FormatCategory
 
-# Package responses now consistent
+# Package responses now consistent across create and update
 response = await client.create_media_buy(...)
 for pkg in response.packages:
-    # Full Package object with all fields (budget, status, etc.)
-    print(f"Package {pkg.package_id}: budget={pkg.budget}, status={pkg.status}")
+    # Full Package object with all fields available immediately
+    print(f"Package {pkg.package_id}:")
+    print(f"  Budget: {pkg.budget}")
+    print(f"  Status: {pkg.status}")
+    print(f"  Product: {pkg.product_id}")
+    print(f"  Pricing: {pkg.pricing_option_id}")
 ```
+
+### Upstream Recommendations Submitted
+
+Based on this integration work, we've identified and shared with the AdCP team:
+
+1. **Orphaned schema file**: `asset-type.json` is no longer referenced after PR #222 and should be removed
+2. **Enum organization**: Consider consolidating all reusable enums into `/schemas/v1/enums/` directory
+3. **Discriminator standardization**: Multiple patterns used (`type`, `output_format`, `delivery_type`, etc.) - could standardize on `type`
+4. **Schema-level validation**: Add JSON Schema 2019-09 `discriminator` keyword for better tooling support
+5. **Enum versioning policy**: Document whether new enum values are minor vs. major version changes
+
+Overall, the AdCP schemas are in excellent shape - these are minor polish suggestions.
