@@ -688,13 +688,6 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.AuthorizedSalesAgents">AuthorizedSalesAgents</a></li>
 <li><a title="adcp.types.generated_poc.adagents.Contact" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.Contact">Contact</a></li>
 <li><a title="adcp.types.generated_poc.adagents.Tags" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.Tags">Tags</a></li>
-<li><a title="adcp.types.generated_poc.asset_type.AssetTypeSchema" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.AssetTypeSchema">AssetTypeSchema</a></li>
-<li><a title="adcp.types.generated_poc.asset_type.ContentLength" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.ContentLength">ContentLength</a></li>
-<li><a title="adcp.types.generated_poc.asset_type.Dimensions" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.Dimensions">Dimensions</a></li>
-<li><a title="adcp.types.generated_poc.asset_type.Duration" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.Duration">Duration</a></li>
-<li><a title="adcp.types.generated_poc.asset_type.FileSize" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.FileSize">FileSize</a></li>
-<li><a title="adcp.types.generated_poc.asset_type.Quality" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.Quality">Quality</a></li>
-<li><a title="adcp.types.generated_poc.asset_type.Requirements" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.Requirements">Requirements</a></li>
 <li><a title="adcp.types.generated_poc.audio_asset.AudioAsset" href="generated_poc/audio_asset.html#adcp.types.generated_poc.audio_asset.AudioAsset">AudioAsset</a></li>
 <li><a title="adcp.types.generated_poc.brand_manifest.Asset" href="generated_poc/brand_manifest.html#adcp.types.generated_poc.brand_manifest.Asset">Asset</a></li>
 <li><a title="adcp.types.generated_poc.brand_manifest.BrandManifest" href="generated_poc/brand_manifest.html#adcp.types.generated_poc.brand_manifest.BrandManifest">BrandManifest</a></li>
@@ -1367,6 +1360,125 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.AssetContentType"><code class="flex name class">
+<span>class <span class="ident">AssetType</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AssetContentType(Enum):
+    image = &#39;image&#39;
+    video = &#39;video&#39;
+    audio = &#39;audio&#39;
+    text = &#39;text&#39;
+    markdown = &#39;markdown&#39;
+    html = &#39;html&#39;
+    css = &#39;css&#39;
+    javascript = &#39;javascript&#39;
+    vast = &#39;vast&#39;
+    daast = &#39;daast&#39;
+    promoted_offerings = &#39;promoted_offerings&#39;
+    url = &#39;url&#39;
+    webhook = &#39;webhook&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.AssetContentType.audio"><code class="name">var <span class="ident">audio</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.AssetContentType.css"><code class="name">var <span class="ident">css</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.AssetContentType.daast"><code class="name">var <span class="ident">daast</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.AssetContentType.html"><code class="name">var <span class="ident">html</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.AssetContentType.image"><code class="name">var <span class="ident">image</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.AssetContentType.javascript"><code class="name">var <span class="ident">javascript</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.AssetContentType.markdown"><code class="name">var <span class="ident">markdown</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.AssetContentType.promoted_offerings"><code class="name">var <span class="ident">promoted_offerings</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.AssetContentType.text"><code class="name">var <span class="ident">text</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.AssetContentType.url"><code class="name">var <span class="ident">url</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.AssetContentType.vast"><code class="name">var <span class="ident">vast</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.AssetContentType.video"><code class="name">var <span class="ident">video</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.AssetContentType.webhook"><code class="name">var <span class="ident">webhook</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.AssetSelectors"><code class="flex name class">
 <span>class <span class="ident">AssetSelectors</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -1419,203 +1531,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.AssetSelectors.tags"><code class="name">var <span class="ident">tags</span> : list[str] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.AssetType"><code class="flex name class">
-<span>class <span class="ident">AssetType</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class AssetType(Enum):
-    image = &#39;image&#39;
-    video = &#39;video&#39;
-    audio = &#39;audio&#39;
-    vast = &#39;vast&#39;
-    daast = &#39;daast&#39;
-    text = &#39;text&#39;
-    url = &#39;url&#39;
-    html = &#39;html&#39;
-    css = &#39;css&#39;
-    javascript = &#39;javascript&#39;
-    webhook = &#39;webhook&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.AssetType.audio"><code class="name">var <span class="ident">audio</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.AssetType.css"><code class="name">var <span class="ident">css</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.AssetType.daast"><code class="name">var <span class="ident">daast</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.AssetType.html"><code class="name">var <span class="ident">html</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.AssetType.image"><code class="name">var <span class="ident">image</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.AssetType.javascript"><code class="name">var <span class="ident">javascript</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.AssetType.text"><code class="name">var <span class="ident">text</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.AssetType.url"><code class="name">var <span class="ident">url</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.AssetType.vast"><code class="name">var <span class="ident">vast</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.AssetType.video"><code class="name">var <span class="ident">video</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.AssetType.webhook"><code class="name">var <span class="ident">webhook</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.AssetTypeSchema"><code class="flex name class">
-<span>class <span class="ident">AssetTypeSchema</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class AssetTypeSchema(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
-    )
-    asset_role: Annotated[
-        str,
-        Field(
-            description=&#34;Role or purpose of this asset in the creative (e.g., &#39;hero_image&#39;, &#39;logo&#39;, &#39;cta_button&#39;)&#34;
-        ),
-    ]
-    constraints: Annotated[
-        list[str] | None,
-        Field(description=&#39;Additional constraints or requirements (human-readable)&#39;),
-    ] = None
-    examples: Annotated[
-        list[str] | None, Field(description=&#39;Example values or descriptions for this asset&#39;)
-    ] = None
-    required: Annotated[
-        bool | None, Field(description=&#39;Whether this asset is mandatory for the format&#39;)
-    ] = True
-    requirements: Annotated[
-        Requirements | None, Field(description=&#39;Technical requirements for this asset type&#39;)
-    ] = None
-    type: Annotated[Type, Field(description=&#39;Type of asset&#39;)]</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.AssetTypeSchema.asset_role"><code class="name">var <span class="ident">asset_role</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.AssetTypeSchema.constraints"><code class="name">var <span class="ident">constraints</span> : list[str] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.AssetTypeSchema.examples"><code class="name">var <span class="ident">examples</span> : list[str] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.AssetTypeSchema.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.AssetTypeSchema.required"><code class="name">var <span class="ident">required</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.AssetTypeSchema.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.asset_type.Requirements" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.Requirements">Requirements</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.AssetTypeSchema.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.asset_type.Type" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.Type">Type</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3533,67 +3448,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.Contact.tag_id"><code class="name">var <span class="ident">tag_id</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.ContentLength"><code class="flex name class">
-<span>class <span class="ident">ContentLength</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class ContentLength(AdCPBaseModel):
-    max_characters: Annotated[int | None, Field(ge=1)] = None
-    max_words: Annotated[int | None, Field(ge=1)] = None
-    min_characters: Annotated[int | None, Field(ge=0)] = None
-    min_words: Annotated[int | None, Field(ge=0)] = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.ContentLength.max_characters"><code class="name">var <span class="ident">max_characters</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.ContentLength.max_words"><code class="name">var <span class="ident">max_words</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.ContentLength.min_characters"><code class="name">var <span class="ident">min_characters</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.ContentLength.min_words"><code class="name">var <span class="ident">min_words</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.ContentLength.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -6296,82 +6150,6 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.Dimensions"><code class="flex name class">
-<span>class <span class="ident">Dimensions</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Dimensions(AdCPBaseModel):
-    aspect_ratio: str | None = None
-    height: Annotated[int | None, Field(ge=1)] = None
-    max_height: Annotated[int | None, Field(ge=1)] = None
-    max_width: Annotated[int | None, Field(ge=1)] = None
-    min_height: Annotated[int | None, Field(ge=1)] = None
-    min_width: Annotated[int | None, Field(ge=1)] = None
-    width: Annotated[int | None, Field(ge=1)] = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.Dimensions.aspect_ratio"><code class="name">var <span class="ident">aspect_ratio</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Dimensions.height"><code class="name">var <span class="ident">height</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Dimensions.max_height"><code class="name">var <span class="ident">max_height</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Dimensions.max_width"><code class="name">var <span class="ident">max_width</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Dimensions.min_height"><code class="name">var <span class="ident">min_height</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Dimensions.min_width"><code class="name">var <span class="ident">min_width</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Dimensions.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Dimensions.width"><code class="name">var <span class="ident">width</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
 <dt id="adcp.types.Direction"><code class="flex name class">
 <span>class <span class="ident">Direction</span></span>
 <span>(</span><span>*args, **kwds)</span>
@@ -6695,62 +6473,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.DoohMetrics.venue_breakdown"><code class="name">var <span class="ident">venue_breakdown</span> : list[<a title="adcp.types.generated_poc.delivery_metrics.VenueBreakdownItem" href="generated_poc/delivery_metrics.html#adcp.types.generated_poc.delivery_metrics.VenueBreakdownItem">VenueBreakdownItem</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.Duration"><code class="flex name class">
-<span>class <span class="ident">Duration</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Duration(AdCPBaseModel):
-    exact_seconds: Annotated[float | None, Field(ge=0.0)] = None
-    max_seconds: Annotated[float | None, Field(ge=0.0)] = None
-    min_seconds: Annotated[float | None, Field(ge=0.0)] = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.Duration.exact_seconds"><code class="name">var <span class="ident">exact_seconds</span> : float | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Duration.max_seconds"><code class="name">var <span class="ident">max_seconds</span> : float | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Duration.min_seconds"><code class="name">var <span class="ident">min_seconds</span> : float | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Duration.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -7164,57 +6886,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <div class="desc"></div>
 </dd>
 </dl>
-</dd>
-<dt id="adcp.types.FileSize"><code class="flex name class">
-<span>class <span class="ident">FileSize</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class FileSize(AdCPBaseModel):
-    max_bytes: Annotated[int | None, Field(ge=1)] = None
-    min_bytes: Annotated[int | None, Field(ge=0)] = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.FileSize.max_bytes"><code class="name">var <span class="ident">max_bytes</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.FileSize.min_bytes"><code class="name">var <span class="ident">min_bytes</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.FileSize.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-</ul>
-</li>
-</ul>
 </dd>
 <dt id="adcp.types.Filters"><code class="flex name class">
 <span>class <span class="ident">Filters</span></span>
@@ -14848,62 +14519,6 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.Quality"><code class="flex name class">
-<span>class <span class="ident">Quality</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Quality(AdCPBaseModel):
-    max_bitrate_kbps: Annotated[int | None, Field(ge=1)] = None
-    min_bitrate_kbps: Annotated[int | None, Field(ge=1)] = None
-    min_resolution_dpi: Annotated[int | None, Field(ge=72)] = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.Quality.max_bitrate_kbps"><code class="name">var <span class="ident">max_bitrate_kbps</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Quality.min_bitrate_kbps"><code class="name">var <span class="ident">min_bitrate_kbps</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Quality.min_resolution_dpi"><code class="name">var <span class="ident">min_resolution_dpi</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Quality.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
 <dt id="adcp.types.QuartileData"><code class="flex name class">
 <span>class <span class="ident">QuartileData</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -15564,83 +15179,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <div class="desc"></div>
 </dd>
 </dl>
-</dd>
-<dt id="adcp.types.Requirements"><code class="flex name class">
-<span>class <span class="ident">Requirements</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Requirements(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
-    )
-    content_length: ContentLength | None = None
-    dimensions: Dimensions | None = None
-    duration: Duration | None = None
-    file_formats: Annotated[
-        list[str] | None,
-        Field(description=&#34;Acceptable file formats (e.g., [&#39;jpg&#39;, &#39;png&#39;] for images)&#34;),
-    ] = None
-    file_size: FileSize | None = None
-    quality: Quality | None = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.Requirements.content_length"><code class="name">var <span class="ident">content_length</span> : <a title="adcp.types.generated_poc.asset_type.ContentLength" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.ContentLength">ContentLength</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Requirements.dimensions"><code class="name">var <span class="ident">dimensions</span> : <a title="adcp.types.generated_poc.asset_type.Dimensions" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.Dimensions">Dimensions</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Requirements.duration"><code class="name">var <span class="ident">duration</span> : <a title="adcp.types.generated_poc.asset_type.Duration" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.Duration">Duration</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Requirements.file_formats"><code class="name">var <span class="ident">file_formats</span> : list[str] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Requirements.file_size"><code class="name">var <span class="ident">file_size</span> : <a title="adcp.types.generated_poc.asset_type.FileSize" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.FileSize">FileSize</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Requirements.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Requirements.quality"><code class="name">var <span class="ident">quality</span> : <a title="adcp.types.generated_poc.asset_type.Quality" href="generated_poc/asset_type.html#adcp.types.generated_poc.asset_type.Quality">Quality</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-</ul>
-</li>
-</ul>
 </dd>
 <dt id="adcp.types.Response"><code class="flex name class">
 <span>class <span class="ident">Response</span></span>
@@ -18485,17 +18023,8 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Type(Enum):
-    image = &#39;image&#39;
-    video = &#39;video&#39;
-    audio = &#39;audio&#39;
-    text = &#39;text&#39;
-    html = &#39;html&#39;
-    css = &#39;css&#39;
-    javascript = &#39;javascript&#39;
-    vast = &#39;vast&#39;
-    daast = &#39;daast&#39;
-    promoted_offerings = &#39;promoted_offerings&#39;
-    url = &#39;url&#39;</code></pre>
+    request = &#39;request&#39;
+    response = &#39;response&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -18538,47 +18067,11 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.Type.audio"><code class="name">var <span class="ident">audio</span></code></dt>
+<dt id="adcp.types.Type.request"><code class="name">var <span class="ident">request</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.Type.css"><code class="name">var <span class="ident">css</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Type.daast"><code class="name">var <span class="ident">daast</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Type.html"><code class="name">var <span class="ident">html</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Type.image"><code class="name">var <span class="ident">image</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Type.javascript"><code class="name">var <span class="ident">javascript</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Type.promoted_offerings"><code class="name">var <span class="ident">promoted_offerings</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Type.text"><code class="name">var <span class="ident">text</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Type.url"><code class="name">var <span class="ident">url</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Type.vast"><code class="name">var <span class="ident">vast</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Type.video"><code class="name">var <span class="ident">video</span></code></dt>
+<dt id="adcp.types.Type.response"><code class="name">var <span class="ident">response</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -20533,40 +20026,30 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.AssetContentType" href="#adcp.types.AssetContentType">AssetContentType</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.AssetContentType.audio" href="#adcp.types.AssetContentType.audio">audio</a></code></li>
+<li><code><a title="adcp.types.AssetContentType.css" href="#adcp.types.AssetContentType.css">css</a></code></li>
+<li><code><a title="adcp.types.AssetContentType.daast" href="#adcp.types.AssetContentType.daast">daast</a></code></li>
+<li><code><a title="adcp.types.AssetContentType.html" href="#adcp.types.AssetContentType.html">html</a></code></li>
+<li><code><a title="adcp.types.AssetContentType.image" href="#adcp.types.AssetContentType.image">image</a></code></li>
+<li><code><a title="adcp.types.AssetContentType.javascript" href="#adcp.types.AssetContentType.javascript">javascript</a></code></li>
+<li><code><a title="adcp.types.AssetContentType.markdown" href="#adcp.types.AssetContentType.markdown">markdown</a></code></li>
+<li><code><a title="adcp.types.AssetContentType.promoted_offerings" href="#adcp.types.AssetContentType.promoted_offerings">promoted_offerings</a></code></li>
+<li><code><a title="adcp.types.AssetContentType.text" href="#adcp.types.AssetContentType.text">text</a></code></li>
+<li><code><a title="adcp.types.AssetContentType.url" href="#adcp.types.AssetContentType.url">url</a></code></li>
+<li><code><a title="adcp.types.AssetContentType.vast" href="#adcp.types.AssetContentType.vast">vast</a></code></li>
+<li><code><a title="adcp.types.AssetContentType.video" href="#adcp.types.AssetContentType.video">video</a></code></li>
+<li><code><a title="adcp.types.AssetContentType.webhook" href="#adcp.types.AssetContentType.webhook">webhook</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.AssetSelectors" href="#adcp.types.AssetSelectors">AssetSelectors</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.AssetSelectors.asset_types" href="#adcp.types.AssetSelectors.asset_types">asset_types</a></code></li>
 <li><code><a title="adcp.types.AssetSelectors.exclude_tags" href="#adcp.types.AssetSelectors.exclude_tags">exclude_tags</a></code></li>
 <li><code><a title="adcp.types.AssetSelectors.model_config" href="#adcp.types.AssetSelectors.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.AssetSelectors.tags" href="#adcp.types.AssetSelectors.tags">tags</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.AssetType" href="#adcp.types.AssetType">AssetType</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.AssetType.audio" href="#adcp.types.AssetType.audio">audio</a></code></li>
-<li><code><a title="adcp.types.AssetType.css" href="#adcp.types.AssetType.css">css</a></code></li>
-<li><code><a title="adcp.types.AssetType.daast" href="#adcp.types.AssetType.daast">daast</a></code></li>
-<li><code><a title="adcp.types.AssetType.html" href="#adcp.types.AssetType.html">html</a></code></li>
-<li><code><a title="adcp.types.AssetType.image" href="#adcp.types.AssetType.image">image</a></code></li>
-<li><code><a title="adcp.types.AssetType.javascript" href="#adcp.types.AssetType.javascript">javascript</a></code></li>
-<li><code><a title="adcp.types.AssetType.text" href="#adcp.types.AssetType.text">text</a></code></li>
-<li><code><a title="adcp.types.AssetType.url" href="#adcp.types.AssetType.url">url</a></code></li>
-<li><code><a title="adcp.types.AssetType.vast" href="#adcp.types.AssetType.vast">vast</a></code></li>
-<li><code><a title="adcp.types.AssetType.video" href="#adcp.types.AssetType.video">video</a></code></li>
-<li><code><a title="adcp.types.AssetType.webhook" href="#adcp.types.AssetType.webhook">webhook</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.AssetTypeSchema" href="#adcp.types.AssetTypeSchema">AssetTypeSchema</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.AssetTypeSchema.asset_role" href="#adcp.types.AssetTypeSchema.asset_role">asset_role</a></code></li>
-<li><code><a title="adcp.types.AssetTypeSchema.constraints" href="#adcp.types.AssetTypeSchema.constraints">constraints</a></code></li>
-<li><code><a title="adcp.types.AssetTypeSchema.examples" href="#adcp.types.AssetTypeSchema.examples">examples</a></code></li>
-<li><code><a title="adcp.types.AssetTypeSchema.model_config" href="#adcp.types.AssetTypeSchema.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.AssetTypeSchema.required" href="#adcp.types.AssetTypeSchema.required">required</a></code></li>
-<li><code><a title="adcp.types.AssetTypeSchema.requirements" href="#adcp.types.AssetTypeSchema.requirements">requirements</a></code></li>
-<li><code><a title="adcp.types.AssetTypeSchema.type" href="#adcp.types.AssetTypeSchema.type">type</a></code></li>
 </ul>
 </li>
 <li>
@@ -20811,16 +20294,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.Contact.name" href="#adcp.types.Contact.name">name</a></code></li>
 <li><code><a title="adcp.types.Contact.seller_id" href="#adcp.types.Contact.seller_id">seller_id</a></code></li>
 <li><code><a title="adcp.types.Contact.tag_id" href="#adcp.types.Contact.tag_id">tag_id</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.ContentLength" href="#adcp.types.ContentLength">ContentLength</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.ContentLength.max_characters" href="#adcp.types.ContentLength.max_characters">max_characters</a></code></li>
-<li><code><a title="adcp.types.ContentLength.max_words" href="#adcp.types.ContentLength.max_words">max_words</a></code></li>
-<li><code><a title="adcp.types.ContentLength.min_characters" href="#adcp.types.ContentLength.min_characters">min_characters</a></code></li>
-<li><code><a title="adcp.types.ContentLength.min_words" href="#adcp.types.ContentLength.min_words">min_words</a></code></li>
-<li><code><a title="adcp.types.ContentLength.model_config" href="#adcp.types.ContentLength.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
@@ -21173,19 +20646,6 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.Dimensions" href="#adcp.types.Dimensions">Dimensions</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.Dimensions.aspect_ratio" href="#adcp.types.Dimensions.aspect_ratio">aspect_ratio</a></code></li>
-<li><code><a title="adcp.types.Dimensions.height" href="#adcp.types.Dimensions.height">height</a></code></li>
-<li><code><a title="adcp.types.Dimensions.max_height" href="#adcp.types.Dimensions.max_height">max_height</a></code></li>
-<li><code><a title="adcp.types.Dimensions.max_width" href="#adcp.types.Dimensions.max_width">max_width</a></code></li>
-<li><code><a title="adcp.types.Dimensions.min_height" href="#adcp.types.Dimensions.min_height">min_height</a></code></li>
-<li><code><a title="adcp.types.Dimensions.min_width" href="#adcp.types.Dimensions.min_width">min_width</a></code></li>
-<li><code><a title="adcp.types.Dimensions.model_config" href="#adcp.types.Dimensions.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.Dimensions.width" href="#adcp.types.Dimensions.width">width</a></code></li>
-</ul>
-</li>
-<li>
 <h4><code><a title="adcp.types.Direction" href="#adcp.types.Direction">Direction</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.Direction.asc" href="#adcp.types.Direction.asc">asc</a></code></li>
@@ -21226,15 +20686,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.DoohMetrics.screens_used" href="#adcp.types.DoohMetrics.screens_used">screens_used</a></code></li>
 <li><code><a title="adcp.types.DoohMetrics.sov_achieved" href="#adcp.types.DoohMetrics.sov_achieved">sov_achieved</a></code></li>
 <li><code><a title="adcp.types.DoohMetrics.venue_breakdown" href="#adcp.types.DoohMetrics.venue_breakdown">venue_breakdown</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.Duration" href="#adcp.types.Duration">Duration</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.Duration.exact_seconds" href="#adcp.types.Duration.exact_seconds">exact_seconds</a></code></li>
-<li><code><a title="adcp.types.Duration.max_seconds" href="#adcp.types.Duration.max_seconds">max_seconds</a></code></li>
-<li><code><a title="adcp.types.Duration.min_seconds" href="#adcp.types.Duration.min_seconds">min_seconds</a></code></li>
-<li><code><a title="adcp.types.Duration.model_config" href="#adcp.types.Duration.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
@@ -21289,14 +20740,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.FieldModel.sub_assets" href="#adcp.types.FieldModel.sub_assets">sub_assets</a></code></li>
 <li><code><a title="adcp.types.FieldModel.tags" href="#adcp.types.FieldModel.tags">tags</a></code></li>
 <li><code><a title="adcp.types.FieldModel.updated_date" href="#adcp.types.FieldModel.updated_date">updated_date</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.FileSize" href="#adcp.types.FileSize">FileSize</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.FileSize.max_bytes" href="#adcp.types.FileSize.max_bytes">max_bytes</a></code></li>
-<li><code><a title="adcp.types.FileSize.min_bytes" href="#adcp.types.FileSize.min_bytes">min_bytes</a></code></li>
-<li><code><a title="adcp.types.FileSize.model_config" href="#adcp.types.FileSize.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
@@ -22283,15 +21726,6 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.Quality" href="#adcp.types.Quality">Quality</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.Quality.max_bitrate_kbps" href="#adcp.types.Quality.max_bitrate_kbps">max_bitrate_kbps</a></code></li>
-<li><code><a title="adcp.types.Quality.min_bitrate_kbps" href="#adcp.types.Quality.min_bitrate_kbps">min_bitrate_kbps</a></code></li>
-<li><code><a title="adcp.types.Quality.min_resolution_dpi" href="#adcp.types.Quality.min_resolution_dpi">min_resolution_dpi</a></code></li>
-<li><code><a title="adcp.types.Quality.model_config" href="#adcp.types.Quality.model_config">model_config</a></code></li>
-</ul>
-</li>
-<li>
 <h4><code><a title="adcp.types.QuartileData" href="#adcp.types.QuartileData">QuartileData</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.QuartileData.model_config" href="#adcp.types.QuartileData.model_config">model_config</a></code></li>
@@ -22377,18 +21811,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.RequestedMetric.spend" href="#adcp.types.RequestedMetric.spend">spend</a></code></li>
 <li><code><a title="adcp.types.RequestedMetric.video_completions" href="#adcp.types.RequestedMetric.video_completions">video_completions</a></code></li>
 <li><code><a title="adcp.types.RequestedMetric.viewability" href="#adcp.types.RequestedMetric.viewability">viewability</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.Requirements" href="#adcp.types.Requirements">Requirements</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.Requirements.content_length" href="#adcp.types.Requirements.content_length">content_length</a></code></li>
-<li><code><a title="adcp.types.Requirements.dimensions" href="#adcp.types.Requirements.dimensions">dimensions</a></code></li>
-<li><code><a title="adcp.types.Requirements.duration" href="#adcp.types.Requirements.duration">duration</a></code></li>
-<li><code><a title="adcp.types.Requirements.file_formats" href="#adcp.types.Requirements.file_formats">file_formats</a></code></li>
-<li><code><a title="adcp.types.Requirements.file_size" href="#adcp.types.Requirements.file_size">file_size</a></code></li>
-<li><code><a title="adcp.types.Requirements.model_config" href="#adcp.types.Requirements.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.Requirements.quality" href="#adcp.types.Requirements.quality">quality</a></code></li>
 </ul>
 </li>
 <li>
@@ -22792,18 +22214,9 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.Type" href="#adcp.types.Type">Type</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.Type.audio" href="#adcp.types.Type.audio">audio</a></code></li>
-<li><code><a title="adcp.types.Type.css" href="#adcp.types.Type.css">css</a></code></li>
-<li><code><a title="adcp.types.Type.daast" href="#adcp.types.Type.daast">daast</a></code></li>
-<li><code><a title="adcp.types.Type.html" href="#adcp.types.Type.html">html</a></code></li>
-<li><code><a title="adcp.types.Type.image" href="#adcp.types.Type.image">image</a></code></li>
-<li><code><a title="adcp.types.Type.javascript" href="#adcp.types.Type.javascript">javascript</a></code></li>
-<li><code><a title="adcp.types.Type.promoted_offerings" href="#adcp.types.Type.promoted_offerings">promoted_offerings</a></code></li>
-<li><code><a title="adcp.types.Type.text" href="#adcp.types.Type.text">text</a></code></li>
-<li><code><a title="adcp.types.Type.url" href="#adcp.types.Type.url">url</a></code></li>
-<li><code><a title="adcp.types.Type.vast" href="#adcp.types.Type.vast">vast</a></code></li>
-<li><code><a title="adcp.types.Type.video" href="#adcp.types.Type.video">video</a></code></li>
+<ul class="">
+<li><code><a title="adcp.types.Type.request" href="#adcp.types.Type.request">request</a></code></li>
+<li><code><a title="adcp.types.Type.response" href="#adcp.types.Type.response">response</a></code></li>
 </ul>
 </li>
 <li>

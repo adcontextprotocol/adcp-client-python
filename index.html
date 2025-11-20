@@ -4291,6 +4291,125 @@ validated to form a valid model.</p>
 </dd>
 </dl>
 </dd>
+<dt id="adcp.AssetContentType"><code class="flex name class">
+<span>class <span class="ident">AssetContentType</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AssetContentType(Enum):
+    image = &#39;image&#39;
+    video = &#39;video&#39;
+    audio = &#39;audio&#39;
+    text = &#39;text&#39;
+    markdown = &#39;markdown&#39;
+    html = &#39;html&#39;
+    css = &#39;css&#39;
+    javascript = &#39;javascript&#39;
+    vast = &#39;vast&#39;
+    daast = &#39;daast&#39;
+    promoted_offerings = &#39;promoted_offerings&#39;
+    url = &#39;url&#39;
+    webhook = &#39;webhook&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.AssetContentType.audio"><code class="name">var <span class="ident">audio</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AssetContentType.css"><code class="name">var <span class="ident">css</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AssetContentType.daast"><code class="name">var <span class="ident">daast</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AssetContentType.html"><code class="name">var <span class="ident">html</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AssetContentType.image"><code class="name">var <span class="ident">image</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AssetContentType.javascript"><code class="name">var <span class="ident">javascript</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AssetContentType.markdown"><code class="name">var <span class="ident">markdown</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AssetContentType.promoted_offerings"><code class="name">var <span class="ident">promoted_offerings</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AssetContentType.text"><code class="name">var <span class="ident">text</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AssetContentType.url"><code class="name">var <span class="ident">url</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AssetContentType.vast"><code class="name">var <span class="ident">vast</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AssetContentType.video"><code class="name">var <span class="ident">video</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AssetContentType.webhook"><code class="name">var <span class="ident">webhook</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.AuthorizationContext"><code class="flex name class">
 <span>class <span class="ident">AuthorizationContext</span></span>
 <span>(</span><span>properties: list[dict[str, Any]])</span>
@@ -6834,6 +6953,95 @@ validated to form a valid model.</p>
 </ul>
 </li>
 </ul>
+</dd>
+<dt id="adcp.FormatCategory"><code class="flex name class">
+<span>class <span class="ident">FormatCategory</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FormatCategory(Enum):
+    audio = &#39;audio&#39;
+    video = &#39;video&#39;
+    display = &#39;display&#39;
+    native = &#39;native&#39;
+    dooh = &#39;dooh&#39;
+    rich_media = &#39;rich_media&#39;
+    universal = &#39;universal&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.FormatCategory.audio"><code class="name">var <span class="ident">audio</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.FormatCategory.display"><code class="name">var <span class="ident">display</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.FormatCategory.dooh"><code class="name">var <span class="ident">dooh</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.FormatCategory.native"><code class="name">var <span class="ident">native</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.FormatCategory.rich_media"><code class="name">var <span class="ident">rich_media</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.FormatCategory.universal"><code class="name">var <span class="ident">universal</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.FormatCategory.video"><code class="name">var <span class="ident">video</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
 </dd>
 <dt id="adcp.FormatId"><code class="flex name class">
 <span>class <span class="ident">FormatId</span></span>
@@ -12299,6 +12507,24 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.AssetContentType" href="#adcp.AssetContentType">AssetContentType</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.AssetContentType.audio" href="#adcp.AssetContentType.audio">audio</a></code></li>
+<li><code><a title="adcp.AssetContentType.css" href="#adcp.AssetContentType.css">css</a></code></li>
+<li><code><a title="adcp.AssetContentType.daast" href="#adcp.AssetContentType.daast">daast</a></code></li>
+<li><code><a title="adcp.AssetContentType.html" href="#adcp.AssetContentType.html">html</a></code></li>
+<li><code><a title="adcp.AssetContentType.image" href="#adcp.AssetContentType.image">image</a></code></li>
+<li><code><a title="adcp.AssetContentType.javascript" href="#adcp.AssetContentType.javascript">javascript</a></code></li>
+<li><code><a title="adcp.AssetContentType.markdown" href="#adcp.AssetContentType.markdown">markdown</a></code></li>
+<li><code><a title="adcp.AssetContentType.promoted_offerings" href="#adcp.AssetContentType.promoted_offerings">promoted_offerings</a></code></li>
+<li><code><a title="adcp.AssetContentType.text" href="#adcp.AssetContentType.text">text</a></code></li>
+<li><code><a title="adcp.AssetContentType.url" href="#adcp.AssetContentType.url">url</a></code></li>
+<li><code><a title="adcp.AssetContentType.vast" href="#adcp.AssetContentType.vast">vast</a></code></li>
+<li><code><a title="adcp.AssetContentType.video" href="#adcp.AssetContentType.video">video</a></code></li>
+<li><code><a title="adcp.AssetContentType.webhook" href="#adcp.AssetContentType.webhook">webhook</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.AuthorizationContext" href="#adcp.AuthorizationContext">AuthorizationContext</a></code></h4>
 </li>
 <li>
@@ -12613,6 +12839,18 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.Format.renders" href="#adcp.Format.renders">renders</a></code></li>
 <li><code><a title="adcp.Format.supported_macros" href="#adcp.Format.supported_macros">supported_macros</a></code></li>
 <li><code><a title="adcp.Format.type" href="#adcp.Format.type">type</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.FormatCategory" href="#adcp.FormatCategory">FormatCategory</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.FormatCategory.audio" href="#adcp.FormatCategory.audio">audio</a></code></li>
+<li><code><a title="adcp.FormatCategory.display" href="#adcp.FormatCategory.display">display</a></code></li>
+<li><code><a title="adcp.FormatCategory.dooh" href="#adcp.FormatCategory.dooh">dooh</a></code></li>
+<li><code><a title="adcp.FormatCategory.native" href="#adcp.FormatCategory.native">native</a></code></li>
+<li><code><a title="adcp.FormatCategory.rich_media" href="#adcp.FormatCategory.rich_media">rich_media</a></code></li>
+<li><code><a title="adcp.FormatCategory.universal" href="#adcp.FormatCategory.universal">universal</a></code></li>
+<li><code><a title="adcp.FormatCategory.video" href="#adcp.FormatCategory.video">video</a></code></li>
 </ul>
 </li>
 <li>
