@@ -63,7 +63,7 @@ el.replaceWith(d);
     activation_key: Annotated[
         activation_key_1.ActivationKey1 | activation_key_1.ActivationKey2 | None,
         Field(
-            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this destination.&#39;,
+            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;,
             title=&#39;Activation Key&#39;,
         ),
     ] = None
@@ -79,7 +79,7 @@ el.replaceWith(d);
         ),
     ] = None
     is_live: Annotated[
-        bool, Field(description=&#39;Whether signal is currently active on this destination&#39;)
+        bool, Field(description=&#39;Whether signal is currently active on this deployment&#39;)
     ]
     platform: Annotated[str, Field(description=&#39;Platform identifier for DSPs&#39;)]
     type: Annotated[
@@ -162,11 +162,11 @@ validated to form a valid model.</p>
     activation_key: Annotated[
         activation_key_1.ActivationKey1 | activation_key_1.ActivationKey2 | None,
         Field(
-            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this destination.&#39;,
+            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;,
             title=&#39;Activation Key&#39;,
         ),
     ] = None
-    agent_url: Annotated[AnyUrl, Field(description=&#39;URL identifying the destination agent&#39;)]
+    agent_url: Annotated[AnyUrl, Field(description=&#39;URL identifying the deployment agent&#39;)]
     deployed_at: Annotated[
         AwareDatetime | None,
         Field(description=&#39;Timestamp when activation completed (if is_live=true)&#39;),
@@ -179,7 +179,7 @@ validated to form a valid model.</p>
         ),
     ] = None
     is_live: Annotated[
-        bool, Field(description=&#39;Whether signal is currently active on this destination&#39;)
+        bool, Field(description=&#39;Whether signal is currently active on this deployment&#39;)
     ]
     type: Annotated[
         Literal[&#39;agent&#39;],

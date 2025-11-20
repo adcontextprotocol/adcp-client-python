@@ -68,7 +68,7 @@ el.replaceWith(d);
     ]
     type: Annotated[
         Literal[&#39;platform&#39;],
-        Field(description=&#39;Discriminator indicating this is a platform-based destination&#39;),
+        Field(description=&#39;Discriminator indicating this is a platform-based deployment&#39;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -130,11 +130,11 @@ validated to form a valid model.</p>
         str | None, Field(description=&#39;Optional account identifier on the agent&#39;)
     ] = None
     agent_url: Annotated[
-        AnyUrl, Field(description=&#39;URL identifying the destination agent (for sales agents, etc.)&#39;)
+        AnyUrl, Field(description=&#39;URL identifying the deployment agent (for sales agents, etc.)&#39;)
     ]
     type: Annotated[
         Literal[&#39;agent&#39;],
-        Field(description=&#39;Discriminator indicating this is an agent URL-based destination&#39;),
+        Field(description=&#39;Discriminator indicating this is an agent URL-based deployment&#39;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

@@ -159,10 +159,10 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.&#39;
         ),
     ] = None
-    destinations: Annotated[
+    deployments: Annotated[
         list[destination.Destination1 | destination.Destination2],
         Field(
-            description=&#39;Target destination(s) for activation. If the authenticated caller matches one of these destinations, activation keys will be included in the response.&#39;,
+            description=&#39;Target deployment(s) for activation. If the authenticated caller matches one of these deployment targets, activation keys will be included in the response.&#39;,
             min_length=1,
         ),
     ]
@@ -189,7 +189,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.stable.ActivateSignalRequest.destinations"><code class="name">var <span class="ident">destinations</span> : list[<a title="adcp.types.generated_poc.destination.Destination1" href="generated_poc/destination.html#adcp.types.generated_poc.destination.Destination1">Destination1</a> | <a title="adcp.types.generated_poc.destination.Destination2" href="generated_poc/destination.html#adcp.types.generated_poc.destination.Destination2">Destination2</a>]</code></dt>
+<dt id="adcp.types.stable.ActivateSignalRequest.deployments"><code class="name">var <span class="ident">deployments</span> : list[<a title="adcp.types.generated_poc.destination.Destination1" href="generated_poc/destination.html#adcp.types.generated_poc.destination.Destination1">Destination1</a> | <a title="adcp.types.generated_poc.destination.Destination2" href="generated_poc/destination.html#adcp.types.generated_poc.destination.Destination2">Destination2</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -268,60 +268,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 </dl>
-</dd>
-<dt id="adcp.types.stable.AffectedPackage"><code class="flex name class">
-<span>class <span class="ident">AffectedPackage</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class AffectedPackage(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
-    )
-    buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference for the package&#34;)]
-    package_id: Annotated[str, Field(description=&#34;Publisher&#39;s package identifier&#34;)]</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.stable.AffectedPackage.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.stable.AffectedPackage.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.stable.AffectedPackage.package_id"><code class="name">var <span class="ident">package_id</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-</ul>
-</li>
-</ul>
 </dd>
 <dt id="adcp.types.stable.AggregatedTotals"><code class="flex name class">
 <span>class <span class="ident">AggregatedTotals</span></span>
@@ -416,7 +362,12 @@ validated to form a valid model.</p>
         extra=&#39;forbid&#39;,
     )
     asset_id: Annotated[str, Field(description=&#39;Unique identifier for this asset&#39;)]
-    asset_type: Annotated[AssetType, Field(description=&#39;Type of asset&#39;)]
+    asset_type: Annotated[
+        asset_content_type.AssetContentType,
+        Field(
+            description=&#39;Type of asset. Note: Brand manifests typically contain basic media assets (image, video, audio, text). Code assets (html, javascript, css) and ad markup (vast, daast) are usually not part of brand asset libraries.&#39;
+        ),
+    ]
     description: Annotated[str | None, Field(description=&#39;Asset description or usage notes&#39;)] = None
     duration_seconds: Annotated[
         float | None, Field(description=&#39;Video/audio duration in seconds&#39;)
@@ -458,7 +409,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.stable.Asset.asset_type"><code class="name">var <span class="ident">asset_type</span> : <a title="adcp.types.generated_poc.brand_manifest.AssetType" href="generated_poc/brand_manifest.html#adcp.types.generated_poc.brand_manifest.AssetType">AssetType</a></code></dt>
+<dt id="adcp.types.stable.Asset.asset_type"><code class="name">var <span class="ident">asset_type</span> : <a title="adcp.types.generated_poc.asset_content_type.AssetContentType" href="generated_poc/asset_content_type.html#adcp.types.generated_poc.asset_content_type.AssetContentType">AssetContentType</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -596,7 +547,14 @@ validated to form a valid model.</p>
     image = &#39;image&#39;
     video = &#39;video&#39;
     audio = &#39;audio&#39;
-    text = &#39;text&#39;</code></pre>
+    vast = &#39;vast&#39;
+    daast = &#39;daast&#39;
+    text = &#39;text&#39;
+    url = &#39;url&#39;
+    html = &#39;html&#39;
+    css = &#39;css&#39;
+    javascript = &#39;javascript&#39;
+    webhook = &#39;webhook&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -643,7 +601,23 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.stable.AssetType.css"><code class="name">var <span class="ident">css</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.AssetType.daast"><code class="name">var <span class="ident">daast</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.AssetType.html"><code class="name">var <span class="ident">html</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.stable.AssetType.image"><code class="name">var <span class="ident">image</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.AssetType.javascript"><code class="name">var <span class="ident">javascript</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -651,7 +625,19 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.stable.AssetType.url"><code class="name">var <span class="ident">url</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.AssetType.vast"><code class="name">var <span class="ident">vast</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.stable.AssetType.video"><code class="name">var <span class="ident">video</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.stable.AssetType.webhook"><code class="name">var <span class="ident">webhook</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -767,7 +753,7 @@ validated to form a valid model.</p>
             description=&#34;Optional descriptive label for this asset&#39;s purpose (e.g., &#39;hero_image&#39;, &#39;logo&#39;). Not used for referencing assets in manifests—use asset_id instead. This field is for human-readable documentation and UI display only.&#34;
         ),
     ] = None
-    asset_type: Annotated[AssetType, Field(description=&#39;Type of asset&#39;)]
+    asset_type: Annotated[asset_content_type.AssetContentType, Field(description=&#39;Type of asset&#39;)]
     item_type: Annotated[
         Literal[&#39;individual&#39;],
         Field(description=&#39;Discriminator indicating this is an individual asset requirement&#39;),
@@ -803,7 +789,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.stable.AssetsRequired.asset_type"><code class="name">var <span class="ident">asset_type</span> : <a title="adcp.types.generated_poc.format.AssetType" href="generated_poc/format.html#adcp.types.generated_poc.format.AssetType">AssetType</a></code></dt>
+<dt id="adcp.types.stable.AssetsRequired.asset_type"><code class="name">var <span class="ident">asset_type</span> : <a title="adcp.types.generated_poc.asset_content_type.AssetContentType" href="generated_poc/asset_content_type.html#adcp.types.generated_poc.asset_content_type.AssetContentType">AssetContentType</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3896,10 +3882,10 @@ validated to form a valid model.</p>
     countries: Annotated[
         list[Country], Field(description=&#39;Countries where signals will be used (ISO codes)&#39;)
     ]
-    destinations: Annotated[
+    deployments: Annotated[
         list[destination.Destination1 | destination.Destination2],
         Field(
-            description=&#39;List of destination platforms (DSPs, sales agents, etc.). If the authenticated caller matches one of these destinations, activation keys will be included in the response.&#39;,
+            description=&#39;List of deployment targets (DSPs, sales agents, etc.). If the authenticated caller matches one of these deployment targets, activation keys will be included in the response.&#39;,
             min_length=1,
         ),
     ]</code></pre>
@@ -3923,7 +3909,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.stable.DeliverTo.destinations"><code class="name">var <span class="ident">destinations</span> : list[<a title="adcp.types.generated_poc.destination.Destination1" href="generated_poc/destination.html#adcp.types.generated_poc.destination.Destination1">Destination1</a> | <a title="adcp.types.generated_poc.destination.Destination2" href="generated_poc/destination.html#adcp.types.generated_poc.destination.Destination2">Destination2</a>]</code></dt>
+<dt id="adcp.types.stable.DeliverTo.deployments"><code class="name">var <span class="ident">deployments</span> : list[<a title="adcp.types.generated_poc.destination.Destination1" href="generated_poc/destination.html#adcp.types.generated_poc.destination.Destination1">Destination1</a> | <a title="adcp.types.generated_poc.destination.Destination2" href="generated_poc/destination.html#adcp.types.generated_poc.destination.Destination2">Destination2</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -5525,7 +5511,7 @@ validated to form a valid model.</p>
         ),
     ] = None
     type: Annotated[
-        Type,
+        format_category.FormatCategory,
         Field(
             description=&#39;Media type of this format - determines rendering method and asset requirements&#39;
         ),
@@ -5598,7 +5584,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.stable.Format.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.format.Type" href="generated_poc/format.html#adcp.types.generated_poc.format.Type">Type</a></code></dt>
+<dt id="adcp.types.stable.Format.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.format_category.FormatCategory" href="generated_poc/format_category.html#adcp.types.generated_poc.format_category.FormatCategory">FormatCategory</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -6457,7 +6443,7 @@ validated to form a valid model.</p>
         ),
     ] = None
     deliver_to: Annotated[
-        DeliverTo, Field(description=&#39;Destination platforms where signals need to be activated&#39;)
+        DeliverTo, Field(description=&#39;Deployment targets where signals need to be activated&#39;)
     ]
     filters: Annotated[Filters | None, Field(description=&#39;Filters to refine results&#39;)] = None
     max_results: Annotated[
@@ -7229,7 +7215,7 @@ validated to form a valid model.</p>
         extra=&#39;forbid&#39;,
     )
     asset_types: Annotated[
-        list[AssetType] | None,
+        list[asset_content_type.AssetContentType] | None,
         Field(
             description=&#34;Filter to formats that include these asset types. For third-party tags, search for &#39;html&#39; or &#39;javascript&#39;. E.g., [&#39;image&#39;, &#39;text&#39;] returns formats with images and text, [&#39;javascript&#39;] returns formats accepting JavaScript tags.&#34;
         ),
@@ -7280,7 +7266,7 @@ validated to form a valid model.</p>
         str | None, Field(description=&#39;Search for formats by name (case-insensitive partial match)&#39;)
     ] = None
     type: Annotated[
-        Type | None,
+        format_category.FormatCategory | None,
         Field(
             description=&#39;Filter by format type (technical categories with distinct requirements)&#39;
         ),
@@ -7301,7 +7287,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.stable.ListCreativeFormatsRequest.asset_types"><code class="name">var <span class="ident">asset_types</span> : list[<a title="adcp.types.generated_poc.list_creative_formats_request.AssetType" href="generated_poc/list_creative_formats_request.html#adcp.types.generated_poc.list_creative_formats_request.AssetType">AssetType</a>] | None</code></dt>
+<dt id="adcp.types.stable.ListCreativeFormatsRequest.asset_types"><code class="name">var <span class="ident">asset_types</span> : list[<a title="adcp.types.generated_poc.asset_content_type.AssetContentType" href="generated_poc/asset_content_type.html#adcp.types.generated_poc.asset_content_type.AssetContentType">AssetContentType</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -7341,7 +7327,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.stable.ListCreativeFormatsRequest.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.list_creative_formats_request.Type" href="generated_poc/list_creative_formats_request.html#adcp.types.generated_poc.list_creative_formats_request.Type">Type</a> | None</code></dt>
+<dt id="adcp.types.stable.ListCreativeFormatsRequest.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.format_category.FormatCategory" href="generated_poc/format_category.html#adcp.types.generated_poc.format_category.FormatCategory">FormatCategory</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -12894,7 +12880,7 @@ validated to form a valid model.</p>
     data_provider: Annotated[str, Field(description=&#39;Name of the data provider&#39;)]
     deployments: Annotated[
         list[deployment.Deployment1 | deployment.Deployment2],
-        Field(description=&#39;Array of destination deployments&#39;),
+        Field(description=&#39;Array of deployment targets&#39;),
     ]
     description: Annotated[str, Field(description=&#39;Detailed signal description&#39;)]
     name: Annotated[str, Field(description=&#39;Human-readable signal name&#39;)]
@@ -16244,7 +16230,7 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.stable.ActivateSignalRequest" href="#adcp.types.stable.ActivateSignalRequest">ActivateSignalRequest</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.stable.ActivateSignalRequest.context" href="#adcp.types.stable.ActivateSignalRequest.context">context</a></code></li>
-<li><code><a title="adcp.types.stable.ActivateSignalRequest.destinations" href="#adcp.types.stable.ActivateSignalRequest.destinations">destinations</a></code></li>
+<li><code><a title="adcp.types.stable.ActivateSignalRequest.deployments" href="#adcp.types.stable.ActivateSignalRequest.deployments">deployments</a></code></li>
 <li><code><a title="adcp.types.stable.ActivateSignalRequest.model_config" href="#adcp.types.stable.ActivateSignalRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.stable.ActivateSignalRequest.signal_agent_segment_id" href="#adcp.types.stable.ActivateSignalRequest.signal_agent_segment_id">signal_agent_segment_id</a></code></li>
 </ul>
@@ -16254,14 +16240,6 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.stable.ActivateSignalResponse.model_config" href="#adcp.types.stable.ActivateSignalResponse.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.stable.ActivateSignalResponse.root" href="#adcp.types.stable.ActivateSignalResponse.root">root</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.stable.AffectedPackage" href="#adcp.types.stable.AffectedPackage">AffectedPackage</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.stable.AffectedPackage.buyer_ref" href="#adcp.types.stable.AffectedPackage.buyer_ref">buyer_ref</a></code></li>
-<li><code><a title="adcp.types.stable.AffectedPackage.model_config" href="#adcp.types.stable.AffectedPackage.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.stable.AffectedPackage.package_id" href="#adcp.types.stable.AffectedPackage.package_id">package_id</a></code></li>
 </ul>
 </li>
 <li>
@@ -16304,11 +16282,18 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.stable.AssetType" href="#adcp.types.stable.AssetType">AssetType</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.stable.AssetType.audio" href="#adcp.types.stable.AssetType.audio">audio</a></code></li>
+<li><code><a title="adcp.types.stable.AssetType.css" href="#adcp.types.stable.AssetType.css">css</a></code></li>
+<li><code><a title="adcp.types.stable.AssetType.daast" href="#adcp.types.stable.AssetType.daast">daast</a></code></li>
+<li><code><a title="adcp.types.stable.AssetType.html" href="#adcp.types.stable.AssetType.html">html</a></code></li>
 <li><code><a title="adcp.types.stable.AssetType.image" href="#adcp.types.stable.AssetType.image">image</a></code></li>
+<li><code><a title="adcp.types.stable.AssetType.javascript" href="#adcp.types.stable.AssetType.javascript">javascript</a></code></li>
 <li><code><a title="adcp.types.stable.AssetType.text" href="#adcp.types.stable.AssetType.text">text</a></code></li>
+<li><code><a title="adcp.types.stable.AssetType.url" href="#adcp.types.stable.AssetType.url">url</a></code></li>
+<li><code><a title="adcp.types.stable.AssetType.vast" href="#adcp.types.stable.AssetType.vast">vast</a></code></li>
 <li><code><a title="adcp.types.stable.AssetType.video" href="#adcp.types.stable.AssetType.video">video</a></code></li>
+<li><code><a title="adcp.types.stable.AssetType.webhook" href="#adcp.types.stable.AssetType.webhook">webhook</a></code></li>
 </ul>
 </li>
 <li>
@@ -16726,7 +16711,7 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.stable.DeliverTo" href="#adcp.types.stable.DeliverTo">DeliverTo</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.stable.DeliverTo.countries" href="#adcp.types.stable.DeliverTo.countries">countries</a></code></li>
-<li><code><a title="adcp.types.stable.DeliverTo.destinations" href="#adcp.types.stable.DeliverTo.destinations">destinations</a></code></li>
+<li><code><a title="adcp.types.stable.DeliverTo.deployments" href="#adcp.types.stable.DeliverTo.deployments">deployments</a></code></li>
 <li><code><a title="adcp.types.stable.DeliverTo.model_config" href="#adcp.types.stable.DeliverTo.model_config">model_config</a></code></li>
 </ul>
 </li>

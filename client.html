@@ -573,6 +573,200 @@ el.replaceWith(d);
 
         return self.adapter._parse_response(raw_result, ProvidePerformanceFeedbackResponse)
 
+    async def create_media_buy(
+        self,
+        request: CreateMediaBuyRequest,
+    ) -&gt; TaskResult[CreateMediaBuyResponse]:
+        &#34;&#34;&#34;
+        Create a new media buy reservation.
+
+        Requests the agent to reserve inventory for a campaign. The agent returns a
+        media_buy_id that tracks this reservation and can be used for updates.
+
+        Args:
+            request: Media buy creation parameters including:
+                - brand_manifest: Advertiser brand information and creative assets
+                - packages: List of package requests specifying desired inventory
+                - publisher_properties: Target properties for ad placement
+                - budget: Optional budget constraints
+                - start_date/end_date: Campaign flight dates
+
+        Returns:
+            TaskResult containing CreateMediaBuyResponse with:
+                - media_buy_id: Unique identifier for this reservation
+                - status: Current state of the media buy
+                - packages: Confirmed package details
+                - Additional platform-specific metadata
+
+        Example:
+            &gt;&gt;&gt; from adcp import ADCPClient, CreateMediaBuyRequest
+            &gt;&gt;&gt; client = ADCPClient(agent_config)
+            &gt;&gt;&gt; request = CreateMediaBuyRequest(
+            ...     brand_manifest=brand,
+            ...     packages=[package_request],
+            ...     publisher_properties=properties
+            ... )
+            &gt;&gt;&gt; result = await client.create_media_buy(request)
+            &gt;&gt;&gt; if result.success:
+            ...     media_buy_id = result.data.media_buy_id
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;create_media_buy&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.create_media_buy(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;create_media_buy&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, CreateMediaBuyResponse)
+
+    async def update_media_buy(
+        self,
+        request: UpdateMediaBuyRequest,
+    ) -&gt; TaskResult[UpdateMediaBuyResponse]:
+        &#34;&#34;&#34;
+        Update an existing media buy reservation.
+
+        Modifies a previously created media buy by updating packages or publisher
+        properties. The update operation uses discriminated unions to specify what
+        to change - either package details or targeting properties.
+
+        Args:
+            request: Media buy update parameters including:
+                - media_buy_id: Identifier from create_media_buy response
+                - updates: Discriminated union specifying update type:
+                    * UpdateMediaBuyPackagesRequest: Modify package selections
+                    * UpdateMediaBuyPropertiesRequest: Change targeting properties
+
+        Returns:
+            TaskResult containing UpdateMediaBuyResponse with:
+                - media_buy_id: The updated media buy identifier
+                - status: Updated state of the media buy
+                - packages: Updated package configurations
+                - Additional platform-specific metadata
+
+        Example:
+            &gt;&gt;&gt; from adcp import ADCPClient, UpdateMediaBuyPackagesRequest
+            &gt;&gt;&gt; client = ADCPClient(agent_config)
+            &gt;&gt;&gt; request = UpdateMediaBuyPackagesRequest(
+            ...     media_buy_id=&#34;mb_123&#34;,
+            ...     packages=[updated_package]
+            ... )
+            &gt;&gt;&gt; result = await client.update_media_buy(request)
+            &gt;&gt;&gt; if result.success:
+            ...     updated_packages = result.data.packages
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;update_media_buy&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.update_media_buy(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;update_media_buy&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, UpdateMediaBuyResponse)
+
+    async def build_creative(
+        self,
+        request: BuildCreativeRequest,
+    ) -&gt; TaskResult[BuildCreativeResponse]:
+        &#34;&#34;&#34;
+        Generate production-ready creative assets.
+
+        Requests the creative agent to build final deliverable assets in the target
+        format (e.g., VAST, DAAST, HTML5). This is typically called after previewing
+        and approving a creative manifest.
+
+        Args:
+            request: Creative build parameters including:
+                - manifest: Creative manifest with brand info and content
+                - target_format_id: Desired output format identifier
+                - inputs: Optional user-provided inputs for template variables
+                - deployment: Platform or agent deployment configuration
+
+        Returns:
+            TaskResult containing BuildCreativeResponse with:
+                - assets: Production-ready creative files (URLs or inline content)
+                - format_id: The generated format identifier
+                - manifest: The creative manifest used for generation
+                - metadata: Additional platform-specific details
+
+        Example:
+            &gt;&gt;&gt; from adcp import ADCPClient, BuildCreativeRequest
+            &gt;&gt;&gt; client = ADCPClient(agent_config)
+            &gt;&gt;&gt; request = BuildCreativeRequest(
+            ...     manifest=creative_manifest,
+            ...     target_format_id=&#34;vast_2.0&#34;,
+            ...     inputs={&#34;duration&#34;: 30}
+            ... )
+            &gt;&gt;&gt; result = await client.build_creative(request)
+            &gt;&gt;&gt; if result.success:
+            ...     vast_url = result.data.assets[0].url
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;build_creative&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.build_creative(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;build_creative&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, BuildCreativeResponse)
+
     async def list_tools(self) -&gt; list[str]:
         &#34;&#34;&#34;
         List available tools from the agent.
@@ -821,6 +1015,111 @@ el.replaceWith(d);
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing ActivateSignalResponse</p></div>
 </dd>
+<dt id="adcp.client.ADCPClient.build_creative"><code class="name flex">
+<span>async def <span class="ident">build_creative</span></span>(<span>self, request: BuildCreativeRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[BuildCreativeResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def build_creative(
+    self,
+    request: BuildCreativeRequest,
+) -&gt; TaskResult[BuildCreativeResponse]:
+    &#34;&#34;&#34;
+    Generate production-ready creative assets.
+
+    Requests the creative agent to build final deliverable assets in the target
+    format (e.g., VAST, DAAST, HTML5). This is typically called after previewing
+    and approving a creative manifest.
+
+    Args:
+        request: Creative build parameters including:
+            - manifest: Creative manifest with brand info and content
+            - target_format_id: Desired output format identifier
+            - inputs: Optional user-provided inputs for template variables
+            - deployment: Platform or agent deployment configuration
+
+    Returns:
+        TaskResult containing BuildCreativeResponse with:
+            - assets: Production-ready creative files (URLs or inline content)
+            - format_id: The generated format identifier
+            - manifest: The creative manifest used for generation
+            - metadata: Additional platform-specific details
+
+    Example:
+        &gt;&gt;&gt; from adcp import ADCPClient, BuildCreativeRequest
+        &gt;&gt;&gt; client = ADCPClient(agent_config)
+        &gt;&gt;&gt; request = BuildCreativeRequest(
+        ...     manifest=creative_manifest,
+        ...     target_format_id=&#34;vast_2.0&#34;,
+        ...     inputs={&#34;duration&#34;: 30}
+        ... )
+        &gt;&gt;&gt; result = await client.build_creative(request)
+        &gt;&gt;&gt; if result.success:
+        ...     vast_url = result.data.assets[0].url
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;build_creative&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.build_creative(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;build_creative&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, BuildCreativeResponse)</code></pre>
+</details>
+<div class="desc"><p>Generate production-ready creative assets.</p>
+<p>Requests the creative agent to build final deliverable assets in the target
+format (e.g., VAST, DAAST, HTML5). This is typically called after previewing
+and approving a creative manifest.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Creative build parameters including:
+- manifest: Creative manifest with brand info and content
+- target_format_id: Desired output format identifier
+- inputs: Optional user-provided inputs for template variables
+- deployment: Platform or agent deployment configuration</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing BuildCreativeResponse with:
+- assets: Production-ready creative files (URLs or inline content)
+- format_id: The generated format identifier
+- manifest: The creative manifest used for generation
+- metadata: Additional platform-specific details</p>
+<h2 id="example">Example</h2>
+<pre><code class="language-python-repl">&gt;&gt;&gt; from adcp import ADCPClient, BuildCreativeRequest
+&gt;&gt;&gt; client = ADCPClient(agent_config)
+&gt;&gt;&gt; request = BuildCreativeRequest(
+...     manifest=creative_manifest,
+...     target_format_id=&quot;vast_2.0&quot;,
+...     inputs={&quot;duration&quot;: 30}
+... )
+&gt;&gt;&gt; result = await client.build_creative(request)
+&gt;&gt;&gt; if result.success:
+...     vast_url = result.data.assets[0].url
+</code></pre></div>
+</dd>
 <dt id="adcp.client.ADCPClient.close"><code class="name flex">
 <span>async def <span class="ident">close</span></span>(<span>self) ‑> None</span>
 </code></dt>
@@ -836,6 +1135,111 @@ el.replaceWith(d);
         await self.adapter.close()</code></pre>
 </details>
 <div class="desc"><p>Close the adapter and clean up resources.</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.create_media_buy"><code class="name flex">
+<span>async def <span class="ident">create_media_buy</span></span>(<span>self, request: CreateMediaBuyRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[CreateMediaBuyResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def create_media_buy(
+    self,
+    request: CreateMediaBuyRequest,
+) -&gt; TaskResult[CreateMediaBuyResponse]:
+    &#34;&#34;&#34;
+    Create a new media buy reservation.
+
+    Requests the agent to reserve inventory for a campaign. The agent returns a
+    media_buy_id that tracks this reservation and can be used for updates.
+
+    Args:
+        request: Media buy creation parameters including:
+            - brand_manifest: Advertiser brand information and creative assets
+            - packages: List of package requests specifying desired inventory
+            - publisher_properties: Target properties for ad placement
+            - budget: Optional budget constraints
+            - start_date/end_date: Campaign flight dates
+
+    Returns:
+        TaskResult containing CreateMediaBuyResponse with:
+            - media_buy_id: Unique identifier for this reservation
+            - status: Current state of the media buy
+            - packages: Confirmed package details
+            - Additional platform-specific metadata
+
+    Example:
+        &gt;&gt;&gt; from adcp import ADCPClient, CreateMediaBuyRequest
+        &gt;&gt;&gt; client = ADCPClient(agent_config)
+        &gt;&gt;&gt; request = CreateMediaBuyRequest(
+        ...     brand_manifest=brand,
+        ...     packages=[package_request],
+        ...     publisher_properties=properties
+        ... )
+        &gt;&gt;&gt; result = await client.create_media_buy(request)
+        &gt;&gt;&gt; if result.success:
+        ...     media_buy_id = result.data.media_buy_id
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;create_media_buy&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.create_media_buy(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;create_media_buy&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, CreateMediaBuyResponse)</code></pre>
+</details>
+<div class="desc"><p>Create a new media buy reservation.</p>
+<p>Requests the agent to reserve inventory for a campaign. The agent returns a
+media_buy_id that tracks this reservation and can be used for updates.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Media buy creation parameters including:
+- brand_manifest: Advertiser brand information and creative assets
+- packages: List of package requests specifying desired inventory
+- publisher_properties: Target properties for ad placement
+- budget: Optional budget constraints
+- start_date/end_date: Campaign flight dates</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing CreateMediaBuyResponse with:
+- media_buy_id: Unique identifier for this reservation
+- status: Current state of the media buy
+- packages: Confirmed package details
+- Additional platform-specific metadata</p>
+<h2 id="example">Example</h2>
+<pre><code class="language-python-repl">&gt;&gt;&gt; from adcp import ADCPClient, CreateMediaBuyRequest
+&gt;&gt;&gt; client = ADCPClient(agent_config)
+&gt;&gt;&gt; request = CreateMediaBuyRequest(
+...     brand_manifest=brand,
+...     packages=[package_request],
+...     publisher_properties=properties
+... )
+&gt;&gt;&gt; result = await client.create_media_buy(request)
+&gt;&gt;&gt; if result.success:
+...     media_buy_id = result.data.media_buy_id
+</code></pre></div>
 </dd>
 <dt id="adcp.client.ADCPClient.get_media_buy_delivery"><code class="name flex">
 <span>async def <span class="ident">get_media_buy_delivery</span></span>(<span>self, request: GetMediaBuyDeliveryRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[GetMediaBuyDeliveryResponse]</span>
@@ -1565,6 +1969,109 @@ embedding (2-3x faster, no iframe overhead)</dd>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing SyncCreativesResponse</p></div>
 </dd>
+<dt id="adcp.client.ADCPClient.update_media_buy"><code class="name flex">
+<span>async def <span class="ident">update_media_buy</span></span>(<span>self, request: UpdateMediaBuyRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[UpdateMediaBuyResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def update_media_buy(
+    self,
+    request: UpdateMediaBuyRequest,
+) -&gt; TaskResult[UpdateMediaBuyResponse]:
+    &#34;&#34;&#34;
+    Update an existing media buy reservation.
+
+    Modifies a previously created media buy by updating packages or publisher
+    properties. The update operation uses discriminated unions to specify what
+    to change - either package details or targeting properties.
+
+    Args:
+        request: Media buy update parameters including:
+            - media_buy_id: Identifier from create_media_buy response
+            - updates: Discriminated union specifying update type:
+                * UpdateMediaBuyPackagesRequest: Modify package selections
+                * UpdateMediaBuyPropertiesRequest: Change targeting properties
+
+    Returns:
+        TaskResult containing UpdateMediaBuyResponse with:
+            - media_buy_id: The updated media buy identifier
+            - status: Updated state of the media buy
+            - packages: Updated package configurations
+            - Additional platform-specific metadata
+
+    Example:
+        &gt;&gt;&gt; from adcp import ADCPClient, UpdateMediaBuyPackagesRequest
+        &gt;&gt;&gt; client = ADCPClient(agent_config)
+        &gt;&gt;&gt; request = UpdateMediaBuyPackagesRequest(
+        ...     media_buy_id=&#34;mb_123&#34;,
+        ...     packages=[updated_package]
+        ... )
+        &gt;&gt;&gt; result = await client.update_media_buy(request)
+        &gt;&gt;&gt; if result.success:
+        ...     updated_packages = result.data.packages
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;update_media_buy&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.update_media_buy(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;update_media_buy&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, UpdateMediaBuyResponse)</code></pre>
+</details>
+<div class="desc"><p>Update an existing media buy reservation.</p>
+<p>Modifies a previously created media buy by updating packages or publisher
+properties. The update operation uses discriminated unions to specify what
+to change - either package details or targeting properties.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Media buy update parameters including:
+- media_buy_id: Identifier from create_media_buy response
+- updates: Discriminated union specifying update type:
+* UpdateMediaBuyPackagesRequest: Modify package selections
+* UpdateMediaBuyPropertiesRequest: Change targeting properties</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing UpdateMediaBuyResponse with:
+- media_buy_id: The updated media buy identifier
+- status: Updated state of the media buy
+- packages: Updated package configurations
+- Additional platform-specific metadata</p>
+<h2 id="example">Example</h2>
+<pre><code class="language-python-repl">&gt;&gt;&gt; from adcp import ADCPClient, UpdateMediaBuyPackagesRequest
+&gt;&gt;&gt; client = ADCPClient(agent_config)
+&gt;&gt;&gt; request = UpdateMediaBuyPackagesRequest(
+...     media_buy_id=&quot;mb_123&quot;,
+...     packages=[updated_package]
+... )
+&gt;&gt;&gt; result = await client.update_media_buy(request)
+&gt;&gt;&gt; if result.success:
+...     updated_packages = result.data.packages
+</code></pre></div>
+</dd>
 </dl>
 </dd>
 <dt id="adcp.client.ADCPMultiAgentClient"><code class="flex name class">
@@ -1801,7 +2308,9 @@ def agent_ids(self) -&gt; list[str]:
 <h4><code><a title="adcp.client.ADCPClient" href="#adcp.client.ADCPClient">ADCPClient</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.client.ADCPClient.activate_signal" href="#adcp.client.ADCPClient.activate_signal">activate_signal</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.build_creative" href="#adcp.client.ADCPClient.build_creative">build_creative</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.close" href="#adcp.client.ADCPClient.close">close</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.create_media_buy" href="#adcp.client.ADCPClient.create_media_buy">create_media_buy</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_media_buy_delivery" href="#adcp.client.ADCPClient.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_products" href="#adcp.client.ADCPClient.get_products">get_products</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_signals" href="#adcp.client.ADCPClient.get_signals">get_signals</a></code></li>
@@ -1814,6 +2323,7 @@ def agent_ids(self) -&gt; list[str]:
 <li><code><a title="adcp.client.ADCPClient.preview_creative" href="#adcp.client.ADCPClient.preview_creative">preview_creative</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.provide_performance_feedback" href="#adcp.client.ADCPClient.provide_performance_feedback">provide_performance_feedback</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.sync_creatives" href="#adcp.client.ADCPClient.sync_creatives">sync_creatives</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.update_media_buy" href="#adcp.client.ADCPClient.update_media_buy">update_media_buy</a></code></li>
 </ul>
 </li>
 <li>

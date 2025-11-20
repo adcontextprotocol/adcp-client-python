@@ -400,6 +400,18 @@ el.replaceWith(d);
         &#34;&#34;&#34;Generate preview URLs for a creative manifest.&#34;&#34;&#34;
         return await self._call_mcp_tool(&#34;preview_creative&#34;, params)
 
+    async def create_media_buy(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Create media buy.&#34;&#34;&#34;
+        return await self._call_mcp_tool(&#34;create_media_buy&#34;, params)
+
+    async def update_media_buy(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Update media buy.&#34;&#34;&#34;
+        return await self._call_mcp_tool(&#34;update_media_buy&#34;, params)
+
+    async def build_creative(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Build creative.&#34;&#34;&#34;
+        return await self._call_mcp_tool(&#34;build_creative&#34;, params)
+
     async def list_tools(self) -&gt; list[str]:
         &#34;&#34;&#34;List available tools from MCP agent.&#34;&#34;&#34;
         session = await self._get_session()
@@ -469,6 +481,8 @@ el.replaceWith(d);
 <li><code><b><a title="adcp.protocols.base.ProtocolAdapter" href="base.html#adcp.protocols.base.ProtocolAdapter">ProtocolAdapter</a></b></code>:
 <ul class="hlist">
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.activate_signal" href="base.html#adcp.protocols.base.ProtocolAdapter.activate_signal">activate_signal</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.build_creative" href="base.html#adcp.protocols.base.ProtocolAdapter.build_creative">build_creative</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.create_media_buy" href="base.html#adcp.protocols.base.ProtocolAdapter.create_media_buy">create_media_buy</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery" href="base.html#adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_products" href="base.html#adcp.protocols.base.ProtocolAdapter.get_products">get_products</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_signals" href="base.html#adcp.protocols.base.ProtocolAdapter.get_signals">get_signals</a></code></li>
@@ -477,6 +491,7 @@ el.replaceWith(d);
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_creatives" href="base.html#adcp.protocols.base.ProtocolAdapter.list_creatives">list_creatives</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.provide_performance_feedback" href="base.html#adcp.protocols.base.ProtocolAdapter.provide_performance_feedback">provide_performance_feedback</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.sync_creatives" href="base.html#adcp.protocols.base.ProtocolAdapter.sync_creatives">sync_creatives</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.update_media_buy" href="base.html#adcp.protocols.base.ProtocolAdapter.update_media_buy">update_media_buy</a></code></li>
 </ul>
 </li>
 </ul>

@@ -157,7 +157,7 @@ immediately rather than at runtime when users try to use the aliases.</p>
     ] = None
     deployments: Annotated[
         list[deployment.Deployment1 | deployment.Deployment2],
-        Field(description=&#39;Array of deployment results for each destination&#39;),
+        Field(description=&#39;Array of deployment results for each deployment target&#39;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -857,7 +857,10 @@ validated to form a valid model.</p>
     media_buy_id: Annotated[
         str, Field(description=&#34;Publisher&#39;s unique identifier for the created media buy&#34;)
     ]
-    packages: Annotated[list[Package], Field(description=&#39;Array of created packages&#39;)]</code></pre>
+    packages: Annotated[
+        list[package.Package],
+        Field(description=&#39;Array of created packages with complete state information&#39;),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -894,7 +897,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.CreateMediaBuyResponse1.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.create_media_buy_response.Package" href="generated_poc/create_media_buy_response.html#adcp.types.generated_poc.create_media_buy_response.Package">Package</a>]</code></dt>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse1.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.package.Package" href="generated_poc/package.html#adcp.types.generated_poc.package.Package">Package</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1158,7 +1161,7 @@ validated to form a valid model.</p>
     activation_key: Annotated[
         activation_key_1.ActivationKey1 | activation_key_1.ActivationKey2 | None,
         Field(
-            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this destination.&#39;,
+            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;,
             title=&#39;Activation Key&#39;,
         ),
     ] = None
@@ -1174,7 +1177,7 @@ validated to form a valid model.</p>
         ),
     ] = None
     is_live: Annotated[
-        bool, Field(description=&#39;Whether signal is currently active on this destination&#39;)
+        bool, Field(description=&#39;Whether signal is currently active on this deployment&#39;)
     ]
     platform: Annotated[str, Field(description=&#39;Platform identifier for DSPs&#39;)]
     type: Annotated[
@@ -1257,11 +1260,11 @@ validated to form a valid model.</p>
     activation_key: Annotated[
         activation_key_1.ActivationKey1 | activation_key_1.ActivationKey2 | None,
         Field(
-            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this destination.&#39;,
+            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;,
             title=&#39;Activation Key&#39;,
         ),
     ] = None
-    agent_url: Annotated[AnyUrl, Field(description=&#39;URL identifying the destination agent&#39;)]
+    agent_url: Annotated[AnyUrl, Field(description=&#39;URL identifying the deployment agent&#39;)]
     deployed_at: Annotated[
         AwareDatetime | None,
         Field(description=&#39;Timestamp when activation completed (if is_live=true)&#39;),
@@ -1274,7 +1277,7 @@ validated to form a valid model.</p>
         ),
     ] = None
     is_live: Annotated[
-        bool, Field(description=&#39;Whether signal is currently active on this destination&#39;)
+        bool, Field(description=&#39;Whether signal is currently active on this deployment&#39;)
     ]
     type: Annotated[
         Literal[&#39;agent&#39;],
@@ -1361,7 +1364,7 @@ validated to form a valid model.</p>
     ]
     type: Annotated[
         Literal[&#39;platform&#39;],
-        Field(description=&#39;Discriminator indicating this is a platform-based destination&#39;),
+        Field(description=&#39;Discriminator indicating this is a platform-based deployment&#39;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1423,11 +1426,11 @@ validated to form a valid model.</p>
         str | None, Field(description=&#39;Optional account identifier on the agent&#39;)
     ] = None
     agent_url: Annotated[
-        AnyUrl, Field(description=&#39;URL identifying the destination agent (for sales agents, etc.)&#39;)
+        AnyUrl, Field(description=&#39;URL identifying the deployment agent (for sales agents, etc.)&#39;)
     ]
     type: Annotated[
         Literal[&#39;agent&#39;],
-        Field(description=&#39;Discriminator indicating this is an agent URL-based destination&#39;),
+        Field(description=&#39;Discriminator indicating this is an agent URL-based deployment&#39;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1471,51 +1474,6 @@ validated to form a valid model.</p>
 </ul>
 </li>
 </ul>
-</dd>
-<dt id="adcp.types.aliases.Package"><code class="flex name class">
-<span>class <span class="ident">CreatedPackageReference</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Package(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
-    )
-    buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for the package&#34;)]
-    package_id: Annotated[str, Field(description=&#34;Publisher&#39;s unique identifier for the package&#34;)]</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.aliases.Package.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.aliases.Package.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.aliases.Package.package_id"><code class="name">var <span class="ident">package_id</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
 </dd>
 <dt id="adcp.types.aliases.Package"><code class="flex name class">
 <span>class <span class="ident">Package</span></span>
@@ -3246,7 +3204,8 @@ validated to form a valid model.</p>
         extra=&#39;forbid&#39;,
     )
     affected_packages: Annotated[
-        list[AffectedPackage] | None, Field(description=&#39;Array of packages that were modified&#39;)
+        list[package.Package] | None,
+        Field(description=&#39;Array of packages that were modified with complete state information&#39;),
     ] = None
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for the media buy&#34;)]
     context: Annotated[
@@ -3276,7 +3235,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.aliases.UpdateMediaBuyResponse1.affected_packages"><code class="name">var <span class="ident">affected_packages</span> : list[<a title="adcp.types.generated_poc.update_media_buy_response.AffectedPackage" href="generated_poc/update_media_buy_response.html#adcp.types.generated_poc.update_media_buy_response.AffectedPackage">AffectedPackage</a>] | None</code></dt>
+<dt id="adcp.types.aliases.UpdateMediaBuyResponse1.affected_packages"><code class="name">var <span class="ident">affected_packages</span> : list[<a title="adcp.types.generated_poc.package.Package" href="generated_poc/package.html#adcp.types.generated_poc.package.Package">Package</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3742,14 +3701,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.Destination2.agent_url" href="#adcp.types.aliases.Destination2.agent_url">agent_url</a></code></li>
 <li><code><a title="adcp.types.aliases.Destination2.model_config" href="#adcp.types.aliases.Destination2.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.aliases.Destination2.type" href="#adcp.types.aliases.Destination2.type">type</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.aliases.Package" href="#adcp.types.aliases.Package">Package</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.aliases.Package.buyer_ref" href="#adcp.types.aliases.Package.buyer_ref">buyer_ref</a></code></li>
-<li><code><a title="adcp.types.aliases.Package.model_config" href="#adcp.types.aliases.Package.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.aliases.Package.package_id" href="#adcp.types.aliases.Package.package_id">package_id</a></code></li>
 </ul>
 </li>
 <li>

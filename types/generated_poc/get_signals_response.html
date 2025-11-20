@@ -188,7 +188,7 @@ validated to form a valid model.</p>
     data_provider: Annotated[str, Field(description=&#39;Name of the data provider&#39;)]
     deployments: Annotated[
         list[deployment.Deployment1 | deployment.Deployment2],
-        Field(description=&#39;Array of destination deployments&#39;),
+        Field(description=&#39;Array of deployment targets&#39;),
     ]
     description: Annotated[str, Field(description=&#39;Detailed signal description&#39;)]
     name: Annotated[str, Field(description=&#39;Human-readable signal name&#39;)]
