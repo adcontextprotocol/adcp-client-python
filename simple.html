@@ -363,6 +363,104 @@ print(products.products)</p>
                 error_message=result.error,
                 agent_id=self._client.agent_config.id,
             )
+        return result.data
+
+    async def create_media_buy(
+        self,
+        **kwargs: Any,
+    ) -&gt; CreateMediaBuyResponse:
+        &#34;&#34;&#34;Create media buy.
+
+        Args:
+            **kwargs: Arguments passed to CreateMediaBuyRequest
+
+        Returns:
+            CreateMediaBuyResponse
+
+        Raises:
+            Exception: If the request fails
+
+        Example:
+            media_buy = await client.simple.create_media_buy(
+                brand_manifest=brand,
+                packages=[package_request],
+                publisher_properties=properties
+            )
+            print(f&#34;Created media buy: {media_buy.media_buy_id}&#34;)
+        &#34;&#34;&#34;
+        request = CreateMediaBuyRequest(**kwargs)
+        result = await self._client.create_media_buy(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation=&#34;create_media_buy&#34;,
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def update_media_buy(
+        self,
+        **kwargs: Any,
+    ) -&gt; UpdateMediaBuyResponse:
+        &#34;&#34;&#34;Update media buy.
+
+        Args:
+            **kwargs: Arguments passed to UpdateMediaBuyRequest
+
+        Returns:
+            UpdateMediaBuyResponse
+
+        Raises:
+            Exception: If the request fails
+
+        Example:
+            updated = await client.simple.update_media_buy(
+                media_buy_id=&#34;mb_123&#34;,
+                packages=[updated_package]
+            )
+            print(f&#34;Updated media buy: {updated.media_buy_id}&#34;)
+        &#34;&#34;&#34;
+        request = UpdateMediaBuyRequest(**kwargs)
+        result = await self._client.update_media_buy(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation=&#34;update_media_buy&#34;,
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def build_creative(
+        self,
+        **kwargs: Any,
+    ) -&gt; BuildCreativeResponse:
+        &#34;&#34;&#34;Build creative.
+
+        Args:
+            **kwargs: Arguments passed to BuildCreativeRequest
+
+        Returns:
+            BuildCreativeResponse
+
+        Raises:
+            Exception: If the request fails
+
+        Example:
+            creative = await client.simple.build_creative(
+                manifest=creative_manifest,
+                target_format_id=&#34;vast_2.0&#34;,
+                inputs={&#34;duration&#34;: 30}
+            )
+            print(f&#34;Built creative: {creative.assets[0].url}&#34;)
+        &#34;&#34;&#34;
+        request = BuildCreativeRequest(**kwargs)
+        result = await self._client.build_creative(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation=&#34;build_creative&#34;,
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
         return result.data</code></pre>
 </details>
 <div class="desc"><p>Simplified API accessor for ergonomic usage.</p>
@@ -428,6 +526,130 @@ client API which returns TaskResult wrappers.</p>
 <dt><code>Exception</code></dt>
 <dd>If the request fails</dd>
 </dl></div>
+</dd>
+<dt id="adcp.simple.SimpleAPI.build_creative"><code class="name flex">
+<span>async def <span class="ident">build_creative</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.build_creative_response.BuildCreativeResponse" href="types/generated_poc/build_creative_response.html#adcp.types.generated_poc.build_creative_response.BuildCreativeResponse">BuildCreativeResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def build_creative(
+    self,
+    **kwargs: Any,
+) -&gt; BuildCreativeResponse:
+    &#34;&#34;&#34;Build creative.
+
+    Args:
+        **kwargs: Arguments passed to BuildCreativeRequest
+
+    Returns:
+        BuildCreativeResponse
+
+    Raises:
+        Exception: If the request fails
+
+    Example:
+        creative = await client.simple.build_creative(
+            manifest=creative_manifest,
+            target_format_id=&#34;vast_2.0&#34;,
+            inputs={&#34;duration&#34;: 30}
+        )
+        print(f&#34;Built creative: {creative.assets[0].url}&#34;)
+    &#34;&#34;&#34;
+    request = BuildCreativeRequest(**kwargs)
+    result = await self._client.build_creative(request)
+    if not result.success or not result.data:
+        raise ADCPSimpleAPIError(
+            operation=&#34;build_creative&#34;,
+            error_message=result.error,
+            agent_id=self._client.agent_config.id,
+        )
+    return result.data</code></pre>
+</details>
+<div class="desc"><p>Build creative.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong></dt>
+<dd>Arguments passed to BuildCreativeRequest</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>BuildCreativeResponse</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>Exception</code></dt>
+<dd>If the request fails</dd>
+</dl>
+<h2 id="example">Example</h2>
+<p>creative = await client.simple.build_creative(
+manifest=creative_manifest,
+target_format_id="vast_2.0",
+inputs={"duration": 30}
+)
+print(f"Built creative: {creative.assets[0].url}")</p></div>
+</dd>
+<dt id="adcp.simple.SimpleAPI.create_media_buy"><code class="name flex">
+<span>async def <span class="ident">create_media_buy</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.create_media_buy_response.CreateMediaBuyResponse" href="types/generated_poc/create_media_buy_response.html#adcp.types.generated_poc.create_media_buy_response.CreateMediaBuyResponse">CreateMediaBuyResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def create_media_buy(
+    self,
+    **kwargs: Any,
+) -&gt; CreateMediaBuyResponse:
+    &#34;&#34;&#34;Create media buy.
+
+    Args:
+        **kwargs: Arguments passed to CreateMediaBuyRequest
+
+    Returns:
+        CreateMediaBuyResponse
+
+    Raises:
+        Exception: If the request fails
+
+    Example:
+        media_buy = await client.simple.create_media_buy(
+            brand_manifest=brand,
+            packages=[package_request],
+            publisher_properties=properties
+        )
+        print(f&#34;Created media buy: {media_buy.media_buy_id}&#34;)
+    &#34;&#34;&#34;
+    request = CreateMediaBuyRequest(**kwargs)
+    result = await self._client.create_media_buy(request)
+    if not result.success or not result.data:
+        raise ADCPSimpleAPIError(
+            operation=&#34;create_media_buy&#34;,
+            error_message=result.error,
+            agent_id=self._client.agent_config.id,
+        )
+    return result.data</code></pre>
+</details>
+<div class="desc"><p>Create media buy.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong></dt>
+<dd>Arguments passed to CreateMediaBuyRequest</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>CreateMediaBuyResponse</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>Exception</code></dt>
+<dd>If the request fails</dd>
+</dl>
+<h2 id="example">Example</h2>
+<p>media_buy = await client.simple.create_media_buy(
+brand_manifest=brand,
+packages=[package_request],
+publisher_properties=properties
+)
+print(f"Created media buy: {media_buy.media_buy_id}")</p></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.get_media_buy_delivery"><code class="name flex">
 <span>async def <span class="ident">get_media_buy_delivery</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse" href="types/generated_poc/get_media_buy_delivery_response.html#adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse">GetMediaBuyDeliveryResponse</a></span>
@@ -893,6 +1115,66 @@ print(f"Preview: {preview.previews[0]}")</p></div>
 <dd>If the request fails</dd>
 </dl></div>
 </dd>
+<dt id="adcp.simple.SimpleAPI.update_media_buy"><code class="name flex">
+<span>async def <span class="ident">update_media_buy</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.update_media_buy_response.UpdateMediaBuyResponse" href="types/generated_poc/update_media_buy_response.html#adcp.types.generated_poc.update_media_buy_response.UpdateMediaBuyResponse">UpdateMediaBuyResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def update_media_buy(
+    self,
+    **kwargs: Any,
+) -&gt; UpdateMediaBuyResponse:
+    &#34;&#34;&#34;Update media buy.
+
+    Args:
+        **kwargs: Arguments passed to UpdateMediaBuyRequest
+
+    Returns:
+        UpdateMediaBuyResponse
+
+    Raises:
+        Exception: If the request fails
+
+    Example:
+        updated = await client.simple.update_media_buy(
+            media_buy_id=&#34;mb_123&#34;,
+            packages=[updated_package]
+        )
+        print(f&#34;Updated media buy: {updated.media_buy_id}&#34;)
+    &#34;&#34;&#34;
+    request = UpdateMediaBuyRequest(**kwargs)
+    result = await self._client.update_media_buy(request)
+    if not result.success or not result.data:
+        raise ADCPSimpleAPIError(
+            operation=&#34;update_media_buy&#34;,
+            error_message=result.error,
+            agent_id=self._client.agent_config.id,
+        )
+    return result.data</code></pre>
+</details>
+<div class="desc"><p>Update media buy.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong></dt>
+<dd>Arguments passed to UpdateMediaBuyRequest</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>UpdateMediaBuyResponse</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>Exception</code></dt>
+<dd>If the request fails</dd>
+</dl>
+<h2 id="example">Example</h2>
+<p>updated = await client.simple.update_media_buy(
+media_buy_id="mb_123",
+packages=[updated_package]
+)
+print(f"Updated media buy: {updated.media_buy_id}")</p></div>
+</dd>
 </dl>
 </dd>
 </dl>
@@ -914,6 +1196,8 @@ print(f"Preview: {preview.previews[0]}")</p></div>
 <h4><code><a title="adcp.simple.SimpleAPI" href="#adcp.simple.SimpleAPI">SimpleAPI</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.simple.SimpleAPI.activate_signal" href="#adcp.simple.SimpleAPI.activate_signal">activate_signal</a></code></li>
+<li><code><a title="adcp.simple.SimpleAPI.build_creative" href="#adcp.simple.SimpleAPI.build_creative">build_creative</a></code></li>
+<li><code><a title="adcp.simple.SimpleAPI.create_media_buy" href="#adcp.simple.SimpleAPI.create_media_buy">create_media_buy</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.get_media_buy_delivery" href="#adcp.simple.SimpleAPI.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.get_products" href="#adcp.simple.SimpleAPI.get_products">get_products</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.get_signals" href="#adcp.simple.SimpleAPI.get_signals">get_signals</a></code></li>
@@ -923,6 +1207,7 @@ print(f"Preview: {preview.previews[0]}")</p></div>
 <li><code><a title="adcp.simple.SimpleAPI.preview_creative" href="#adcp.simple.SimpleAPI.preview_creative">preview_creative</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.provide_performance_feedback" href="#adcp.simple.SimpleAPI.provide_performance_feedback">provide_performance_feedback</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.sync_creatives" href="#adcp.simple.SimpleAPI.sync_creatives">sync_creatives</a></code></li>
+<li><code><a title="adcp.simple.SimpleAPI.update_media_buy" href="#adcp.simple.SimpleAPI.update_media_buy">update_media_buy</a></code></li>
 </ul>
 </li>
 </ul>
