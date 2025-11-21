@@ -46,80 +46,6 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.performance_feedback.FeedbackSource"><code class="flex name class">
-<span>class <span class="ident">FeedbackSource</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class FeedbackSource(Enum):
-    buyer_attribution = &#39;buyer_attribution&#39;
-    third_party_measurement = &#39;third_party_measurement&#39;
-    platform_analytics = &#39;platform_analytics&#39;
-    verification_partner = &#39;verification_partner&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.performance_feedback.FeedbackSource.buyer_attribution"><code class="name">var <span class="ident">buyer_attribution</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.performance_feedback.FeedbackSource.platform_analytics"><code class="name">var <span class="ident">platform_analytics</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.performance_feedback.FeedbackSource.third_party_measurement"><code class="name">var <span class="ident">third_party_measurement</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.performance_feedback.FeedbackSource.verification_partner"><code class="name">var <span class="ident">verification_partner</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 <dt id="adcp.types.generated_poc.performance_feedback.MeasurementPeriod"><code class="flex name class">
 <span>class <span class="ident">MeasurementPeriod</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -178,100 +104,6 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.performance_feedback.MetricType"><code class="flex name class">
-<span>class <span class="ident">MetricType</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class MetricType(Enum):
-    overall_performance = &#39;overall_performance&#39;
-    conversion_rate = &#39;conversion_rate&#39;
-    brand_lift = &#39;brand_lift&#39;
-    click_through_rate = &#39;click_through_rate&#39;
-    completion_rate = &#39;completion_rate&#39;
-    viewability = &#39;viewability&#39;
-    brand_safety = &#39;brand_safety&#39;
-    cost_efficiency = &#39;cost_efficiency&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.performance_feedback.MetricType.brand_lift"><code class="name">var <span class="ident">brand_lift</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.performance_feedback.MetricType.brand_safety"><code class="name">var <span class="ident">brand_safety</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.performance_feedback.MetricType.click_through_rate"><code class="name">var <span class="ident">click_through_rate</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.performance_feedback.MetricType.completion_rate"><code class="name">var <span class="ident">completion_rate</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.performance_feedback.MetricType.conversion_rate"><code class="name">var <span class="ident">conversion_rate</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.performance_feedback.MetricType.cost_efficiency"><code class="name">var <span class="ident">cost_efficiency</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.performance_feedback.MetricType.overall_performance"><code class="name">var <span class="ident">overall_performance</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.performance_feedback.MetricType.viewability"><code class="name">var <span class="ident">viewability</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 <dt id="adcp.types.generated_poc.performance_feedback.PerformanceFeedback"><code class="flex name class">
 <span>class <span class="ident">PerformanceFeedback</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -297,12 +129,16 @@ attributes &ndash; see the documentation for details.</p></div>
     feedback_id: Annotated[
         str, Field(description=&#39;Unique identifier for this performance feedback submission&#39;)
     ]
-    feedback_source: Annotated[FeedbackSource, Field(description=&#39;Source of the performance data&#39;)]
+    feedback_source: Annotated[
+        feedback_source_1.FeedbackSource, Field(description=&#39;Source of the performance data&#39;)
+    ]
     measurement_period: Annotated[
         MeasurementPeriod, Field(description=&#39;Time period for performance measurement&#39;)
     ]
     media_buy_id: Annotated[str, Field(description=&#34;Publisher&#39;s media buy identifier&#34;)]
-    metric_type: Annotated[MetricType, Field(description=&#39;The business metric being measured&#39;)]
+    metric_type: Annotated[
+        metric_type_1.MetricType, Field(description=&#39;The business metric being measured&#39;)
+    ]
     package_id: Annotated[
         str | None,
         Field(
@@ -348,7 +184,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.performance_feedback.PerformanceFeedback.feedback_source"><code class="name">var <span class="ident">feedback_source</span> : <a title="adcp.types.generated_poc.performance_feedback.FeedbackSource" href="#adcp.types.generated_poc.performance_feedback.FeedbackSource">FeedbackSource</a></code></dt>
+<dt id="adcp.types.generated_poc.performance_feedback.PerformanceFeedback.feedback_source"><code class="name">var <span class="ident">feedback_source</span> : <a title="adcp.types.generated_poc.feedback_source.FeedbackSource" href="feedback_source.html#adcp.types.generated_poc.feedback_source.FeedbackSource">FeedbackSource</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -360,7 +196,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.performance_feedback.PerformanceFeedback.metric_type"><code class="name">var <span class="ident">metric_type</span> : <a title="adcp.types.generated_poc.performance_feedback.MetricType" href="#adcp.types.generated_poc.performance_feedback.MetricType">MetricType</a></code></dt>
+<dt id="adcp.types.generated_poc.performance_feedback.PerformanceFeedback.metric_type"><code class="name">var <span class="ident">metric_type</span> : <a title="adcp.types.generated_poc.metric_type.MetricType" href="metric_type.html#adcp.types.generated_poc.metric_type.MetricType">MetricType</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -485,33 +321,11 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.performance_feedback.FeedbackSource" href="#adcp.types.generated_poc.performance_feedback.FeedbackSource">FeedbackSource</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.performance_feedback.FeedbackSource.buyer_attribution" href="#adcp.types.generated_poc.performance_feedback.FeedbackSource.buyer_attribution">buyer_attribution</a></code></li>
-<li><code><a title="adcp.types.generated_poc.performance_feedback.FeedbackSource.platform_analytics" href="#adcp.types.generated_poc.performance_feedback.FeedbackSource.platform_analytics">platform_analytics</a></code></li>
-<li><code><a title="adcp.types.generated_poc.performance_feedback.FeedbackSource.third_party_measurement" href="#adcp.types.generated_poc.performance_feedback.FeedbackSource.third_party_measurement">third_party_measurement</a></code></li>
-<li><code><a title="adcp.types.generated_poc.performance_feedback.FeedbackSource.verification_partner" href="#adcp.types.generated_poc.performance_feedback.FeedbackSource.verification_partner">verification_partner</a></code></li>
-</ul>
-</li>
-<li>
 <h4><code><a title="adcp.types.generated_poc.performance_feedback.MeasurementPeriod" href="#adcp.types.generated_poc.performance_feedback.MeasurementPeriod">MeasurementPeriod</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.performance_feedback.MeasurementPeriod.end" href="#adcp.types.generated_poc.performance_feedback.MeasurementPeriod.end">end</a></code></li>
 <li><code><a title="adcp.types.generated_poc.performance_feedback.MeasurementPeriod.model_config" href="#adcp.types.generated_poc.performance_feedback.MeasurementPeriod.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.performance_feedback.MeasurementPeriod.start" href="#adcp.types.generated_poc.performance_feedback.MeasurementPeriod.start">start</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.performance_feedback.MetricType" href="#adcp.types.generated_poc.performance_feedback.MetricType">MetricType</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.performance_feedback.MetricType.brand_lift" href="#adcp.types.generated_poc.performance_feedback.MetricType.brand_lift">brand_lift</a></code></li>
-<li><code><a title="adcp.types.generated_poc.performance_feedback.MetricType.brand_safety" href="#adcp.types.generated_poc.performance_feedback.MetricType.brand_safety">brand_safety</a></code></li>
-<li><code><a title="adcp.types.generated_poc.performance_feedback.MetricType.click_through_rate" href="#adcp.types.generated_poc.performance_feedback.MetricType.click_through_rate">click_through_rate</a></code></li>
-<li><code><a title="adcp.types.generated_poc.performance_feedback.MetricType.completion_rate" href="#adcp.types.generated_poc.performance_feedback.MetricType.completion_rate">completion_rate</a></code></li>
-<li><code><a title="adcp.types.generated_poc.performance_feedback.MetricType.conversion_rate" href="#adcp.types.generated_poc.performance_feedback.MetricType.conversion_rate">conversion_rate</a></code></li>
-<li><code><a title="adcp.types.generated_poc.performance_feedback.MetricType.cost_efficiency" href="#adcp.types.generated_poc.performance_feedback.MetricType.cost_efficiency">cost_efficiency</a></code></li>
-<li><code><a title="adcp.types.generated_poc.performance_feedback.MetricType.overall_performance" href="#adcp.types.generated_poc.performance_feedback.MetricType.overall_performance">overall_performance</a></code></li>
-<li><code><a title="adcp.types.generated_poc.performance_feedback.MetricType.viewability" href="#adcp.types.generated_poc.performance_feedback.MetricType.viewability">viewability</a></code></li>
 </ul>
 </li>
 <li>

@@ -46,160 +46,6 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.get_products_request.Filters"><code class="flex name class">
-<span>class <span class="ident">Filters</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Filters(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
-    )
-    delivery_type: delivery_type_1.DeliveryType | None = None
-    format_ids: Annotated[
-        list[format_id.FormatId] | None, Field(description=&#39;Filter by specific format IDs&#39;)
-    ] = None
-    format_types: Annotated[
-        list[FormatType] | None, Field(description=&#39;Filter by format types&#39;)
-    ] = None
-    is_fixed_price: Annotated[
-        bool | None, Field(description=&#39;Filter for fixed price vs auction products&#39;)
-    ] = None
-    min_exposures: Annotated[
-        int | None,
-        Field(description=&#39;Minimum exposures/impressions needed for measurement validity&#39;, ge=1),
-    ] = None
-    standard_formats_only: Annotated[
-        bool | None, Field(description=&#39;Only return products accepting IAB standard formats&#39;)
-    ] = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.get_products_request.Filters.delivery_type"><code class="name">var <span class="ident">delivery_type</span> : <a title="adcp.types.generated_poc.delivery_type.DeliveryType" href="delivery_type.html#adcp.types.generated_poc.delivery_type.DeliveryType">DeliveryType</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.get_products_request.Filters.format_ids"><code class="name">var <span class="ident">format_ids</span> : list[<a title="adcp.types.generated_poc.format_id.FormatId" href="format_id.html#adcp.types.generated_poc.format_id.FormatId">FormatId</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.get_products_request.Filters.format_types"><code class="name">var <span class="ident">format_types</span> : list[<a title="adcp.types.generated_poc.get_products_request.FormatType" href="#adcp.types.generated_poc.get_products_request.FormatType">FormatType</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.get_products_request.Filters.is_fixed_price"><code class="name">var <span class="ident">is_fixed_price</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.get_products_request.Filters.min_exposures"><code class="name">var <span class="ident">min_exposures</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.get_products_request.Filters.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.get_products_request.Filters.standard_formats_only"><code class="name">var <span class="ident">standard_formats_only</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.get_products_request.FormatType"><code class="flex name class">
-<span>class <span class="ident">FormatType</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class FormatType(Enum):
-    video = &#39;video&#39;
-    display = &#39;display&#39;
-    audio = &#39;audio&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.get_products_request.FormatType.audio"><code class="name">var <span class="ident">audio</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.get_products_request.FormatType.display"><code class="name">var <span class="ident">display</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.get_products_request.FormatType.video"><code class="name">var <span class="ident">video</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 <dt id="adcp.types.generated_poc.get_products_request.GetProductsRequest"><code class="flex name class">
 <span>class <span class="ident">GetProductsRequest</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -243,9 +89,7 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.&#39;
         ),
     ] = None
-    filters: Annotated[
-        Filters | None, Field(description=&#39;Structured filters for product discovery&#39;)
-    ] = None</code></pre>
+    filters: product_filters.ProductFilters | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -274,7 +118,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.get_products_request.GetProductsRequest.filters"><code class="name">var <span class="ident">filters</span> : <a title="adcp.types.generated_poc.get_products_request.Filters" href="#adcp.types.generated_poc.get_products_request.Filters">Filters</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.get_products_request.GetProductsRequest.filters"><code class="name">var <span class="ident">filters</span> : <a title="adcp.types.generated_poc.product_filters.ProductFilters" href="product_filters.html#adcp.types.generated_poc.product_filters.ProductFilters">ProductFilters</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -308,26 +152,6 @@ validated to form a valid model.</p>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
-<li>
-<h4><code><a title="adcp.types.generated_poc.get_products_request.Filters" href="#adcp.types.generated_poc.get_products_request.Filters">Filters</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.get_products_request.Filters.delivery_type" href="#adcp.types.generated_poc.get_products_request.Filters.delivery_type">delivery_type</a></code></li>
-<li><code><a title="adcp.types.generated_poc.get_products_request.Filters.format_ids" href="#adcp.types.generated_poc.get_products_request.Filters.format_ids">format_ids</a></code></li>
-<li><code><a title="adcp.types.generated_poc.get_products_request.Filters.format_types" href="#adcp.types.generated_poc.get_products_request.Filters.format_types">format_types</a></code></li>
-<li><code><a title="adcp.types.generated_poc.get_products_request.Filters.is_fixed_price" href="#adcp.types.generated_poc.get_products_request.Filters.is_fixed_price">is_fixed_price</a></code></li>
-<li><code><a title="adcp.types.generated_poc.get_products_request.Filters.min_exposures" href="#adcp.types.generated_poc.get_products_request.Filters.min_exposures">min_exposures</a></code></li>
-<li><code><a title="adcp.types.generated_poc.get_products_request.Filters.model_config" href="#adcp.types.generated_poc.get_products_request.Filters.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.get_products_request.Filters.standard_formats_only" href="#adcp.types.generated_poc.get_products_request.Filters.standard_formats_only">standard_formats_only</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.get_products_request.FormatType" href="#adcp.types.generated_poc.get_products_request.FormatType">FormatType</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.get_products_request.FormatType.audio" href="#adcp.types.generated_poc.get_products_request.FormatType.audio">audio</a></code></li>
-<li><code><a title="adcp.types.generated_poc.get_products_request.FormatType.display" href="#adcp.types.generated_poc.get_products_request.FormatType.display">display</a></code></li>
-<li><code><a title="adcp.types.generated_poc.get_products_request.FormatType.video" href="#adcp.types.generated_poc.get_products_request.FormatType.video">video</a></code></li>
-</ul>
-</li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.get_products_request.GetProductsRequest" href="#adcp.types.generated_poc.get_products_request.GetProductsRequest">GetProductsRequest</a></code></h4>
 <ul class="">

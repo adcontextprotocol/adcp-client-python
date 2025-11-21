@@ -46,213 +46,6 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.webhook_asset.Method"><code class="flex name class">
-<span>class <span class="ident">Method</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Method(Enum):
-    GET = &#39;GET&#39;
-    POST = &#39;POST&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.webhook_asset.Method.GET"><code class="name">var <span class="ident">GET</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.webhook_asset.Method.POST"><code class="name">var <span class="ident">POST</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.webhook_asset.Method1"><code class="flex name class">
-<span>class <span class="ident">Method1</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Method1(Enum):
-    hmac_sha256 = &#39;hmac_sha256&#39;
-    api_key = &#39;api_key&#39;
-    none = &#39;none&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.webhook_asset.Method1.api_key"><code class="name">var <span class="ident">api_key</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.webhook_asset.Method1.hmac_sha256"><code class="name">var <span class="ident">hmac_sha256</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.webhook_asset.Method1.none"><code class="name">var <span class="ident">none</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.webhook_asset.ResponseType"><code class="flex name class">
-<span>class <span class="ident">ResponseType</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class ResponseType(Enum):
-    html = &#39;html&#39;
-    json = &#39;json&#39;
-    xml = &#39;xml&#39;
-    javascript = &#39;javascript&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.webhook_asset.ResponseType.html"><code class="name">var <span class="ident">html</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.webhook_asset.ResponseType.javascript"><code class="name">var <span class="ident">javascript</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.webhook_asset.ResponseType.json"><code class="name">var <span class="ident">json</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.webhook_asset.ResponseType.xml"><code class="name">var <span class="ident">xml</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 <dt id="adcp.types.generated_poc.webhook_asset.Security"><code class="flex name class">
 <span>class <span class="ident">Security</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -269,7 +62,9 @@ attributes &ndash; see the documentation for details.</p></div>
     hmac_header: Annotated[
         str | None, Field(description=&#34;Header name for HMAC signature (e.g., &#39;X-Signature&#39;)&#34;)
     ] = None
-    method: Annotated[Method1, Field(description=&#39;Authentication method&#39;)]</code></pre>
+    method: Annotated[
+        webhook_security_method.WebhookSecurityMethod, Field(description=&#39;Authentication method&#39;)
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -294,7 +89,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.webhook_asset.Security.method"><code class="name">var <span class="ident">method</span> : <a title="adcp.types.generated_poc.webhook_asset.Method1" href="#adcp.types.generated_poc.webhook_asset.Method1">Method1</a></code></dt>
+<dt id="adcp.types.generated_poc.webhook_asset.Security.method"><code class="name">var <span class="ident">method</span> : <a title="adcp.types.generated_poc.webhook_security_method.WebhookSecurityMethod" href="webhook_security_method.html#adcp.types.generated_poc.webhook_security_method.WebhookSecurityMethod">WebhookSecurityMethod</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -326,13 +121,16 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    method: Annotated[Method | None, Field(description=&#39;HTTP method&#39;)] = Method.POST
+    method: Annotated[http_method.HttpMethod | None, Field(description=&#39;HTTP method&#39;)] = (
+        http_method.HttpMethod.POST
+    )
     required_macros: Annotated[
         list[str] | None,
         Field(description=&#39;Universal macros that must be provided for webhook to function&#39;),
     ] = None
     response_type: Annotated[
-        ResponseType, Field(description=&#39;Expected content type of webhook response&#39;)
+        webhook_response_type.WebhookResponseType,
+        Field(description=&#39;Expected content type of webhook response&#39;),
     ]
     security: Annotated[Security, Field(description=&#39;Security configuration for webhook calls&#39;)]
     supported_macros: Annotated[
@@ -362,7 +160,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.webhook_asset.WebhookAsset.method"><code class="name">var <span class="ident">method</span> : <a title="adcp.types.generated_poc.webhook_asset.Method" href="#adcp.types.generated_poc.webhook_asset.Method">Method</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.webhook_asset.WebhookAsset.method"><code class="name">var <span class="ident">method</span> : <a title="adcp.types.generated_poc.http_method.HttpMethod" href="http_method.html#adcp.types.generated_poc.http_method.HttpMethod">HttpMethod</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -374,7 +172,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.webhook_asset.WebhookAsset.response_type"><code class="name">var <span class="ident">response_type</span> : <a title="adcp.types.generated_poc.webhook_asset.ResponseType" href="#adcp.types.generated_poc.webhook_asset.ResponseType">ResponseType</a></code></dt>
+<dt id="adcp.types.generated_poc.webhook_asset.WebhookAsset.response_type"><code class="name">var <span class="ident">response_type</span> : <a title="adcp.types.generated_poc.webhook_response_type.WebhookResponseType" href="webhook_response_type.html#adcp.types.generated_poc.webhook_response_type.WebhookResponseType">WebhookResponseType</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -420,30 +218,6 @@ validated to form a valid model.</p>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
-<li>
-<h4><code><a title="adcp.types.generated_poc.webhook_asset.Method" href="#adcp.types.generated_poc.webhook_asset.Method">Method</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.webhook_asset.Method.GET" href="#adcp.types.generated_poc.webhook_asset.Method.GET">GET</a></code></li>
-<li><code><a title="adcp.types.generated_poc.webhook_asset.Method.POST" href="#adcp.types.generated_poc.webhook_asset.Method.POST">POST</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.webhook_asset.Method1" href="#adcp.types.generated_poc.webhook_asset.Method1">Method1</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.webhook_asset.Method1.api_key" href="#adcp.types.generated_poc.webhook_asset.Method1.api_key">api_key</a></code></li>
-<li><code><a title="adcp.types.generated_poc.webhook_asset.Method1.hmac_sha256" href="#adcp.types.generated_poc.webhook_asset.Method1.hmac_sha256">hmac_sha256</a></code></li>
-<li><code><a title="adcp.types.generated_poc.webhook_asset.Method1.none" href="#adcp.types.generated_poc.webhook_asset.Method1.none">none</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.webhook_asset.ResponseType" href="#adcp.types.generated_poc.webhook_asset.ResponseType">ResponseType</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.webhook_asset.ResponseType.html" href="#adcp.types.generated_poc.webhook_asset.ResponseType.html">html</a></code></li>
-<li><code><a title="adcp.types.generated_poc.webhook_asset.ResponseType.javascript" href="#adcp.types.generated_poc.webhook_asset.ResponseType.javascript">javascript</a></code></li>
-<li><code><a title="adcp.types.generated_poc.webhook_asset.ResponseType.json" href="#adcp.types.generated_poc.webhook_asset.ResponseType.json">json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.webhook_asset.ResponseType.xml" href="#adcp.types.generated_poc.webhook_asset.ResponseType.xml">xml</a></code></li>
-</ul>
-</li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.webhook_asset.Security" href="#adcp.types.generated_poc.webhook_asset.Security">Security</a></code></h4>
 <ul class="">

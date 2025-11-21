@@ -46,80 +46,6 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.FeedbackSource"><code class="flex name class">
-<span>class <span class="ident">FeedbackSource</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class FeedbackSource(Enum):
-    buyer_attribution = &#39;buyer_attribution&#39;
-    third_party_measurement = &#39;third_party_measurement&#39;
-    platform_analytics = &#39;platform_analytics&#39;
-    verification_partner = &#39;verification_partner&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.FeedbackSource.buyer_attribution"><code class="name">var <span class="ident">buyer_attribution</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.FeedbackSource.platform_analytics"><code class="name">var <span class="ident">platform_analytics</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.FeedbackSource.third_party_measurement"><code class="name">var <span class="ident">third_party_measurement</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.FeedbackSource.verification_partner"><code class="name">var <span class="ident">verification_partner</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 <dt id="adcp.types.generated_poc.provide_performance_feedback_request.MeasurementPeriod"><code class="flex name class">
 <span>class <span class="ident">MeasurementPeriod</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -178,102 +104,67 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.MetricType"><code class="flex name class">
-<span>class <span class="ident">MetricType</span></span>
-<span>(</span><span>*args, **kwds)</span>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest"><code class="flex name class">
+<span>class <span class="ident">ProvidePerformanceFeedbackRequest</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class MetricType(Enum):
-    overall_performance = &#39;overall_performance&#39;
-    conversion_rate = &#39;conversion_rate&#39;
-    brand_lift = &#39;brand_lift&#39;
-    click_through_rate = &#39;click_through_rate&#39;
-    completion_rate = &#39;completion_rate&#39;
-    viewability = &#39;viewability&#39;
-    brand_safety = &#39;brand_safety&#39;
-    cost_efficiency = &#39;cost_efficiency&#39;</code></pre>
+<pre><code class="python">class ProvidePerformanceFeedbackRequest(
+    RootModel[ProvidePerformanceFeedbackRequest1 | ProvidePerformanceFeedbackRequest2]
+):
+    root: Annotated[
+        ProvidePerformanceFeedbackRequest1 | ProvidePerformanceFeedbackRequest2,
+        Field(
+            description=&#39;Request payload for provide_performance_feedback task&#39;,
+            title=&#39;Provide Performance Feedback Request&#39;,
+        ),
+    ]</code></pre>
 </details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li>enum.Enum</li>
+<li>pydantic.root_model.RootModel[Union[ProvidePerformanceFeedbackRequest1, ProvidePerformanceFeedbackRequest2]]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.MetricType.brand_lift"><code class="name">var <span class="ident">brand_lift</span></code></dt>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.MetricType.brand_safety"><code class="name">var <span class="ident">brand_safety</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.MetricType.click_through_rate"><code class="name">var <span class="ident">click_through_rate</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.MetricType.completion_rate"><code class="name">var <span class="ident">completion_rate</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.MetricType.conversion_rate"><code class="name">var <span class="ident">conversion_rate</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.MetricType.cost_efficiency"><code class="name">var <span class="ident">cost_efficiency</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.MetricType.overall_performance"><code class="name">var <span class="ident">overall_performance</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.MetricType.viewability"><code class="name">var <span class="ident">viewability</span></code></dt>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1">ProvidePerformanceFeedbackRequest1</a> | <a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2">ProvidePerformanceFeedbackRequest2</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 </dd>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest"><code class="flex name class">
-<span>class <span class="ident">ProvidePerformanceFeedbackRequest</span></span>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1"><code class="flex name class">
+<span>class <span class="ident">ProvidePerformanceFeedbackRequest1</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -281,10 +172,13 @@ attributes &ndash; see the documentation for details.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class ProvidePerformanceFeedbackRequest(AdCPBaseModel):
+<pre><code class="python">class ProvidePerformanceFeedbackRequest1(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    buyer_ref: Annotated[
+        str | None, Field(description=&#34;Buyer&#39;s reference for the media buy&#34;, min_length=1)
+    ] = None
     context: Annotated[
         dict[str, Any] | None,
         Field(
@@ -298,8 +192,8 @@ attributes &ndash; see the documentation for details.</p></div>
         ),
     ] = None
     feedback_source: Annotated[
-        FeedbackSource | None, Field(description=&#39;Source of the performance data&#39;)
-    ] = FeedbackSource.buyer_attribution
+        feedback_source_1.FeedbackSource | None, Field(description=&#39;Source of the performance data&#39;)
+    ] = feedback_source_1.FeedbackSource.buyer_attribution
     measurement_period: Annotated[
         MeasurementPeriod, Field(description=&#39;Time period for performance measurement&#39;)
     ]
@@ -307,8 +201,8 @@ attributes &ndash; see the documentation for details.</p></div>
         str, Field(description=&#34;Publisher&#39;s media buy identifier&#34;, min_length=1)
     ]
     metric_type: Annotated[
-        MetricType | None, Field(description=&#39;The business metric being measured&#39;)
-    ] = MetricType.overall_performance
+        metric_type_1.MetricType | None, Field(description=&#39;The business metric being measured&#39;)
+    ] = metric_type_1.MetricType.overall_performance
     package_id: Annotated[
         str | None,
         Field(
@@ -339,39 +233,164 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.creative_id"><code class="name">var <span class="ident">creative_id</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.feedback_source"><code class="name">var <span class="ident">feedback_source</span> : <a title="adcp.types.generated_poc.provide_performance_feedback_request.FeedbackSource" href="#adcp.types.generated_poc.provide_performance_feedback_request.FeedbackSource">FeedbackSource</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.creative_id"><code class="name">var <span class="ident">creative_id</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.measurement_period"><code class="name">var <span class="ident">measurement_period</span> : <a title="adcp.types.generated_poc.provide_performance_feedback_request.MeasurementPeriod" href="#adcp.types.generated_poc.provide_performance_feedback_request.MeasurementPeriod">MeasurementPeriod</a></code></dt>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.feedback_source"><code class="name">var <span class="ident">feedback_source</span> : <a title="adcp.types.generated_poc.feedback_source.FeedbackSource" href="feedback_source.html#adcp.types.generated_poc.feedback_source.FeedbackSource">FeedbackSource</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.measurement_period"><code class="name">var <span class="ident">measurement_period</span> : <a title="adcp.types.generated_poc.provide_performance_feedback_request.MeasurementPeriod" href="#adcp.types.generated_poc.provide_performance_feedback_request.MeasurementPeriod">MeasurementPeriod</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.metric_type"><code class="name">var <span class="ident">metric_type</span> : <a title="adcp.types.generated_poc.provide_performance_feedback_request.MetricType" href="#adcp.types.generated_poc.provide_performance_feedback_request.MetricType">MetricType</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.metric_type"><code class="name">var <span class="ident">metric_type</span> : <a title="adcp.types.generated_poc.metric_type.MetricType" href="metric_type.html#adcp.types.generated_poc.metric_type.MetricType">MetricType</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.package_id"><code class="name">var <span class="ident">package_id</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.performance_index"><code class="name">var <span class="ident">performance_index</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.package_id"><code class="name">var <span class="ident">package_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.performance_index"><code class="name">var <span class="ident">performance_index</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2"><code class="flex name class">
+<span>class <span class="ident">ProvidePerformanceFeedbackRequest2</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ProvidePerformanceFeedbackRequest2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    buyer_ref: Annotated[
+        str, Field(description=&#34;Buyer&#39;s reference for the media buy&#34;, min_length=1)
+    ]
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.&#39;
+        ),
+    ] = None
+    creative_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Specific creative asset (if feedback is creative-specific)&#39;, min_length=1
+        ),
+    ] = None
+    feedback_source: Annotated[
+        feedback_source_1.FeedbackSource | None, Field(description=&#39;Source of the performance data&#39;)
+    ] = feedback_source_1.FeedbackSource.buyer_attribution
+    measurement_period: Annotated[
+        MeasurementPeriod, Field(description=&#39;Time period for performance measurement&#39;)
+    ]
+    media_buy_id: Annotated[
+        str | None, Field(description=&#34;Publisher&#39;s media buy identifier&#34;, min_length=1)
+    ] = None
+    metric_type: Annotated[
+        metric_type_1.MetricType | None, Field(description=&#39;The business metric being measured&#39;)
+    ] = metric_type_1.MetricType.overall_performance
+    package_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Specific package within the media buy (if feedback is package-specific)&#39;,
+            min_length=1,
+        ),
+    ] = None
+    performance_index: Annotated[
+        float,
+        Field(
+            description=&#39;Normalized performance score (0.0 = no value, 1.0 = expected, &gt;1.0 = above expected)&#39;,
+            ge=0.0,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.creative_id"><code class="name">var <span class="ident">creative_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.feedback_source"><code class="name">var <span class="ident">feedback_source</span> : <a title="adcp.types.generated_poc.feedback_source.FeedbackSource" href="feedback_source.html#adcp.types.generated_poc.feedback_source.FeedbackSource">FeedbackSource</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.measurement_period"><code class="name">var <span class="ident">measurement_period</span> : <a title="adcp.types.generated_poc.provide_performance_feedback_request.MeasurementPeriod" href="#adcp.types.generated_poc.provide_performance_feedback_request.MeasurementPeriod">MeasurementPeriod</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.metric_type"><code class="name">var <span class="ident">metric_type</span> : <a title="adcp.types.generated_poc.metric_type.MetricType" href="metric_type.html#adcp.types.generated_poc.metric_type.MetricType">MetricType</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.package_id"><code class="name">var <span class="ident">package_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.performance_index"><code class="name">var <span class="ident">performance_index</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -402,15 +421,6 @@ validated to form a valid model.</p>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.FeedbackSource" href="#adcp.types.generated_poc.provide_performance_feedback_request.FeedbackSource">FeedbackSource</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.FeedbackSource.buyer_attribution" href="#adcp.types.generated_poc.provide_performance_feedback_request.FeedbackSource.buyer_attribution">buyer_attribution</a></code></li>
-<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.FeedbackSource.platform_analytics" href="#adcp.types.generated_poc.provide_performance_feedback_request.FeedbackSource.platform_analytics">platform_analytics</a></code></li>
-<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.FeedbackSource.third_party_measurement" href="#adcp.types.generated_poc.provide_performance_feedback_request.FeedbackSource.third_party_measurement">third_party_measurement</a></code></li>
-<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.FeedbackSource.verification_partner" href="#adcp.types.generated_poc.provide_performance_feedback_request.FeedbackSource.verification_partner">verification_partner</a></code></li>
-</ul>
-</li>
-<li>
 <h4><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.MeasurementPeriod" href="#adcp.types.generated_poc.provide_performance_feedback_request.MeasurementPeriod">MeasurementPeriod</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.MeasurementPeriod.end" href="#adcp.types.generated_poc.provide_performance_feedback_request.MeasurementPeriod.end">end</a></code></li>
@@ -419,30 +429,40 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.MetricType" href="#adcp.types.generated_poc.provide_performance_feedback_request.MetricType">MetricType</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.MetricType.brand_lift" href="#adcp.types.generated_poc.provide_performance_feedback_request.MetricType.brand_lift">brand_lift</a></code></li>
-<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.MetricType.brand_safety" href="#adcp.types.generated_poc.provide_performance_feedback_request.MetricType.brand_safety">brand_safety</a></code></li>
-<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.MetricType.click_through_rate" href="#adcp.types.generated_poc.provide_performance_feedback_request.MetricType.click_through_rate">click_through_rate</a></code></li>
-<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.MetricType.completion_rate" href="#adcp.types.generated_poc.provide_performance_feedback_request.MetricType.completion_rate">completion_rate</a></code></li>
-<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.MetricType.conversion_rate" href="#adcp.types.generated_poc.provide_performance_feedback_request.MetricType.conversion_rate">conversion_rate</a></code></li>
-<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.MetricType.cost_efficiency" href="#adcp.types.generated_poc.provide_performance_feedback_request.MetricType.cost_efficiency">cost_efficiency</a></code></li>
-<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.MetricType.overall_performance" href="#adcp.types.generated_poc.provide_performance_feedback_request.MetricType.overall_performance">overall_performance</a></code></li>
-<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.MetricType.viewability" href="#adcp.types.generated_poc.provide_performance_feedback_request.MetricType.viewability">viewability</a></code></li>
+<h4><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest">ProvidePerformanceFeedbackRequest</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.model_config" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.root" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.root">root</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest">ProvidePerformanceFeedbackRequest</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1">ProvidePerformanceFeedbackRequest1</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.context" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.creative_id" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.creative_id">creative_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.feedback_source" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.feedback_source">feedback_source</a></code></li>
-<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.measurement_period" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.measurement_period">measurement_period</a></code></li>
-<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.media_buy_id" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.media_buy_id">media_buy_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.metric_type" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.metric_type">metric_type</a></code></li>
-<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.model_config" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.package_id" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.package_id">package_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.performance_index" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.performance_index">performance_index</a></code></li>
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.buyer_ref" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.context" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.creative_id" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.creative_id">creative_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.feedback_source" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.feedback_source">feedback_source</a></code></li>
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.measurement_period" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.measurement_period">measurement_period</a></code></li>
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.media_buy_id" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.media_buy_id">media_buy_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.metric_type" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.metric_type">metric_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.model_config" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.package_id" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.package_id">package_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.performance_index" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest1.performance_index">performance_index</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2">ProvidePerformanceFeedbackRequest2</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.buyer_ref" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.context" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.creative_id" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.creative_id">creative_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.feedback_source" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.feedback_source">feedback_source</a></code></li>
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.measurement_period" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.measurement_period">measurement_period</a></code></li>
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.media_buy_id" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.media_buy_id">media_buy_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.metric_type" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.metric_type">metric_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.model_config" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.package_id" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.package_id">package_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.performance_index" href="#adcp.types.generated_poc.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest2.performance_index">performance_index</a></code></li>
 </ul>
 </li>
 </ul>

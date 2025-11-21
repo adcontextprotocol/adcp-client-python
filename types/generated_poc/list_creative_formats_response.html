@@ -46,80 +46,6 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.list_creative_formats_response.Capability"><code class="flex name class">
-<span>class <span class="ident">Capability</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Capability(Enum):
-    validation = &#39;validation&#39;
-    assembly = &#39;assembly&#39;
-    generation = &#39;generation&#39;
-    preview = &#39;preview&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.list_creative_formats_response.Capability.assembly"><code class="name">var <span class="ident">assembly</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creative_formats_response.Capability.generation"><code class="name">var <span class="ident">generation</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creative_formats_response.Capability.preview"><code class="name">var <span class="ident">preview</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creative_formats_response.Capability.validation"><code class="name">var <span class="ident">validation</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 <dt id="adcp.types.generated_poc.list_creative_formats_response.CreativeAgent"><code class="flex name class">
 <span>class <span class="ident">CreativeAgent</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -140,7 +66,8 @@ attributes &ndash; see the documentation for details.</p></div>
         ),
     ]
     capabilities: Annotated[
-        list[Capability] | None, Field(description=&#39;Capabilities this creative agent provides&#39;)
+        list[creative_agent_capability.CreativeAgentCapability] | None,
+        Field(description=&#39;Capabilities this creative agent provides&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -166,7 +93,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.list_creative_formats_response.CreativeAgent.capabilities"><code class="name">var <span class="ident">capabilities</span> : list[<a title="adcp.types.generated_poc.list_creative_formats_response.Capability" href="#adcp.types.generated_poc.list_creative_formats_response.Capability">Capability</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.list_creative_formats_response.CreativeAgent.capabilities"><code class="name">var <span class="ident">capabilities</span> : list[<a title="adcp.types.generated_poc.creative_agent_capability.CreativeAgentCapability" href="creative_agent_capability.html#adcp.types.generated_poc.creative_agent_capability.CreativeAgentCapability">CreativeAgentCapability</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -282,15 +209,6 @@ validated to form a valid model.</p>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
-<li>
-<h4><code><a title="adcp.types.generated_poc.list_creative_formats_response.Capability" href="#adcp.types.generated_poc.list_creative_formats_response.Capability">Capability</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.list_creative_formats_response.Capability.assembly" href="#adcp.types.generated_poc.list_creative_formats_response.Capability.assembly">assembly</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creative_formats_response.Capability.generation" href="#adcp.types.generated_poc.list_creative_formats_response.Capability.generation">generation</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creative_formats_response.Capability.preview" href="#adcp.types.generated_poc.list_creative_formats_response.Capability.preview">preview</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creative_formats_response.Capability.validation" href="#adcp.types.generated_poc.list_creative_formats_response.Capability.validation">validation</a></code></li>
-</ul>
-</li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.list_creative_formats_response.CreativeAgent" href="#adcp.types.generated_poc.list_creative_formats_response.CreativeAgent">CreativeAgent</a></code></h4>
 <ul class="">

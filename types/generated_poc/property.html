@@ -132,7 +132,9 @@ validated to form a valid model.</p>
             pattern=&#39;^[a-z0-9_]+$&#39;,
         ),
     ] = None
-    property_type: Annotated[PropertyType, Field(description=&#39;Type of advertising property&#39;)]
+    property_type: Annotated[
+        property_type_1.PropertyType, Field(description=&#39;Type of advertising property&#39;)
+    ]
     publisher_domain: Annotated[
         str | None,
         Field(
@@ -177,7 +179,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.property.Property.property_type"><code class="name">var <span class="ident">property_type</span> : <a title="adcp.types.generated_poc.property.PropertyType" href="#adcp.types.generated_poc.property.PropertyType">PropertyType</a></code></dt>
+<dt id="adcp.types.generated_poc.property.Property.property_type"><code class="name">var <span class="ident">property_type</span> : <a title="adcp.types.generated_poc.property_type.PropertyType" href="property_type.html#adcp.types.generated_poc.property_type.PropertyType">PropertyType</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -199,95 +201,6 @@ validated to form a valid model.</p>
 </ul>
 </li>
 </ul>
-</dd>
-<dt id="adcp.types.generated_poc.property.PropertyType"><code class="flex name class">
-<span>class <span class="ident">PropertyType</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class PropertyType(Enum):
-    website = &#39;website&#39;
-    mobile_app = &#39;mobile_app&#39;
-    ctv_app = &#39;ctv_app&#39;
-    dooh = &#39;dooh&#39;
-    podcast = &#39;podcast&#39;
-    radio = &#39;radio&#39;
-    streaming_audio = &#39;streaming_audio&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.property.PropertyType.ctv_app"><code class="name">var <span class="ident">ctv_app</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.property.PropertyType.dooh"><code class="name">var <span class="ident">dooh</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.property.PropertyType.mobile_app"><code class="name">var <span class="ident">mobile_app</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.property.PropertyType.podcast"><code class="name">var <span class="ident">podcast</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.property.PropertyType.radio"><code class="name">var <span class="ident">radio</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.property.PropertyType.streaming_audio"><code class="name">var <span class="ident">streaming_audio</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.property.PropertyType.website"><code class="name">var <span class="ident">website</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
 </dd>
 <dt id="adcp.types.generated_poc.property.Tag"><code class="flex name class">
 <span>class <span class="ident">Tag</span></span>
@@ -379,18 +292,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.property.Property.property_type" href="#adcp.types.generated_poc.property.Property.property_type">property_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.Property.publisher_domain" href="#adcp.types.generated_poc.property.Property.publisher_domain">publisher_domain</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.Property.tags" href="#adcp.types.generated_poc.property.Property.tags">tags</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.property.PropertyType" href="#adcp.types.generated_poc.property.PropertyType">PropertyType</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.property.PropertyType.ctv_app" href="#adcp.types.generated_poc.property.PropertyType.ctv_app">ctv_app</a></code></li>
-<li><code><a title="adcp.types.generated_poc.property.PropertyType.dooh" href="#adcp.types.generated_poc.property.PropertyType.dooh">dooh</a></code></li>
-<li><code><a title="adcp.types.generated_poc.property.PropertyType.mobile_app" href="#adcp.types.generated_poc.property.PropertyType.mobile_app">mobile_app</a></code></li>
-<li><code><a title="adcp.types.generated_poc.property.PropertyType.podcast" href="#adcp.types.generated_poc.property.PropertyType.podcast">podcast</a></code></li>
-<li><code><a title="adcp.types.generated_poc.property.PropertyType.radio" href="#adcp.types.generated_poc.property.PropertyType.radio">radio</a></code></li>
-<li><code><a title="adcp.types.generated_poc.property.PropertyType.streaming_audio" href="#adcp.types.generated_poc.property.PropertyType.streaming_audio">streaming_audio</a></code></li>
-<li><code><a title="adcp.types.generated_poc.property.PropertyType.website" href="#adcp.types.generated_poc.property.PropertyType.website">website</a></code></li>
 </ul>
 </li>
 <li>

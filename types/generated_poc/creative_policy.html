@@ -46,75 +46,6 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.creative_policy.CoBranding"><code class="flex name class">
-<span>class <span class="ident">CoBranding</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class CoBranding(Enum):
-    required = &#39;required&#39;
-    optional = &#39;optional&#39;
-    none = &#39;none&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.creative_policy.CoBranding.none"><code class="name">var <span class="ident">none</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.creative_policy.CoBranding.optional"><code class="name">var <span class="ident">optional</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.creative_policy.CoBranding.required"><code class="name">var <span class="ident">required</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 <dt id="adcp.types.generated_poc.creative_policy.CreativePolicy"><code class="flex name class">
 <span>class <span class="ident">CreativePolicy</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -128,8 +59,13 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    co_branding: Annotated[CoBranding, Field(description=&#39;Co-branding requirement&#39;)]
-    landing_page: Annotated[LandingPage, Field(description=&#39;Landing page requirements&#39;)]
+    co_branding: Annotated[
+        co_branding_requirement.CoBrandingRequirement, Field(description=&#39;Co-branding requirement&#39;)
+    ]
+    landing_page: Annotated[
+        landing_page_requirement.LandingPageRequirement,
+        Field(description=&#39;Landing page requirements&#39;),
+    ]
     templates_available: Annotated[
         bool, Field(description=&#39;Whether creative templates are provided&#39;)
     ]</code></pre>
@@ -149,11 +85,11 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.creative_policy.CreativePolicy.co_branding"><code class="name">var <span class="ident">co_branding</span> : <a title="adcp.types.generated_poc.creative_policy.CoBranding" href="#adcp.types.generated_poc.creative_policy.CoBranding">CoBranding</a></code></dt>
+<dt id="adcp.types.generated_poc.creative_policy.CreativePolicy.co_branding"><code class="name">var <span class="ident">co_branding</span> : <a title="adcp.types.generated_poc.co_branding_requirement.CoBrandingRequirement" href="co_branding_requirement.html#adcp.types.generated_poc.co_branding_requirement.CoBrandingRequirement">CoBrandingRequirement</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative_policy.CreativePolicy.landing_page"><code class="name">var <span class="ident">landing_page</span> : <a title="adcp.types.generated_poc.creative_policy.LandingPage" href="#adcp.types.generated_poc.creative_policy.LandingPage">LandingPage</a></code></dt>
+<dt id="adcp.types.generated_poc.creative_policy.CreativePolicy.landing_page"><code class="name">var <span class="ident">landing_page</span> : <a title="adcp.types.generated_poc.landing_page_requirement.LandingPageRequirement" href="landing_page_requirement.html#adcp.types.generated_poc.landing_page_requirement.LandingPageRequirement">LandingPageRequirement</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -176,75 +112,6 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.creative_policy.LandingPage"><code class="flex name class">
-<span>class <span class="ident">LandingPage</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class LandingPage(Enum):
-    any = &#39;any&#39;
-    retailer_site_only = &#39;retailer_site_only&#39;
-    must_include_retailer = &#39;must_include_retailer&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.creative_policy.LandingPage.any"><code class="name">var <span class="ident">any</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.creative_policy.LandingPage.must_include_retailer"><code class="name">var <span class="ident">must_include_retailer</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.creative_policy.LandingPage.retailer_site_only"><code class="name">var <span class="ident">retailer_site_only</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 </dl>
 </section>
 </article>
@@ -261,28 +128,12 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.creative_policy.CoBranding" href="#adcp.types.generated_poc.creative_policy.CoBranding">CoBranding</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.creative_policy.CoBranding.none" href="#adcp.types.generated_poc.creative_policy.CoBranding.none">none</a></code></li>
-<li><code><a title="adcp.types.generated_poc.creative_policy.CoBranding.optional" href="#adcp.types.generated_poc.creative_policy.CoBranding.optional">optional</a></code></li>
-<li><code><a title="adcp.types.generated_poc.creative_policy.CoBranding.required" href="#adcp.types.generated_poc.creative_policy.CoBranding.required">required</a></code></li>
-</ul>
-</li>
-<li>
 <h4><code><a title="adcp.types.generated_poc.creative_policy.CreativePolicy" href="#adcp.types.generated_poc.creative_policy.CreativePolicy">CreativePolicy</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.creative_policy.CreativePolicy.co_branding" href="#adcp.types.generated_poc.creative_policy.CreativePolicy.co_branding">co_branding</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative_policy.CreativePolicy.landing_page" href="#adcp.types.generated_poc.creative_policy.CreativePolicy.landing_page">landing_page</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative_policy.CreativePolicy.model_config" href="#adcp.types.generated_poc.creative_policy.CreativePolicy.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative_policy.CreativePolicy.templates_available" href="#adcp.types.generated_poc.creative_policy.CreativePolicy.templates_available">templates_available</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.creative_policy.LandingPage" href="#adcp.types.generated_poc.creative_policy.LandingPage">LandingPage</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.creative_policy.LandingPage.any" href="#adcp.types.generated_poc.creative_policy.LandingPage.any">any</a></code></li>
-<li><code><a title="adcp.types.generated_poc.creative_policy.LandingPage.must_include_retailer" href="#adcp.types.generated_poc.creative_policy.LandingPage.must_include_retailer">must_include_retailer</a></code></li>
-<li><code><a title="adcp.types.generated_poc.creative_policy.LandingPage.retailer_site_only" href="#adcp.types.generated_poc.creative_policy.LandingPage.retailer_site_only">retailer_site_only</a></code></li>
 </ul>
 </li>
 </ul>

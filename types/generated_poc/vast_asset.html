@@ -46,140 +46,6 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.vast_asset.TrackingEvent"><code class="flex name class">
-<span>class <span class="ident">TrackingEvent</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class TrackingEvent(Enum):
-    start = &#39;start&#39;
-    firstQuartile = &#39;firstQuartile&#39;
-    midpoint = &#39;midpoint&#39;
-    thirdQuartile = &#39;thirdQuartile&#39;
-    complete = &#39;complete&#39;
-    impression = &#39;impression&#39;
-    click = &#39;click&#39;
-    pause = &#39;pause&#39;
-    resume = &#39;resume&#39;
-    skip = &#39;skip&#39;
-    mute = &#39;mute&#39;
-    unmute = &#39;unmute&#39;
-    fullscreen = &#39;fullscreen&#39;
-    exitFullscreen = &#39;exitFullscreen&#39;
-    playerExpand = &#39;playerExpand&#39;
-    playerCollapse = &#39;playerCollapse&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.vast_asset.TrackingEvent.click"><code class="name">var <span class="ident">click</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.vast_asset.TrackingEvent.complete"><code class="name">var <span class="ident">complete</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.vast_asset.TrackingEvent.exitFullscreen"><code class="name">var <span class="ident">exitFullscreen</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.vast_asset.TrackingEvent.firstQuartile"><code class="name">var <span class="ident">firstQuartile</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.vast_asset.TrackingEvent.fullscreen"><code class="name">var <span class="ident">fullscreen</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.vast_asset.TrackingEvent.impression"><code class="name">var <span class="ident">impression</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.vast_asset.TrackingEvent.midpoint"><code class="name">var <span class="ident">midpoint</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.vast_asset.TrackingEvent.mute"><code class="name">var <span class="ident">mute</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.vast_asset.TrackingEvent.pause"><code class="name">var <span class="ident">pause</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.vast_asset.TrackingEvent.playerCollapse"><code class="name">var <span class="ident">playerCollapse</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.vast_asset.TrackingEvent.playerExpand"><code class="name">var <span class="ident">playerExpand</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.vast_asset.TrackingEvent.resume"><code class="name">var <span class="ident">resume</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.vast_asset.TrackingEvent.skip"><code class="name">var <span class="ident">skip</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.vast_asset.TrackingEvent.start"><code class="name">var <span class="ident">start</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.vast_asset.TrackingEvent.thirdQuartile"><code class="name">var <span class="ident">thirdQuartile</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.vast_asset.TrackingEvent.unmute"><code class="name">var <span class="ident">unmute</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 <dt id="adcp.types.generated_poc.vast_asset.VastAsset1"><code class="flex name class">
 <span>class <span class="ident">VastAsset1</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -201,12 +67,13 @@ attributes &ndash; see the documentation for details.</p></div>
         int | None, Field(description=&#39;Expected video duration in milliseconds (if known)&#39;, ge=0)
     ] = None
     tracking_events: Annotated[
-        list[TrackingEvent] | None, Field(description=&#39;Tracking events supported by this VAST tag&#39;)
+        list[vast_tracking_event.VastTrackingEvent] | None,
+        Field(description=&#39;Tracking events supported by this VAST tag&#39;),
     ] = None
     url: Annotated[AnyUrl, Field(description=&#39;URL endpoint that returns VAST XML&#39;)]
-    vast_version: Annotated[VastVersion | None, Field(description=&#39;VAST specification version&#39;)] = (
-        None
-    )
+    vast_version: Annotated[
+        vast_version_1.VastVersion | None, Field(description=&#39;VAST specification version&#39;)
+    ] = None
     vpaid_enabled: Annotated[
         bool | None,
         Field(description=&#39;Whether VPAID (Video Player-Ad Interface Definition) is supported&#39;),
@@ -239,7 +106,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.vast_asset.VastAsset1.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.vast_asset.TrackingEvent" href="#adcp.types.generated_poc.vast_asset.TrackingEvent">TrackingEvent</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.vast_asset.VastAsset1.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.vast_tracking_event.VastTrackingEvent" href="vast_tracking_event.html#adcp.types.generated_poc.vast_tracking_event.VastTrackingEvent">VastTrackingEvent</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -247,7 +114,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.vast_asset.VastAsset1.vast_version"><code class="name">var <span class="ident">vast_version</span> : <a title="adcp.types.generated_poc.vast_asset.VastVersion" href="#adcp.types.generated_poc.vast_asset.VastVersion">VastVersion</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.vast_asset.VastAsset1.vast_version"><code class="name">var <span class="ident">vast_version</span> : <a title="adcp.types.generated_poc.vast_version.VastVersion" href="vast_version.html#adcp.types.generated_poc.vast_version.VastVersion">VastVersion</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -288,11 +155,12 @@ validated to form a valid model.</p>
         int | None, Field(description=&#39;Expected video duration in milliseconds (if known)&#39;, ge=0)
     ] = None
     tracking_events: Annotated[
-        list[TrackingEvent] | None, Field(description=&#39;Tracking events supported by this VAST tag&#39;)
+        list[vast_tracking_event.VastTrackingEvent] | None,
+        Field(description=&#39;Tracking events supported by this VAST tag&#39;),
     ] = None
-    vast_version: Annotated[VastVersion | None, Field(description=&#39;VAST specification version&#39;)] = (
-        None
-    )
+    vast_version: Annotated[
+        vast_version_1.VastVersion | None, Field(description=&#39;VAST specification version&#39;)
+    ] = None
     vpaid_enabled: Annotated[
         bool | None,
         Field(description=&#39;Whether VPAID (Video Player-Ad Interface Definition) is supported&#39;),
@@ -329,11 +197,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.vast_asset.VastAsset2.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.vast_asset.TrackingEvent" href="#adcp.types.generated_poc.vast_asset.TrackingEvent">TrackingEvent</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.vast_asset.VastAsset2.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.vast_tracking_event.VastTrackingEvent" href="vast_tracking_event.html#adcp.types.generated_poc.vast_tracking_event.VastTrackingEvent">VastTrackingEvent</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.vast_asset.VastAsset2.vast_version"><code class="name">var <span class="ident">vast_version</span> : <a title="adcp.types.generated_poc.vast_asset.VastVersion" href="#adcp.types.generated_poc.vast_asset.VastVersion">VastVersion</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.vast_asset.VastAsset2.vast_version"><code class="name">var <span class="ident">vast_version</span> : <a title="adcp.types.generated_poc.vast_version.VastVersion" href="vast_version.html#adcp.types.generated_poc.vast_version.VastVersion">VastVersion</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -352,85 +220,6 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.vast_asset.VastVersion"><code class="flex name class">
-<span>class <span class="ident">VastVersion</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class VastVersion(Enum):
-    field_2_0 = &#39;2.0&#39;
-    field_3_0 = &#39;3.0&#39;
-    field_4_0 = &#39;4.0&#39;
-    field_4_1 = &#39;4.1&#39;
-    field_4_2 = &#39;4.2&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.vast_asset.VastVersion.field_2_0"><code class="name">var <span class="ident">field_2_0</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.vast_asset.VastVersion.field_3_0"><code class="name">var <span class="ident">field_3_0</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.vast_asset.VastVersion.field_4_0"><code class="name">var <span class="ident">field_4_0</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.vast_asset.VastVersion.field_4_1"><code class="name">var <span class="ident">field_4_1</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.vast_asset.VastVersion.field_4_2"><code class="name">var <span class="ident">field_4_2</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 </dl>
 </section>
 </article>
@@ -446,27 +235,6 @@ attributes &ndash; see the documentation for details.</p></div>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
-<li>
-<h4><code><a title="adcp.types.generated_poc.vast_asset.TrackingEvent" href="#adcp.types.generated_poc.vast_asset.TrackingEvent">TrackingEvent</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.vast_asset.TrackingEvent.click" href="#adcp.types.generated_poc.vast_asset.TrackingEvent.click">click</a></code></li>
-<li><code><a title="adcp.types.generated_poc.vast_asset.TrackingEvent.complete" href="#adcp.types.generated_poc.vast_asset.TrackingEvent.complete">complete</a></code></li>
-<li><code><a title="adcp.types.generated_poc.vast_asset.TrackingEvent.exitFullscreen" href="#adcp.types.generated_poc.vast_asset.TrackingEvent.exitFullscreen">exitFullscreen</a></code></li>
-<li><code><a title="adcp.types.generated_poc.vast_asset.TrackingEvent.firstQuartile" href="#adcp.types.generated_poc.vast_asset.TrackingEvent.firstQuartile">firstQuartile</a></code></li>
-<li><code><a title="adcp.types.generated_poc.vast_asset.TrackingEvent.fullscreen" href="#adcp.types.generated_poc.vast_asset.TrackingEvent.fullscreen">fullscreen</a></code></li>
-<li><code><a title="adcp.types.generated_poc.vast_asset.TrackingEvent.impression" href="#adcp.types.generated_poc.vast_asset.TrackingEvent.impression">impression</a></code></li>
-<li><code><a title="adcp.types.generated_poc.vast_asset.TrackingEvent.midpoint" href="#adcp.types.generated_poc.vast_asset.TrackingEvent.midpoint">midpoint</a></code></li>
-<li><code><a title="adcp.types.generated_poc.vast_asset.TrackingEvent.mute" href="#adcp.types.generated_poc.vast_asset.TrackingEvent.mute">mute</a></code></li>
-<li><code><a title="adcp.types.generated_poc.vast_asset.TrackingEvent.pause" href="#adcp.types.generated_poc.vast_asset.TrackingEvent.pause">pause</a></code></li>
-<li><code><a title="adcp.types.generated_poc.vast_asset.TrackingEvent.playerCollapse" href="#adcp.types.generated_poc.vast_asset.TrackingEvent.playerCollapse">playerCollapse</a></code></li>
-<li><code><a title="adcp.types.generated_poc.vast_asset.TrackingEvent.playerExpand" href="#adcp.types.generated_poc.vast_asset.TrackingEvent.playerExpand">playerExpand</a></code></li>
-<li><code><a title="adcp.types.generated_poc.vast_asset.TrackingEvent.resume" href="#adcp.types.generated_poc.vast_asset.TrackingEvent.resume">resume</a></code></li>
-<li><code><a title="adcp.types.generated_poc.vast_asset.TrackingEvent.skip" href="#adcp.types.generated_poc.vast_asset.TrackingEvent.skip">skip</a></code></li>
-<li><code><a title="adcp.types.generated_poc.vast_asset.TrackingEvent.start" href="#adcp.types.generated_poc.vast_asset.TrackingEvent.start">start</a></code></li>
-<li><code><a title="adcp.types.generated_poc.vast_asset.TrackingEvent.thirdQuartile" href="#adcp.types.generated_poc.vast_asset.TrackingEvent.thirdQuartile">thirdQuartile</a></code></li>
-<li><code><a title="adcp.types.generated_poc.vast_asset.TrackingEvent.unmute" href="#adcp.types.generated_poc.vast_asset.TrackingEvent.unmute">unmute</a></code></li>
-</ul>
-</li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.vast_asset.VastAsset1" href="#adcp.types.generated_poc.vast_asset.VastAsset1">VastAsset1</a></code></h4>
 <ul class="two-column">
@@ -489,16 +257,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.vast_asset.VastAsset2.tracking_events" href="#adcp.types.generated_poc.vast_asset.VastAsset2.tracking_events">tracking_events</a></code></li>
 <li><code><a title="adcp.types.generated_poc.vast_asset.VastAsset2.vast_version" href="#adcp.types.generated_poc.vast_asset.VastAsset2.vast_version">vast_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.vast_asset.VastAsset2.vpaid_enabled" href="#adcp.types.generated_poc.vast_asset.VastAsset2.vpaid_enabled">vpaid_enabled</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.vast_asset.VastVersion" href="#adcp.types.generated_poc.vast_asset.VastVersion">VastVersion</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.vast_asset.VastVersion.field_2_0" href="#adcp.types.generated_poc.vast_asset.VastVersion.field_2_0">field_2_0</a></code></li>
-<li><code><a title="adcp.types.generated_poc.vast_asset.VastVersion.field_3_0" href="#adcp.types.generated_poc.vast_asset.VastVersion.field_3_0">field_3_0</a></code></li>
-<li><code><a title="adcp.types.generated_poc.vast_asset.VastVersion.field_4_0" href="#adcp.types.generated_poc.vast_asset.VastVersion.field_4_0">field_4_0</a></code></li>
-<li><code><a title="adcp.types.generated_poc.vast_asset.VastVersion.field_4_1" href="#adcp.types.generated_poc.vast_asset.VastVersion.field_4_1">field_4_1</a></code></li>
-<li><code><a title="adcp.types.generated_poc.vast_asset.VastVersion.field_4_2" href="#adcp.types.generated_poc.vast_asset.VastVersion.field_4_2">field_4_2</a></code></li>
 </ul>
 </li>
 </ul>

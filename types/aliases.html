@@ -991,7 +991,7 @@ validated to form a valid model.</p>
         bool | None, Field(description=&#39;Whether companion display ads are included&#39;)
     ] = None
     daast_version: Annotated[
-        DaastVersion | None, Field(description=&#39;DAAST specification version&#39;)
+        daast_version_1.DaastVersion | None, Field(description=&#39;DAAST specification version&#39;)
     ] = None
     delivery_type: Annotated[
         Literal[&#39;url&#39;],
@@ -1001,7 +1001,8 @@ validated to form a valid model.</p>
         int | None, Field(description=&#39;Expected audio duration in milliseconds (if known)&#39;, ge=0)
     ] = None
     tracking_events: Annotated[
-        list[TrackingEvent] | None, Field(description=&#39;Tracking events supported by this DAAST tag&#39;)
+        list[daast_tracking_event.DaastTrackingEvent] | None,
+        Field(description=&#39;Tracking events supported by this DAAST tag&#39;),
     ] = None
     url: Annotated[AnyUrl, Field(description=&#39;URL endpoint that returns DAAST XML&#39;)]</code></pre>
 </details>
@@ -1024,7 +1025,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.DaastAsset1.daast_version"><code class="name">var <span class="ident">daast_version</span> : <a title="adcp.types.generated_poc.daast_asset.DaastVersion" href="generated_poc/daast_asset.html#adcp.types.generated_poc.daast_asset.DaastVersion">DaastVersion</a> | None</code></dt>
+<dt id="adcp.types.aliases.DaastAsset1.daast_version"><code class="name">var <span class="ident">daast_version</span> : <a title="adcp.types.generated_poc.daast_version.DaastVersion" href="generated_poc/daast_version.html#adcp.types.generated_poc.daast_version.DaastVersion">DaastVersion</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1040,7 +1041,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.DaastAsset1.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.daast_asset.TrackingEvent" href="generated_poc/daast_asset.html#adcp.types.generated_poc.daast_asset.TrackingEvent">TrackingEvent</a>] | None</code></dt>
+<dt id="adcp.types.aliases.DaastAsset1.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.daast_tracking_event.DaastTrackingEvent" href="generated_poc/daast_tracking_event.html#adcp.types.generated_poc.daast_tracking_event.DaastTrackingEvent">DaastTrackingEvent</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1077,7 +1078,7 @@ validated to form a valid model.</p>
     ] = None
     content: Annotated[str, Field(description=&#39;Inline DAAST XML content&#39;)]
     daast_version: Annotated[
-        DaastVersion | None, Field(description=&#39;DAAST specification version&#39;)
+        daast_version_1.DaastVersion | None, Field(description=&#39;DAAST specification version&#39;)
     ] = None
     delivery_type: Annotated[
         Literal[&#39;inline&#39;],
@@ -1087,7 +1088,8 @@ validated to form a valid model.</p>
         int | None, Field(description=&#39;Expected audio duration in milliseconds (if known)&#39;, ge=0)
     ] = None
     tracking_events: Annotated[
-        list[TrackingEvent] | None, Field(description=&#39;Tracking events supported by this DAAST tag&#39;)
+        list[daast_tracking_event.DaastTrackingEvent] | None,
+        Field(description=&#39;Tracking events supported by this DAAST tag&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1113,7 +1115,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.DaastAsset2.daast_version"><code class="name">var <span class="ident">daast_version</span> : <a title="adcp.types.generated_poc.daast_asset.DaastVersion" href="generated_poc/daast_asset.html#adcp.types.generated_poc.daast_asset.DaastVersion">DaastVersion</a> | None</code></dt>
+<dt id="adcp.types.aliases.DaastAsset2.daast_version"><code class="name">var <span class="ident">daast_version</span> : <a title="adcp.types.generated_poc.daast_version.DaastVersion" href="generated_poc/daast_version.html#adcp.types.generated_poc.daast_version.DaastVersion">DaastVersion</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1129,7 +1131,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.DaastAsset2.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.daast_asset.TrackingEvent" href="generated_poc/daast_asset.html#adcp.types.generated_poc.daast_asset.TrackingEvent">TrackingEvent</a>] | None</code></dt>
+<dt id="adcp.types.aliases.DaastAsset2.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.daast_tracking_event.DaastTrackingEvent" href="generated_poc/daast_tracking_event.html#adcp.types.generated_poc.daast_tracking_event.DaastTrackingEvent">DaastTrackingEvent</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1643,11 +1645,11 @@ validated to form a valid model.</p>
         ),
     ] = None
     output_format: Annotated[
-        OutputFormat | None,
+        preview_output_format.PreviewOutputFormat | None,
         Field(
             description=&#34;Output format for previews. &#39;url&#39; returns preview_url (iframe-embeddable URL), &#39;html&#39; returns preview_html (raw HTML for direct embedding). Default: &#39;url&#39; for backward compatibility.&#34;
         ),
-    ] = OutputFormat.url
+    ] = preview_output_format.PreviewOutputFormat.url
     request_type: Annotated[
         Literal[&#39;single&#39;],
         Field(description=&#39;Discriminator indicating this is a single preview request&#39;),
@@ -1691,7 +1693,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.PreviewCreativeRequest1.output_format"><code class="name">var <span class="ident">output_format</span> : <a title="adcp.types.generated_poc.preview_creative_request.OutputFormat" href="generated_poc/preview_creative_request.html#adcp.types.generated_poc.preview_creative_request.OutputFormat">OutputFormat</a> | None</code></dt>
+<dt id="adcp.types.aliases.PreviewCreativeRequest1.output_format"><code class="name">var <span class="ident">output_format</span> : <a title="adcp.types.generated_poc.preview_output_format.PreviewOutputFormat" href="generated_poc/preview_output_format.html#adcp.types.generated_poc.preview_output_format.PreviewOutputFormat">PreviewOutputFormat</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1734,11 +1736,11 @@ validated to form a valid model.</p>
         ),
     ] = None
     output_format: Annotated[
-        OutputFormat | None,
+        preview_output_format.PreviewOutputFormat | None,
         Field(
             description=&#34;Default output format for all requests in this batch. Individual requests can override this. &#39;url&#39; returns preview_url (iframe-embeddable URL), &#39;html&#39; returns preview_html (raw HTML for direct embedding).&#34;
         ),
-    ] = OutputFormat.url
+    ] = preview_output_format.PreviewOutputFormat.url
     request_type: Annotated[
         Literal[&#39;batch&#39;],
         Field(description=&#39;Discriminator indicating this is a batch preview request&#39;),
@@ -1775,7 +1777,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.PreviewCreativeRequest2.output_format"><code class="name">var <span class="ident">output_format</span> : <a title="adcp.types.generated_poc.preview_creative_request.OutputFormat" href="generated_poc/preview_creative_request.html#adcp.types.generated_poc.preview_creative_request.OutputFormat">OutputFormat</a> | None</code></dt>
+<dt id="adcp.types.aliases.PreviewCreativeRequest2.output_format"><code class="name">var <span class="ident">output_format</span> : <a title="adcp.types.generated_poc.preview_output_format.PreviewOutputFormat" href="generated_poc/preview_output_format.html#adcp.types.generated_poc.preview_output_format.PreviewOutputFormat">PreviewOutputFormat</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3353,12 +3355,13 @@ validated to form a valid model.</p>
         int | None, Field(description=&#39;Expected video duration in milliseconds (if known)&#39;, ge=0)
     ] = None
     tracking_events: Annotated[
-        list[TrackingEvent] | None, Field(description=&#39;Tracking events supported by this VAST tag&#39;)
+        list[vast_tracking_event.VastTrackingEvent] | None,
+        Field(description=&#39;Tracking events supported by this VAST tag&#39;),
     ] = None
     url: Annotated[AnyUrl, Field(description=&#39;URL endpoint that returns VAST XML&#39;)]
-    vast_version: Annotated[VastVersion | None, Field(description=&#39;VAST specification version&#39;)] = (
-        None
-    )
+    vast_version: Annotated[
+        vast_version_1.VastVersion | None, Field(description=&#39;VAST specification version&#39;)
+    ] = None
     vpaid_enabled: Annotated[
         bool | None,
         Field(description=&#39;Whether VPAID (Video Player-Ad Interface Definition) is supported&#39;),
@@ -3391,7 +3394,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.VastAsset1.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.vast_asset.TrackingEvent" href="generated_poc/vast_asset.html#adcp.types.generated_poc.vast_asset.TrackingEvent">TrackingEvent</a>] | None</code></dt>
+<dt id="adcp.types.aliases.VastAsset1.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.vast_tracking_event.VastTrackingEvent" href="generated_poc/vast_tracking_event.html#adcp.types.generated_poc.vast_tracking_event.VastTrackingEvent">VastTrackingEvent</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3399,7 +3402,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.VastAsset1.vast_version"><code class="name">var <span class="ident">vast_version</span> : <a title="adcp.types.generated_poc.vast_asset.VastVersion" href="generated_poc/vast_asset.html#adcp.types.generated_poc.vast_asset.VastVersion">VastVersion</a> | None</code></dt>
+<dt id="adcp.types.aliases.VastAsset1.vast_version"><code class="name">var <span class="ident">vast_version</span> : <a title="adcp.types.generated_poc.vast_version.VastVersion" href="generated_poc/vast_version.html#adcp.types.generated_poc.vast_version.VastVersion">VastVersion</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3440,11 +3443,12 @@ validated to form a valid model.</p>
         int | None, Field(description=&#39;Expected video duration in milliseconds (if known)&#39;, ge=0)
     ] = None
     tracking_events: Annotated[
-        list[TrackingEvent] | None, Field(description=&#39;Tracking events supported by this VAST tag&#39;)
+        list[vast_tracking_event.VastTrackingEvent] | None,
+        Field(description=&#39;Tracking events supported by this VAST tag&#39;),
     ] = None
-    vast_version: Annotated[VastVersion | None, Field(description=&#39;VAST specification version&#39;)] = (
-        None
-    )
+    vast_version: Annotated[
+        vast_version_1.VastVersion | None, Field(description=&#39;VAST specification version&#39;)
+    ] = None
     vpaid_enabled: Annotated[
         bool | None,
         Field(description=&#39;Whether VPAID (Video Player-Ad Interface Definition) is supported&#39;),
@@ -3481,11 +3485,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.VastAsset2.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.vast_asset.TrackingEvent" href="generated_poc/vast_asset.html#adcp.types.generated_poc.vast_asset.TrackingEvent">TrackingEvent</a>] | None</code></dt>
+<dt id="adcp.types.aliases.VastAsset2.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.vast_tracking_event.VastTrackingEvent" href="generated_poc/vast_tracking_event.html#adcp.types.generated_poc.vast_tracking_event.VastTrackingEvent">VastTrackingEvent</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.VastAsset2.vast_version"><code class="name">var <span class="ident">vast_version</span> : <a title="adcp.types.generated_poc.vast_asset.VastVersion" href="generated_poc/vast_asset.html#adcp.types.generated_poc.vast_asset.VastVersion">VastVersion</a> | None</code></dt>
+<dt id="adcp.types.aliases.VastAsset2.vast_version"><code class="name">var <span class="ident">vast_version</span> : <a title="adcp.types.generated_poc.vast_version.VastVersion" href="generated_poc/vast_version.html#adcp.types.generated_poc.vast_version.VastVersion">VastVersion</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>

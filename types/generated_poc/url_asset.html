@@ -64,7 +64,7 @@ el.replaceWith(d);
     ] = None
     url: Annotated[AnyUrl, Field(description=&#39;URL reference&#39;)]
     url_type: Annotated[
-        UrlType | None,
+        url_asset_type.UrlAssetType | None,
         Field(
             description=&#34;Type of URL asset: &#39;clickthrough&#39; for user click destination (landing page), &#39;tracker_pixel&#39; for impression/event tracking via HTTP request (fires GET, expects pixel/204 response), &#39;tracker_script&#39; for measurement SDKs that must load as &lt;script&gt; tag (OMID verification, native event trackers using method:2)&#34;
         ),
@@ -97,7 +97,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.url_asset.UrlAsset.url_type"><code class="name">var <span class="ident">url_type</span> : <a title="adcp.types.generated_poc.url_asset.UrlType" href="#adcp.types.generated_poc.url_asset.UrlType">UrlType</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.url_asset.UrlAsset.url_type"><code class="name">var <span class="ident">url_type</span> : <a title="adcp.types.generated_poc.url_asset_type.UrlAssetType" href="url_asset_type.html#adcp.types.generated_poc.url_asset_type.UrlAssetType">UrlAssetType</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -111,75 +111,6 @@ validated to form a valid model.</p>
 </ul>
 </li>
 </ul>
-</dd>
-<dt id="adcp.types.generated_poc.url_asset.UrlType"><code class="flex name class">
-<span>class <span class="ident">UrlType</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class UrlType(Enum):
-    clickthrough = &#39;clickthrough&#39;
-    tracker_pixel = &#39;tracker_pixel&#39;
-    tracker_script = &#39;tracker_script&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.url_asset.UrlType.clickthrough"><code class="name">var <span class="ident">clickthrough</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.url_asset.UrlType.tracker_pixel"><code class="name">var <span class="ident">tracker_pixel</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.url_asset.UrlType.tracker_script"><code class="name">var <span class="ident">tracker_script</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
 </dd>
 </dl>
 </section>
@@ -203,14 +134,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.url_asset.UrlAsset.model_config" href="#adcp.types.generated_poc.url_asset.UrlAsset.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.url_asset.UrlAsset.url" href="#adcp.types.generated_poc.url_asset.UrlAsset.url">url</a></code></li>
 <li><code><a title="adcp.types.generated_poc.url_asset.UrlAsset.url_type" href="#adcp.types.generated_poc.url_asset.UrlAsset.url_type">url_type</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.url_asset.UrlType" href="#adcp.types.generated_poc.url_asset.UrlType">UrlType</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.url_asset.UrlType.clickthrough" href="#adcp.types.generated_poc.url_asset.UrlType.clickthrough">clickthrough</a></code></li>
-<li><code><a title="adcp.types.generated_poc.url_asset.UrlType.tracker_pixel" href="#adcp.types.generated_poc.url_asset.UrlType.tracker_pixel">tracker_pixel</a></code></li>
-<li><code><a title="adcp.types.generated_poc.url_asset.UrlType.tracker_script" href="#adcp.types.generated_poc.url_asset.UrlType.tracker_script">tracker_script</a></code></li>
 </ul>
 </li>
 </ul>

@@ -63,7 +63,7 @@ el.replaceWith(d);
         bool | None, Field(description=&#39;Whether companion display ads are included&#39;)
     ] = None
     daast_version: Annotated[
-        DaastVersion | None, Field(description=&#39;DAAST specification version&#39;)
+        daast_version_1.DaastVersion | None, Field(description=&#39;DAAST specification version&#39;)
     ] = None
     delivery_type: Annotated[
         Literal[&#39;url&#39;],
@@ -73,7 +73,8 @@ el.replaceWith(d);
         int | None, Field(description=&#39;Expected audio duration in milliseconds (if known)&#39;, ge=0)
     ] = None
     tracking_events: Annotated[
-        list[TrackingEvent] | None, Field(description=&#39;Tracking events supported by this DAAST tag&#39;)
+        list[daast_tracking_event.DaastTrackingEvent] | None,
+        Field(description=&#39;Tracking events supported by this DAAST tag&#39;),
     ] = None
     url: Annotated[AnyUrl, Field(description=&#39;URL endpoint that returns DAAST XML&#39;)]</code></pre>
 </details>
@@ -96,7 +97,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.daast_asset.DaastAsset1.daast_version"><code class="name">var <span class="ident">daast_version</span> : <a title="adcp.types.generated_poc.daast_asset.DaastVersion" href="#adcp.types.generated_poc.daast_asset.DaastVersion">DaastVersion</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.daast_asset.DaastAsset1.daast_version"><code class="name">var <span class="ident">daast_version</span> : <a title="adcp.types.generated_poc.daast_version.DaastVersion" href="daast_version.html#adcp.types.generated_poc.daast_version.DaastVersion">DaastVersion</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -112,7 +113,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.daast_asset.DaastAsset1.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.daast_asset.TrackingEvent" href="#adcp.types.generated_poc.daast_asset.TrackingEvent">TrackingEvent</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.daast_asset.DaastAsset1.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.daast_tracking_event.DaastTrackingEvent" href="daast_tracking_event.html#adcp.types.generated_poc.daast_tracking_event.DaastTrackingEvent">DaastTrackingEvent</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -149,7 +150,7 @@ validated to form a valid model.</p>
     ] = None
     content: Annotated[str, Field(description=&#39;Inline DAAST XML content&#39;)]
     daast_version: Annotated[
-        DaastVersion | None, Field(description=&#39;DAAST specification version&#39;)
+        daast_version_1.DaastVersion | None, Field(description=&#39;DAAST specification version&#39;)
     ] = None
     delivery_type: Annotated[
         Literal[&#39;inline&#39;],
@@ -159,7 +160,8 @@ validated to form a valid model.</p>
         int | None, Field(description=&#39;Expected audio duration in milliseconds (if known)&#39;, ge=0)
     ] = None
     tracking_events: Annotated[
-        list[TrackingEvent] | None, Field(description=&#39;Tracking events supported by this DAAST tag&#39;)
+        list[daast_tracking_event.DaastTrackingEvent] | None,
+        Field(description=&#39;Tracking events supported by this DAAST tag&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -185,7 +187,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.daast_asset.DaastAsset2.daast_version"><code class="name">var <span class="ident">daast_version</span> : <a title="adcp.types.generated_poc.daast_asset.DaastVersion" href="#adcp.types.generated_poc.daast_asset.DaastVersion">DaastVersion</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.daast_asset.DaastAsset2.daast_version"><code class="name">var <span class="ident">daast_version</span> : <a title="adcp.types.generated_poc.daast_version.DaastVersion" href="daast_version.html#adcp.types.generated_poc.daast_version.DaastVersion">DaastVersion</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -201,7 +203,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.daast_asset.DaastAsset2.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.daast_asset.TrackingEvent" href="#adcp.types.generated_poc.daast_asset.TrackingEvent">TrackingEvent</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.daast_asset.DaastAsset2.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.daast_tracking_event.DaastTrackingEvent" href="daast_tracking_event.html#adcp.types.generated_poc.daast_tracking_event.DaastTrackingEvent">DaastTrackingEvent</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -215,179 +217,6 @@ validated to form a valid model.</p>
 </ul>
 </li>
 </ul>
-</dd>
-<dt id="adcp.types.generated_poc.daast_asset.DaastVersion"><code class="flex name class">
-<span>class <span class="ident">DaastVersion</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class DaastVersion(Enum):
-    field_1_0 = &#39;1.0&#39;
-    field_1_1 = &#39;1.1&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.daast_asset.DaastVersion.field_1_0"><code class="name">var <span class="ident">field_1_0</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.daast_asset.DaastVersion.field_1_1"><code class="name">var <span class="ident">field_1_1</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.daast_asset.TrackingEvent"><code class="flex name class">
-<span>class <span class="ident">TrackingEvent</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class TrackingEvent(Enum):
-    start = &#39;start&#39;
-    firstQuartile = &#39;firstQuartile&#39;
-    midpoint = &#39;midpoint&#39;
-    thirdQuartile = &#39;thirdQuartile&#39;
-    complete = &#39;complete&#39;
-    impression = &#39;impression&#39;
-    pause = &#39;pause&#39;
-    resume = &#39;resume&#39;
-    skip = &#39;skip&#39;
-    mute = &#39;mute&#39;
-    unmute = &#39;unmute&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.daast_asset.TrackingEvent.complete"><code class="name">var <span class="ident">complete</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.daast_asset.TrackingEvent.firstQuartile"><code class="name">var <span class="ident">firstQuartile</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.daast_asset.TrackingEvent.impression"><code class="name">var <span class="ident">impression</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.daast_asset.TrackingEvent.midpoint"><code class="name">var <span class="ident">midpoint</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.daast_asset.TrackingEvent.mute"><code class="name">var <span class="ident">mute</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.daast_asset.TrackingEvent.pause"><code class="name">var <span class="ident">pause</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.daast_asset.TrackingEvent.resume"><code class="name">var <span class="ident">resume</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.daast_asset.TrackingEvent.skip"><code class="name">var <span class="ident">skip</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.daast_asset.TrackingEvent.start"><code class="name">var <span class="ident">start</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.daast_asset.TrackingEvent.thirdQuartile"><code class="name">var <span class="ident">thirdQuartile</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.daast_asset.TrackingEvent.unmute"><code class="name">var <span class="ident">unmute</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
 </dd>
 </dl>
 </section>
@@ -426,29 +255,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.daast_asset.DaastAsset2.duration_ms" href="#adcp.types.generated_poc.daast_asset.DaastAsset2.duration_ms">duration_ms</a></code></li>
 <li><code><a title="adcp.types.generated_poc.daast_asset.DaastAsset2.model_config" href="#adcp.types.generated_poc.daast_asset.DaastAsset2.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.daast_asset.DaastAsset2.tracking_events" href="#adcp.types.generated_poc.daast_asset.DaastAsset2.tracking_events">tracking_events</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.daast_asset.DaastVersion" href="#adcp.types.generated_poc.daast_asset.DaastVersion">DaastVersion</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.daast_asset.DaastVersion.field_1_0" href="#adcp.types.generated_poc.daast_asset.DaastVersion.field_1_0">field_1_0</a></code></li>
-<li><code><a title="adcp.types.generated_poc.daast_asset.DaastVersion.field_1_1" href="#adcp.types.generated_poc.daast_asset.DaastVersion.field_1_1">field_1_1</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.daast_asset.TrackingEvent" href="#adcp.types.generated_poc.daast_asset.TrackingEvent">TrackingEvent</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.daast_asset.TrackingEvent.complete" href="#adcp.types.generated_poc.daast_asset.TrackingEvent.complete">complete</a></code></li>
-<li><code><a title="adcp.types.generated_poc.daast_asset.TrackingEvent.firstQuartile" href="#adcp.types.generated_poc.daast_asset.TrackingEvent.firstQuartile">firstQuartile</a></code></li>
-<li><code><a title="adcp.types.generated_poc.daast_asset.TrackingEvent.impression" href="#adcp.types.generated_poc.daast_asset.TrackingEvent.impression">impression</a></code></li>
-<li><code><a title="adcp.types.generated_poc.daast_asset.TrackingEvent.midpoint" href="#adcp.types.generated_poc.daast_asset.TrackingEvent.midpoint">midpoint</a></code></li>
-<li><code><a title="adcp.types.generated_poc.daast_asset.TrackingEvent.mute" href="#adcp.types.generated_poc.daast_asset.TrackingEvent.mute">mute</a></code></li>
-<li><code><a title="adcp.types.generated_poc.daast_asset.TrackingEvent.pause" href="#adcp.types.generated_poc.daast_asset.TrackingEvent.pause">pause</a></code></li>
-<li><code><a title="adcp.types.generated_poc.daast_asset.TrackingEvent.resume" href="#adcp.types.generated_poc.daast_asset.TrackingEvent.resume">resume</a></code></li>
-<li><code><a title="adcp.types.generated_poc.daast_asset.TrackingEvent.skip" href="#adcp.types.generated_poc.daast_asset.TrackingEvent.skip">skip</a></code></li>
-<li><code><a title="adcp.types.generated_poc.daast_asset.TrackingEvent.start" href="#adcp.types.generated_poc.daast_asset.TrackingEvent.start">start</a></code></li>
-<li><code><a title="adcp.types.generated_poc.daast_asset.TrackingEvent.thirdQuartile" href="#adcp.types.generated_poc.daast_asset.TrackingEvent.thirdQuartile">thirdQuartile</a></code></li>
-<li><code><a title="adcp.types.generated_poc.daast_asset.TrackingEvent.unmute" href="#adcp.types.generated_poc.daast_asset.TrackingEvent.unmute">unmute</a></code></li>
 </ul>
 </li>
 </ul>

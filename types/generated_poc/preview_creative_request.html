@@ -184,70 +184,6 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.preview_creative_request.OutputFormat"><code class="flex name class">
-<span>class <span class="ident">OutputFormat</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class OutputFormat(Enum):
-    url = &#39;url&#39;
-    html = &#39;html&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.preview_creative_request.OutputFormat.html"><code class="name">var <span class="ident">html</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.preview_creative_request.OutputFormat.url"><code class="name">var <span class="ident">url</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 <dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest"><code class="flex name class">
 <span>class <span class="ident">PreviewCreativeRequest</span></span>
 <span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
@@ -340,11 +276,11 @@ validated to form a valid model.</p>
         ),
     ] = None
     output_format: Annotated[
-        OutputFormat | None,
+        preview_output_format.PreviewOutputFormat | None,
         Field(
             description=&#34;Output format for previews. &#39;url&#39; returns preview_url (iframe-embeddable URL), &#39;html&#39; returns preview_html (raw HTML for direct embedding). Default: &#39;url&#39; for backward compatibility.&#34;
         ),
-    ] = OutputFormat.url
+    ] = preview_output_format.PreviewOutputFormat.url
     request_type: Annotated[
         Literal[&#39;single&#39;],
         Field(description=&#39;Discriminator indicating this is a single preview request&#39;),
@@ -388,7 +324,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.output_format"><code class="name">var <span class="ident">output_format</span> : <a title="adcp.types.generated_poc.preview_creative_request.OutputFormat" href="#adcp.types.generated_poc.preview_creative_request.OutputFormat">OutputFormat</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest1.output_format"><code class="name">var <span class="ident">output_format</span> : <a title="adcp.types.generated_poc.preview_output_format.PreviewOutputFormat" href="preview_output_format.html#adcp.types.generated_poc.preview_output_format.PreviewOutputFormat">PreviewOutputFormat</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -431,11 +367,11 @@ validated to form a valid model.</p>
         ),
     ] = None
     output_format: Annotated[
-        OutputFormat | None,
+        preview_output_format.PreviewOutputFormat | None,
         Field(
             description=&#34;Default output format for all requests in this batch. Individual requests can override this. &#39;url&#39; returns preview_url (iframe-embeddable URL), &#39;html&#39; returns preview_html (raw HTML for direct embedding).&#34;
         ),
-    ] = OutputFormat.url
+    ] = preview_output_format.PreviewOutputFormat.url
     request_type: Annotated[
         Literal[&#39;batch&#39;],
         Field(description=&#39;Discriminator indicating this is a batch preview request&#39;),
@@ -472,7 +408,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2.output_format"><code class="name">var <span class="ident">output_format</span> : <a title="adcp.types.generated_poc.preview_creative_request.OutputFormat" href="#adcp.types.generated_poc.preview_creative_request.OutputFormat">OutputFormat</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.preview_creative_request.PreviewCreativeRequest2.output_format"><code class="name">var <span class="ident">output_format</span> : <a title="adcp.types.generated_poc.preview_output_format.PreviewOutputFormat" href="preview_output_format.html#adcp.types.generated_poc.preview_output_format.PreviewOutputFormat">PreviewOutputFormat</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -520,11 +456,11 @@ validated to form a valid model.</p>
         Field(description=&#39;Array of input sets for generating multiple preview variants&#39;),
     ] = None
     output_format: Annotated[
-        OutputFormat | None,
+        preview_output_format.PreviewOutputFormat | None,
         Field(
             description=&#34;Output format for this preview. &#39;url&#39; returns preview_url, &#39;html&#39; returns preview_html.&#34;
         ),
-    ] = OutputFormat.url
+    ] = preview_output_format.PreviewOutputFormat.url
     template_id: Annotated[
         str | None, Field(description=&#39;Specific template ID for custom format rendering&#39;)
     ] = None</code></pre>
@@ -560,7 +496,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.preview_creative_request.Request.output_format"><code class="name">var <span class="ident">output_format</span> : <a title="adcp.types.generated_poc.preview_creative_request.OutputFormat" href="#adcp.types.generated_poc.preview_creative_request.OutputFormat">OutputFormat</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.preview_creative_request.Request.output_format"><code class="name">var <span class="ident">output_format</span> : <a title="adcp.types.generated_poc.preview_output_format.PreviewOutputFormat" href="preview_output_format.html#adcp.types.generated_poc.preview_output_format.PreviewOutputFormat">PreviewOutputFormat</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -610,13 +546,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.preview_creative_request.Input2.macros" href="#adcp.types.generated_poc.preview_creative_request.Input2.macros">macros</a></code></li>
 <li><code><a title="adcp.types.generated_poc.preview_creative_request.Input2.model_config" href="#adcp.types.generated_poc.preview_creative_request.Input2.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.preview_creative_request.Input2.name" href="#adcp.types.generated_poc.preview_creative_request.Input2.name">name</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.preview_creative_request.OutputFormat" href="#adcp.types.generated_poc.preview_creative_request.OutputFormat">OutputFormat</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.preview_creative_request.OutputFormat.html" href="#adcp.types.generated_poc.preview_creative_request.OutputFormat.html">html</a></code></li>
-<li><code><a title="adcp.types.generated_poc.preview_creative_request.OutputFormat.url" href="#adcp.types.generated_poc.preview_creative_request.OutputFormat.url">url</a></code></li>
 </ul>
 </li>
 <li>

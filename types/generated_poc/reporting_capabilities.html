@@ -46,174 +46,6 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.reporting_capabilities.AvailableMetric"><code class="flex name class">
-<span>class <span class="ident">AvailableMetric</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class AvailableMetric(Enum):
-    impressions = &#39;impressions&#39;
-    spend = &#39;spend&#39;
-    clicks = &#39;clicks&#39;
-    ctr = &#39;ctr&#39;
-    video_completions = &#39;video_completions&#39;
-    completion_rate = &#39;completion_rate&#39;
-    conversions = &#39;conversions&#39;
-    viewability = &#39;viewability&#39;
-    engagement_rate = &#39;engagement_rate&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.reporting_capabilities.AvailableMetric.clicks"><code class="name">var <span class="ident">clicks</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.reporting_capabilities.AvailableMetric.completion_rate"><code class="name">var <span class="ident">completion_rate</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.reporting_capabilities.AvailableMetric.conversions"><code class="name">var <span class="ident">conversions</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.reporting_capabilities.AvailableMetric.ctr"><code class="name">var <span class="ident">ctr</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.reporting_capabilities.AvailableMetric.engagement_rate"><code class="name">var <span class="ident">engagement_rate</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.reporting_capabilities.AvailableMetric.impressions"><code class="name">var <span class="ident">impressions</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.reporting_capabilities.AvailableMetric.spend"><code class="name">var <span class="ident">spend</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.reporting_capabilities.AvailableMetric.video_completions"><code class="name">var <span class="ident">video_completions</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.reporting_capabilities.AvailableMetric.viewability"><code class="name">var <span class="ident">viewability</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.reporting_capabilities.AvailableReportingFrequency"><code class="flex name class">
-<span>class <span class="ident">AvailableReportingFrequency</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class AvailableReportingFrequency(Enum):
-    hourly = &#39;hourly&#39;
-    daily = &#39;daily&#39;
-    monthly = &#39;monthly&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.reporting_capabilities.AvailableReportingFrequency.daily"><code class="name">var <span class="ident">daily</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.reporting_capabilities.AvailableReportingFrequency.hourly"><code class="name">var <span class="ident">hourly</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.reporting_capabilities.AvailableReportingFrequency.monthly"><code class="name">var <span class="ident">monthly</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 <dt id="adcp.types.generated_poc.reporting_capabilities.ReportingCapabilities"><code class="flex name class">
 <span>class <span class="ident">ReportingCapabilities</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -228,7 +60,7 @@ attributes &ndash; see the documentation for details.</p></div>
         extra=&#39;forbid&#39;,
     )
     available_metrics: Annotated[
-        list[AvailableMetric],
+        list[available_metric.AvailableMetric],
         Field(
             description=&#39;Metrics available in reporting. Impressions and spend are always implicitly included.&#39;,
             examples=[
@@ -238,7 +70,7 @@ attributes &ndash; see the documentation for details.</p></div>
         ),
     ]
     available_reporting_frequencies: Annotated[
-        list[AvailableReportingFrequency],
+        list[reporting_frequency.ReportingFrequency],
         Field(description=&#39;Supported reporting frequency options&#39;, min_length=1),
     ]
     expected_delay_minutes: Annotated[
@@ -276,11 +108,11 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.reporting_capabilities.ReportingCapabilities.available_metrics"><code class="name">var <span class="ident">available_metrics</span> : list[<a title="adcp.types.generated_poc.reporting_capabilities.AvailableMetric" href="#adcp.types.generated_poc.reporting_capabilities.AvailableMetric">AvailableMetric</a>]</code></dt>
+<dt id="adcp.types.generated_poc.reporting_capabilities.ReportingCapabilities.available_metrics"><code class="name">var <span class="ident">available_metrics</span> : list[<a title="adcp.types.generated_poc.available_metric.AvailableMetric" href="available_metric.html#adcp.types.generated_poc.available_metric.AvailableMetric">AvailableMetric</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.reporting_capabilities.ReportingCapabilities.available_reporting_frequencies"><code class="name">var <span class="ident">available_reporting_frequencies</span> : list[<a title="adcp.types.generated_poc.reporting_capabilities.AvailableReportingFrequency" href="#adcp.types.generated_poc.reporting_capabilities.AvailableReportingFrequency">AvailableReportingFrequency</a>]</code></dt>
+<dt id="adcp.types.generated_poc.reporting_capabilities.ReportingCapabilities.available_reporting_frequencies"><code class="name">var <span class="ident">available_reporting_frequencies</span> : list[<a title="adcp.types.generated_poc.reporting_frequency.ReportingFrequency" href="reporting_frequency.html#adcp.types.generated_poc.reporting_frequency.ReportingFrequency">ReportingFrequency</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -326,28 +158,6 @@ validated to form a valid model.</p>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
-<li>
-<h4><code><a title="adcp.types.generated_poc.reporting_capabilities.AvailableMetric" href="#adcp.types.generated_poc.reporting_capabilities.AvailableMetric">AvailableMetric</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.reporting_capabilities.AvailableMetric.clicks" href="#adcp.types.generated_poc.reporting_capabilities.AvailableMetric.clicks">clicks</a></code></li>
-<li><code><a title="adcp.types.generated_poc.reporting_capabilities.AvailableMetric.completion_rate" href="#adcp.types.generated_poc.reporting_capabilities.AvailableMetric.completion_rate">completion_rate</a></code></li>
-<li><code><a title="adcp.types.generated_poc.reporting_capabilities.AvailableMetric.conversions" href="#adcp.types.generated_poc.reporting_capabilities.AvailableMetric.conversions">conversions</a></code></li>
-<li><code><a title="adcp.types.generated_poc.reporting_capabilities.AvailableMetric.ctr" href="#adcp.types.generated_poc.reporting_capabilities.AvailableMetric.ctr">ctr</a></code></li>
-<li><code><a title="adcp.types.generated_poc.reporting_capabilities.AvailableMetric.engagement_rate" href="#adcp.types.generated_poc.reporting_capabilities.AvailableMetric.engagement_rate">engagement_rate</a></code></li>
-<li><code><a title="adcp.types.generated_poc.reporting_capabilities.AvailableMetric.impressions" href="#adcp.types.generated_poc.reporting_capabilities.AvailableMetric.impressions">impressions</a></code></li>
-<li><code><a title="adcp.types.generated_poc.reporting_capabilities.AvailableMetric.spend" href="#adcp.types.generated_poc.reporting_capabilities.AvailableMetric.spend">spend</a></code></li>
-<li><code><a title="adcp.types.generated_poc.reporting_capabilities.AvailableMetric.video_completions" href="#adcp.types.generated_poc.reporting_capabilities.AvailableMetric.video_completions">video_completions</a></code></li>
-<li><code><a title="adcp.types.generated_poc.reporting_capabilities.AvailableMetric.viewability" href="#adcp.types.generated_poc.reporting_capabilities.AvailableMetric.viewability">viewability</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.reporting_capabilities.AvailableReportingFrequency" href="#adcp.types.generated_poc.reporting_capabilities.AvailableReportingFrequency">AvailableReportingFrequency</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.reporting_capabilities.AvailableReportingFrequency.daily" href="#adcp.types.generated_poc.reporting_capabilities.AvailableReportingFrequency.daily">daily</a></code></li>
-<li><code><a title="adcp.types.generated_poc.reporting_capabilities.AvailableReportingFrequency.hourly" href="#adcp.types.generated_poc.reporting_capabilities.AvailableReportingFrequency.hourly">hourly</a></code></li>
-<li><code><a title="adcp.types.generated_poc.reporting_capabilities.AvailableReportingFrequency.monthly" href="#adcp.types.generated_poc.reporting_capabilities.AvailableReportingFrequency.monthly">monthly</a></code></li>
-</ul>
-</li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.reporting_capabilities.ReportingCapabilities" href="#adcp.types.generated_poc.reporting_capabilities.ReportingCapabilities">ReportingCapabilities</a></code></h4>
 <ul class="">

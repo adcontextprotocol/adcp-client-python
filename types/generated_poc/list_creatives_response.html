@@ -309,70 +309,6 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.list_creatives_response.Direction"><code class="flex name class">
-<span>class <span class="ident">Direction</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Direction(Enum):
-    asc = &#39;asc&#39;
-    desc = &#39;desc&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.list_creatives_response.Direction.asc"><code class="name">var <span class="ident">asc</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_response.Direction.desc"><code class="name">var <span class="ident">desc</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 <dt id="adcp.types.generated_poc.list_creatives_response.ListCreativesResponse"><code class="flex name class">
 <span>class <span class="ident">ListCreativesResponse</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -704,7 +640,7 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class SortApplied(AdCPBaseModel):
-    direction: Direction | None = None
+    direction: sort_direction.SortDirection | None = None
     field: str | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -722,7 +658,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.list_creatives_response.SortApplied.direction"><code class="name">var <span class="ident">direction</span> : <a title="adcp.types.generated_poc.list_creatives_response.Direction" href="#adcp.types.generated_poc.list_creatives_response.Direction">Direction</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.list_creatives_response.SortApplied.direction"><code class="name">var <span class="ident">direction</span> : <a title="adcp.types.generated_poc.sort_direction.SortDirection" href="sort_direction.html#adcp.types.generated_poc.sort_direction.SortDirection">SortDirection</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -928,13 +864,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.list_creatives_response.Creative.sub_assets" href="#adcp.types.generated_poc.list_creatives_response.Creative.sub_assets">sub_assets</a></code></li>
 <li><code><a title="adcp.types.generated_poc.list_creatives_response.Creative.tags" href="#adcp.types.generated_poc.list_creatives_response.Creative.tags">tags</a></code></li>
 <li><code><a title="adcp.types.generated_poc.list_creatives_response.Creative.updated_date" href="#adcp.types.generated_poc.list_creatives_response.Creative.updated_date">updated_date</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.list_creatives_response.Direction" href="#adcp.types.generated_poc.list_creatives_response.Direction">Direction</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.list_creatives_response.Direction.asc" href="#adcp.types.generated_poc.list_creatives_response.Direction.asc">asc</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_response.Direction.desc" href="#adcp.types.generated_poc.list_creatives_response.Direction.desc">desc</a></code></li>
 </ul>
 </li>
 <li>

@@ -60,7 +60,10 @@ el.replaceWith(d);
         extra=&#39;forbid&#39;,
     )
     content: Annotated[str, Field(description=&#39;JavaScript content&#39;)]
-    module_type: Annotated[ModuleType | None, Field(description=&#39;JavaScript module type&#39;)] = None</code></pre>
+    module_type: Annotated[
+        javascript_module_type.JavascriptModuleType | None,
+        Field(description=&#39;JavaScript module type&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -85,7 +88,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.javascript_asset.JavascriptAsset.module_type"><code class="name">var <span class="ident">module_type</span> : <a title="adcp.types.generated_poc.javascript_asset.ModuleType" href="#adcp.types.generated_poc.javascript_asset.ModuleType">ModuleType</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.javascript_asset.JavascriptAsset.module_type"><code class="name">var <span class="ident">module_type</span> : <a title="adcp.types.generated_poc.javascript_module_type.JavascriptModuleType" href="javascript_module_type.html#adcp.types.generated_poc.javascript_module_type.JavascriptModuleType">JavascriptModuleType</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -99,75 +102,6 @@ validated to form a valid model.</p>
 </ul>
 </li>
 </ul>
-</dd>
-<dt id="adcp.types.generated_poc.javascript_asset.ModuleType"><code class="flex name class">
-<span>class <span class="ident">ModuleType</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class ModuleType(Enum):
-    esm = &#39;esm&#39;
-    commonjs = &#39;commonjs&#39;
-    script = &#39;script&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.javascript_asset.ModuleType.commonjs"><code class="name">var <span class="ident">commonjs</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.javascript_asset.ModuleType.esm"><code class="name">var <span class="ident">esm</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.javascript_asset.ModuleType.script"><code class="name">var <span class="ident">script</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
 </dd>
 </dl>
 </section>
@@ -190,14 +124,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.javascript_asset.JavascriptAsset.content" href="#adcp.types.generated_poc.javascript_asset.JavascriptAsset.content">content</a></code></li>
 <li><code><a title="adcp.types.generated_poc.javascript_asset.JavascriptAsset.model_config" href="#adcp.types.generated_poc.javascript_asset.JavascriptAsset.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.javascript_asset.JavascriptAsset.module_type" href="#adcp.types.generated_poc.javascript_asset.JavascriptAsset.module_type">module_type</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.javascript_asset.ModuleType" href="#adcp.types.generated_poc.javascript_asset.ModuleType">ModuleType</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.javascript_asset.ModuleType.commonjs" href="#adcp.types.generated_poc.javascript_asset.ModuleType.commonjs">commonjs</a></code></li>
-<li><code><a title="adcp.types.generated_poc.javascript_asset.ModuleType.esm" href="#adcp.types.generated_poc.javascript_asset.ModuleType.esm">esm</a></code></li>
-<li><code><a title="adcp.types.generated_poc.javascript_asset.ModuleType.script" href="#adcp.types.generated_poc.javascript_asset.ModuleType.script">script</a></code></li>
 </ul>
 </li>
 </ul>

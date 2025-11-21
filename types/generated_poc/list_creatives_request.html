@@ -46,154 +46,6 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.list_creatives_request.Direction"><code class="flex name class">
-<span>class <span class="ident">Direction</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Direction(Enum):
-    asc = &#39;asc&#39;
-    desc = &#39;desc&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.list_creatives_request.Direction.asc"><code class="name">var <span class="ident">asc</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Direction.desc"><code class="name">var <span class="ident">desc</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Field1"><code class="flex name class">
-<span>class <span class="ident">Field1</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Field1(Enum):
-    created_date = &#39;created_date&#39;
-    updated_date = &#39;updated_date&#39;
-    name = &#39;name&#39;
-    status = &#39;status&#39;
-    assignment_count = &#39;assignment_count&#39;
-    performance_score = &#39;performance_score&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.list_creatives_request.Field1.assignment_count"><code class="name">var <span class="ident">assignment_count</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Field1.created_date"><code class="name">var <span class="ident">created_date</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Field1.name"><code class="name">var <span class="ident">name</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Field1.performance_score"><code class="name">var <span class="ident">performance_score</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Field1.status"><code class="name">var <span class="ident">status</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Field1.updated_date"><code class="name">var <span class="ident">updated_date</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 <dt id="adcp.types.generated_poc.list_creatives_request.FieldModel"><code class="flex name class">
 <span>class <span class="ident">FieldModel</span></span>
 <span>(</span><span>*args, **kwds)</span>
@@ -298,173 +150,6 @@ attributes &ndash; see the documentation for details.</p></div>
 </dd>
 </dl>
 </dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Filters"><code class="flex name class">
-<span>class <span class="ident">Filters</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Filters(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
-    )
-    assigned_to_package: Annotated[
-        str | None, Field(description=&#39;Filter creatives assigned to this specific package&#39;)
-    ] = None
-    assigned_to_packages: Annotated[
-        list[str] | None, Field(description=&#39;Filter creatives assigned to any of these packages&#39;)
-    ] = None
-    created_after: Annotated[
-        AwareDatetime | None,
-        Field(description=&#39;Filter creatives created after this date (ISO 8601)&#39;),
-    ] = None
-    created_before: Annotated[
-        AwareDatetime | None,
-        Field(description=&#39;Filter creatives created before this date (ISO 8601)&#39;),
-    ] = None
-    creative_ids: Annotated[
-        list[str] | None, Field(description=&#39;Filter by specific creative IDs&#39;, max_length=100)
-    ] = None
-    format: Annotated[
-        str | None,
-        Field(description=&#39;Filter by creative format type (e.g., video, audio, display)&#39;),
-    ] = None
-    formats: Annotated[
-        list[str] | None, Field(description=&#39;Filter by multiple creative format types&#39;)
-    ] = None
-    has_performance_data: Annotated[
-        bool | None, Field(description=&#39;Filter creatives that have performance data when true&#39;)
-    ] = None
-    name_contains: Annotated[
-        str | None,
-        Field(description=&#39;Filter by creative names containing this text (case-insensitive)&#39;),
-    ] = None
-    status: Annotated[
-        creative_status.CreativeStatus | None,
-        Field(description=&#39;Filter by creative approval status&#39;),
-    ] = None
-    statuses: Annotated[
-        list[creative_status.CreativeStatus] | None,
-        Field(description=&#39;Filter by multiple creative statuses&#39;),
-    ] = None
-    tags: Annotated[
-        list[str] | None, Field(description=&#39;Filter by creative tags (all tags must match)&#39;)
-    ] = None
-    tags_any: Annotated[
-        list[str] | None, Field(description=&#39;Filter by creative tags (any tag must match)&#39;)
-    ] = None
-    unassigned: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Filter for unassigned creatives when true, assigned creatives when false&#39;
-        ),
-    ] = None
-    updated_after: Annotated[
-        AwareDatetime | None,
-        Field(description=&#39;Filter creatives last updated after this date (ISO 8601)&#39;),
-    ] = None
-    updated_before: Annotated[
-        AwareDatetime | None,
-        Field(description=&#39;Filter creatives last updated before this date (ISO 8601)&#39;),
-    ] = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.list_creatives_request.Filters.assigned_to_package"><code class="name">var <span class="ident">assigned_to_package</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Filters.assigned_to_packages"><code class="name">var <span class="ident">assigned_to_packages</span> : list[str] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Filters.created_after"><code class="name">var <span class="ident">created_after</span> : pydantic.types.AwareDatetime | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Filters.created_before"><code class="name">var <span class="ident">created_before</span> : pydantic.types.AwareDatetime | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Filters.creative_ids"><code class="name">var <span class="ident">creative_ids</span> : list[str] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Filters.format"><code class="name">var <span class="ident">format</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Filters.formats"><code class="name">var <span class="ident">formats</span> : list[str] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Filters.has_performance_data"><code class="name">var <span class="ident">has_performance_data</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Filters.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Filters.name_contains"><code class="name">var <span class="ident">name_contains</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Filters.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.creative_status.CreativeStatus" href="creative_status.html#adcp.types.generated_poc.creative_status.CreativeStatus">CreativeStatus</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Filters.statuses"><code class="name">var <span class="ident">statuses</span> : list[<a title="adcp.types.generated_poc.creative_status.CreativeStatus" href="creative_status.html#adcp.types.generated_poc.creative_status.CreativeStatus">CreativeStatus</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Filters.tags"><code class="name">var <span class="ident">tags</span> : list[str] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Filters.tags_any"><code class="name">var <span class="ident">tags_any</span> : list[str] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Filters.unassigned"><code class="name">var <span class="ident">unassigned</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Filters.updated_after"><code class="name">var <span class="ident">updated_after</span> : pydantic.types.AwareDatetime | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Filters.updated_before"><code class="name">var <span class="ident">updated_before</span> : pydantic.types.AwareDatetime | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
 <dt id="adcp.types.generated_poc.list_creatives_request.ListCreativesRequest"><code class="flex name class">
 <span>class <span class="ident">ListCreativesRequest</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -488,9 +173,7 @@ validated to form a valid model.</p>
         list[FieldModel] | None,
         Field(description=&#39;Specific fields to include in response (omit for all fields)&#39;),
     ] = None
-    filters: Annotated[
-        Filters | None, Field(description=&#39;Filter criteria for querying creatives&#39;)
-    ] = None
+    filters: creative_filters.CreativeFilters | None = None
     include_assignments: Annotated[
         bool | None, Field(description=&#39;Include package assignment information in response&#39;)
     ] = True
@@ -527,7 +210,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.ListCreativesRequest.filters"><code class="name">var <span class="ident">filters</span> : <a title="adcp.types.generated_poc.list_creatives_request.Filters" href="#adcp.types.generated_poc.list_creatives_request.Filters">Filters</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.list_creatives_request.ListCreativesRequest.filters"><code class="name">var <span class="ident">filters</span> : <a title="adcp.types.generated_poc.creative_filters.CreativeFilters" href="creative_filters.html#adcp.types.generated_poc.creative_filters.CreativeFilters">CreativeFilters</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -635,8 +318,12 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    direction: Annotated[Direction | None, Field(description=&#39;Sort direction&#39;)] = Direction.desc
-    field: Annotated[Field1 | None, Field(description=&#39;Field to sort by&#39;)] = Field1.created_date</code></pre>
+    direction: Annotated[
+        sort_direction.SortDirection | None, Field(description=&#39;Sort direction&#39;)
+    ] = sort_direction.SortDirection.desc
+    field: Annotated[
+        creative_sort_field.CreativeSortField | None, Field(description=&#39;Field to sort by&#39;)
+    ] = creative_sort_field.CreativeSortField.created_date</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -653,11 +340,11 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.list_creatives_request.Sort.direction"><code class="name">var <span class="ident">direction</span> : <a title="adcp.types.generated_poc.list_creatives_request.Direction" href="#adcp.types.generated_poc.list_creatives_request.Direction">Direction</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.list_creatives_request.Sort.direction"><code class="name">var <span class="ident">direction</span> : <a title="adcp.types.generated_poc.sort_direction.SortDirection" href="sort_direction.html#adcp.types.generated_poc.sort_direction.SortDirection">SortDirection</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.list_creatives_request.Sort.field"><code class="name">var <span class="ident">field</span> : <a title="adcp.types.generated_poc.list_creatives_request.Field1" href="#adcp.types.generated_poc.list_creatives_request.Field1">Field1</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.list_creatives_request.Sort.field"><code class="name">var <span class="ident">field</span> : <a title="adcp.types.generated_poc.creative_sort_field.CreativeSortField" href="creative_sort_field.html#adcp.types.generated_poc.creative_sort_field.CreativeSortField">CreativeSortField</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -692,24 +379,6 @@ validated to form a valid model.</p>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.list_creatives_request.Direction" href="#adcp.types.generated_poc.list_creatives_request.Direction">Direction</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Direction.asc" href="#adcp.types.generated_poc.list_creatives_request.Direction.asc">asc</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Direction.desc" href="#adcp.types.generated_poc.list_creatives_request.Direction.desc">desc</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.list_creatives_request.Field1" href="#adcp.types.generated_poc.list_creatives_request.Field1">Field1</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Field1.assignment_count" href="#adcp.types.generated_poc.list_creatives_request.Field1.assignment_count">assignment_count</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Field1.created_date" href="#adcp.types.generated_poc.list_creatives_request.Field1.created_date">created_date</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Field1.name" href="#adcp.types.generated_poc.list_creatives_request.Field1.name">name</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Field1.performance_score" href="#adcp.types.generated_poc.list_creatives_request.Field1.performance_score">performance_score</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Field1.status" href="#adcp.types.generated_poc.list_creatives_request.Field1.status">status</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Field1.updated_date" href="#adcp.types.generated_poc.list_creatives_request.Field1.updated_date">updated_date</a></code></li>
-</ul>
-</li>
-<li>
 <h4><code><a title="adcp.types.generated_poc.list_creatives_request.FieldModel" href="#adcp.types.generated_poc.list_creatives_request.FieldModel">FieldModel</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.list_creatives_request.FieldModel.assignments" href="#adcp.types.generated_poc.list_creatives_request.FieldModel.assignments">assignments</a></code></li>
@@ -722,28 +391,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.list_creatives_request.FieldModel.sub_assets" href="#adcp.types.generated_poc.list_creatives_request.FieldModel.sub_assets">sub_assets</a></code></li>
 <li><code><a title="adcp.types.generated_poc.list_creatives_request.FieldModel.tags" href="#adcp.types.generated_poc.list_creatives_request.FieldModel.tags">tags</a></code></li>
 <li><code><a title="adcp.types.generated_poc.list_creatives_request.FieldModel.updated_date" href="#adcp.types.generated_poc.list_creatives_request.FieldModel.updated_date">updated_date</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.list_creatives_request.Filters" href="#adcp.types.generated_poc.list_creatives_request.Filters">Filters</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Filters.assigned_to_package" href="#adcp.types.generated_poc.list_creatives_request.Filters.assigned_to_package">assigned_to_package</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Filters.assigned_to_packages" href="#adcp.types.generated_poc.list_creatives_request.Filters.assigned_to_packages">assigned_to_packages</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Filters.created_after" href="#adcp.types.generated_poc.list_creatives_request.Filters.created_after">created_after</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Filters.created_before" href="#adcp.types.generated_poc.list_creatives_request.Filters.created_before">created_before</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Filters.creative_ids" href="#adcp.types.generated_poc.list_creatives_request.Filters.creative_ids">creative_ids</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Filters.format" href="#adcp.types.generated_poc.list_creatives_request.Filters.format">format</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Filters.formats" href="#adcp.types.generated_poc.list_creatives_request.Filters.formats">formats</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Filters.has_performance_data" href="#adcp.types.generated_poc.list_creatives_request.Filters.has_performance_data">has_performance_data</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Filters.model_config" href="#adcp.types.generated_poc.list_creatives_request.Filters.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Filters.name_contains" href="#adcp.types.generated_poc.list_creatives_request.Filters.name_contains">name_contains</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Filters.status" href="#adcp.types.generated_poc.list_creatives_request.Filters.status">status</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Filters.statuses" href="#adcp.types.generated_poc.list_creatives_request.Filters.statuses">statuses</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Filters.tags" href="#adcp.types.generated_poc.list_creatives_request.Filters.tags">tags</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Filters.tags_any" href="#adcp.types.generated_poc.list_creatives_request.Filters.tags_any">tags_any</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Filters.unassigned" href="#adcp.types.generated_poc.list_creatives_request.Filters.unassigned">unassigned</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Filters.updated_after" href="#adcp.types.generated_poc.list_creatives_request.Filters.updated_after">updated_after</a></code></li>
-<li><code><a title="adcp.types.generated_poc.list_creatives_request.Filters.updated_before" href="#adcp.types.generated_poc.list_creatives_request.Filters.updated_before">updated_before</a></code></li>
 </ul>
 </li>
 <li>
