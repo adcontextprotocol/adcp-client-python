@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.11.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.10.0...v2.11.0) (2025-11-21)
+
+
+### Features
+
+* sync AdCP schema updates and simplify type architecture ([#78](https://github.com/adcontextprotocol/adcp-client-python/issues/78)) ([58e0d24](https://github.com/adcontextprotocol/adcp-client-python/commit/58e0d2441eac43858573f69c7d4f51e0dc8658bc))
+
 ## [2.10.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.9.0...v2.10.0) (2025-11-20)
 
 
