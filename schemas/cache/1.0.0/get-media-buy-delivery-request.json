@@ -37,26 +37,11 @@
       "description": "Filter by status. Can be a single status or array of statuses",
       "oneOf": [
         {
-          "enum": [
-            "active",
-            "pending",
-            "paused",
-            "completed",
-            "failed",
-            "all"
-          ],
-          "type": "string"
+          "$ref": "media-buy-status.json"
         },
         {
           "items": {
-            "enum": [
-              "active",
-              "pending",
-              "paused",
-              "completed",
-              "failed"
-            ],
-            "type": "string"
+            "$ref": "media-buy-status.json"
           },
           "type": "array"
         }

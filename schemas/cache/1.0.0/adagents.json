@@ -318,7 +318,7 @@
               "properties": {
                 "description": "Specific properties this agent is authorized for (alternative to property_ids/property_tags)",
                 "items": {
-                  "$ref": "/schemas/v1/core/property.json"
+                  "$ref": "property.json"
                 },
                 "minItems": 1,
                 "type": "array"
@@ -354,7 +354,7 @@
               "publisher_properties": {
                 "description": "Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell",
                 "items": {
-                  "$ref": "/schemas/v1/core/publisher-property-selector.json"
+                  "$ref": "publisher-property-selector.json"
                 },
                 "minItems": 1,
                 "type": "array"
@@ -426,7 +426,7 @@
     "properties": {
       "description": "Array of all properties covered by this adagents.json file. Same structure as list_authorized_properties response.",
       "items": {
-        "$ref": "/schemas/v1/core/property.json"
+        "$ref": "property.json"
       },
       "minItems": 1,
       "type": "array"

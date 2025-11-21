@@ -19,25 +19,7 @@
         "tracking_events": {
           "description": "Tracking events supported by this VAST tag",
           "items": {
-            "enum": [
-              "start",
-              "firstQuartile",
-              "midpoint",
-              "thirdQuartile",
-              "complete",
-              "impression",
-              "click",
-              "pause",
-              "resume",
-              "skip",
-              "mute",
-              "unmute",
-              "fullscreen",
-              "exitFullscreen",
-              "playerExpand",
-              "playerCollapse"
-            ],
-            "type": "string"
+            "$ref": "vast-tracking-event.json"
           },
           "type": "array"
         },
@@ -47,15 +29,8 @@
           "type": "string"
         },
         "vast_version": {
-          "description": "VAST specification version",
-          "enum": [
-            "2.0",
-            "3.0",
-            "4.0",
-            "4.1",
-            "4.2"
-          ],
-          "type": "string"
+          "$ref": "vast-version.json",
+          "description": "VAST specification version"
         },
         "vpaid_enabled": {
           "description": "Whether VPAID (Video Player-Ad Interface Definition) is supported",
@@ -88,38 +63,13 @@
         "tracking_events": {
           "description": "Tracking events supported by this VAST tag",
           "items": {
-            "enum": [
-              "start",
-              "firstQuartile",
-              "midpoint",
-              "thirdQuartile",
-              "complete",
-              "impression",
-              "click",
-              "pause",
-              "resume",
-              "skip",
-              "mute",
-              "unmute",
-              "fullscreen",
-              "exitFullscreen",
-              "playerExpand",
-              "playerCollapse"
-            ],
-            "type": "string"
+            "$ref": "vast-tracking-event.json"
           },
           "type": "array"
         },
         "vast_version": {
-          "description": "VAST specification version",
-          "enum": [
-            "2.0",
-            "3.0",
-            "4.0",
-            "4.1",
-            "4.2"
-          ],
-          "type": "string"
+          "$ref": "vast-version.json",
+          "description": "VAST specification version"
         },
         "vpaid_enabled": {
           "description": "Whether VPAID (Video Player-Ad Interface Definition) is supported",

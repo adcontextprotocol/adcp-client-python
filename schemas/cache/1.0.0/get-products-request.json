@@ -18,46 +18,7 @@
       "type": "object"
     },
     "filters": {
-      "additionalProperties": false,
-      "description": "Structured filters for product discovery",
-      "properties": {
-        "delivery_type": {
-          "$ref": "delivery-type.json"
-        },
-        "format_ids": {
-          "description": "Filter by specific format IDs",
-          "items": {
-            "$ref": "format-id.json"
-          },
-          "type": "array"
-        },
-        "format_types": {
-          "description": "Filter by format types",
-          "items": {
-            "enum": [
-              "video",
-              "display",
-              "audio"
-            ],
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "is_fixed_price": {
-          "description": "Filter for fixed price vs auction products",
-          "type": "boolean"
-        },
-        "min_exposures": {
-          "description": "Minimum exposures/impressions needed for measurement validity",
-          "minimum": 1,
-          "type": "integer"
-        },
-        "standard_formats_only": {
-          "description": "Only return products accepting IAB standard formats",
-          "type": "boolean"
-        }
-      },
-      "type": "object"
+      "$ref": "product-filters.json"
     }
   },
   "required": [],

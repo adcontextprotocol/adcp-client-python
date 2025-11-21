@@ -5,22 +5,12 @@
   "description": "Creative requirements and restrictions for a product",
   "properties": {
     "co_branding": {
-      "description": "Co-branding requirement",
-      "enum": [
-        "required",
-        "optional",
-        "none"
-      ],
-      "type": "string"
+      "$ref": "co-branding-requirement.json",
+      "description": "Co-branding requirement"
     },
     "landing_page": {
-      "description": "Landing page requirements",
-      "enum": [
-        "any",
-        "retailer_site_only",
-        "must_include_retailer"
-      ],
-      "type": "string"
+      "$ref": "landing-page-requirement.json",
+      "description": "Landing page requirements"
     },
     "templates_available": {
       "description": "Whether creative templates are provided",

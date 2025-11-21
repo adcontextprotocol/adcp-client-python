@@ -37,17 +37,8 @@
       "type": "string"
     },
     "property_type": {
-      "description": "Type of advertising property",
-      "enum": [
-        "website",
-        "mobile_app",
-        "ctv_app",
-        "dooh",
-        "podcast",
-        "radio",
-        "streaming_audio"
-      ],
-      "type": "string"
+      "$ref": "property-type.json",
+      "description": "Type of advertising property"
     },
     "publisher_domain": {
       "description": "Domain where adagents.json should be checked for authorization validation. Required for list_authorized_properties response. Optional in adagents.json (file location implies domain).",

@@ -49,13 +49,9 @@
           "type": "array"
         },
         "output_format": {
+          "$ref": "preview-output-format.json",
           "default": "url",
-          "description": "Output format for previews. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding). Default: 'url' for backward compatibility.",
-          "enum": [
-            "url",
-            "html"
-          ],
-          "type": "string"
+          "description": "Output format for previews. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding). Default: 'url' for backward compatibility."
         },
         "request_type": {
           "const": "single",
@@ -84,13 +80,9 @@
           "type": "object"
         },
         "output_format": {
+          "$ref": "preview-output-format.json",
           "default": "url",
-          "description": "Default output format for all requests in this batch. Individual requests can override this. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding).",
-          "enum": [
-            "url",
-            "html"
-          ],
-          "type": "string"
+          "description": "Default output format for all requests in this batch. Individual requests can override this. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding)."
         },
         "request_type": {
           "const": "batch",
@@ -139,13 +131,9 @@
                 "type": "array"
               },
               "output_format": {
+                "$ref": "preview-output-format.json",
                 "default": "url",
-                "description": "Output format for this preview. 'url' returns preview_url, 'html' returns preview_html.",
-                "enum": [
-                  "url",
-                  "html"
-                ],
-                "type": "string"
+                "description": "Output format for this preview. 'url' returns preview_url, 'html' returns preview_html."
               },
               "template_id": {
                 "description": "Specific template ID for custom format rendering",

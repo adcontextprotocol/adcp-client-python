@@ -11,7 +11,7 @@
           "type": "string"
         },
         "activation_key": {
-          "$ref": "/schemas/v1/core/activation-key.json",
+          "$ref": "activation-key.json",
           "description": "The key to use for targeting. Only present if is_live=true AND requester has access to this deployment."
         },
         "deployed_at": {
@@ -53,7 +53,7 @@
           "type": "string"
         },
         "activation_key": {
-          "$ref": "/schemas/v1/core/activation-key.json",
+          "$ref": "activation-key.json",
           "description": "The key to use for targeting. Only present if is_live=true AND requester has access to this deployment."
         },
         "agent_url": {

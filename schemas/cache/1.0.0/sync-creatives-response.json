@@ -23,15 +23,8 @@
             "additionalProperties": false,
             "properties": {
               "action": {
-                "description": "Action taken for this creative",
-                "enum": [
-                  "created",
-                  "updated",
-                  "unchanged",
-                  "failed",
-                  "deleted"
-                ],
-                "type": "string"
+                "$ref": "creative-action.json",
+                "description": "Action taken for this creative"
               },
               "assigned_to": {
                 "description": "Package IDs this creative was successfully assigned to (only present when assignments were requested)",

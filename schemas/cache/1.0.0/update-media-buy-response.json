@@ -15,7 +15,7 @@
         "affected_packages": {
           "description": "Array of packages that were modified with complete state information",
           "items": {
-            "$ref": "/schemas/v1/core/package.json"
+            "$ref": "package.json"
           },
           "type": "array"
         },
@@ -78,7 +78,7 @@
         "errors": {
           "description": "Array of errors explaining why the operation failed",
           "items": {
-            "$ref": "/schemas/v1/core/error.json"
+            "$ref": "error.json"
           },
           "minItems": 1,
           "type": "array"

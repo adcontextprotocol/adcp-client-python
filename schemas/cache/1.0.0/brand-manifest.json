@@ -125,7 +125,7 @@
             "type": "string"
           },
           "asset_type": {
-            "$ref": "/schemas/v1/enums/asset-content-type.json",
+            "$ref": "asset-content-type.json",
             "description": "Type of asset. Note: Brand manifests typically contain basic media assets (image, video, audio, text). Code assets (html, javascript, css) and ad markup (vast, daast) are usually not part of brand asset libraries."
           },
           "description": {

@@ -18,13 +18,9 @@
       "type": "string"
     },
     "markdown_flavor": {
+      "$ref": "markdown-flavor.json",
       "default": "commonmark",
-      "description": "Markdown flavor used. CommonMark for strict compatibility, GFM for tables/task lists/strikethrough.",
-      "enum": [
-        "commonmark",
-        "gfm"
-      ],
-      "type": "string"
+      "description": "Markdown flavor used. CommonMark for strict compatibility, GFM for tables/task lists/strikethrough."
     }
   },
   "required": [

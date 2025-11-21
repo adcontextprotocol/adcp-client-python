@@ -47,7 +47,7 @@ regenerate-schemas: ## Download latest schemas and regenerate models
 	@echo "Fixing schema references..."
 	$(PYTHON) scripts/fix_schema_refs.py
 	@echo "Generating Pydantic models..."
-	$(PYTHON) scripts/generate_models_simple.py
+	$(PYTHON) scripts/generate_types.py
 	@echo "✓ Schemas regenerated successfully"
 
 validate-generated: ## Validate generated code (syntax and imports)
@@ -99,7 +99,7 @@ check-schema-drift: ## Check if schemas are out of sync with upstream
 	@echo "Checking for schema drift..."
 	@$(PYTHON) scripts/sync_schemas.py
 	@$(PYTHON) scripts/fix_schema_refs.py
-	@$(PYTHON) scripts/generate_models_simple.py
+	@$(PYTHON) scripts/generate_types.py
 	@if git diff --exit-code src/adcp/types/generated.py schemas/cache/; then \
 		echo "✓ Schemas are up-to-date"; \
 	else \

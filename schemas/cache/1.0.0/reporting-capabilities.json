@@ -20,18 +20,7 @@
         ]
       ],
       "items": {
-        "enum": [
-          "impressions",
-          "spend",
-          "clicks",
-          "ctr",
-          "video_completions",
-          "completion_rate",
-          "conversions",
-          "viewability",
-          "engagement_rate"
-        ],
-        "type": "string"
+        "$ref": "available-metric.json"
       },
       "type": "array",
       "uniqueItems": true
@@ -39,12 +28,7 @@
     "available_reporting_frequencies": {
       "description": "Supported reporting frequency options",
       "items": {
-        "enum": [
-          "hourly",
-          "daily",
-          "monthly"
-        ],
-        "type": "string"
+        "$ref": "reporting-frequency.json"
       },
       "minItems": 1,
       "type": "array",

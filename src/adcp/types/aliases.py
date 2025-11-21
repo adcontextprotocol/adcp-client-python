@@ -673,10 +673,128 @@ Example:
 """
 
 # ============================================================================
+# FILTER TYPE ALIASES - Request Filter Name Collision Resolution
+# ============================================================================
+# The AdCP schemas define multiple `Filters` classes with the same name but
+# different fields for different request types. The generator creates these
+# as local classes within each request module.
+#
+# These aliases resolve the name collision by providing semantic names that
+# clearly indicate which request type each filter belongs to.
+
+from adcp.types.generated_poc.get_products_request import Filters as ProductFiltersInternal
+from adcp.types.generated_poc.get_signals_request import Filters as SignalFiltersInternal
+from adcp.types.generated_poc.list_creatives_request import Filters as CreativeFiltersInternal
+
+ProductFilters = ProductFiltersInternal
+"""Filters for GetProductsRequest.
+
+Used when discovering available advertising products to narrow down results
+based on delivery type, pricing model, format requirements, etc.
+
+Fields:
+- delivery_type: Filter by delivery type (guaranteed/non_guaranteed)
+- is_fixed_price: Filter for fixed price vs auction products
+- format_types: Filter by format types (video, display, audio)
+- format_ids: Filter by specific format IDs
+- standard_formats_only: Only return products accepting IAB standard formats
+- min_exposures: Minimum exposures/impressions needed (≥1)
+
+Example:
+    ```python
+    from adcp import ProductFilters, GetProductsRequest
+
+    filters = ProductFilters(
+        delivery_type="guaranteed",
+        format_types=["video", "display"],
+        min_exposures=10000
+    )
+
+    request = GetProductsRequest(
+        brief="Premium video inventory",
+        filters=filters
+    )
+    ```
+"""
+
+CreativeFilters = CreativeFiltersInternal
+"""Filters for ListCreativesRequest.
+
+Used when querying creative assets from the centralized library to filter
+by format, status, tags, assignment status, and date ranges.
+
+Fields:
+- format: Filter by single creative format type
+- formats: Filter by multiple creative format types
+- status: Filter by approval status (processing, pending_review, approved, rejected)
+- statuses: Filter by multiple approval statuses
+- tags: Filter by tags (all tags must match)
+- tags_any: Filter by tags (any tag must match)
+- name_contains: Filter by creative names containing text (case-insensitive)
+- creative_ids: Filter by specific creative IDs (max 100)
+- created_after: Filter creatives created after date (ISO 8601)
+- created_before: Filter creatives created before date
+- updated_after: Filter creatives updated after date
+- updated_before: Filter creatives updated before date
+- assigned_to_package: Filter creatives assigned to specific package
+- assigned_to_packages: Filter creatives assigned to any of these packages
+- unassigned: Filter for unassigned (true) or assigned (false) creatives
+- has_performance_data: Filter creatives with performance data
+
+Example:
+    ```python
+    from adcp import CreativeFilters, ListCreativesRequest
+
+    filters = CreativeFilters(
+        status="approved",
+        formats=["video", "display"],
+        tags=["holiday", "2024"],
+        has_performance_data=True
+    )
+
+    request = ListCreativesRequest(filters=filters)
+    ```
+"""
+
+SignalFilters = SignalFiltersInternal
+"""Filters for GetSignalsRequest.
+
+Used when discovering audience signals to refine results based on
+catalog type, data providers, pricing, and coverage requirements.
+
+Fields:
+- catalog_types: Filter by catalog type (marketplace, custom, owned)
+- data_providers: Filter by specific data providers
+- max_cpm: Maximum CPM price filter (≥0)
+- min_coverage_percentage: Minimum coverage requirement (0-100)
+
+Example:
+    ```python
+    from adcp import SignalFilters, GetSignalsRequest
+
+    filters = SignalFilters(
+        catalog_types=["marketplace", "owned"],
+        max_cpm=5.00,
+        min_coverage_percentage=80.0
+    )
+
+    request = GetSignalsRequest(
+        signal_spec="Coffee enthusiasts in major metros",
+        deliver_to={...},
+        filters=filters
+    )
+    ```
+"""
+
+# ============================================================================
 # EXPORTS
 # ============================================================================
 
 __all__ = [
+    # Filter type aliases
+    "ProductFilters",
+    "CreativeFilters",
+    "SignalFilters",
     # Activation responses
     "ActivateSignalSuccessResponse",
     "ActivateSignalErrorResponse",

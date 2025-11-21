@@ -25,13 +25,7 @@
           "capabilities": {
             "description": "Capabilities this creative agent provides",
             "items": {
-              "enum": [
-                "validation",
-                "assembly",
-                "generation",
-                "preview"
-              ],
-              "type": "string"
+              "$ref": "creative-agent-capability.json"
             },
             "type": "array"
           }

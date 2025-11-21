@@ -20,7 +20,7 @@
         "deployments": {
           "description": "Array of deployment results for each deployment target",
           "items": {
-            "$ref": "/schemas/v1/core/deployment.json"
+            "$ref": "deployment.json"
           },
           "type": "array"
         }
@@ -47,7 +47,7 @@
         "errors": {
           "description": "Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)",
           "items": {
-            "$ref": "/schemas/v1/core/error.json"
+            "$ref": "error.json"
           },
           "minItems": 1,
           "type": "array"

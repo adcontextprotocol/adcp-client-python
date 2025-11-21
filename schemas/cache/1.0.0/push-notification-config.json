@@ -16,11 +16,7 @@
         "schemes": {
           "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for signature verification (recommended for production)",
           "items": {
-            "enum": [
-              "Bearer",
-              "HMAC-SHA256"
-            ],
-            "type": "string"
+            "$ref": "auth-scheme.json"
           },
           "maxItems": 1,
           "minItems": 1,

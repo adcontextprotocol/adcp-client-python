@@ -12,7 +12,7 @@
     "errors": {
       "description": "Task-specific errors and warnings (e.g., signal discovery or pricing issues)",
       "items": {
-        "$ref": "/schemas/v1/core/error.json"
+        "$ref": "error.json"
       },
       "type": "array"
     },
@@ -34,7 +34,7 @@
           "deployments": {
             "description": "Array of deployment targets",
             "items": {
-              "$ref": "/schemas/v1/core/deployment.json"
+              "$ref": "deployment.json"
             },
             "type": "array"
           },
@@ -72,13 +72,8 @@
             "type": "string"
           },
           "signal_type": {
-            "description": "Type of signal",
-            "enum": [
-              "marketplace",
-              "custom",
-              "owned"
-            ],
-            "type": "string"
+            "$ref": "signal-catalog-type.json",
+            "description": "Type of signal"
           }
         },
         "required": [

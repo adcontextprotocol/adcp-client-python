@@ -12,7 +12,7 @@
     "deployments": {
       "description": "Target deployment(s) for activation. If the authenticated caller matches one of these deployment targets, activation keys will be included in the response.",
       "items": {
-        "$ref": "/schemas/v1/core/destination.json"
+        "$ref": "destination.json"
       },
       "minItems": 1,
       "type": "array"

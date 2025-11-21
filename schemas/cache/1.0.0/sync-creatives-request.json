@@ -119,13 +119,9 @@
       "description": "Optional webhook configuration for async sync notifications. Publisher will send webhook when sync completes if operation takes longer than immediate response time (typically for large bulk operations or manual approval/HITL)."
     },
     "validation_mode": {
+      "$ref": "validation-mode.json",
       "default": "strict",
-      "description": "Validation strictness. 'strict' fails entire sync on any validation error. 'lenient' processes valid creatives and reports errors.",
-      "enum": [
-        "strict",
-        "lenient"
-      ],
-      "type": "string"
+      "description": "Validation strictness. 'strict' fails entire sync on any validation error. 'lenient' processes valid creatives and reports errors."
     }
   },
   "required": [

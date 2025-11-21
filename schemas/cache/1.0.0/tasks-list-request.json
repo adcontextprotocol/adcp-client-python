@@ -79,21 +79,13 @@
           "type": "string"
         },
         "domain": {
-          "description": "Filter by single AdCP domain",
-          "enum": [
-            "media-buy",
-            "signals"
-          ],
-          "type": "string"
+          "$ref": "adcp-domain.json",
+          "description": "Filter by single AdCP domain"
         },
         "domains": {
           "description": "Filter by multiple AdCP domains",
           "items": {
-            "enum": [
-              "media-buy",
-              "signals"
-            ],
-            "type": "string"
+            "$ref": "adcp-domain.json"
           },
           "type": "array"
         },
@@ -174,13 +166,9 @@
       "description": "Sorting parameters",
       "properties": {
         "direction": {
+          "$ref": "sort-direction.json",
           "default": "desc",
-          "description": "Sort direction",
-          "enum": [
-            "asc",
-            "desc"
-          ],
-          "type": "string"
+          "description": "Sort direction"
         },
         "field": {
           "default": "created_at",
