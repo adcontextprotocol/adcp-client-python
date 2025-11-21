@@ -1613,7 +1613,7 @@ attributes &ndash; see the documentation for details.</p></div>
         ),
     ]
     property_ids: Annotated[
-        list[PropertyId],
+        list[property_id.PropertyId],
         Field(
             description=&#39;Property IDs this agent is authorized for. Resolved against the top-level properties array in this file&#39;,
             min_length=1,
@@ -1648,7 +1648,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.AuthorizedAgents.property_ids"><code class="name">var <span class="ident">property_ids</span> : list[<a title="adcp.types.generated_poc.adagents.PropertyId" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.PropertyId">PropertyId</a>]</code></dt>
+<dt id="adcp.types.AuthorizedAgents.property_ids"><code class="name">var <span class="ident">property_ids</span> : list[<a title="adcp.types.generated_poc.property_id.PropertyId" href="generated_poc/property_id.html#adcp.types.generated_poc.property_id.PropertyId">PropertyId</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1684,7 +1684,7 @@ validated to form a valid model.</p>
         ),
     ]
     property_ids: Annotated[
-        list[PropertyId],
+        list[property_id.PropertyId],
         Field(
             description=&#39;Property IDs this agent is authorized for. Resolved against the top-level properties array in this file&#39;,
             min_length=1,
@@ -1719,7 +1719,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.AuthorizedAgents.property_ids"><code class="name">var <span class="ident">property_ids</span> : list[<a title="adcp.types.generated_poc.adagents.PropertyId" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.PropertyId">PropertyId</a>]</code></dt>
+<dt id="adcp.types.AuthorizedAgents.property_ids"><code class="name">var <span class="ident">property_ids</span> : list[<a title="adcp.types.generated_poc.property_id.PropertyId" href="generated_poc/property_id.html#adcp.types.generated_poc.property_id.PropertyId">PropertyId</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1764,7 +1764,7 @@ validated to form a valid model.</p>
         ),
     ]
     property_tags: Annotated[
-        list[PropertyTag],
+        list[property_tag.PropertyTag],
         Field(
             description=&#39;Tags identifying which properties this agent is authorized for. Resolved against the top-level properties array in this file using tag matching&#39;,
             min_length=1,
@@ -1799,7 +1799,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.AuthorizedAgents1.property_tags"><code class="name">var <span class="ident">property_tags</span> : list[<a title="adcp.types.generated_poc.adagents.PropertyTag" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.PropertyTag">PropertyTag</a>]</code></dt>
+<dt id="adcp.types.AuthorizedAgents1.property_tags"><code class="name">var <span class="ident">property_tags</span> : list[<a title="adcp.types.generated_poc.property_tag.PropertyTag" href="generated_poc/property_tag.html#adcp.types.generated_poc.property_tag.PropertyTag">PropertyTag</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -13806,8 +13806,10 @@ validated to form a valid model.</p>
     property_id: Annotated[
         str | None,
         Field(
-            description=&#34;Unique identifier for this property (optional). Enables referencing properties by ID instead of repeating full objects. Recommended format: lowercase with underscores (e.g., &#39;cnn_ctv_app&#39;, &#39;instagram_mobile&#39;)&#34;,
+            description=&#39;Unique identifier for this property (optional). Enables referencing properties by ID instead of repeating full objects.&#39;,
+            examples=[&#39;cnn_ctv_app&#39;, &#39;homepage&#39;, &#39;mobile_ios&#39;, &#39;instagram&#39;],
             pattern=&#39;^[a-z0-9_]+$&#39;,
+            title=&#39;Property ID&#39;,
         ),
     ] = None
     property_type: Annotated[
@@ -13820,7 +13822,7 @@ validated to form a valid model.</p>
         ),
     ] = None
     tags: Annotated[
-        list[Tag] | None,
+        list[property_tag.PropertyTag] | None,
         Field(
             description=&#39;Tags for categorization and grouping (e.g., network membership, content categories)&#39;
         ),
@@ -13865,7 +13867,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.Property.tags"><code class="name">var <span class="ident">tags</span> : list[<a title="adcp.types.generated_poc.property.Tag" href="generated_poc/property.html#adcp.types.generated_poc.property.Tag">Tag</a>] | None</code></dt>
+<dt id="adcp.types.Property.tags"><code class="name">var <span class="ident">tags</span> : list[<a title="adcp.types.generated_poc.property_tag.PropertyTag" href="generated_poc/property_tag.html#adcp.types.generated_poc.property_tag.PropertyTag">PropertyTag</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -13890,7 +13892,15 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PropertyId(RootModel[str]):
-    root: Annotated[str, Field(pattern=&#39;^[a-z0-9_]+$&#39;)]</code></pre>
+    root: Annotated[
+        str,
+        Field(
+            description=&#39;Identifier for a publisher property. Must be lowercase alphanumeric with underscores only.&#39;,
+            examples=[&#39;cnn_ctv_app&#39;, &#39;homepage&#39;, &#39;mobile_ios&#39;, &#39;instagram&#39;],
+            pattern=&#39;^[a-z0-9_]+$&#39;,
+            title=&#39;Property ID&#39;,
+        ),
+    ]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -13918,10 +13928,6 @@ validated to form a valid model.</p>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
 <li>typing.Generic</li>
-</ul>
-<h3>Subclasses</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.adagents.PropertyTag" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.PropertyTag">PropertyTag</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -14093,8 +14099,16 @@ attributes &ndash; see the documentation for details.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PropertyTag(PropertyId):
-    pass</code></pre>
+<pre><code class="python">class PropertyTag(RootModel[str]):
+    root: Annotated[
+        str,
+        Field(
+            description=&#39;Tag for categorizing publisher properties. Must be lowercase alphanumeric with underscores only.&#39;,
+            examples=[&#39;ctv&#39;, &#39;premium&#39;, &#39;news&#39;, &#39;sports&#39;, &#39;meta_network&#39;, &#39;social_media&#39;],
+            pattern=&#39;^[a-z0-9_]+$&#39;,
+            title=&#39;Property Tag&#39;,
+        ),
+    ]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -14118,7 +14132,6 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.adagents.PropertyId" href="generated_poc/adagents.html#adcp.types.generated_poc.adagents.PropertyId">PropertyId</a></li>
 <li>pydantic.root_model.RootModel[str]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
@@ -14127,6 +14140,10 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.PropertyTag.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PropertyTag.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -14892,7 +14909,7 @@ validated to form a valid model.</p>
         extra=&#39;forbid&#39;,
     )
     property_ids: Annotated[
-        list[PropertyId],
+        list[property_id.PropertyId],
         Field(description=&#34;Specific property IDs from the publisher&#39;s adagents.json&#34;, min_length=1),
     ]
     publisher_domain: Annotated[
@@ -14926,7 +14943,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.PublisherPropertySelector2.property_ids"><code class="name">var <span class="ident">property_ids</span> : list[<a title="adcp.types.generated_poc.publisher_property_selector.PropertyId" href="generated_poc/publisher_property_selector.html#adcp.types.generated_poc.publisher_property_selector.PropertyId">PropertyId</a>]</code></dt>
+<dt id="adcp.types.PublisherPropertySelector2.property_ids"><code class="name">var <span class="ident">property_ids</span> : list[<a title="adcp.types.generated_poc.property_id.PropertyId" href="generated_poc/property_id.html#adcp.types.generated_poc.property_id.PropertyId">PropertyId</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -14963,7 +14980,7 @@ validated to form a valid model.</p>
         extra=&#39;forbid&#39;,
     )
     property_tags: Annotated[
-        list[PropertyTag],
+        list[property_tag.PropertyTag],
         Field(
             description=&#34;Property tags from the publisher&#39;s adagents.json. Selector covers all properties with these tags&#34;,
             min_length=1,
@@ -14999,7 +15016,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.PublisherPropertySelector3.property_tags"><code class="name">var <span class="ident">property_tags</span> : list[<a title="adcp.types.generated_poc.publisher_property_selector.PropertyTag" href="generated_poc/publisher_property_selector.html#adcp.types.generated_poc.publisher_property_selector.PropertyTag">PropertyTag</a>]</code></dt>
+<dt id="adcp.types.PublisherPropertySelector3.property_tags"><code class="name">var <span class="ident">property_tags</span> : list[<a title="adcp.types.generated_poc.property_tag.PropertyTag" href="generated_poc/property_tag.html#adcp.types.generated_poc.property_tag.PropertyTag">PropertyTag</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -17376,63 +17393,6 @@ validated to form a valid model.</p>
 </ul>
 </li>
 </ul>
-</dd>
-<dt id="adcp.types.Tag"><code class="flex name class">
-<span>class <span class="ident">Tag</span></span>
-<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Tag(RootModel[str]):
-    root: Annotated[
-        str,
-        Field(
-            description=&#34;Lowercase tag with underscores (e.g., &#39;conde_nast_network&#39;, &#39;premium_content&#39;)&#34;,
-            pattern=&#39;^[a-z0-9_]+$&#39;,
-        ),
-    ]</code></pre>
-</details>
-<div class="desc"><div class="admonition abstract">
-<p class="admonition-title">Usage Documentation</p>
-<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
-</div>
-<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
-<h2 id="attributes">Attributes</h2>
-<dl>
-<dt><strong><code>root</code></strong></dt>
-<dd>The root object of the model.</dd>
-<dt><strong><code>__pydantic_root_model__</code></strong></dt>
-<dd>Whether the model is a RootModel.</dd>
-<dt><strong><code>__pydantic_private__</code></strong></dt>
-<dd>Private fields in the model.</dd>
-<dt><strong><code>__pydantic_extra__</code></strong></dt>
-<dd>Extra fields in the model.</dd>
-</dl>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>pydantic.root_model.RootModel[str]</li>
-<li>pydantic.root_model.RootModel</li>
-<li>pydantic.main.BaseModel</li>
-<li>typing.Generic</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.Tag.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Tag.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
 </dd>
 <dt id="adcp.types.Tags"><code class="flex name class">
 <span>class <span class="ident">Tags</span></span>
@@ -22456,6 +22416,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <h4><code><a title="adcp.types.PropertyTag" href="#adcp.types.PropertyTag">PropertyTag</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.PropertyTag.model_config" href="#adcp.types.PropertyTag.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.PropertyTag.root" href="#adcp.types.PropertyTag.root">root</a></code></li>
 </ul>
 </li>
 <li>
@@ -22893,13 +22854,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.SyncCreativesResponse2.context" href="#adcp.types.SyncCreativesResponse2.context">context</a></code></li>
 <li><code><a title="adcp.types.SyncCreativesResponse2.errors" href="#adcp.types.SyncCreativesResponse2.errors">errors</a></code></li>
 <li><code><a title="adcp.types.SyncCreativesResponse2.model_config" href="#adcp.types.SyncCreativesResponse2.model_config">model_config</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.Tag" href="#adcp.types.Tag">Tag</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.Tag.model_config" href="#adcp.types.Tag.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.Tag.root" href="#adcp.types.Tag.root">root</a></code></li>
 </ul>
 </li>
 <li>

@@ -46,109 +46,6 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.publisher_property_selector.PropertyId"><code class="flex name class">
-<span>class <span class="ident">PropertyId</span></span>
-<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class PropertyId(RootModel[str]):
-    root: Annotated[str, Field(pattern=&#39;^[a-z0-9_]+$&#39;)]</code></pre>
-</details>
-<div class="desc"><div class="admonition abstract">
-<p class="admonition-title">Usage Documentation</p>
-<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
-</div>
-<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
-<h2 id="attributes">Attributes</h2>
-<dl>
-<dt><strong><code>root</code></strong></dt>
-<dd>The root object of the model.</dd>
-<dt><strong><code>__pydantic_root_model__</code></strong></dt>
-<dd>Whether the model is a RootModel.</dd>
-<dt><strong><code>__pydantic_private__</code></strong></dt>
-<dd>Private fields in the model.</dd>
-<dt><strong><code>__pydantic_extra__</code></strong></dt>
-<dd>Extra fields in the model.</dd>
-</dl>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>pydantic.root_model.RootModel[str]</li>
-<li>pydantic.root_model.RootModel</li>
-<li>pydantic.main.BaseModel</li>
-<li>typing.Generic</li>
-</ul>
-<h3>Subclasses</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.publisher_property_selector.PropertyTag" href="#adcp.types.generated_poc.publisher_property_selector.PropertyTag">PropertyTag</a></li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.publisher_property_selector.PropertyId.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.publisher_property_selector.PropertyId.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.publisher_property_selector.PropertyTag"><code class="flex name class">
-<span>class <span class="ident">PropertyTag</span></span>
-<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class PropertyTag(PropertyId):
-    pass</code></pre>
-</details>
-<div class="desc"><div class="admonition abstract">
-<p class="admonition-title">Usage Documentation</p>
-<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
-</div>
-<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
-<h2 id="attributes">Attributes</h2>
-<dl>
-<dt><strong><code>root</code></strong></dt>
-<dd>The root object of the model.</dd>
-<dt><strong><code>__pydantic_root_model__</code></strong></dt>
-<dd>Whether the model is a RootModel.</dd>
-<dt><strong><code>__pydantic_private__</code></strong></dt>
-<dd>Private fields in the model.</dd>
-<dt><strong><code>__pydantic_extra__</code></strong></dt>
-<dd>Extra fields in the model.</dd>
-</dl>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.publisher_property_selector.PropertyId" href="#adcp.types.generated_poc.publisher_property_selector.PropertyId">PropertyId</a></li>
-<li>pydantic.root_model.RootModel[str]</li>
-<li>pydantic.root_model.RootModel</li>
-<li>pydantic.main.BaseModel</li>
-<li>typing.Generic</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.publisher_property_selector.PropertyTag.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 <dt id="adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector1"><code class="flex name class">
 <span>class <span class="ident">PublisherPropertySelector1</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -228,7 +125,7 @@ validated to form a valid model.</p>
         extra=&#39;forbid&#39;,
     )
     property_ids: Annotated[
-        list[PropertyId],
+        list[property_id.PropertyId],
         Field(description=&#34;Specific property IDs from the publisher&#39;s adagents.json&#34;, min_length=1),
     ]
     publisher_domain: Annotated[
@@ -262,7 +159,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector2.property_ids"><code class="name">var <span class="ident">property_ids</span> : list[<a title="adcp.types.generated_poc.publisher_property_selector.PropertyId" href="#adcp.types.generated_poc.publisher_property_selector.PropertyId">PropertyId</a>]</code></dt>
+<dt id="adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector2.property_ids"><code class="name">var <span class="ident">property_ids</span> : list[<a title="adcp.types.generated_poc.property_id.PropertyId" href="property_id.html#adcp.types.generated_poc.property_id.PropertyId">PropertyId</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -299,7 +196,7 @@ validated to form a valid model.</p>
         extra=&#39;forbid&#39;,
     )
     property_tags: Annotated[
-        list[PropertyTag],
+        list[property_tag.PropertyTag],
         Field(
             description=&#34;Property tags from the publisher&#39;s adagents.json. Selector covers all properties with these tags&#34;,
             min_length=1,
@@ -335,7 +232,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector3.property_tags"><code class="name">var <span class="ident">property_tags</span> : list[<a title="adcp.types.generated_poc.publisher_property_selector.PropertyTag" href="#adcp.types.generated_poc.publisher_property_selector.PropertyTag">PropertyTag</a>]</code></dt>
+<dt id="adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector3.property_tags"><code class="name">var <span class="ident">property_tags</span> : list[<a title="adcp.types.generated_poc.property_tag.PropertyTag" href="property_tag.html#adcp.types.generated_poc.property_tag.PropertyTag">PropertyTag</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -373,19 +270,6 @@ validated to form a valid model.</p>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
-<li>
-<h4><code><a title="adcp.types.generated_poc.publisher_property_selector.PropertyId" href="#adcp.types.generated_poc.publisher_property_selector.PropertyId">PropertyId</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.publisher_property_selector.PropertyId.model_config" href="#adcp.types.generated_poc.publisher_property_selector.PropertyId.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.publisher_property_selector.PropertyId.root" href="#adcp.types.generated_poc.publisher_property_selector.PropertyId.root">root</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.publisher_property_selector.PropertyTag" href="#adcp.types.generated_poc.publisher_property_selector.PropertyTag">PropertyTag</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.publisher_property_selector.PropertyTag.model_config" href="#adcp.types.generated_poc.publisher_property_selector.PropertyTag.model_config">model_config</a></code></li>
-</ul>
-</li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector1" href="#adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector1">PublisherPropertySelector1</a></code></h4>
 <ul class="">
