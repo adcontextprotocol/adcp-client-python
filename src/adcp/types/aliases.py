@@ -59,10 +59,10 @@ class CreativeFilters(BaseModel):
         None, description="Filter by multiple creative format types"
     )
     status: (
-        Literal["draft", "pending_review", "approved", "rejected", "archived"] | None
+        Literal["processing", "pending_review", "approved", "rejected"] | None
     ) = Field(None, description="Filter by creative approval status")
     statuses: (
-        list[Literal["draft", "pending_review", "approved", "rejected", "archived"]] | None
+        list[Literal["processing", "pending_review", "approved", "rejected"]] | None
     ) = Field(None, description="Filter by multiple creative statuses")
     tags: list[str] | None = Field(
         None, description="Filter by creative tags (all tags must match)"
@@ -108,15 +108,19 @@ class SignalFilters(BaseModel):
     Filters for GetSignalsRequest.
 
     Used when discovering audience signals to refine the results based on
-    signal characteristics, delivery requirements, or other criteria.
-
-    Note: The schema defines this as a generic object. This class provides
-    a structured base that can be extended as signal filtering requirements evolve.
+    catalog type, data providers, pricing, and coverage requirements.
     """
 
-    # Schema currently defines this as a flexible object without specific properties
-    # Keeping as extensible BaseModel for forward compatibility
-    pass
+    catalog_types: list[Literal["marketplace", "custom", "owned"]] | None = Field(
+        None, description="Filter by catalog type"
+    )
+    data_providers: list[str] | None = Field(
+        None, description="Filter by specific data providers"
+    )
+    max_cpm: float | None = Field(None, description="Maximum CPM price filter", ge=0)
+    min_coverage_percentage: float | None = Field(
+        None, description="Minimum coverage requirement", ge=0, le=100
+    )
 
 
 # ============================================================================
