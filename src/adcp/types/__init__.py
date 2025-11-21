@@ -286,7 +286,9 @@ from adcp.types.aliases import (
 )
 
 # Re-export core types (not in generated, but part of public API)
-from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus, WebhookMetadata
+# Note: We don't import TaskStatus here to avoid shadowing GeneratedTaskStatus
+# Users should import TaskStatus from adcp.types.core directly if they need the core enum
+from adcp.types.core import AgentConfig, Protocol, TaskResult, WebhookMetadata
 
 # Backward compatibility aliases
 AssetType = AssetContentType  # Use AssetContentType instead
@@ -475,7 +477,6 @@ __all__ = [
     "Sort",
     "StandardFormatIds",
     "Status",
-    "TaskStatus",
     "TaskType",
     "DaastTrackingEvent",
     "VastTrackingEvent",
@@ -514,7 +515,6 @@ __all__ = [
     "AgentConfig",
     "Protocol",
     "TaskResult",
-    "TaskStatus",
     "WebhookMetadata",
     # Semantic aliases for discriminated unions
     "ActivateSignalErrorResponse",

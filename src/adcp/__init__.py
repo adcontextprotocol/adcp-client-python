@@ -88,6 +88,7 @@ from adcp.types import (
     Format,
     FormatCategory,
     FormatId,
+    GeneratedTaskStatus,
     GetMediaBuyDeliveryRequest,
     GetMediaBuyDeliveryResponse,
     GetProductsRequest,
@@ -123,9 +124,6 @@ from adcp.types import (
     VcpmAuctionPricingOption,
     VcpmFixedRatePricingOption,
     aliases,
-)
-from adcp.types import (
-    TaskStatus as GeneratedTaskStatus,
 )
 
 # Import generated types modules - for internal use

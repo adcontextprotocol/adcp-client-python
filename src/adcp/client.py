@@ -24,6 +24,7 @@ from adcp.types import (
     BuildCreativeResponse,
     CreateMediaBuyRequest,
     CreateMediaBuyResponse,
+    GeneratedTaskStatus,
     GetMediaBuyDeliveryRequest,
     GetMediaBuyDeliveryResponse,
     GetProductsRequest,
@@ -45,9 +46,6 @@ from adcp.types import (
     UpdateMediaBuyRequest,
     UpdateMediaBuyResponse,
     WebhookPayload,
-)
-from adcp.types import (
-    TaskStatus as GeneratedTaskStatus,
 )
 from adcp.types.core import (
     Activity,
