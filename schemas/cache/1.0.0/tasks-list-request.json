@@ -79,21 +79,13 @@
           "type": "string"
         },
         "domain": {
-          "description": "Filter by single AdCP domain",
-          "enum": [
-            "media-buy",
-            "signals"
-          ],
-          "type": "string"
+          "$ref": "/schemas/v1/enums/adcp-domain.json",
+          "description": "Filter by single AdCP domain"
         },
         "domains": {
           "description": "Filter by multiple AdCP domains",
           "items": {
-            "enum": [
-              "media-buy",
-              "signals"
-            ],
-            "type": "string"
+            "$ref": "/schemas/v1/enums/adcp-domain.json"
           },
           "type": "array"
         },
@@ -102,13 +94,13 @@
           "type": "boolean"
         },
         "status": {
-          "$ref": "task-status.json",
+          "$ref": "/schemas/v1/enums/task-status.json",
           "description": "Filter by single task status"
         },
         "statuses": {
           "description": "Filter by multiple task statuses",
           "items": {
-            "$ref": "task-status.json"
+            "$ref": "/schemas/v1/enums/task-status.json"
           },
           "type": "array"
         },
@@ -121,13 +113,13 @@
           "type": "array"
         },
         "task_type": {
-          "$ref": "task-type.json",
+          "$ref": "/schemas/v1/enums/task-type.json",
           "description": "Filter by single task type"
         },
         "task_types": {
           "description": "Filter by multiple task types",
           "items": {
-            "$ref": "task-type.json"
+            "$ref": "/schemas/v1/enums/task-type.json"
           },
           "type": "array"
         },
@@ -174,13 +166,9 @@
       "description": "Sorting parameters",
       "properties": {
         "direction": {
+          "$ref": "/schemas/v1/enums/sort-direction.json",
           "default": "desc",
-          "description": "Sort direction",
-          "enum": [
-            "asc",
-            "desc"
-          ],
-          "type": "string"
+          "description": "Sort direction"
         },
         "field": {
           "default": "created_at",

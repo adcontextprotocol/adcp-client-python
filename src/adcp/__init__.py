@@ -102,9 +102,9 @@ from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus, Webho
 # Re-export commonly-used request/response types for convenience
 # Users should import from main package (e.g., `from adcp import GetProductsRequest`)
 # rather than internal modules for better API stability
-# Re-export core domain types and pricing options from stable API
+# Re-export core domain types and pricing options
 # These are commonly used in typical workflows
-from adcp.types.stable import (
+from adcp.types import (
     # Audience & Targeting
     ActivateSignalRequest,
     ActivateSignalResponse,
@@ -126,6 +126,7 @@ from adcp.types.stable import (
     CreateMediaBuyRequest,
     CreateMediaBuyResponse,
     Creative,
+    CreativeFilters,
     CreativeManifest,
     # Status enums (for control flow)
     CreativeStatus,
@@ -142,6 +143,7 @@ from adcp.types.stable import (
     GetSignalsRequest,
     GetSignalsResponse,
     ListAuthorizedPropertiesRequest,
+    SignalFilters,
     ListAuthorizedPropertiesResponse,
     ListCreativeFormatsRequest,
     ListCreativeFormatsResponse,
@@ -157,6 +159,7 @@ from adcp.types.stable import (
     PriceGuidance,
     PricingModel,
     Product,
+    ProductFilters,
     Property,
     ProvidePerformanceFeedbackRequest,
     ProvidePerformanceFeedbackResponse,
@@ -168,7 +171,7 @@ from adcp.types.stable import (
     VcpmAuctionPricingOption,
     VcpmFixedRatePricingOption,
 )
-from adcp.types.stable import (
+from adcp.types import (
     TaskStatus as GeneratedTaskStatus,
 )
 from adcp.validation import (
@@ -214,6 +217,7 @@ __all__ = [
     "ActivateSignalResponse",
     "GetSignalsRequest",
     "GetSignalsResponse",
+    "SignalFilters",
     "ListAuthorizedPropertiesRequest",
     "ListAuthorizedPropertiesResponse",
     "ProvidePerformanceFeedbackRequest",
@@ -225,10 +229,12 @@ __all__ = [
     "AssetContentType",
     "FormatCategory",
     "Product",
+    "ProductFilters",
     "Property",
     # Core domain types (from stable API)
     "BrandManifest",
     "Creative",
+    "CreativeFilters",
     "CreativeManifest",
     "MediaBuy",
     "Package",

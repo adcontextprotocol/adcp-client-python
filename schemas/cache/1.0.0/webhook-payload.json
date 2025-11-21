@@ -170,12 +170,8 @@
       "type": "string"
     },
     "domain": {
-      "description": "AdCP domain this task belongs to. Helps classify the operation type at a high level.",
-      "enum": [
-        "media-buy",
-        "signals"
-      ],
-      "type": "string"
+      "$ref": "/schemas/v1/enums/adcp-domain.json",
+      "description": "AdCP domain this task belongs to. Helps classify the operation type at a high level."
     },
     "error": {
       "description": "Error message for failed tasks. Only present when status is 'failed'.",

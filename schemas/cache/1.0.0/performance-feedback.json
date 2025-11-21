@@ -18,14 +18,8 @@
       "type": "string"
     },
     "feedback_source": {
-      "description": "Source of the performance data",
-      "enum": [
-        "buyer_attribution",
-        "third_party_measurement",
-        "platform_analytics",
-        "verification_partner"
-      ],
-      "type": "string"
+      "$ref": "/schemas/v1/enums/feedback-source.json",
+      "description": "Source of the performance data"
     },
     "measurement_period": {
       "additionalProperties": false,
@@ -53,18 +47,8 @@
       "type": "string"
     },
     "metric_type": {
-      "description": "The business metric being measured",
-      "enum": [
-        "overall_performance",
-        "conversion_rate",
-        "brand_lift",
-        "click_through_rate",
-        "completion_rate",
-        "viewability",
-        "brand_safety",
-        "cost_efficiency"
-      ],
-      "type": "string"
+      "$ref": "/schemas/v1/enums/metric-type.json",
+      "description": "The business metric being measured"
     },
     "package_id": {
       "description": "Specific package within the media buy (if feedback is package-specific)",

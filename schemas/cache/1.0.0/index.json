@@ -70,6 +70,10 @@
           "$ref": "/schemas/v1/core/creative-assignment.json",
           "description": "Assignment of a creative asset to a package"
         },
+        "creative-filters": {
+          "$ref": "/schemas/v1/core/creative-filters.json",
+          "description": "Filter criteria for querying creative assets from the centralized library"
+        },
         "creative-manifest": {
           "$ref": "/schemas/v1/core/creative-manifest.json",
           "description": "Complete specification of a creative with all assets needed for rendering"
@@ -130,6 +134,10 @@
           "$ref": "/schemas/v1/core/product.json",
           "description": "Represents available advertising inventory"
         },
+        "product-filters": {
+          "$ref": "/schemas/v1/core/product-filters.json",
+          "description": "Structured filters for product discovery"
+        },
         "promoted-products": {
           "$ref": "/schemas/v1/core/promoted-products.json",
           "description": "Product or offering selection for campaigns with multiple selection methods"
@@ -149,6 +157,10 @@
         "response": {
           "$ref": "/schemas/v1/core/response.json",
           "description": "Standard response structure (MCP)"
+        },
+        "signal-filters": {
+          "$ref": "/schemas/v1/core/signal-filters.json",
+          "description": "Filters to refine signal discovery results"
         },
         "start-timing": {
           "$ref": "/schemas/v1/core/start-timing.json",
@@ -210,21 +222,69 @@
     "enums": {
       "description": "Enumerated types and constants",
       "schemas": {
+        "adcp-domain": {
+          "$ref": "/schemas/v1/enums/adcp-domain.json",
+          "description": "AdCP protocol domains (media-buy, signals)"
+        },
         "asset-content-type": {
           "$ref": "/schemas/v1/enums/asset-content-type.json",
           "description": "Types of content that can be used as creative assets (image, video, html, etc.)"
+        },
+        "auth-scheme": {
+          "$ref": "/schemas/v1/enums/auth-scheme.json",
+          "description": "Authentication schemes for push notifications"
+        },
+        "available-metric": {
+          "$ref": "/schemas/v1/enums/available-metric.json",
+          "description": "Standard delivery and performance metrics for reporting"
         },
         "channels": {
           "$ref": "/schemas/v1/enums/channels.json",
           "description": "Advertising channels (display, video, dooh, ctv, audio, etc.)"
         },
+        "co-branding-requirement": {
+          "$ref": "/schemas/v1/enums/co-branding-requirement.json",
+          "description": "Co-branding policy for creatives (required, optional, none)"
+        },
+        "creative-action": {
+          "$ref": "/schemas/v1/enums/creative-action.json",
+          "description": "Actions taken on creatives during sync (created, updated, unchanged, failed, deleted)"
+        },
+        "creative-agent-capability": {
+          "$ref": "/schemas/v1/enums/creative-agent-capability.json",
+          "description": "Capabilities supported by creative agents (validation, assembly, generation, preview)"
+        },
+        "creative-sort-field": {
+          "$ref": "/schemas/v1/enums/creative-sort-field.json",
+          "description": "Fields available for sorting creative listings"
+        },
         "creative-status": {
           "$ref": "/schemas/v1/enums/creative-status.json",
           "description": "Status of a creative asset"
         },
+        "daast-tracking-event": {
+          "$ref": "/schemas/v1/enums/daast-tracking-event.json",
+          "description": "Standard DAAST tracking events for audio playback and interaction"
+        },
+        "daast-version": {
+          "$ref": "/schemas/v1/enums/daast-version.json",
+          "description": "Supported DAAST specification versions (1.0, 1.1)"
+        },
         "delivery-type": {
           "$ref": "/schemas/v1/enums/delivery-type.json",
           "description": "Type of inventory delivery"
+        },
+        "dimension-unit": {
+          "$ref": "/schemas/v1/enums/dimension-unit.json",
+          "description": "Units of measurement for creative format dimensions (px, dp, inches, cm)"
+        },
+        "feed-format": {
+          "$ref": "/schemas/v1/enums/feed-format.json",
+          "description": "Product catalog feed formats"
+        },
+        "feedback-source": {
+          "$ref": "/schemas/v1/enums/feedback-source.json",
+          "description": "Source of performance feedback data"
         },
         "format-category": {
           "$ref": "/schemas/v1/enums/format-category.json",
@@ -234,13 +294,41 @@
           "$ref": "/schemas/v1/enums/frequency-cap-scope.json",
           "description": "Scope for frequency cap application"
         },
+        "history-entry-type": {
+          "$ref": "/schemas/v1/enums/history-entry-type.json",
+          "description": "Type of task history entry (request, response)"
+        },
+        "http-method": {
+          "$ref": "/schemas/v1/enums/http-method.json",
+          "description": "HTTP methods for webhook requests (GET, POST)"
+        },
         "identifier-types": {
           "$ref": "/schemas/v1/enums/identifier-types.json",
           "description": "Valid identifier types for property identification across different media types"
         },
+        "javascript-module-type": {
+          "$ref": "/schemas/v1/enums/javascript-module-type.json",
+          "description": "JavaScript module format types (esm, commonjs, script)"
+        },
+        "landing-page-requirement": {
+          "$ref": "/schemas/v1/enums/landing-page-requirement.json",
+          "description": "Landing page policy for creative destinations (any, retailer_site_only, must_include_retailer)"
+        },
+        "markdown-flavor": {
+          "$ref": "/schemas/v1/enums/markdown-flavor.json",
+          "description": "Markdown specification flavors (commonmark, gfm)"
+        },
         "media-buy-status": {
           "$ref": "/schemas/v1/enums/media-buy-status.json",
           "description": "Status of a media buy"
+        },
+        "metric-type": {
+          "$ref": "/schemas/v1/enums/metric-type.json",
+          "description": "Performance metric types for feedback and optimization"
+        },
+        "notification-type": {
+          "$ref": "/schemas/v1/enums/notification-type.json",
+          "description": "Types of delivery notifications (scheduled, final, delayed, adjusted)"
         },
         "pacing": {
           "$ref": "/schemas/v1/enums/pacing.json",
@@ -250,13 +338,33 @@
           "$ref": "/schemas/v1/enums/package-status.json",
           "description": "Status of a package"
         },
+        "preview-output-format": {
+          "$ref": "/schemas/v1/enums/preview-output-format.json",
+          "description": "Output formats for creative previews (url, html)"
+        },
         "pricing-model": {
           "$ref": "/schemas/v1/enums/pricing-model.json",
           "description": "Supported pricing models for advertising products"
         },
+        "property-type": {
+          "$ref": "/schemas/v1/enums/property-type.json",
+          "description": "Types of advertising properties (website, mobile_app, ctv_app, dooh, podcast, radio, streaming_audio)"
+        },
         "publisher-identifier-types": {
           "$ref": "/schemas/v1/enums/publisher-identifier-types.json",
           "description": "Valid identifier types for publisher/legal entity identification (TAG ID, DUNS, LEI, seller_id, GLN)"
+        },
+        "reporting-frequency": {
+          "$ref": "/schemas/v1/enums/reporting-frequency.json",
+          "description": "Frequencies for delivery reports (hourly, daily, monthly)"
+        },
+        "signal-catalog-type": {
+          "$ref": "/schemas/v1/enums/signal-catalog-type.json",
+          "description": "Types of signal catalogs (marketplace, custom, owned)"
+        },
+        "sort-direction": {
+          "$ref": "/schemas/v1/enums/sort-direction.json",
+          "description": "Sort direction for list queries (asc, desc)"
         },
         "standard-format-ids": {
           "$ref": "/schemas/v1/enums/standard-format-ids.json",
@@ -269,6 +377,34 @@
         "task-type": {
           "$ref": "/schemas/v1/enums/task-type.json",
           "description": "Valid AdCP task types across all domains (create_media_buy, update_media_buy, sync_creatives, activate_signal, get_signals)"
+        },
+        "update-frequency": {
+          "$ref": "/schemas/v1/enums/update-frequency.json",
+          "description": "Frequency of product catalog updates"
+        },
+        "url-asset-type": {
+          "$ref": "/schemas/v1/enums/url-asset-type.json",
+          "description": "Types of URL assets (clickthrough, tracker_pixel, tracker_script)"
+        },
+        "validation-mode": {
+          "$ref": "/schemas/v1/enums/validation-mode.json",
+          "description": "Creative validation strictness levels (strict, lenient)"
+        },
+        "vast-tracking-event": {
+          "$ref": "/schemas/v1/enums/vast-tracking-event.json",
+          "description": "Standard VAST tracking events for video playback and interaction"
+        },
+        "vast-version": {
+          "$ref": "/schemas/v1/enums/vast-version.json",
+          "description": "Supported VAST specification versions (2.0, 3.0, 4.0, 4.1, 4.2)"
+        },
+        "webhook-response-type": {
+          "$ref": "/schemas/v1/enums/webhook-response-type.json",
+          "description": "Expected response content types from webhooks"
+        },
+        "webhook-security-method": {
+          "$ref": "/schemas/v1/enums/webhook-security-method.json",
+          "description": "Security methods for webhook authentication"
         }
       }
     },

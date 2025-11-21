@@ -23,7 +23,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from adcp.exceptions import ADCPSimpleAPIError
-from adcp.types.stable import (
+from adcp.types import (
     ActivateSignalRequest,
     ActivateSignalResponse,
     BuildCreativeRequest,

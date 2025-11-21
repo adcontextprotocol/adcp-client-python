@@ -25,13 +25,7 @@
           "capabilities": {
             "description": "Capabilities this creative agent provides",
             "items": {
-              "enum": [
-                "validation",
-                "assembly",
-                "generation",
-                "preview"
-              ],
-              "type": "string"
+              "$ref": "/schemas/v1/enums/creative-agent-capability.json"
             },
             "type": "array"
           }
@@ -46,14 +40,14 @@
     "errors": {
       "description": "Task-specific errors and warnings (e.g., format availability issues)",
       "items": {
-        "$ref": "error.json"
+        "$ref": "/schemas/v1/core/error.json"
       },
       "type": "array"
     },
     "formats": {
       "description": "Full format definitions for all formats this agent supports. Each format's authoritative source is indicated by its agent_url field.",
       "items": {
-        "$ref": "format.json"
+        "$ref": "/schemas/v1/core/format.json"
       },
       "type": "array"
     }

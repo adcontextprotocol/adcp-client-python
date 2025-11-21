@@ -13,11 +13,11 @@
           "type": "object"
         },
         "creative_manifest": {
-          "$ref": "creative-manifest.json",
+          "$ref": "/schemas/v1/core/creative-manifest.json",
           "description": "Complete creative manifest with all required assets (including promoted_offerings if required by the format)"
         },
         "format_id": {
-          "$ref": "format-id.json",
+          "$ref": "/schemas/v1/core/format-id.json",
           "description": "Format identifier for rendering the preview"
         },
         "inputs": {
@@ -49,13 +49,9 @@
           "type": "array"
         },
         "output_format": {
+          "$ref": "/schemas/v1/enums/preview-output-format.json",
           "default": "url",
-          "description": "Output format for previews. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding). Default: 'url' for backward compatibility.",
-          "enum": [
-            "url",
-            "html"
-          ],
-          "type": "string"
+          "description": "Output format for previews. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding). Default: 'url' for backward compatibility."
         },
         "request_type": {
           "const": "single",
@@ -84,13 +80,9 @@
           "type": "object"
         },
         "output_format": {
+          "$ref": "/schemas/v1/enums/preview-output-format.json",
           "default": "url",
-          "description": "Default output format for all requests in this batch. Individual requests can override this. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding).",
-          "enum": [
-            "url",
-            "html"
-          ],
-          "type": "string"
+          "description": "Default output format for all requests in this batch. Individual requests can override this. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding)."
         },
         "request_type": {
           "const": "batch",
@@ -103,11 +95,11 @@
             "additionalProperties": false,
             "properties": {
               "creative_manifest": {
-                "$ref": "creative-manifest.json",
+                "$ref": "/schemas/v1/core/creative-manifest.json",
                 "description": "Complete creative manifest with all required assets"
               },
               "format_id": {
-                "$ref": "format-id.json",
+                "$ref": "/schemas/v1/core/format-id.json",
                 "description": "Format identifier for rendering the preview"
               },
               "inputs": {
@@ -139,13 +131,9 @@
                 "type": "array"
               },
               "output_format": {
+                "$ref": "/schemas/v1/enums/preview-output-format.json",
                 "default": "url",
-                "description": "Output format for this preview. 'url' returns preview_url, 'html' returns preview_html.",
-                "enum": [
-                  "url",
-                  "html"
-                ],
-                "type": "string"
+                "description": "Output format for this preview. 'url' returns preview_url, 'html' returns preview_html."
               },
               "template_id": {
                 "description": "Specific template ID for custom format rendering",

@@ -9,13 +9,8 @@
       "type": "string"
     },
     "module_type": {
-      "description": "JavaScript module type",
-      "enum": [
-        "esm",
-        "commonjs",
-        "script"
-      ],
-      "type": "string"
+      "$ref": "/schemas/v1/enums/javascript-module-type.json",
+      "description": "JavaScript module type"
     }
   },
   "required": [

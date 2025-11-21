@@ -19,7 +19,7 @@ PackageRequest = dict[str, Any]
 
 **Stable Public API Layer - Import Architecture**
 
-**CRITICAL**: Both `generated_poc/` and `_generated.py` are internal implementation. Source code must ONLY import from `stable.py` or `aliases.py`.
+**CRITICAL**: Both `generated_poc/` and `_generated.py` are internal implementation. Source code must ONLY import from `types/__init__.py` or `aliases.py`.
 
 ### Import Architecture
 
@@ -30,9 +30,9 @@ generated_poc/*.py (internal, auto-generated from schemas)
     ↓
 _generated.py (internal consolidation, handles name collisions)
     ↓
-stable.py (public API for base types) + aliases.py (public API for discriminated unions)
+types/__init__.py (public API for base types) + aliases.py (public API for discriminated unions)
     ↓
-__init__.py (user-facing exports)
+adcp/__init__.py (user-facing convenience exports)
 ```
 
 ### Import Rules for Source Code
@@ -40,7 +40,7 @@ __init__.py (user-facing exports)
 **✅ CORRECT - Public API only:**
 ```python
 # For base types (requests, responses, domain models)
-from adcp.types.stable import (
+from adcp.types import (
     GetProductsRequest,
     GetProductsResponse,
     Product,
@@ -83,18 +83,18 @@ from adcp.types._generated import CreateMediaBuyResponse1
    - Internal consolidation logic
    - Changes when collision handling evolves
 
-3. **`stable.py` and `aliases.py`** provide:
+3. **`types/__init__.py` and `aliases.py`** provide:
    - Clean, semantic names
    - Stability guarantees within major versions
    - Explicit public API
 
 ### Special Cases
 
-**Only `stable.py` and `aliases.py` may import from `_generated.py`:**
-- `stable.py`: Imports base types and re-exports with clean names
+**Only `types/__init__.py` and `aliases.py` may import from `_generated.py`:**
+- `types/__init__.py`: Imports base types and re-exports with clean names
 - `aliases.py`: Imports numbered discriminated union types and creates semantic aliases
 
-**All other source files must import from `stable.py` or `aliases.py`.**
+**All other source files must import from `types/__init__.py` or `aliases.py`.**
 
 **NEVER Modify Generated Files Directly**
 

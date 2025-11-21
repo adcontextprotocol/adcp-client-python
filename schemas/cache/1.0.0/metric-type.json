@@ -1,0 +1,17 @@
+{
+  "$id": "/schemas/v1/enums/metric-type.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Performance metric types for feedback and optimization",
+  "enum": [
+    "overall_performance",
+    "conversion_rate",
+    "brand_lift",
+    "click_through_rate",
+    "completion_rate",
+    "viewability",
+    "brand_safety",
+    "cost_efficiency"
+  ],
+  "title": "Metric Type",
+  "type": "string"
+}

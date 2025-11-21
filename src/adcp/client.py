@@ -25,7 +25,7 @@ from adcp.types.core import (
     TaskResult,
     TaskStatus,
 )
-from adcp.types.stable import (
+from adcp.types import (
     ActivateSignalRequest,
     ActivateSignalResponse,
     BuildCreativeRequest,
@@ -54,7 +54,7 @@ from adcp.types.stable import (
     UpdateMediaBuyResponse,
     WebhookPayload,
 )
-from adcp.types.stable import (
+from adcp.types import (
     TaskStatus as GeneratedTaskStatus,
 )
 from adcp.utils.operation_id import create_operation_id
