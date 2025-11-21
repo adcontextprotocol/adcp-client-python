@@ -120,7 +120,7 @@
   "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/media-buy/list-creatives-request.json": "821e52ea8c42fe78d333b75e6a4012a64c68b4d1a8bb55f4a0ff8f71362a0e71",
   "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/media-buy/list-creatives-response.json": "0916774bff1452b7d825dcf36ac483a7466198ce7cd6ab654e66d741d851ba87",
   "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/media-buy/package-request.json": "22360197b0cb6f1a29aa5dc27a0001d4dae3d38d6b5028464ce33855a16fff49",
-  "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/media-buy/provide-performance-feedback-request.json": "c723ed5ed41e64db59ffe2c32a240755acaab7830b1dbc0eabbd5a6b90739014",
+  "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/media-buy/provide-performance-feedback-request.json": "8662d543396c02ae6847c0d368b559a745f838b8c6e0c0bd9104b148ea6117b2",
   "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/media-buy/provide-performance-feedback-response.json": "027956a411298fe8e6b4b9e7ddf07b9879bc9d03621946f98a91a06e4e3938cf",
   "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/media-buy/sync-creatives-request.json": "954f28624c90f605dead545b9fdf7bf4312372b86c1b57737f9e270ef2d4d408",
   "https://raw.githubusercontent.com/adcontextprotocol/adcp/main/static/schemas/v1/media-buy/sync-creatives-response.json": "903701587da2660aff4fb0e643c6ecd6a09c9e35161d69587930ed72084e5137",

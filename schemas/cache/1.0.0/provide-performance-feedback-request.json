@@ -3,7 +3,28 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Request payload for provide_performance_feedback task",
+  "oneOf": [
+    {
+      "required": [
+        "media_buy_id",
+        "measurement_period",
+        "performance_index"
+      ]
+    },
+    {
+      "required": [
+        "buyer_ref",
+        "measurement_period",
+        "performance_index"
+      ]
+    }
+  ],
   "properties": {
+    "buyer_ref": {
+      "description": "Buyer's reference for the media buy",
+      "minLength": 1,
+      "type": "string"
+    },
     "context": {
       "additionalProperties": true,
       "description": "Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.",
@@ -61,11 +82,6 @@
       "type": "number"
     }
   },
-  "required": [
-    "media_buy_id",
-    "measurement_period",
-    "performance_index"
-  ],
   "title": "Provide Performance Feedback Request",
   "type": "object"
 }
