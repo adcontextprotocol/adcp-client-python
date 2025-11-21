@@ -146,6 +146,14 @@
           "$ref": "/schemas/v1/core/property.json",
           "description": "An advertising property that can be validated via adagents.json"
         },
+        "property-id": {
+          "$ref": "/schemas/v1/core/property-id.json",
+          "description": "Identifier for a publisher property - lowercase alphanumeric with underscores only"
+        },
+        "property-tag": {
+          "$ref": "/schemas/v1/core/property-tag.json",
+          "description": "Tag for categorizing publisher properties - lowercase alphanumeric with underscores only"
+        },
         "protocol-envelope": {
           "$ref": "/schemas/v1/core/protocol-envelope.json",
           "description": "Standard envelope structure added by protocol layer (MCP, A2A, REST) that wraps task response payloads with protocol-level fields like status, context_id, task_id, and message"

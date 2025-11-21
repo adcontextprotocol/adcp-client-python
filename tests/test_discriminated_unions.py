@@ -769,3 +769,78 @@ class TestSemanticAliasDiscriminatorRoundtrips:
         parsed = TextSubAsset.model_validate_json(json_str)
         assert parsed.asset_kind == "text"
         assert parsed.content == original.content
+
+
+class TestPropertyTagSharedSchema:
+    """Test that PropertyTag uses shared schema definition.
+
+    As of AdCP v1.0.0, PropertyTag and PropertyId are defined in separate shared
+    schema files (property-tag.json and property-id.json) that are referenced by
+    both adagents.json and publisher-property-selector.json.
+
+    This eliminates the previous name collision where both files defined their own
+    identical PropertyTag types.
+    """
+
+    def test_public_property_tag_is_from_shared_schema(self):
+        """Public PropertyTag should be from the shared property_tag schema."""
+        from adcp import PropertyTag
+
+        # Should come from the shared schema, not embedded in another schema
+        assert PropertyTag.__module__ == "adcp.types.generated_poc.property_tag"
+
+    def test_property_id_is_from_shared_schema(self):
+        """Public PropertyId should be from the shared property_id schema."""
+        from adcp import PropertyId
+
+        # Should come from the shared schema
+        assert PropertyId.__module__ == "adcp.types.generated_poc.property_id"
+
+    def test_property_tag_works_with_publisher_properties_by_tag(self):
+        """PropertyTag should work correctly with PublisherPropertiesByTag."""
+        from adcp import PropertyTag, PublisherPropertiesByTag
+
+        props = PublisherPropertiesByTag(
+            publisher_domain="example.com",
+            selection_type="by_tag",
+            property_tags=[PropertyTag("premium"), PropertyTag("video")]
+        )
+
+        assert props.selection_type == "by_tag"
+        assert len(props.property_tags) == 2
+        assert str(props.property_tags[0].root) == "premium"
+        assert str(props.property_tags[1].root) == "video"
+
+    def test_shared_schema_prevents_collision(self):
+        """Verify that both adagents and publisher_property_selector import from shared schema."""
+        from adcp.types.generated_poc import property_tag
+        from adcp import PropertyTag
+
+        # The shared schema is the canonical definition
+        assert PropertyTag is property_tag.PropertyTag
+
+        # Both adagents.py and publisher_property_selector.py should import from property_tag module
+        # (not define their own)
+        import inspect
+        import adcp.types.generated_poc.adagents as adagents_module
+        import adcp.types.generated_poc.publisher_property_selector as selector_module
+
+        # Check that they import from property_tag, not define their own
+        adagents_source = inspect.getsource(adagents_module)
+        selector_source = inspect.getsource(selector_module)
+
+        # May be on same line as other imports or separate line
+        assert "property_tag" in adagents_source and "from . import" in adagents_source
+        assert "property_tag" in selector_source and "from . import" in selector_source
+
+    def test_property_tag_validation(self):
+        """PropertyTag should validate according to shared schema rules."""
+        from adcp import PropertyTag
+
+        # Valid tags: lowercase alphanumeric + underscores
+        valid = PropertyTag("premium_video")
+        assert str(valid.root) == "premium_video"
+
+        # Pattern validation should work
+        with pytest.raises(ValidationError):
+            PropertyTag("Invalid-Tag")  # Hyphens not allowed in property tags

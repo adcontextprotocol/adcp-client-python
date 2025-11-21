@@ -134,6 +134,21 @@ from adcp.types.generated_poc.format import Asset as FormatAsset
 - Sharing common types via `$ref`
 - Using discriminated unions where appropriate
 
+**PropertyTag/PropertyId Shared Schemas (Fixed Upstream in v1.0.0):**
+
+As of AdCP v1.0.0, the upstream schemas were refactored to use shared schema files:
+- `property-id.json` - Single canonical definition of PropertyId
+- `property-tag.json` - Single canonical definition of PropertyTag
+
+Both `adagents.json` and `publisher-property-selector.json` now reference these shared schemas instead of defining their own versions. This eliminates the previous type collision where both files defined identical but separate PropertyTag types.
+
+The code generator now produces:
+- `src/adcp/types/generated_poc/property_id.py` - Generated from property-id.json
+- `src/adcp/types/generated_poc/property_tag.py` - Generated from property-tag.json
+- Both `adagents.py` and `publisher_property_selector.py` import from these shared modules
+
+**No SDK workaround needed** - the type system now correctly has a single PropertyTag definition.
+
 **Current fixes applied:**
 
 1. **Self-referential types** - Fixes `preview_render.py` if it contains module-qualified self-references

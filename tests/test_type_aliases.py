@@ -430,8 +430,14 @@ def test_publisher_properties_aliases_in_exports():
 
 
 def test_property_id_and_tag_are_root_models():
-    """Test that PropertyId and PropertyTag are properly constrained string types."""
+    """Test that PropertyId and PropertyTag are properly constrained string types.
+
+    As of AdCP v1.0.0, PropertyId and PropertyTag are separate RootModel types
+    defined in their own schema files, not in an inheritance relationship.
+    Both use the same pattern constraint (^[a-z0-9_]+$) but are semantically distinct.
+    """
     from adcp import PropertyId, PropertyTag
+    from pydantic import RootModel
 
     # Create valid PropertyId and PropertyTag
     prop_id = PropertyId("my_property_id")
@@ -441,8 +447,14 @@ def test_property_id_and_tag_are_root_models():
     assert prop_id.root == "my_property_id"
     assert prop_tag.root == "premium"
 
-    # PropertyTag should be a subclass of PropertyId
-    assert issubclass(PropertyTag, PropertyId)
+    # Both should be RootModel subclasses (but not related to each other)
+    assert issubclass(PropertyId, RootModel)
+    assert issubclass(PropertyTag, RootModel)
+
+    # They are separate types, not in an inheritance relationship
+    assert PropertyId is not PropertyTag
+    assert not issubclass(PropertyTag, PropertyId)
+    assert not issubclass(PropertyId, PropertyTag)
 
 
 def test_deployment_aliases_imports():
