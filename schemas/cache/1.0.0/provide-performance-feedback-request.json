@@ -3,7 +3,28 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Request payload for provide_performance_feedback task",
+  "oneOf": [
+    {
+      "required": [
+        "media_buy_id",
+        "measurement_period",
+        "performance_index"
+      ]
+    },
+    {
+      "required": [
+        "buyer_ref",
+        "measurement_period",
+        "performance_index"
+      ]
+    }
+  ],
   "properties": {
+    "buyer_ref": {
+      "description": "Buyer's reference for the media buy",
+      "minLength": 1,
+      "type": "string"
+    },
     "context": {
       "additionalProperties": true,
       "description": "Initiator-provided context included in the request payload. Agentsmust echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.",
@@ -15,15 +36,9 @@
       "type": "string"
     },
     "feedback_source": {
+      "$ref": "/schemas/v1/enums/feedback-source.json",
       "default": "buyer_attribution",
-      "description": "Source of the performance data",
-      "enum": [
-        "buyer_attribution",
-        "third_party_measurement",
-        "platform_analytics",
-        "verification_partner"
-      ],
-      "type": "string"
+      "description": "Source of the performance data"
     },
     "measurement_period": {
       "additionalProperties": false,
@@ -52,19 +67,9 @@
       "type": "string"
     },
     "metric_type": {
+      "$ref": "/schemas/v1/enums/metric-type.json",
       "default": "overall_performance",
-      "description": "The business metric being measured",
-      "enum": [
-        "overall_performance",
-        "conversion_rate",
-        "brand_lift",
-        "click_through_rate",
-        "completion_rate",
-        "viewability",
-        "brand_safety",
-        "cost_efficiency"
-      ],
-      "type": "string"
+      "description": "The business metric being measured"
     },
     "package_id": {
       "description": "Specific package within the media buy (if feedback is package-specific)",
@@ -77,11 +82,6 @@
       "type": "number"
     }
   },
-  "required": [
-    "media_buy_id",
-    "measurement_period",
-    "performance_index"
-  ],
   "title": "Provide Performance Feedback Request",
   "type": "object"
 }

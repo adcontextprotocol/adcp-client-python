@@ -1,0 +1,35 @@
+{
+  "$id": "/schemas/v1/core/signal-filters.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Filters to refine signal discovery results",
+  "properties": {
+    "catalog_types": {
+      "description": "Filter by catalog type",
+      "items": {
+        "$ref": "/schemas/v1/enums/signal-catalog-type.json"
+      },
+      "type": "array"
+    },
+    "data_providers": {
+      "description": "Filter by specific data providers",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "max_cpm": {
+      "description": "Maximum CPM price filter",
+      "minimum": 0,
+      "type": "number"
+    },
+    "min_coverage_percentage": {
+      "description": "Minimum coverage requirement",
+      "maximum": 100,
+      "minimum": 0,
+      "type": "number"
+    }
+  },
+  "title": "Signal Filters",
+  "type": "object"
+}

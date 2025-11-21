@@ -285,8 +285,8 @@ def test_semantic_aliases_can_be_imported_from_main_package():
 
 
 def test_stable_package_export_is_full_package():
-    """Test that stable.py exports the Package as Package."""
-    from adcp.types.stable import Package as StablePackage
+    """Test that types/__init__.py exports the Package as Package."""
+    from adcp.types import Package as StablePackage
 
     # Stable Package should be the full package
     stable_fields = set(StablePackage.__annotations__.keys())

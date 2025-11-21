@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from adcp.client import ADCPClient
-    from adcp.types.stable import CreativeManifest, Format, FormatId, Product
+    from adcp.types import CreativeManifest, Format, FormatId, Product
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +123,7 @@ class PreviewURLGenerator:
         Returns:
             List of preview data dicts (or None for failures), in same order as requests
         """
-        from adcp.types.stable import PreviewCreativeRequest
+        from adcp.types import PreviewCreativeRequest
 
         if not requests:
             return []
@@ -396,7 +396,7 @@ def _create_sample_manifest_for_format(fmt: Format) -> CreativeManifest | None:
     Returns:
         Sample CreativeManifest, or None if unable to create one
     """
-    from adcp.types.stable import CreativeManifest
+    from adcp.types import CreativeManifest
 
     if not fmt.assets_required:
         return None
@@ -436,7 +436,7 @@ def _create_sample_manifest_for_format_id(
     Returns:
         Sample CreativeManifest with placeholder assets
     """
-    from adcp.types.stable import CreativeManifest, ImageAsset, UrlAsset
+    from adcp.types import CreativeManifest, ImageAsset, UrlAsset
 
     assets = {
         "primary_asset": ImageAsset(url="https://example.com/sample-image.jpg"),
@@ -456,7 +456,7 @@ def _create_sample_asset(asset_type: str | None) -> Any:
     Returns:
         Sample asset object (Pydantic model)
     """
-    from adcp.types.stable import (
+    from adcp.types import (
         HtmlAsset,
         ImageAsset,
         TextAsset,

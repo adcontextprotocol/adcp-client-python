@@ -243,15 +243,9 @@
                 "type": "object"
               },
               "unit": {
+                "$ref": "/schemas/v1/enums/dimension-unit.json",
                 "default": "px",
-                "description": "Unit of measurement for dimensions",
-                "enum": [
-                  "px",
-                  "dp",
-                  "inches",
-                  "cm"
-                ],
-                "type": "string"
+                "description": "Unit of measurement for dimensions"
               },
               "width": {
                 "description": "Fixed width in specified units",

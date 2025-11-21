@@ -37,41 +37,7 @@
       "type": "object"
     },
     "filters": {
-      "additionalProperties": false,
-      "description": "Filters to refine results",
-      "properties": {
-        "catalog_types": {
-          "description": "Filter by catalog type",
-          "items": {
-            "enum": [
-              "marketplace",
-              "custom",
-              "owned"
-            ],
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "data_providers": {
-          "description": "Filter by specific data providers",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "max_cpm": {
-          "description": "Maximum CPM price filter",
-          "minimum": 0,
-          "type": "number"
-        },
-        "min_coverage_percentage": {
-          "description": "Minimum coverage requirement",
-          "maximum": 100,
-          "minimum": 0,
-          "type": "number"
-        }
-      },
-      "type": "object"
+      "$ref": "/schemas/v1/core/signal-filters.json"
     },
     "max_results": {
       "description": "Maximum number of results to return",

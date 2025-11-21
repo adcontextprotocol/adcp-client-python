@@ -17,21 +17,14 @@ from adcp.exceptions import ADCPWebhookSignatureError
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.base import ProtocolAdapter
 from adcp.protocols.mcp import MCPAdapter
-from adcp.types.core import (
-    Activity,
-    ActivityType,
-    AgentConfig,
-    Protocol,
-    TaskResult,
-    TaskStatus,
-)
-from adcp.types.stable import (
+from adcp.types import (
     ActivateSignalRequest,
     ActivateSignalResponse,
     BuildCreativeRequest,
     BuildCreativeResponse,
     CreateMediaBuyRequest,
     CreateMediaBuyResponse,
+    GeneratedTaskStatus,
     GetMediaBuyDeliveryRequest,
     GetMediaBuyDeliveryResponse,
     GetProductsRequest,
@@ -54,8 +47,13 @@ from adcp.types.stable import (
     UpdateMediaBuyResponse,
     WebhookPayload,
 )
-from adcp.types.stable import (
-    TaskStatus as GeneratedTaskStatus,
+from adcp.types.core import (
+    Activity,
+    ActivityType,
+    AgentConfig,
+    Protocol,
+    TaskResult,
+    TaskStatus,
 )
 from adcp.utils.operation_id import create_operation_id
 

@@ -23,15 +23,8 @@
             "additionalProperties": false,
             "properties": {
               "action": {
-                "description": "Action taken for this creative",
-                "enum": [
-                  "created",
-                  "updated",
-                  "unchanged",
-                  "failed",
-                  "deleted"
-                ],
-                "type": "string"
+                "$ref": "/schemas/v1/enums/creative-action.json",
+                "description": "Action taken for this creative"
               },
               "assigned_to": {
                 "description": "Package IDs this creative was successfully assigned to (only present when assignments were requested)",
@@ -135,7 +128,7 @@
         "errors": {
           "description": "Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)",
           "items": {
-            "$ref": "error.json"
+            "$ref": "/schemas/v1/core/error.json"
           },
           "minItems": 1,
           "type": "array"

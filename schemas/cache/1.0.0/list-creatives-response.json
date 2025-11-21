@@ -378,11 +378,7 @@
           "description": "Sort order that was applied",
           "properties": {
             "direction": {
-              "enum": [
-                "asc",
-                "desc"
-              ],
-              "type": "string"
+              "$ref": "/schemas/v1/enums/sort-direction.json"
             },
             "field": {
               "type": "string"

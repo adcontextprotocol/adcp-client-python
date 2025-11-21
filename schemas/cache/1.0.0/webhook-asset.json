@@ -5,13 +5,9 @@
   "description": "Webhook for server-side dynamic content rendering (DCO)",
   "properties": {
     "method": {
+      "$ref": "/schemas/v1/enums/http-method.json",
       "default": "POST",
-      "description": "HTTP method",
-      "enum": [
-        "GET",
-        "POST"
-      ],
-      "type": "string"
+      "description": "HTTP method"
     },
     "required_macros": {
       "description": "Universal macros that must be provided for webhook to function",
@@ -21,14 +17,8 @@
       "type": "array"
     },
     "response_type": {
-      "description": "Expected content type of webhook response",
-      "enum": [
-        "html",
-        "json",
-        "xml",
-        "javascript"
-      ],
-      "type": "string"
+      "$ref": "/schemas/v1/enums/webhook-response-type.json",
+      "description": "Expected content type of webhook response"
     },
     "security": {
       "description": "Security configuration for webhook calls",
@@ -42,13 +32,8 @@
           "type": "string"
         },
         "method": {
-          "description": "Authentication method",
-          "enum": [
-            "hmac_sha256",
-            "api_key",
-            "none"
-          ],
-          "type": "string"
+          "$ref": "/schemas/v1/enums/webhook-security-method.json",
+          "description": "Authentication method"
         }
       },
       "required": [

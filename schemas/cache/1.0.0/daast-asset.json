@@ -11,12 +11,8 @@
           "type": "boolean"
         },
         "daast_version": {
-          "description": "DAAST specification version",
-          "enum": [
-            "1.0",
-            "1.1"
-          ],
-          "type": "string"
+          "$ref": "/schemas/v1/enums/daast-version.json",
+          "description": "DAAST specification version"
         },
         "delivery_type": {
           "const": "url",
@@ -31,20 +27,7 @@
         "tracking_events": {
           "description": "Tracking events supported by this DAAST tag",
           "items": {
-            "enum": [
-              "start",
-              "firstQuartile",
-              "midpoint",
-              "thirdQuartile",
-              "complete",
-              "impression",
-              "pause",
-              "resume",
-              "skip",
-              "mute",
-              "unmute"
-            ],
-            "type": "string"
+            "$ref": "/schemas/v1/enums/daast-tracking-event.json"
           },
           "type": "array"
         },
@@ -72,12 +55,8 @@
           "type": "string"
         },
         "daast_version": {
-          "description": "DAAST specification version",
-          "enum": [
-            "1.0",
-            "1.1"
-          ],
-          "type": "string"
+          "$ref": "/schemas/v1/enums/daast-version.json",
+          "description": "DAAST specification version"
         },
         "delivery_type": {
           "const": "inline",
@@ -92,20 +71,7 @@
         "tracking_events": {
           "description": "Tracking events supported by this DAAST tag",
           "items": {
-            "enum": [
-              "start",
-              "firstQuartile",
-              "midpoint",
-              "thirdQuartile",
-              "complete",
-              "impression",
-              "pause",
-              "resume",
-              "skip",
-              "mute",
-              "unmute"
-            ],
-            "type": "string"
+            "$ref": "/schemas/v1/enums/daast-tracking-event.json"
           },
           "type": "array"
         }
