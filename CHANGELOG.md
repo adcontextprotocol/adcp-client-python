@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.11.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.11.0...v2.11.1) (2025-11-21)
+
+
+### Bug Fixes
+
+* trigger release for PropertyTag/PropertyId schema updates ([#81](https://github.com/adcontextprotocol/adcp-client-python/issues/81)) ([f9556c5](https://github.com/adcontextprotocol/adcp-client-python/commit/f9556c5ab7319761844643175f0c588e717f1417))
+
 ## [2.11.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.10.0...v2.11.0) (2025-11-21)
 
 

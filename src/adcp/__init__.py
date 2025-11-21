@@ -180,7 +180,7 @@ from adcp.validation import (
     validate_publisher_properties_item,
 )
 
-__version__ = "2.11.0"
+__version__ = "2.11.1"
 
 __all__ = [
     # Client classes
