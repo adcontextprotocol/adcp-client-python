@@ -82,10 +82,20 @@ if result.status == "submitted":
 Full type hints with Pydantic validation and auto-generated types from the AdCP spec:
 
 ```python
-from adcp import GetProductsRequest
+from adcp import GetProductsRequest, ProductFilters
+
+# Strongly-typed filters with IDE autocomplete
+filters = ProductFilters(
+    delivery_type="guaranteed",
+    format_types=["video", "display"],
+    min_exposures=10000
+)
 
 # All methods require typed request objects
-request = GetProductsRequest(brief="Coffee brands", max_results=10)
+request = GetProductsRequest(
+    brief="Coffee brands",
+    filters=filters.model_dump(exclude_none=True)
+)
 result = await agent.get_products(request)
 # result: TaskResult[GetProductsResponse]
 
@@ -93,6 +103,8 @@ if result.success:
     for product in result.data.products:
         print(product.name, product.pricing_options)  # Full IDE autocomplete!
 ```
+
+**New in v2.10.1:** Strongly-typed filter classes (`ProductFilters`, `CreativeFilters`, `SignalFilters`) provide IDE autocomplete, type checking, and inline documentation. See [Filter Types Migration Guide](FILTER_TYPES_MIGRATION.md) for details.
 
 ### Multi-Agent Operations
 Execute across multiple agents simultaneously:

@@ -2,6 +2,12 @@ from __future__ import annotations
 
 """Type definitions for AdCP client."""
 
+from adcp.types.aliases import (
+    CreativeFilters,
+    Filters,
+    ProductFilters,
+    SignalFilters,
+)
 from adcp.types.core import (
     Activity,
     ActivityType,
@@ -14,6 +20,7 @@ from adcp.types.core import (
 )
 
 __all__ = [
+    # Core types
     "AgentConfig",
     "Protocol",
     "TaskResult",
@@ -22,4 +29,9 @@ __all__ = [
     "Activity",
     "ActivityType",
     "DebugInfo",
+    # Filter types
+    "CreativeFilters",
+    "ProductFilters",
+    "SignalFilters",
+    "Filters",  # Generic alias for backward compatibility
 ]

@@ -18,6 +18,7 @@ from adcp.exceptions import (
     ADCPWebhookError,
     ADCPWebhookSignatureError,
 )
+from adcp.types.aliases import CreativeFilters, Filters, ProductFilters, SignalFilters
 from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus, WebhookMetadata
 from adcp.types.generated import (
     ActivateSignalRequest,
@@ -58,6 +59,11 @@ __all__ = [
     "TaskResult",
     "TaskStatus",
     "WebhookMetadata",
+    # Filter types
+    "CreativeFilters",
+    "ProductFilters",
+    "SignalFilters",
+    "Filters",
     # Exceptions
     "ADCPError",
     "ADCPConnectionError",
