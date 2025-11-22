@@ -371,6 +371,7 @@ __all__ = [
     "FormatCard",
     "FormatCardDetailed",
     "FormatId",
+    "FormatIdParameter",
     "Identifier",
     "Input",
     "LandingPageRequirement",
