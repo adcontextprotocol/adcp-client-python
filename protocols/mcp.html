@@ -418,6 +418,50 @@ el.replaceWith(d);
         result = await session.list_tools()
         return [tool.name for tool in result.tools]
 
+    async def get_agent_info(self) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;
+        Get agent information including AdCP extension metadata from MCP server.
+
+        MCP servers may expose metadata through:
+        - Server capabilities exposed during initialization
+        - extensions.adcp in server info (if supported)
+        - Tool list
+
+        Returns:
+            Dictionary with agent metadata
+        &#34;&#34;&#34;
+        session = await self._get_session()
+
+        # Extract basic MCP server info
+        info: dict[str, Any] = {
+            &#34;name&#34;: getattr(session, &#34;server_name&#34;, None),
+            &#34;version&#34;: getattr(session, &#34;server_version&#34;, None),
+            &#34;protocol&#34;: &#34;mcp&#34;,
+        }
+
+        # Get available tools
+        try:
+            tools_result = await session.list_tools()
+            tool_names = [tool.name for tool in tools_result.tools]
+            if tool_names:
+                info[&#34;tools&#34;] = tool_names
+        except Exception as e:
+            logger.warning(f&#34;Failed to list tools for {self.agent_config.id}: {e}&#34;)
+
+        # Try to extract AdCP extension metadata from server capabilities
+        # MCP servers may expose this in their initialization response
+        if hasattr(session, &#34;_server_capabilities&#34;):
+            capabilities = session._server_capabilities
+            if isinstance(capabilities, dict):
+                extensions = capabilities.get(&#34;extensions&#34;, {})
+                adcp_ext = extensions.get(&#34;adcp&#34;, {})
+                if adcp_ext:
+                    info[&#34;adcp_version&#34;] = adcp_ext.get(&#34;adcp_version&#34;)
+                    info[&#34;protocols_supported&#34;] = adcp_ext.get(&#34;protocols_supported&#34;)
+
+        logger.info(f&#34;Retrieved agent info for {self.agent_config.id}&#34;)
+        return info
+
     async def close(self) -&gt; None:
         &#34;&#34;&#34;Close the MCP session and clean up resources.&#34;&#34;&#34;
         await self._cleanup_failed_connection(&#34;during close&#34;)</code></pre>
@@ -444,6 +488,66 @@ el.replaceWith(d);
     await self._cleanup_failed_connection(&#34;during close&#34;)</code></pre>
 </details>
 <div class="desc"><p>Close the MCP session and clean up resources.</p></div>
+</dd>
+<dt id="adcp.protocols.mcp.MCPAdapter.get_agent_info"><code class="name flex">
+<span>async def <span class="ident">get_agent_info</span></span>(<span>self) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_agent_info(self) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;
+    Get agent information including AdCP extension metadata from MCP server.
+
+    MCP servers may expose metadata through:
+    - Server capabilities exposed during initialization
+    - extensions.adcp in server info (if supported)
+    - Tool list
+
+    Returns:
+        Dictionary with agent metadata
+    &#34;&#34;&#34;
+    session = await self._get_session()
+
+    # Extract basic MCP server info
+    info: dict[str, Any] = {
+        &#34;name&#34;: getattr(session, &#34;server_name&#34;, None),
+        &#34;version&#34;: getattr(session, &#34;server_version&#34;, None),
+        &#34;protocol&#34;: &#34;mcp&#34;,
+    }
+
+    # Get available tools
+    try:
+        tools_result = await session.list_tools()
+        tool_names = [tool.name for tool in tools_result.tools]
+        if tool_names:
+            info[&#34;tools&#34;] = tool_names
+    except Exception as e:
+        logger.warning(f&#34;Failed to list tools for {self.agent_config.id}: {e}&#34;)
+
+    # Try to extract AdCP extension metadata from server capabilities
+    # MCP servers may expose this in their initialization response
+    if hasattr(session, &#34;_server_capabilities&#34;):
+        capabilities = session._server_capabilities
+        if isinstance(capabilities, dict):
+            extensions = capabilities.get(&#34;extensions&#34;, {})
+            adcp_ext = extensions.get(&#34;adcp&#34;, {})
+            if adcp_ext:
+                info[&#34;adcp_version&#34;] = adcp_ext.get(&#34;adcp_version&#34;)
+                info[&#34;protocols_supported&#34;] = adcp_ext.get(&#34;protocols_supported&#34;)
+
+    logger.info(f&#34;Retrieved agent info for {self.agent_config.id}&#34;)
+    return info</code></pre>
+</details>
+<div class="desc"><p>Get agent information including AdCP extension metadata from MCP server.</p>
+<p>MCP servers may expose metadata through:
+- Server capabilities exposed during initialization
+- extensions.adcp in server info (if supported)
+- Tool list</p>
+<h2 id="returns">Returns</h2>
+<p>Dictionary with agent metadata</p></div>
 </dd>
 <dt id="adcp.protocols.mcp.MCPAdapter.list_tools"><code class="name flex">
 <span>async def <span class="ident">list_tools</span></span>(<span>self) ‑> list[str]</span>
@@ -515,6 +619,7 @@ el.replaceWith(d);
 <h4><code><a title="adcp.protocols.mcp.MCPAdapter" href="#adcp.protocols.mcp.MCPAdapter">MCPAdapter</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.protocols.mcp.MCPAdapter.close" href="#adcp.protocols.mcp.MCPAdapter.close">close</a></code></li>
+<li><code><a title="adcp.protocols.mcp.MCPAdapter.get_agent_info" href="#adcp.protocols.mcp.MCPAdapter.get_agent_info">get_agent_info</a></code></li>
 <li><code><a title="adcp.protocols.mcp.MCPAdapter.list_tools" href="#adcp.protocols.mcp.MCPAdapter.list_tools">list_tools</a></code></li>
 <li><code><a title="adcp.protocols.mcp.MCPAdapter.preview_creative" href="#adcp.protocols.mcp.MCPAdapter.preview_creative">preview_creative</a></code></li>
 </ul>

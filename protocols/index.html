@@ -173,35 +173,51 @@ el.replaceWith(d);
                     duration_ms=duration_ms,
                 )
 
-            # Parse A2A response format
+            # Parse A2A response format per canonical spec
             # A2A tasks have lifecycle: submitted, working, completed, failed, input-required
-            task_status = data.get(&#34;task&#34;, {}).get(&#34;status&#34;)
+            task_status = data.get(&#34;status&#34;)
 
-            if task_status in (&#34;completed&#34;, &#34;working&#34;):
-                # Extract the result from the response message
+            if task_status == &#34;completed&#34;:
+                # Extract the result from the artifacts array
                 result_data = self._extract_result(data)
+
+                # Check for task-level errors in the payload
+                errors = result_data.get(&#34;errors&#34;, []) if isinstance(result_data, dict) else []
+                has_errors = bool(errors)
 
                 return TaskResult[Any](
                     status=TaskStatus.COMPLETED,
                     data=result_data,
-                    success=True,
-                    metadata={&#34;task_id&#34;: data.get(&#34;task&#34;, {}).get(&#34;id&#34;)},
+                    message=self._extract_text_part(data),
+                    success=not has_errors,
+                    metadata={
+                        &#34;task_id&#34;: data.get(&#34;taskId&#34;),
+                        &#34;context_id&#34;: data.get(&#34;contextId&#34;),
+                    },
                     debug_info=debug_info,
                 )
             elif task_status == &#34;failed&#34;:
+                # Protocol-level failure - extract error message from TextPart
+                error_msg = self._extract_text_part(data) or &#34;Task failed&#34;
                 return TaskResult[Any](
                     status=TaskStatus.FAILED,
-                    error=data.get(&#34;message&#34;, {}).get(&#34;parts&#34;, [{}])[0].get(&#34;text&#34;, &#34;Task failed&#34;),
+                    error=error_msg,
                     success=False,
                     debug_info=debug_info,
                 )
             else:
-                # Handle other states (submitted, input-required)
+                # Handle all interim states (submitted, working, pending, input-required)
+                # These don&#39;t need to have structured AdCP content - only completed responses do
                 return TaskResult[Any](
                     status=TaskStatus.SUBMITTED,
-                    data=data,
+                    data=None,  # Interim responses may not have structured AdCP content
+                    message=self._extract_text_part(data),
                     success=True,
-                    metadata={&#34;task_id&#34;: data.get(&#34;task&#34;, {}).get(&#34;id&#34;)},
+                    metadata={
+                        &#34;task_id&#34;: data.get(&#34;taskId&#34;),
+                        &#34;context_id&#34;: data.get(&#34;contextId&#34;),
+                        &#34;status&#34;: task_status,  # submitted, working, pending, input-required, etc.
+                    },
                     debug_info=debug_info,
                 )
 
@@ -228,27 +244,79 @@ el.replaceWith(d);
         return f&#34;Execute tool: {tool_name}\nParameters: {json.dumps(params, indent=2)}&#34;
 
     def _extract_result(self, response_data: dict[str, Any]) -&gt; Any:
-        &#34;&#34;&#34;Extract result data from A2A response.&#34;&#34;&#34;
-        # Try to extract structured data from response
-        message = response_data.get(&#34;message&#34;, {})
-        parts = message.get(&#34;parts&#34;, [])
+        &#34;&#34;&#34;
+        Extract result data from A2A response following canonical format.
 
-        if not parts:
+        Per A2A response spec:
+        - Responses MUST include at least one DataPart (kind: &#34;data&#34;)
+        - When multiple DataParts exist in an artifact, the last one is authoritative
+        - When multiple artifacts exist, use the last one (most recent in streaming)
+        - DataParts contain structured AdCP payload
+        &#34;&#34;&#34;
+        artifacts = response_data.get(&#34;artifacts&#34;, [])
+
+        if not artifacts:
+            logger.warning(&#34;A2A response missing required artifacts array&#34;)
             return response_data
 
-        # Return the first part&#39;s content
-        first_part = parts[0]
-        if first_part.get(&#34;type&#34;) == &#34;text&#34;:
-            # Try to parse as JSON if it looks like structured data
-            text = first_part.get(&#34;text&#34;, &#34;&#34;)
-            try:
-                import json
+        # Use last artifact (most recent in streaming scenarios)
+        # A2A spec doesn&#39;t define artifact.status, so we simply take the last one
+        target_artifact = artifacts[-1]
 
-                return json.loads(text)
-            except (json.JSONDecodeError, ValueError):
-                return text
+        parts = target_artifact.get(&#34;parts&#34;, [])
 
-        return first_part
+        if not parts:
+            logger.warning(&#34;A2A response artifact has no parts&#34;)
+            return response_data
+
+        # Find all DataParts (kind: &#34;data&#34;)
+        data_parts = [p for p in parts if p.get(&#34;kind&#34;) == &#34;data&#34;]
+
+        if not data_parts:
+            logger.warning(&#34;A2A response missing required DataPart (kind: &#39;data&#39;)&#34;)
+            return response_data
+
+        # Use last DataPart as authoritative (handles streaming scenarios within an artifact)
+        last_data_part = data_parts[-1]
+        data = last_data_part.get(&#34;data&#34;, {})
+
+        # Some A2A implementations (e.g., ADK) wrap the response in {&#34;response&#34;: {...}}
+        # Unwrap it to get the actual AdCP payload if present
+        # ADK is inconsistent - some DataParts have the wrapper, others don&#39;t
+        if isinstance(data, dict) and &#34;response&#34; in data:
+            # If response is the only key, unwrap completely
+            if len(data) == 1:
+                return data[&#34;response&#34;]
+            # If there are other keys alongside response, prefer the wrapped content
+            # but keep it flexible for edge cases
+            return data[&#34;response&#34;]
+
+        return data
+
+    def _extract_text_part(self, response_data: dict[str, Any]) -&gt; str | None:
+        &#34;&#34;&#34;
+        Extract human-readable message from TextPart if present.
+
+        Uses last artifact (same logic as _extract_result).
+        &#34;&#34;&#34;
+        artifacts = response_data.get(&#34;artifacts&#34;, [])
+
+        if not artifacts:
+            return None
+
+        # Use last artifact (most recent in streaming scenarios)
+        # A2A spec doesn&#39;t define artifact.status, so we simply take the last one
+        target_artifact = artifacts[-1]
+
+        parts = target_artifact.get(&#34;parts&#34;, [])
+
+        # Find TextPart (kind: &#34;text&#34;)
+        for part in parts:
+            if part.get(&#34;kind&#34;) == &#34;text&#34;:
+                text = part.get(&#34;text&#34;)
+                return str(text) if text is not None else None
+
+        return None
 
     # ========================================================================
     # ADCP Protocol Methods
@@ -374,6 +442,91 @@ el.replaceWith(d);
                 f&#34;Failed to fetch agent card: {e}&#34;,
                 agent_id=self.agent_config.id,
                 agent_uri=self.agent_config.agent_uri,
+            ) from e
+
+    async def get_agent_info(self) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;
+        Get agent information including AdCP extension metadata from A2A agent card.
+
+        Fetches the agent card from /.well-known/agent.json and extracts:
+        - Basic agent info (name, description, version)
+        - AdCP extension (extensions.adcp.adcp_version, extensions.adcp.protocols_supported)
+        - Available skills/tools
+
+        Returns:
+            Dictionary with agent metadata
+        &#34;&#34;&#34;
+        client = await self._get_client()
+
+        headers = {&#34;Content-Type&#34;: &#34;application/json&#34;}
+
+        if self.agent_config.auth_token:
+            if self.agent_config.auth_type == &#34;bearer&#34;:
+                headers[self.agent_config.auth_header] = f&#34;Bearer {self.agent_config.auth_token}&#34;
+            else:
+                headers[self.agent_config.auth_header] = self.agent_config.auth_token
+
+        url = f&#34;{self.agent_config.agent_uri}/.well-known/agent.json&#34;
+
+        logger.debug(f&#34;Fetching A2A agent info for {self.agent_config.id} from {url}&#34;)
+
+        try:
+            response = await client.get(url, headers=headers, timeout=self.agent_config.timeout)
+            response.raise_for_status()
+
+            agent_card = response.json()
+
+            # Extract basic info
+            info: dict[str, Any] = {
+                &#34;name&#34;: agent_card.get(&#34;name&#34;),
+                &#34;description&#34;: agent_card.get(&#34;description&#34;),
+                &#34;version&#34;: agent_card.get(&#34;version&#34;),
+                &#34;protocol&#34;: &#34;a2a&#34;,
+            }
+
+            # Extract skills/tools
+            skills = agent_card.get(&#34;skills&#34;, [])
+            tool_names = [skill.get(&#34;name&#34;) for skill in skills if skill.get(&#34;name&#34;)]
+            if tool_names:
+                info[&#34;tools&#34;] = tool_names
+
+            # Extract AdCP extension metadata
+            extensions = agent_card.get(&#34;extensions&#34;, {})
+            adcp_ext = extensions.get(&#34;adcp&#34;, {})
+
+            if adcp_ext:
+                info[&#34;adcp_version&#34;] = adcp_ext.get(&#34;adcp_version&#34;)
+                info[&#34;protocols_supported&#34;] = adcp_ext.get(&#34;protocols_supported&#34;)
+
+            logger.info(f&#34;Retrieved agent info for {self.agent_config.id}&#34;)
+            return info
+
+        except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code
+            if status_code in (401, 403):
+                raise ADCPAuthenticationError(
+                    f&#34;Authentication failed: HTTP {status_code}&#34;,
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
+                ) from e
+            else:
+                raise ADCPConnectionError(
+                    f&#34;Failed to fetch agent card: HTTP {status_code}&#34;,
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
+                ) from e
+        except httpx.TimeoutException as e:
+            raise ADCPTimeoutError(
+                f&#34;Timeout fetching agent card: {e}&#34;,
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
+                timeout=self.agent_config.timeout,
+            ) from e
+        except httpx.HTTPError as e:
+            raise ADCPConnectionError(
+                f&#34;Failed to fetch agent card: {e}&#34;,
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
             ) from e</code></pre>
 </details>
 <div class="desc"><p>Adapter for A2A protocol following the Agent2Agent specification.</p>
@@ -401,6 +554,107 @@ el.replaceWith(d);
         self._client = None</code></pre>
 </details>
 <div class="desc"><p>Close the HTTP client and clean up resources.</p></div>
+</dd>
+<dt id="adcp.protocols.A2AAdapter.get_agent_info"><code class="name flex">
+<span>async def <span class="ident">get_agent_info</span></span>(<span>self) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_agent_info(self) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;
+    Get agent information including AdCP extension metadata from A2A agent card.
+
+    Fetches the agent card from /.well-known/agent.json and extracts:
+    - Basic agent info (name, description, version)
+    - AdCP extension (extensions.adcp.adcp_version, extensions.adcp.protocols_supported)
+    - Available skills/tools
+
+    Returns:
+        Dictionary with agent metadata
+    &#34;&#34;&#34;
+    client = await self._get_client()
+
+    headers = {&#34;Content-Type&#34;: &#34;application/json&#34;}
+
+    if self.agent_config.auth_token:
+        if self.agent_config.auth_type == &#34;bearer&#34;:
+            headers[self.agent_config.auth_header] = f&#34;Bearer {self.agent_config.auth_token}&#34;
+        else:
+            headers[self.agent_config.auth_header] = self.agent_config.auth_token
+
+    url = f&#34;{self.agent_config.agent_uri}/.well-known/agent.json&#34;
+
+    logger.debug(f&#34;Fetching A2A agent info for {self.agent_config.id} from {url}&#34;)
+
+    try:
+        response = await client.get(url, headers=headers, timeout=self.agent_config.timeout)
+        response.raise_for_status()
+
+        agent_card = response.json()
+
+        # Extract basic info
+        info: dict[str, Any] = {
+            &#34;name&#34;: agent_card.get(&#34;name&#34;),
+            &#34;description&#34;: agent_card.get(&#34;description&#34;),
+            &#34;version&#34;: agent_card.get(&#34;version&#34;),
+            &#34;protocol&#34;: &#34;a2a&#34;,
+        }
+
+        # Extract skills/tools
+        skills = agent_card.get(&#34;skills&#34;, [])
+        tool_names = [skill.get(&#34;name&#34;) for skill in skills if skill.get(&#34;name&#34;)]
+        if tool_names:
+            info[&#34;tools&#34;] = tool_names
+
+        # Extract AdCP extension metadata
+        extensions = agent_card.get(&#34;extensions&#34;, {})
+        adcp_ext = extensions.get(&#34;adcp&#34;, {})
+
+        if adcp_ext:
+            info[&#34;adcp_version&#34;] = adcp_ext.get(&#34;adcp_version&#34;)
+            info[&#34;protocols_supported&#34;] = adcp_ext.get(&#34;protocols_supported&#34;)
+
+        logger.info(f&#34;Retrieved agent info for {self.agent_config.id}&#34;)
+        return info
+
+    except httpx.HTTPStatusError as e:
+        status_code = e.response.status_code
+        if status_code in (401, 403):
+            raise ADCPAuthenticationError(
+                f&#34;Authentication failed: HTTP {status_code}&#34;,
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
+            ) from e
+        else:
+            raise ADCPConnectionError(
+                f&#34;Failed to fetch agent card: HTTP {status_code}&#34;,
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
+            ) from e
+    except httpx.TimeoutException as e:
+        raise ADCPTimeoutError(
+            f&#34;Timeout fetching agent card: {e}&#34;,
+            agent_id=self.agent_config.id,
+            agent_uri=self.agent_config.agent_uri,
+            timeout=self.agent_config.timeout,
+        ) from e
+    except httpx.HTTPError as e:
+        raise ADCPConnectionError(
+            f&#34;Failed to fetch agent card: {e}&#34;,
+            agent_id=self.agent_config.id,
+            agent_uri=self.agent_config.agent_uri,
+        ) from e</code></pre>
+</details>
+<div class="desc"><p>Get agent information including AdCP extension metadata from A2A agent card.</p>
+<p>Fetches the agent card from /.well-known/agent.json and extracts:
+- Basic agent info (name, description, version)
+- AdCP extension (extensions.adcp.adcp_version, extensions.adcp.protocols_supported)
+- Available skills/tools</p>
+<h2 id="returns">Returns</h2>
+<p>Dictionary with agent metadata</p></div>
 </dd>
 <dt id="adcp.protocols.A2AAdapter.list_tools"><code class="name flex">
 <span>async def <span class="ident">list_tools</span></span>(<span>self) ‑> list[str]</span>
@@ -892,6 +1146,50 @@ standard AdCP tool set.</p></div>
         result = await session.list_tools()
         return [tool.name for tool in result.tools]
 
+    async def get_agent_info(self) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;
+        Get agent information including AdCP extension metadata from MCP server.
+
+        MCP servers may expose metadata through:
+        - Server capabilities exposed during initialization
+        - extensions.adcp in server info (if supported)
+        - Tool list
+
+        Returns:
+            Dictionary with agent metadata
+        &#34;&#34;&#34;
+        session = await self._get_session()
+
+        # Extract basic MCP server info
+        info: dict[str, Any] = {
+            &#34;name&#34;: getattr(session, &#34;server_name&#34;, None),
+            &#34;version&#34;: getattr(session, &#34;server_version&#34;, None),
+            &#34;protocol&#34;: &#34;mcp&#34;,
+        }
+
+        # Get available tools
+        try:
+            tools_result = await session.list_tools()
+            tool_names = [tool.name for tool in tools_result.tools]
+            if tool_names:
+                info[&#34;tools&#34;] = tool_names
+        except Exception as e:
+            logger.warning(f&#34;Failed to list tools for {self.agent_config.id}: {e}&#34;)
+
+        # Try to extract AdCP extension metadata from server capabilities
+        # MCP servers may expose this in their initialization response
+        if hasattr(session, &#34;_server_capabilities&#34;):
+            capabilities = session._server_capabilities
+            if isinstance(capabilities, dict):
+                extensions = capabilities.get(&#34;extensions&#34;, {})
+                adcp_ext = extensions.get(&#34;adcp&#34;, {})
+                if adcp_ext:
+                    info[&#34;adcp_version&#34;] = adcp_ext.get(&#34;adcp_version&#34;)
+                    info[&#34;protocols_supported&#34;] = adcp_ext.get(&#34;protocols_supported&#34;)
+
+        logger.info(f&#34;Retrieved agent info for {self.agent_config.id}&#34;)
+        return info
+
     async def close(self) -&gt; None:
         &#34;&#34;&#34;Close the MCP session and clean up resources.&#34;&#34;&#34;
         await self._cleanup_failed_connection(&#34;during close&#34;)</code></pre>
@@ -918,6 +1216,66 @@ standard AdCP tool set.</p></div>
     await self._cleanup_failed_connection(&#34;during close&#34;)</code></pre>
 </details>
 <div class="desc"><p>Close the MCP session and clean up resources.</p></div>
+</dd>
+<dt id="adcp.protocols.MCPAdapter.get_agent_info"><code class="name flex">
+<span>async def <span class="ident">get_agent_info</span></span>(<span>self) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_agent_info(self) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;
+    Get agent information including AdCP extension metadata from MCP server.
+
+    MCP servers may expose metadata through:
+    - Server capabilities exposed during initialization
+    - extensions.adcp in server info (if supported)
+    - Tool list
+
+    Returns:
+        Dictionary with agent metadata
+    &#34;&#34;&#34;
+    session = await self._get_session()
+
+    # Extract basic MCP server info
+    info: dict[str, Any] = {
+        &#34;name&#34;: getattr(session, &#34;server_name&#34;, None),
+        &#34;version&#34;: getattr(session, &#34;server_version&#34;, None),
+        &#34;protocol&#34;: &#34;mcp&#34;,
+    }
+
+    # Get available tools
+    try:
+        tools_result = await session.list_tools()
+        tool_names = [tool.name for tool in tools_result.tools]
+        if tool_names:
+            info[&#34;tools&#34;] = tool_names
+    except Exception as e:
+        logger.warning(f&#34;Failed to list tools for {self.agent_config.id}: {e}&#34;)
+
+    # Try to extract AdCP extension metadata from server capabilities
+    # MCP servers may expose this in their initialization response
+    if hasattr(session, &#34;_server_capabilities&#34;):
+        capabilities = session._server_capabilities
+        if isinstance(capabilities, dict):
+            extensions = capabilities.get(&#34;extensions&#34;, {})
+            adcp_ext = extensions.get(&#34;adcp&#34;, {})
+            if adcp_ext:
+                info[&#34;adcp_version&#34;] = adcp_ext.get(&#34;adcp_version&#34;)
+                info[&#34;protocols_supported&#34;] = adcp_ext.get(&#34;protocols_supported&#34;)
+
+    logger.info(f&#34;Retrieved agent info for {self.agent_config.id}&#34;)
+    return info</code></pre>
+</details>
+<div class="desc"><p>Get agent information including AdCP extension metadata from MCP server.</p>
+<p>MCP servers may expose metadata through:
+- Server capabilities exposed during initialization
+- extensions.adcp in server info (if supported)
+- Tool list</p>
+<h2 id="returns">Returns</h2>
+<p>Dictionary with agent metadata</p></div>
 </dd>
 <dt id="adcp.protocols.MCPAdapter.list_tools"><code class="name flex">
 <span>async def <span class="ident">list_tools</span></span>(<span>self) ‑> list[str]</span>
@@ -1012,15 +1370,18 @@ standard AdCP tool set.</p></div>
         Returns:
             Typed TaskResult
         &#34;&#34;&#34;
-        # Handle failed results or missing data
+        # Handle failed results or interim states without data
+        # For A2A: interim states (submitted/working) have data=None but success=True
+        # For MCP: completed tasks always have data, missing data indicates failure
         if not raw_result.success or raw_result.data is None:
-            # Explicitly construct typed result to satisfy type checker
+            # If already marked as unsuccessful, preserve that
+            # If successful but no data (A2A interim state), preserve success=True
             return TaskResult[T](
                 status=raw_result.status,
                 data=None,
                 message=raw_result.message,
-                success=False,
-                error=raw_result.error or &#34;No data returned from adapter&#34;,
+                success=raw_result.success,  # Preserve original success state
+                error=raw_result.error,  # Only use error if one was set
                 metadata=raw_result.metadata,
                 debug_info=raw_result.debug_info,
             )
@@ -1128,6 +1489,22 @@ standard AdCP tool set.</p></div>
         pass
 
     @abstractmethod
+    async def get_agent_info(self) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;
+        Get agent information including AdCP extension metadata.
+
+        Returns agent card information including:
+        - Agent name, description, version
+        - AdCP version (from extensions.adcp.adcp_version)
+        - Supported protocols (from extensions.adcp.protocols_supported)
+        - Available tools/skills
+
+        Returns:
+            Dictionary with agent metadata including AdCP extension fields
+        &#34;&#34;&#34;
+        pass
+
+    @abstractmethod
     async def close(self) -&gt; None:
         &#34;&#34;&#34;
         Close the adapter and clean up resources.
@@ -1216,6 +1593,39 @@ async def create_media_buy(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
     pass</code></pre>
 </details>
 <div class="desc"><p>Create media buy.</p></div>
+</dd>
+<dt id="adcp.protocols.ProtocolAdapter.get_agent_info"><code class="name flex">
+<span>async def <span class="ident">get_agent_info</span></span>(<span>self) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def get_agent_info(self) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;
+    Get agent information including AdCP extension metadata.
+
+    Returns agent card information including:
+    - Agent name, description, version
+    - AdCP version (from extensions.adcp.adcp_version)
+    - Supported protocols (from extensions.adcp.protocols_supported)
+    - Available tools/skills
+
+    Returns:
+        Dictionary with agent metadata including AdCP extension fields
+    &#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Get agent information including AdCP extension metadata.</p>
+<p>Returns agent card information including:
+- Agent name, description, version
+- AdCP version (from extensions.adcp.adcp_version)
+- Supported protocols (from extensions.adcp.protocols_supported)
+- Available tools/skills</p>
+<h2 id="returns">Returns</h2>
+<p>Dictionary with agent metadata including AdCP extension fields</p></div>
 </dd>
 <dt id="adcp.protocols.ProtocolAdapter.get_media_buy_delivery"><code class="name flex">
 <span>async def <span class="ident">get_media_buy_delivery</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
@@ -1402,6 +1812,7 @@ async def update_media_buy(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
 <h4><code><a title="adcp.protocols.A2AAdapter" href="#adcp.protocols.A2AAdapter">A2AAdapter</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.protocols.A2AAdapter.close" href="#adcp.protocols.A2AAdapter.close">close</a></code></li>
+<li><code><a title="adcp.protocols.A2AAdapter.get_agent_info" href="#adcp.protocols.A2AAdapter.get_agent_info">get_agent_info</a></code></li>
 <li><code><a title="adcp.protocols.A2AAdapter.list_tools" href="#adcp.protocols.A2AAdapter.list_tools">list_tools</a></code></li>
 <li><code><a title="adcp.protocols.A2AAdapter.preview_creative" href="#adcp.protocols.A2AAdapter.preview_creative">preview_creative</a></code></li>
 </ul>
@@ -1410,6 +1821,7 @@ async def update_media_buy(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
 <h4><code><a title="adcp.protocols.MCPAdapter" href="#adcp.protocols.MCPAdapter">MCPAdapter</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.protocols.MCPAdapter.close" href="#adcp.protocols.MCPAdapter.close">close</a></code></li>
+<li><code><a title="adcp.protocols.MCPAdapter.get_agent_info" href="#adcp.protocols.MCPAdapter.get_agent_info">get_agent_info</a></code></li>
 <li><code><a title="adcp.protocols.MCPAdapter.list_tools" href="#adcp.protocols.MCPAdapter.list_tools">list_tools</a></code></li>
 <li><code><a title="adcp.protocols.MCPAdapter.preview_creative" href="#adcp.protocols.MCPAdapter.preview_creative">preview_creative</a></code></li>
 </ul>
@@ -1421,6 +1833,7 @@ async def update_media_buy(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
 <li><code><a title="adcp.protocols.ProtocolAdapter.build_creative" href="#adcp.protocols.ProtocolAdapter.build_creative">build_creative</a></code></li>
 <li><code><a title="adcp.protocols.ProtocolAdapter.close" href="#adcp.protocols.ProtocolAdapter.close">close</a></code></li>
 <li><code><a title="adcp.protocols.ProtocolAdapter.create_media_buy" href="#adcp.protocols.ProtocolAdapter.create_media_buy">create_media_buy</a></code></li>
+<li><code><a title="adcp.protocols.ProtocolAdapter.get_agent_info" href="#adcp.protocols.ProtocolAdapter.get_agent_info">get_agent_info</a></code></li>
 <li><code><a title="adcp.protocols.ProtocolAdapter.get_media_buy_delivery" href="#adcp.protocols.ProtocolAdapter.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
 <li><code><a title="adcp.protocols.ProtocolAdapter.get_products" href="#adcp.protocols.ProtocolAdapter.get_products">get_products</a></code></li>
 <li><code><a title="adcp.protocols.ProtocolAdapter.get_signals" href="#adcp.protocols.ProtocolAdapter.get_signals">get_signals</a></code></li>

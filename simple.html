@@ -481,7 +481,7 @@ client API which returns TaskResult wrappers.</p>
 <h3>Methods</h3>
 <dl>
 <dt id="adcp.simple.SimpleAPI.activate_signal"><code class="name flex">
-<span>async def <span class="ident">activate_signal</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.activate_signal_response.ActivateSignalResponse" href="types/generated_poc/activate_signal_response.html#adcp.types.generated_poc.activate_signal_response.ActivateSignalResponse">ActivateSignalResponse</a></span>
+<span>async def <span class="ident">activate_signal</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.signals.activate_signal_response.ActivateSignalResponse" href="types/generated_poc/signals/activate_signal_response.html#adcp.types.generated_poc.signals.activate_signal_response.ActivateSignalResponse">ActivateSignalResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -528,7 +528,7 @@ client API which returns TaskResult wrappers.</p>
 </dl></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.build_creative"><code class="name flex">
-<span>async def <span class="ident">build_creative</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.build_creative_response.BuildCreativeResponse" href="types/generated_poc/build_creative_response.html#adcp.types.generated_poc.build_creative_response.BuildCreativeResponse">BuildCreativeResponse</a></span>
+<span>async def <span class="ident">build_creative</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse" href="types/generated_poc/media_buy/build_creative_response.html#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse">BuildCreativeResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -590,7 +590,7 @@ inputs={"duration": 30}
 print(f"Built creative: {creative.assets[0].url}")</p></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.create_media_buy"><code class="name flex">
-<span>async def <span class="ident">create_media_buy</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.create_media_buy_response.CreateMediaBuyResponse" href="types/generated_poc/create_media_buy_response.html#adcp.types.generated_poc.create_media_buy_response.CreateMediaBuyResponse">CreateMediaBuyResponse</a></span>
+<span>async def <span class="ident">create_media_buy</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse" href="types/generated_poc/media_buy/create_media_buy_response.html#adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse">CreateMediaBuyResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -652,7 +652,7 @@ publisher_properties=properties
 print(f"Created media buy: {media_buy.media_buy_id}")</p></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.get_media_buy_delivery"><code class="name flex">
-<span>async def <span class="ident">get_media_buy_delivery</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse" href="types/generated_poc/get_media_buy_delivery_response.html#adcp.types.generated_poc.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse">GetMediaBuyDeliveryResponse</a></span>
+<span>async def <span class="ident">get_media_buy_delivery</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse" href="types/generated_poc/media_buy/get_media_buy_delivery_response.html#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse">GetMediaBuyDeliveryResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -699,7 +699,7 @@ print(f"Created media buy: {media_buy.media_buy_id}")</p></div>
 </dl></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.get_products"><code class="name flex">
-<span>async def <span class="ident">get_products</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.get_products_response.GetProductsResponse" href="types/generated_poc/get_products_response.html#adcp.types.generated_poc.get_products_response.GetProductsResponse">GetProductsResponse</a></span>
+<span>async def <span class="ident">get_products</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse" href="types/generated_poc/media_buy/get_products_response.html#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse">GetProductsResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -769,7 +769,7 @@ brief='Coffee subscription service'
 print(f"Found {len(products.products)} products")</p></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.get_signals"><code class="name flex">
-<span>async def <span class="ident">get_signals</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.get_signals_response.GetSignalsResponse" href="types/generated_poc/get_signals_response.html#adcp.types.generated_poc.get_signals_response.GetSignalsResponse">GetSignalsResponse</a></span>
+<span>async def <span class="ident">get_signals</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.signals.get_signals_response.GetSignalsResponse" href="types/generated_poc/signals/get_signals_response.html#adcp.types.generated_poc.signals.get_signals_response.GetSignalsResponse">GetSignalsResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -816,7 +816,7 @@ print(f"Found {len(products.products)} products")</p></div>
 </dl></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.list_authorized_properties"><code class="name flex">
-<span>async def <span class="ident">list_authorized_properties</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.list_authorized_properties_response.ListAuthorizedPropertiesResponse" href="types/generated_poc/list_authorized_properties_response.html#adcp.types.generated_poc.list_authorized_properties_response.ListAuthorizedPropertiesResponse">ListAuthorizedPropertiesResponse</a></span>
+<span>async def <span class="ident">list_authorized_properties</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.list_authorized_properties_response.ListAuthorizedPropertiesResponse" href="types/generated_poc/media_buy/list_authorized_properties_response.html#adcp.types.generated_poc.media_buy.list_authorized_properties_response.ListAuthorizedPropertiesResponse">ListAuthorizedPropertiesResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -863,7 +863,7 @@ print(f"Found {len(products.products)} products")</p></div>
 </dl></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.list_creative_formats"><code class="name flex">
-<span>async def <span class="ident">list_creative_formats</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.list_creative_formats_response.ListCreativeFormatsResponse" href="types/generated_poc/list_creative_formats_response.html#adcp.types.generated_poc.list_creative_formats_response.ListCreativeFormatsResponse">ListCreativeFormatsResponse</a></span>
+<span>async def <span class="ident">list_creative_formats</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.list_creative_formats_response.ListCreativeFormatsResponse" href="types/generated_poc/media_buy/list_creative_formats_response.html#adcp.types.generated_poc.media_buy.list_creative_formats_response.ListCreativeFormatsResponse">ListCreativeFormatsResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -917,7 +917,7 @@ print(f"Found {len(products.products)} products")</p></div>
 print(f"Found {len(formats.formats)} formats")</p></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.list_creatives"><code class="name flex">
-<span>async def <span class="ident">list_creatives</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.list_creatives_response.ListCreativesResponse" href="types/generated_poc/list_creatives_response.html#adcp.types.generated_poc.list_creatives_response.ListCreativesResponse">ListCreativesResponse</a></span>
+<span>async def <span class="ident">list_creatives</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse" href="types/generated_poc/media_buy/list_creatives_response.html#adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse">ListCreativesResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -964,7 +964,7 @@ print(f"Found {len(formats.formats)} formats")</p></div>
 </dl></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.preview_creative"><code class="name flex">
-<span>async def <span class="ident">preview_creative</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.preview_creative_response.PreviewCreativeResponse" href="types/generated_poc/preview_creative_response.html#adcp.types.generated_poc.preview_creative_response.PreviewCreativeResponse">PreviewCreativeResponse</a></span>
+<span>async def <span class="ident">preview_creative</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.creative.preview_creative_response.PreviewCreativeResponse" href="types/generated_poc/creative/preview_creative_response.html#adcp.types.generated_poc.creative.preview_creative_response.PreviewCreativeResponse">PreviewCreativeResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1022,7 +1022,7 @@ manifest={'format_id': 'banner_300x250', 'assets': {&hellip;}}
 print(f"Preview: {preview.previews[0]}")</p></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.provide_performance_feedback"><code class="name flex">
-<span>async def <span class="ident">provide_performance_feedback</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse" href="types/generated_poc/provide_performance_feedback_response.html#adcp.types.generated_poc.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse">ProvidePerformanceFeedbackResponse</a></span>
+<span>async def <span class="ident">provide_performance_feedback</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse" href="types/generated_poc/media_buy/provide_performance_feedback_response.html#adcp.types.generated_poc.media_buy.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse">ProvidePerformanceFeedbackResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1069,7 +1069,7 @@ print(f"Preview: {preview.previews[0]}")</p></div>
 </dl></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.sync_creatives"><code class="name flex">
-<span>async def <span class="ident">sync_creatives</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.sync_creatives_response.SyncCreativesResponse" href="types/generated_poc/sync_creatives_response.html#adcp.types.generated_poc.sync_creatives_response.SyncCreativesResponse">SyncCreativesResponse</a></span>
+<span>async def <span class="ident">sync_creatives</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse" href="types/generated_poc/media_buy/sync_creatives_response.html#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse">SyncCreativesResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1116,7 +1116,7 @@ print(f"Preview: {preview.previews[0]}")</p></div>
 </dl></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.update_media_buy"><code class="name flex">
-<span>async def <span class="ident">update_media_buy</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.update_media_buy_response.UpdateMediaBuyResponse" href="types/generated_poc/update_media_buy_response.html#adcp.types.generated_poc.update_media_buy_response.UpdateMediaBuyResponse">UpdateMediaBuyResponse</a></span>
+<span>async def <span class="ident">update_media_buy</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse" href="types/generated_poc/media_buy/update_media_buy_response.html#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse">UpdateMediaBuyResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">

@@ -776,6 +776,22 @@ el.replaceWith(d);
         &#34;&#34;&#34;
         return await self.adapter.list_tools()
 
+    async def get_info(self) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;
+        Get agent information including AdCP extension metadata.
+
+        Returns agent card information including:
+        - Agent name, description, version
+        - Protocol type (mcp or a2a)
+        - AdCP version (from extensions.adcp.adcp_version)
+        - Supported protocols (from extensions.adcp.protocols_supported)
+        - Available tools/skills
+
+        Returns:
+            Dictionary with agent metadata
+        &#34;&#34;&#34;
+        return await self.adapter.get_agent_info()
+
     async def close(self) -&gt; None:
         &#34;&#34;&#34;Close the adapter and clean up resources.&#34;&#34;&#34;
         if hasattr(self.adapter, &#34;close&#34;):
@@ -1240,6 +1256,40 @@ media_buy_id that tracks this reservation and can be used for updates.</p>
 &gt;&gt;&gt; if result.success:
 ...     media_buy_id = result.data.media_buy_id
 </code></pre></div>
+</dd>
+<dt id="adcp.client.ADCPClient.get_info"><code class="name flex">
+<span>async def <span class="ident">get_info</span></span>(<span>self) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_info(self) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;
+    Get agent information including AdCP extension metadata.
+
+    Returns agent card information including:
+    - Agent name, description, version
+    - Protocol type (mcp or a2a)
+    - AdCP version (from extensions.adcp.adcp_version)
+    - Supported protocols (from extensions.adcp.protocols_supported)
+    - Available tools/skills
+
+    Returns:
+        Dictionary with agent metadata
+    &#34;&#34;&#34;
+    return await self.adapter.get_agent_info()</code></pre>
+</details>
+<div class="desc"><p>Get agent information including AdCP extension metadata.</p>
+<p>Returns agent card information including:
+- Agent name, description, version
+- Protocol type (mcp or a2a)
+- AdCP version (from extensions.adcp.adcp_version)
+- Supported protocols (from extensions.adcp.protocols_supported)
+- Available tools/skills</p>
+<h2 id="returns">Returns</h2>
+<p>Dictionary with agent metadata</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.get_media_buy_delivery"><code class="name flex">
 <span>async def <span class="ident">get_media_buy_delivery</span></span>(<span>self, request: GetMediaBuyDeliveryRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[GetMediaBuyDeliveryResponse]</span>
@@ -2311,6 +2361,7 @@ def agent_ids(self) -&gt; list[str]:
 <li><code><a title="adcp.client.ADCPClient.build_creative" href="#adcp.client.ADCPClient.build_creative">build_creative</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.close" href="#adcp.client.ADCPClient.close">close</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.create_media_buy" href="#adcp.client.ADCPClient.create_media_buy">create_media_buy</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.get_info" href="#adcp.client.ADCPClient.get_info">get_info</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_media_buy_delivery" href="#adcp.client.ADCPClient.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_products" href="#adcp.client.ADCPClient.get_products">get_products</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_signals" href="#adcp.client.ADCPClient.get_signals">get_signals</a></code></li>

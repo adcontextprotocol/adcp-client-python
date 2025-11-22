@@ -149,16 +149,12 @@ immediately rather than at runtime when users try to use the aliases.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    context: Annotated[
-        dict[str, Any] | None,
-        Field(
-            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
-        ),
-    ] = None
+    context: context_1.ContextObject | None = None
     deployments: Annotated[
         list[deployment.Deployment1 | deployment.Deployment2],
         Field(description=&#39;Array of deployment results for each deployment target&#39;),
-    ]</code></pre>
+    ]
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -175,11 +171,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.aliases.ActivateSignalResponse1.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.aliases.ActivateSignalResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.ActivateSignalResponse1.deployments"><code class="name">var <span class="ident">deployments</span> : list[<a title="adcp.types.generated_poc.deployment.Deployment1" href="generated_poc/deployment.html#adcp.types.generated_poc.deployment.Deployment1">Deployment1</a> | <a title="adcp.types.generated_poc.deployment.Deployment2" href="generated_poc/deployment.html#adcp.types.generated_poc.deployment.Deployment2">Deployment2</a>]</code></dt>
+<dt id="adcp.types.aliases.ActivateSignalResponse1.deployments"><code class="name">var <span class="ident">deployments</span> : list[<a title="adcp.types.generated_poc.core.deployment.Deployment1" href="generated_poc/core/deployment.html#adcp.types.generated_poc.core.deployment.Deployment1">Deployment1</a> | <a title="adcp.types.generated_poc.core.deployment.Deployment2" href="generated_poc/core/deployment.html#adcp.types.generated_poc.core.deployment.Deployment2">Deployment2</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ActivateSignalResponse1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -211,19 +211,15 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    context: Annotated[
-        dict[str, Any] | None,
-        Field(
-            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
-        ),
-    ] = None
+    context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
             description=&#39;Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)&#39;,
             min_length=1,
         ),
-    ]</code></pre>
+    ]
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -240,11 +236,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.aliases.ActivateSignalResponse2.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.aliases.ActivateSignalResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.ActivateSignalResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.error.Error" href="generated_poc/error.html#adcp.types.generated_poc.error.Error">Error</a>]</code></dt>
+<dt id="adcp.types.aliases.ActivateSignalResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="generated_poc/core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ActivateSignalResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -440,7 +440,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.AuthorizedAgents.property_ids"><code class="name">var <span class="ident">property_ids</span> : list[<a title="adcp.types.generated_poc.property_id.PropertyId" href="generated_poc/property_id.html#adcp.types.generated_poc.property_id.PropertyId">PropertyId</a>]</code></dt>
+<dt id="adcp.types.aliases.AuthorizedAgents.property_ids"><code class="name">var <span class="ident">property_ids</span> : list[<a title="adcp.types.generated_poc.core.property_id.PropertyId" href="generated_poc/core/property_id.html#adcp.types.generated_poc.core.property_id.PropertyId">PropertyId</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -520,7 +520,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.AuthorizedAgents1.property_tags"><code class="name">var <span class="ident">property_tags</span> : list[<a title="adcp.types.generated_poc.property_tag.PropertyTag" href="generated_poc/property_tag.html#adcp.types.generated_poc.property_tag.PropertyTag">PropertyTag</a>]</code></dt>
+<dt id="adcp.types.aliases.AuthorizedAgents1.property_tags"><code class="name">var <span class="ident">property_tags</span> : list[<a title="adcp.types.generated_poc.core.property_tag.PropertyTag" href="generated_poc/core/property_tag.html#adcp.types.generated_poc.core.property_tag.PropertyTag">PropertyTag</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -600,7 +600,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.AuthorizedAgents2.properties"><code class="name">var <span class="ident">properties</span> : list[<a title="adcp.types.generated_poc.property.Property" href="generated_poc/property.html#adcp.types.generated_poc.property.Property">Property</a>]</code></dt>
+<dt id="adcp.types.aliases.AuthorizedAgents2.properties"><code class="name">var <span class="ident">properties</span> : list[<a title="adcp.types.generated_poc.core.property.Property" href="generated_poc/core/property.html#adcp.types.generated_poc.core.property.Property">Property</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -686,7 +686,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.AuthorizedAgents3.publisher_properties"><code class="name">var <span class="ident">publisher_properties</span> : list[<a title="adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector1" href="generated_poc/publisher_property_selector.html#adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector1">PublisherPropertySelector1</a> | <a title="adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector2" href="generated_poc/publisher_property_selector.html#adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector2">PublisherPropertySelector2</a> | <a title="adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector3" href="generated_poc/publisher_property_selector.html#adcp.types.generated_poc.publisher_property_selector.PublisherPropertySelector3">PublisherPropertySelector3</a>]</code></dt>
+<dt id="adcp.types.aliases.AuthorizedAgents3.publisher_properties"><code class="name">var <span class="ident">publisher_properties</span> : list[<a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector1" href="generated_poc/core/publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector1">PublisherPropertySelector1</a> | <a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector2" href="generated_poc/core/publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector2">PublisherPropertySelector2</a> | <a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector3" href="generated_poc/core/publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector3">PublisherPropertySelector3</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -718,16 +718,12 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    context: Annotated[
-        dict[str, Any] | None,
-        Field(
-            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
-        ),
-    ] = None
+    context: context_1.ContextObject | None = None
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest,
         Field(description=&#39;The generated or transformed creative manifest&#39;),
-    ]</code></pre>
+    ]
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -744,11 +740,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.aliases.BuildCreativeResponse1.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.aliases.BuildCreativeResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.BuildCreativeResponse1.creative_manifest"><code class="name">var <span class="ident">creative_manifest</span> : <a title="adcp.types.generated_poc.creative_manifest.CreativeManifest" href="generated_poc/creative_manifest.html#adcp.types.generated_poc.creative_manifest.CreativeManifest">CreativeManifest</a></code></dt>
+<dt id="adcp.types.aliases.BuildCreativeResponse1.creative_manifest"><code class="name">var <span class="ident">creative_manifest</span> : <a title="adcp.types.generated_poc.core.creative_manifest.CreativeManifest" href="generated_poc/core/creative_manifest.html#adcp.types.generated_poc.core.creative_manifest.CreativeManifest">CreativeManifest</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.BuildCreativeResponse1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -780,18 +780,14 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    context: Annotated[
-        dict[str, Any] | None,
-        Field(
-            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
-        ),
-    ] = None
+    context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
             description=&#39;Array of errors explaining why creative generation failed&#39;, min_length=1
         ),
-    ]</code></pre>
+    ]
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -808,11 +804,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.aliases.BuildCreativeResponse2.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.aliases.BuildCreativeResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.BuildCreativeResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.error.Error" href="generated_poc/error.html#adcp.types.generated_poc.error.Error">Error</a>]</code></dt>
+<dt id="adcp.types.aliases.BuildCreativeResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="generated_poc/core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.BuildCreativeResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -845,15 +845,11 @@ validated to form a valid model.</p>
         extra=&#39;forbid&#39;,
     )
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
-    context: Annotated[
-        dict[str, Any] | None,
-        Field(
-            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
-        ),
-    ] = None
+    context: context_1.ContextObject | None = None
     creative_deadline: Annotated[
         AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
     ] = None
+    ext: ext_1.ExtensionObject | None = None
     media_buy_id: Annotated[
         str, Field(description=&#34;Publisher&#39;s unique identifier for the created media buy&#34;)
     ]
@@ -881,11 +877,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.CreateMediaBuyResponse1.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.aliases.CreateMediaBuyResponse1.creative_deadline"><code class="name">var <span class="ident">creative_deadline</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -897,7 +897,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.CreateMediaBuyResponse1.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.package.Package" href="generated_poc/package.html#adcp.types.generated_poc.package.Package">Package</a>]</code></dt>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse1.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.core.package.Package" href="generated_poc/core/package.html#adcp.types.generated_poc.core.package.Package">Package</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -925,16 +925,12 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    context: Annotated[
-        dict[str, Any] | None,
-        Field(
-            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
-        ),
-    ] = None
+    context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(description=&#39;Array of errors explaining why the operation failed&#39;, min_length=1),
-    ]</code></pre>
+    ]
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -951,11 +947,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.aliases.CreateMediaBuyResponse2.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.CreateMediaBuyResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.error.Error" href="generated_poc/error.html#adcp.types.generated_poc.error.Error">Error</a>]</code></dt>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="generated_poc/core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1025,7 +1025,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.DaastAsset1.daast_version"><code class="name">var <span class="ident">daast_version</span> : <a title="adcp.types.generated_poc.daast_version.DaastVersion" href="generated_poc/daast_version.html#adcp.types.generated_poc.daast_version.DaastVersion">DaastVersion</a> | None</code></dt>
+<dt id="adcp.types.aliases.DaastAsset1.daast_version"><code class="name">var <span class="ident">daast_version</span> : <a title="adcp.types.generated_poc.enums.daast_version.DaastVersion" href="generated_poc/enums/daast_version.html#adcp.types.generated_poc.enums.daast_version.DaastVersion">DaastVersion</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1041,7 +1041,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.DaastAsset1.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.daast_tracking_event.DaastTrackingEvent" href="generated_poc/daast_tracking_event.html#adcp.types.generated_poc.daast_tracking_event.DaastTrackingEvent">DaastTrackingEvent</a>] | None</code></dt>
+<dt id="adcp.types.aliases.DaastAsset1.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent" href="generated_poc/enums/daast_tracking_event.html#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent">DaastTrackingEvent</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1115,7 +1115,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.DaastAsset2.daast_version"><code class="name">var <span class="ident">daast_version</span> : <a title="adcp.types.generated_poc.daast_version.DaastVersion" href="generated_poc/daast_version.html#adcp.types.generated_poc.daast_version.DaastVersion">DaastVersion</a> | None</code></dt>
+<dt id="adcp.types.aliases.DaastAsset2.daast_version"><code class="name">var <span class="ident">daast_version</span> : <a title="adcp.types.generated_poc.enums.daast_version.DaastVersion" href="generated_poc/enums/daast_version.html#adcp.types.generated_poc.enums.daast_version.DaastVersion">DaastVersion</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1131,7 +1131,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.DaastAsset2.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.daast_tracking_event.DaastTrackingEvent" href="generated_poc/daast_tracking_event.html#adcp.types.generated_poc.daast_tracking_event.DaastTrackingEvent">DaastTrackingEvent</a>] | None</code></dt>
+<dt id="adcp.types.aliases.DaastAsset2.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent" href="generated_poc/enums/daast_tracking_event.html#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent">DaastTrackingEvent</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1206,7 +1206,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.Deployment1.activation_key"><code class="name">var <span class="ident">activation_key</span> : <a title="adcp.types.generated_poc.activation_key.ActivationKey1" href="generated_poc/activation_key.html#adcp.types.generated_poc.activation_key.ActivationKey1">ActivationKey1</a> | <a title="adcp.types.generated_poc.activation_key.ActivationKey2" href="generated_poc/activation_key.html#adcp.types.generated_poc.activation_key.ActivationKey2">ActivationKey2</a> | None</code></dt>
+<dt id="adcp.types.aliases.Deployment1.activation_key"><code class="name">var <span class="ident">activation_key</span> : <a title="adcp.types.generated_poc.core.activation_key.ActivationKey1" href="generated_poc/core/activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey1">ActivationKey1</a> | <a title="adcp.types.generated_poc.core.activation_key.ActivationKey2" href="generated_poc/core/activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey2">ActivationKey2</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1305,7 +1305,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.Deployment2.activation_key"><code class="name">var <span class="ident">activation_key</span> : <a title="adcp.types.generated_poc.activation_key.ActivationKey1" href="generated_poc/activation_key.html#adcp.types.generated_poc.activation_key.ActivationKey1">ActivationKey1</a> | <a title="adcp.types.generated_poc.activation_key.ActivationKey2" href="generated_poc/activation_key.html#adcp.types.generated_poc.activation_key.ActivationKey2">ActivationKey2</a> | None</code></dt>
+<dt id="adcp.types.aliases.Deployment2.activation_key"><code class="name">var <span class="ident">activation_key</span> : <a title="adcp.types.generated_poc.core.activation_key.ActivationKey1" href="generated_poc/core/activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey1">ActivationKey1</a> | <a title="adcp.types.generated_poc.core.activation_key.ActivationKey2" href="generated_poc/core/activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey2">ActivationKey2</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1511,6 +1511,7 @@ validated to form a valid model.</p>
         list[creative_assignment.CreativeAssignment] | None,
         Field(description=&#39;Creative assets assigned to this package&#39;),
     ] = None
+    ext: ext_1.ExtensionObject | None = None
     format_ids_to_provide: Annotated[
         list[format_id.FormatId] | None,
         Field(description=&#39;Format IDs that creative assets will be provided for this package&#39;),
@@ -1520,6 +1521,12 @@ validated to form a valid model.</p>
     ] = None
     pacing: pacing_1.Pacing | None = None
     package_id: Annotated[str, Field(description=&#34;Publisher&#39;s unique identifier for the package&#34;)]
+    paused: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether this package is paused by the buyer. Paused packages do not deliver impressions. Defaults to false.&#39;
+        ),
+    ] = False
     pricing_option_id: Annotated[
         str | None,
         Field(
@@ -1529,7 +1536,6 @@ validated to form a valid model.</p>
     product_id: Annotated[
         str | None, Field(description=&#39;ID of the product this package is based on&#39;)
     ] = None
-    status: package_status.PackageStatus
     targeting_overlay: targeting.TargetingOverlay | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1559,11 +1565,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.Package.creative_assignments"><code class="name">var <span class="ident">creative_assignments</span> : list[<a title="adcp.types.generated_poc.creative_assignment.CreativeAssignment" href="generated_poc/creative_assignment.html#adcp.types.generated_poc.creative_assignment.CreativeAssignment">CreativeAssignment</a>] | None</code></dt>
+<dt id="adcp.types.aliases.Package.creative_assignments"><code class="name">var <span class="ident">creative_assignments</span> : list[<a title="adcp.types.generated_poc.core.creative_assignment.CreativeAssignment" href="generated_poc/core/creative_assignment.html#adcp.types.generated_poc.core.creative_assignment.CreativeAssignment">CreativeAssignment</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.Package.format_ids_to_provide"><code class="name">var <span class="ident">format_ids_to_provide</span> : list[<a title="adcp.types.generated_poc.format_id.FormatId" href="generated_poc/format_id.html#adcp.types.generated_poc.format_id.FormatId">FormatId</a>] | None</code></dt>
+<dt id="adcp.types.aliases.Package.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Package.format_ids_to_provide"><code class="name">var <span class="ident">format_ids_to_provide</span> : list[<a title="adcp.types.generated_poc.core.format_id.FormatId" href="generated_poc/core/format_id.html#adcp.types.generated_poc.core.format_id.FormatId">FormatId</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1575,11 +1585,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.Package.pacing"><code class="name">var <span class="ident">pacing</span> : <a title="adcp.types.generated_poc.pacing.Pacing" href="generated_poc/pacing.html#adcp.types.generated_poc.pacing.Pacing">Pacing</a> | None</code></dt>
+<dt id="adcp.types.aliases.Package.pacing"><code class="name">var <span class="ident">pacing</span> : <a title="adcp.types.generated_poc.enums.pacing.Pacing" href="generated_poc/enums/pacing.html#adcp.types.generated_poc.enums.pacing.Pacing">Pacing</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.aliases.Package.package_id"><code class="name">var <span class="ident">package_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Package.paused"><code class="name">var <span class="ident">paused</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1591,11 +1605,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.Package.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.package_status.PackageStatus" href="generated_poc/package_status.html#adcp.types.generated_poc.package_status.PackageStatus">PackageStatus</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.aliases.Package.targeting_overlay"><code class="name">var <span class="ident">targeting_overlay</span> : <a title="adcp.types.generated_poc.targeting.TargetingOverlay" href="generated_poc/targeting.html#adcp.types.generated_poc.targeting.TargetingOverlay">TargetingOverlay</a> | None</code></dt>
+<dt id="adcp.types.aliases.Package.targeting_overlay"><code class="name">var <span class="ident">targeting_overlay</span> : <a title="adcp.types.generated_poc.core.targeting.TargetingOverlay" href="generated_poc/core/targeting.html#adcp.types.generated_poc.core.targeting.TargetingOverlay">TargetingOverlay</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1623,18 +1633,14 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    context: Annotated[
-        dict[str, Any] | None,
-        Field(
-            description=&#39;Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.&#39;
-        ),
-    ] = None
+    context: context_1.ContextObject | None = None
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest,
         Field(
             description=&#39;Complete creative manifest with all required assets (including promoted_offerings if required by the format)&#39;
         ),
     ]
+    ext: ext_1.ExtensionObject | None = None
     format_id: Annotated[
         format_id_1.FormatId, Field(description=&#39;Format identifier for rendering the preview&#39;)
     ]
@@ -1673,19 +1679,23 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.aliases.PreviewCreativeRequest1.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.aliases.PreviewCreativeRequest1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.PreviewCreativeRequest1.creative_manifest"><code class="name">var <span class="ident">creative_manifest</span> : <a title="adcp.types.generated_poc.creative_manifest.CreativeManifest" href="generated_poc/creative_manifest.html#adcp.types.generated_poc.creative_manifest.CreativeManifest">CreativeManifest</a></code></dt>
+<dt id="adcp.types.aliases.PreviewCreativeRequest1.creative_manifest"><code class="name">var <span class="ident">creative_manifest</span> : <a title="adcp.types.generated_poc.core.creative_manifest.CreativeManifest" href="generated_poc/core/creative_manifest.html#adcp.types.generated_poc.core.creative_manifest.CreativeManifest">CreativeManifest</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.PreviewCreativeRequest1.format_id"><code class="name">var <span class="ident">format_id</span> : <a title="adcp.types.generated_poc.format_id.FormatId" href="generated_poc/format_id.html#adcp.types.generated_poc.format_id.FormatId">FormatId</a></code></dt>
+<dt id="adcp.types.aliases.PreviewCreativeRequest1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.PreviewCreativeRequest1.inputs"><code class="name">var <span class="ident">inputs</span> : list[<a title="adcp.types.generated_poc.preview_creative_request.Input" href="generated_poc/preview_creative_request.html#adcp.types.generated_poc.preview_creative_request.Input">Input</a>] | None</code></dt>
+<dt id="adcp.types.aliases.PreviewCreativeRequest1.format_id"><code class="name">var <span class="ident">format_id</span> : <a title="adcp.types.generated_poc.core.format_id.FormatId" href="generated_poc/core/format_id.html#adcp.types.generated_poc.core.format_id.FormatId">FormatId</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeRequest1.inputs"><code class="name">var <span class="ident">inputs</span> : list[<a title="adcp.types.generated_poc.creative.preview_creative_request.Input" href="generated_poc/creative/preview_creative_request.html#adcp.types.generated_poc.creative.preview_creative_request.Input">Input</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1693,7 +1703,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.PreviewCreativeRequest1.output_format"><code class="name">var <span class="ident">output_format</span> : <a title="adcp.types.generated_poc.preview_output_format.PreviewOutputFormat" href="generated_poc/preview_output_format.html#adcp.types.generated_poc.preview_output_format.PreviewOutputFormat">PreviewOutputFormat</a> | None</code></dt>
+<dt id="adcp.types.aliases.PreviewCreativeRequest1.output_format"><code class="name">var <span class="ident">output_format</span> : <a title="adcp.types.generated_poc.enums.preview_output_format.PreviewOutputFormat" href="generated_poc/enums/preview_output_format.html#adcp.types.generated_poc.enums.preview_output_format.PreviewOutputFormat">PreviewOutputFormat</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1729,12 +1739,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    context: Annotated[
-        dict[str, Any] | None,
-        Field(
-            description=&#39;Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.&#39;
-        ),
-    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
     output_format: Annotated[
         preview_output_format.PreviewOutputFormat | None,
         Field(
@@ -1769,7 +1775,11 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.aliases.PreviewCreativeRequest2.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.aliases.PreviewCreativeRequest2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeRequest2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1777,7 +1787,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.PreviewCreativeRequest2.output_format"><code class="name">var <span class="ident">output_format</span> : <a title="adcp.types.generated_poc.preview_output_format.PreviewOutputFormat" href="generated_poc/preview_output_format.html#adcp.types.generated_poc.preview_output_format.PreviewOutputFormat">PreviewOutputFormat</a> | None</code></dt>
+<dt id="adcp.types.aliases.PreviewCreativeRequest2.output_format"><code class="name">var <span class="ident">output_format</span> : <a title="adcp.types.generated_poc.enums.preview_output_format.PreviewOutputFormat" href="generated_poc/enums/preview_output_format.html#adcp.types.generated_poc.enums.preview_output_format.PreviewOutputFormat">PreviewOutputFormat</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1785,7 +1795,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.PreviewCreativeRequest2.requests"><code class="name">var <span class="ident">requests</span> : list[<a title="adcp.types.generated_poc.preview_creative_request.Request" href="generated_poc/preview_creative_request.html#adcp.types.generated_poc.preview_creative_request.Request">Request</a>]</code></dt>
+<dt id="adcp.types.aliases.PreviewCreativeRequest2.requests"><code class="name">var <span class="ident">requests</span> : list[<a title="adcp.types.generated_poc.creative.preview_creative_request.Request" href="generated_poc/creative/preview_creative_request.html#adcp.types.generated_poc.creative.preview_creative_request.Request">Request</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1813,15 +1823,11 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    context: Annotated[
-        dict[str, Any] | None,
-        Field(
-            description=&#39;Initiator-provided context echoed inside the preview payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
-        ),
-    ] = None
+    context: context_1.ContextObject | None = None
     expires_at: Annotated[
         AwareDatetime, Field(description=&#39;ISO 8601 timestamp when preview links expire&#39;)
     ]
+    ext: ext_1.ExtensionObject | None = None
     interactive_url: Annotated[
         AnyUrl | None,
         Field(
@@ -1855,11 +1861,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.aliases.PreviewCreativeResponse1.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.aliases.PreviewCreativeResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.aliases.PreviewCreativeResponse1.expires_at"><code class="name">var <span class="ident">expires_at</span> : pydantic.types.AwareDatetime</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeResponse1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1871,7 +1881,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.PreviewCreativeResponse1.previews"><code class="name">var <span class="ident">previews</span> : list[<a title="adcp.types.generated_poc.preview_creative_response.Preview" href="generated_poc/preview_creative_response.html#adcp.types.generated_poc.preview_creative_response.Preview">Preview</a>]</code></dt>
+<dt id="adcp.types.aliases.PreviewCreativeResponse1.previews"><code class="name">var <span class="ident">previews</span> : list[<a title="adcp.types.generated_poc.creative.preview_creative_response.Preview" href="generated_poc/creative/preview_creative_response.html#adcp.types.generated_poc.creative.preview_creative_response.Preview">Preview</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1903,12 +1913,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    context: Annotated[
-        dict[str, Any] | None,
-        Field(
-            description=&#39;Initiator-provided context echoed inside the preview payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
-        ),
-    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
     response_type: Annotated[
         Literal[&#39;batch&#39;],
         Field(description=&#39;Discriminator indicating this is a batch preview response&#39;),
@@ -1936,7 +1942,11 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.aliases.PreviewCreativeResponse2.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.aliases.PreviewCreativeResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.PreviewCreativeResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1948,7 +1958,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.PreviewCreativeResponse2.results"><code class="name">var <span class="ident">results</span> : list[<a title="adcp.types.generated_poc.preview_creative_response.Results" href="generated_poc/preview_creative_response.html#adcp.types.generated_poc.preview_creative_response.Results">Results</a> | <a title="adcp.types.generated_poc.preview_creative_response.Results1" href="generated_poc/preview_creative_response.html#adcp.types.generated_poc.preview_creative_response.Results1">Results1</a>]</code></dt>
+<dt id="adcp.types.aliases.PreviewCreativeResponse2.results"><code class="name">var <span class="ident">results</span> : list[<a title="adcp.types.generated_poc.creative.preview_creative_response.Results" href="generated_poc/creative/preview_creative_response.html#adcp.types.generated_poc.creative.preview_creative_response.Results">Results</a> | <a title="adcp.types.generated_poc.creative.preview_creative_response.Results1" href="generated_poc/creative/preview_creative_response.html#adcp.types.generated_poc.creative.preview_creative_response.Results1">Results1</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2017,11 +2027,11 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.aliases.PreviewRender1.dimensions"><code class="name">var <span class="ident">dimensions</span> : <a title="adcp.types.generated_poc.preview_render.Dimensions" href="generated_poc/preview_render.html#adcp.types.generated_poc.preview_render.Dimensions">Dimensions</a> | None</code></dt>
+<dt id="adcp.types.aliases.PreviewRender1.dimensions"><code class="name">var <span class="ident">dimensions</span> : <a title="adcp.types.generated_poc.creative.preview_render.Dimensions" href="generated_poc/creative/preview_render.html#adcp.types.generated_poc.creative.preview_render.Dimensions">Dimensions</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.PreviewRender1.embedding"><code class="name">var <span class="ident">embedding</span> : <a title="adcp.types.generated_poc.preview_render.Embedding" href="generated_poc/preview_render.html#adcp.types.generated_poc.preview_render.Embedding">Embedding</a> | None</code></dt>
+<dt id="adcp.types.aliases.PreviewRender1.embedding"><code class="name">var <span class="ident">embedding</span> : <a title="adcp.types.generated_poc.creative.preview_render.Embedding" href="generated_poc/creative/preview_render.html#adcp.types.generated_poc.creative.preview_render.Embedding">Embedding</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2109,11 +2119,11 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.aliases.PreviewRender2.dimensions"><code class="name">var <span class="ident">dimensions</span> : <a title="adcp.types.generated_poc.preview_render.Dimensions" href="generated_poc/preview_render.html#adcp.types.generated_poc.preview_render.Dimensions">Dimensions</a> | None</code></dt>
+<dt id="adcp.types.aliases.PreviewRender2.dimensions"><code class="name">var <span class="ident">dimensions</span> : <a title="adcp.types.generated_poc.creative.preview_render.Dimensions" href="generated_poc/creative/preview_render.html#adcp.types.generated_poc.creative.preview_render.Dimensions">Dimensions</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.PreviewRender2.embedding"><code class="name">var <span class="ident">embedding</span> : <a title="adcp.types.generated_poc.preview_render.Embedding" href="generated_poc/preview_render.html#adcp.types.generated_poc.preview_render.Embedding">Embedding</a> | None</code></dt>
+<dt id="adcp.types.aliases.PreviewRender2.embedding"><code class="name">var <span class="ident">embedding</span> : <a title="adcp.types.generated_poc.creative.preview_render.Embedding" href="generated_poc/creative/preview_render.html#adcp.types.generated_poc.creative.preview_render.Embedding">Embedding</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2211,11 +2221,11 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.aliases.PreviewRender3.dimensions"><code class="name">var <span class="ident">dimensions</span> : <a title="adcp.types.generated_poc.preview_render.Dimensions" href="generated_poc/preview_render.html#adcp.types.generated_poc.preview_render.Dimensions">Dimensions</a> | None</code></dt>
+<dt id="adcp.types.aliases.PreviewRender3.dimensions"><code class="name">var <span class="ident">dimensions</span> : <a title="adcp.types.generated_poc.creative.preview_render.Dimensions" href="generated_poc/creative/preview_render.html#adcp.types.generated_poc.creative.preview_render.Dimensions">Dimensions</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.PreviewRender3.embedding"><code class="name">var <span class="ident">embedding</span> : <a title="adcp.types.generated_poc.preview_render.Embedding" href="generated_poc/preview_render.html#adcp.types.generated_poc.preview_render.Embedding">Embedding</a> | None</code></dt>
+<dt id="adcp.types.aliases.PreviewRender3.embedding"><code class="name">var <span class="ident">embedding</span> : <a title="adcp.types.generated_poc.creative.preview_render.Embedding" href="generated_poc/creative/preview_render.html#adcp.types.generated_poc.creative.preview_render.Embedding">Embedding</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2385,12 +2395,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    context: Annotated[
-        dict[str, Any] | None,
-        Field(
-            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
-        ),
-    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
     success: Annotated[
         Literal[True],
         Field(description=&#39;Whether the performance feedback was successfully received&#39;),
@@ -2411,7 +2417,11 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.aliases.ProvidePerformanceFeedbackResponse1.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.aliases.ProvidePerformanceFeedbackResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ProvidePerformanceFeedbackResponse1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2447,19 +2457,15 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    context: Annotated[
-        dict[str, Any] | None,
-        Field(
-            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
-        ),
-    ] = None
+    context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
             description=&#39;Array of errors explaining why feedback was rejected (e.g., invalid measurement period, missing campaign data)&#39;,
             min_length=1,
         ),
-    ]</code></pre>
+    ]
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -2476,11 +2482,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.aliases.ProvidePerformanceFeedbackResponse2.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.aliases.ProvidePerformanceFeedbackResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.ProvidePerformanceFeedbackResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.error.Error" href="generated_poc/error.html#adcp.types.generated_poc.error.Error">Error</a>]</code></dt>
+<dt id="adcp.types.aliases.ProvidePerformanceFeedbackResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="generated_poc/core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ProvidePerformanceFeedbackResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2612,7 +2622,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.PublisherPropertySelector2.property_ids"><code class="name">var <span class="ident">property_ids</span> : list[<a title="adcp.types.generated_poc.property_id.PropertyId" href="generated_poc/property_id.html#adcp.types.generated_poc.property_id.PropertyId">PropertyId</a>]</code></dt>
+<dt id="adcp.types.aliases.PublisherPropertySelector2.property_ids"><code class="name">var <span class="ident">property_ids</span> : list[<a title="adcp.types.generated_poc.core.property_id.PropertyId" href="generated_poc/core/property_id.html#adcp.types.generated_poc.core.property_id.PropertyId">PropertyId</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2685,7 +2695,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.PublisherPropertySelector3.property_tags"><code class="name">var <span class="ident">property_tags</span> : list[<a title="adcp.types.generated_poc.property_tag.PropertyTag" href="generated_poc/property_tag.html#adcp.types.generated_poc.property_tag.PropertyTag">PropertyTag</a>]</code></dt>
+<dt id="adcp.types.aliases.PublisherPropertySelector3.property_tags"><code class="name">var <span class="ident">property_tags</span> : list[<a title="adcp.types.generated_poc.core.property_tag.PropertyTag" href="generated_poc/core/property_tag.html#adcp.types.generated_poc.core.property_tag.PropertyTag">PropertyTag</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2874,12 +2884,7 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    context: Annotated[
-        dict[str, Any] | None,
-        Field(
-            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
-        ),
-    ] = None
+    context: context_1.ContextObject | None = None
     creatives: Annotated[
         list[Creative],
         Field(
@@ -2888,7 +2893,8 @@ validated to form a valid model.</p>
     ]
     dry_run: Annotated[
         bool | None, Field(description=&#39;Whether this was a dry run (no actual changes made)&#39;)
-    ] = None</code></pre>
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -2905,15 +2911,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.aliases.SyncCreativesResponse1.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.aliases.SyncCreativesResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.SyncCreativesResponse1.creatives"><code class="name">var <span class="ident">creatives</span> : list[<a title="adcp.types.generated_poc.sync_creatives_response.Creative" href="generated_poc/sync_creatives_response.html#adcp.types.generated_poc.sync_creatives_response.Creative">Creative</a>]</code></dt>
+<dt id="adcp.types.aliases.SyncCreativesResponse1.creatives"><code class="name">var <span class="ident">creatives</span> : list[<a title="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative" href="generated_poc/media_buy/sync_creatives_response.html#adcp.types.generated_poc.media_buy.sync_creatives_response.Creative">Creative</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.aliases.SyncCreativesResponse1.dry_run"><code class="name">var <span class="ident">dry_run</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncCreativesResponse1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2945,19 +2955,15 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    context: Annotated[
-        dict[str, Any] | None,
-        Field(
-            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
-        ),
-    ] = None
+    context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
             description=&#39;Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)&#39;,
             min_length=1,
         ),
-    ]</code></pre>
+    ]
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -2974,11 +2980,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.aliases.SyncCreativesResponse2.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.aliases.SyncCreativesResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.SyncCreativesResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.error.Error" href="generated_poc/error.html#adcp.types.generated_poc.error.Error">Error</a>]</code></dt>
+<dt id="adcp.types.aliases.SyncCreativesResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="generated_poc/core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncCreativesResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3010,22 +3020,21 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    active: Annotated[bool | None, Field(description=&#39;Pause/resume the entire media buy&#39;)] = None
     buyer_ref: Annotated[
         str | None, Field(description=&#34;Buyer&#39;s reference for the media buy to update&#34;)
     ] = None
-    context: Annotated[
-        dict[str, Any] | None,
-        Field(
-            description=&#39;Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.&#39;
-        ),
-    ] = None
+    context: context_1.ContextObject | None = None
     end_time: Annotated[
         AwareDatetime | None, Field(description=&#39;New end date/time in ISO 8601 format&#39;)
     ] = None
+    ext: ext_1.ExtensionObject | None = None
     media_buy_id: Annotated[str, Field(description=&#34;Publisher&#39;s ID of the media buy to update&#34;)]
     packages: Annotated[
         list[Packages | Packages1] | None, Field(description=&#39;Package-specific updates&#39;)
+    ] = None
+    paused: Annotated[
+        bool | None,
+        Field(description=&#39;Pause/resume the entire media buy (true = paused, false = active)&#39;),
     ] = None
     push_notification_config: Annotated[
         push_notification_config_1.PushNotificationConfig | None,
@@ -3055,19 +3064,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.aliases.UpdateMediaBuyRequest1.active"><code class="name">var <span class="ident">active</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="adcp.types.aliases.UpdateMediaBuyRequest1.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.UpdateMediaBuyRequest1.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.aliases.UpdateMediaBuyRequest1.end_time"><code class="name">var <span class="ident">end_time</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3079,11 +3088,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.UpdateMediaBuyRequest1.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.update_media_buy_request.Packages" href="generated_poc/update_media_buy_request.html#adcp.types.generated_poc.update_media_buy_request.Packages">Packages</a> | <a title="adcp.types.generated_poc.update_media_buy_request.Packages1" href="generated_poc/update_media_buy_request.html#adcp.types.generated_poc.update_media_buy_request.Packages1">Packages1</a>] | None</code></dt>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest1.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.media_buy.update_media_buy_request.Packages" href="generated_poc/media_buy/update_media_buy_request.html#adcp.types.generated_poc.media_buy.update_media_buy_request.Packages">Packages</a> | <a title="adcp.types.generated_poc.media_buy.update_media_buy_request.Packages1" href="generated_poc/media_buy/update_media_buy_request.html#adcp.types.generated_poc.media_buy.update_media_buy_request.Packages1">Packages1</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.UpdateMediaBuyRequest1.push_notification_config"><code class="name">var <span class="ident">push_notification_config</span> : <a title="adcp.types.generated_poc.push_notification_config.PushNotificationConfig" href="generated_poc/push_notification_config.html#adcp.types.generated_poc.push_notification_config.PushNotificationConfig">PushNotificationConfig</a> | None</code></dt>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest1.paused"><code class="name">var <span class="ident">paused</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest1.push_notification_config"><code class="name">var <span class="ident">push_notification_config</span> : <a title="adcp.types.generated_poc.core.push_notification_config.PushNotificationConfig" href="generated_poc/core/push_notification_config.html#adcp.types.generated_poc.core.push_notification_config.PushNotificationConfig">PushNotificationConfig</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3115,22 +3128,21 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    active: Annotated[bool | None, Field(description=&#39;Pause/resume the entire media buy&#39;)] = None
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference for the media buy to update&#34;)]
-    context: Annotated[
-        dict[str, Any] | None,
-        Field(
-            description=&#39;Initiator-provided context included in the request payload. Agents must echo this value back unchanged in responses and webhooks. Use for UI/session hints, correlation tokens, or tracking metadata.&#39;
-        ),
-    ] = None
+    context: context_1.ContextObject | None = None
     end_time: Annotated[
         AwareDatetime | None, Field(description=&#39;New end date/time in ISO 8601 format&#39;)
     ] = None
+    ext: ext_1.ExtensionObject | None = None
     media_buy_id: Annotated[
         str | None, Field(description=&#34;Publisher&#39;s ID of the media buy to update&#34;)
     ] = None
     packages: Annotated[
         list[Packages2 | Packages3] | None, Field(description=&#39;Package-specific updates&#39;)
+    ] = None
+    paused: Annotated[
+        bool | None,
+        Field(description=&#39;Pause/resume the entire media buy (true = paused, false = active)&#39;),
     ] = None
     push_notification_config: Annotated[
         push_notification_config_1.PushNotificationConfig | None,
@@ -3160,19 +3172,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.aliases.UpdateMediaBuyRequest2.active"><code class="name">var <span class="ident">active</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="adcp.types.aliases.UpdateMediaBuyRequest2.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.UpdateMediaBuyRequest2.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.aliases.UpdateMediaBuyRequest2.end_time"><code class="name">var <span class="ident">end_time</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3184,11 +3196,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.UpdateMediaBuyRequest2.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.update_media_buy_request.Packages" href="generated_poc/update_media_buy_request.html#adcp.types.generated_poc.update_media_buy_request.Packages">Packages</a> | <a title="adcp.types.generated_poc.update_media_buy_request.Packages1" href="generated_poc/update_media_buy_request.html#adcp.types.generated_poc.update_media_buy_request.Packages1">Packages1</a>] | None</code></dt>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest2.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.media_buy.update_media_buy_request.Packages" href="generated_poc/media_buy/update_media_buy_request.html#adcp.types.generated_poc.media_buy.update_media_buy_request.Packages">Packages</a> | <a title="adcp.types.generated_poc.media_buy.update_media_buy_request.Packages1" href="generated_poc/media_buy/update_media_buy_request.html#adcp.types.generated_poc.media_buy.update_media_buy_request.Packages1">Packages1</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.UpdateMediaBuyRequest2.push_notification_config"><code class="name">var <span class="ident">push_notification_config</span> : <a title="adcp.types.generated_poc.push_notification_config.PushNotificationConfig" href="generated_poc/push_notification_config.html#adcp.types.generated_poc.push_notification_config.PushNotificationConfig">PushNotificationConfig</a> | None</code></dt>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest2.paused"><code class="name">var <span class="ident">paused</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest2.push_notification_config"><code class="name">var <span class="ident">push_notification_config</span> : <a title="adcp.types.generated_poc.core.push_notification_config.PushNotificationConfig" href="generated_poc/core/push_notification_config.html#adcp.types.generated_poc.core.push_notification_config.PushNotificationConfig">PushNotificationConfig</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3225,12 +3241,8 @@ validated to form a valid model.</p>
         Field(description=&#39;Array of packages that were modified with complete state information&#39;),
     ] = None
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for the media buy&#34;)]
-    context: Annotated[
-        dict[str, Any] | None,
-        Field(
-            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
-        ),
-    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
     implementation_date: Annotated[
         AwareDatetime | None,
         Field(description=&#39;ISO 8601 timestamp when changes take effect (null if pending approval)&#39;),
@@ -3252,7 +3264,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.aliases.UpdateMediaBuyResponse1.affected_packages"><code class="name">var <span class="ident">affected_packages</span> : list[<a title="adcp.types.generated_poc.package.Package" href="generated_poc/package.html#adcp.types.generated_poc.package.Package">Package</a>] | None</code></dt>
+<dt id="adcp.types.aliases.UpdateMediaBuyResponse1.affected_packages"><code class="name">var <span class="ident">affected_packages</span> : list[<a title="adcp.types.generated_poc.core.package.Package" href="generated_poc/core/package.html#adcp.types.generated_poc.core.package.Package">Package</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3260,7 +3272,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.UpdateMediaBuyResponse1.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.aliases.UpdateMediaBuyResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyResponse1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3300,16 +3316,12 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    context: Annotated[
-        dict[str, Any] | None,
-        Field(
-            description=&#39;Initiator-provided context echoed inside the task payload. Opaque metadata such as UI/session hints, correlation tokens, or tracking identifiers.&#39;
-        ),
-    ] = None
+    context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(description=&#39;Array of errors explaining why the operation failed&#39;, min_length=1),
-    ]</code></pre>
+    ]
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -3326,11 +3338,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.aliases.UpdateMediaBuyResponse2.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.aliases.UpdateMediaBuyResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.UpdateMediaBuyResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.error.Error" href="generated_poc/error.html#adcp.types.generated_poc.error.Error">Error</a>]</code></dt>
+<dt id="adcp.types.aliases.UpdateMediaBuyResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="generated_poc/core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3409,7 +3425,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.VastAsset1.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.vast_tracking_event.VastTrackingEvent" href="generated_poc/vast_tracking_event.html#adcp.types.generated_poc.vast_tracking_event.VastTrackingEvent">VastTrackingEvent</a>] | None</code></dt>
+<dt id="adcp.types.aliases.VastAsset1.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.enums.vast_tracking_event.VastTrackingEvent" href="generated_poc/enums/vast_tracking_event.html#adcp.types.generated_poc.enums.vast_tracking_event.VastTrackingEvent">VastTrackingEvent</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3417,7 +3433,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.VastAsset1.vast_version"><code class="name">var <span class="ident">vast_version</span> : <a title="adcp.types.generated_poc.vast_version.VastVersion" href="generated_poc/vast_version.html#adcp.types.generated_poc.vast_version.VastVersion">VastVersion</a> | None</code></dt>
+<dt id="adcp.types.aliases.VastAsset1.vast_version"><code class="name">var <span class="ident">vast_version</span> : <a title="adcp.types.generated_poc.enums.vast_version.VastVersion" href="generated_poc/enums/vast_version.html#adcp.types.generated_poc.enums.vast_version.VastVersion">VastVersion</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3500,11 +3516,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.VastAsset2.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.vast_tracking_event.VastTrackingEvent" href="generated_poc/vast_tracking_event.html#adcp.types.generated_poc.vast_tracking_event.VastTrackingEvent">VastTrackingEvent</a>] | None</code></dt>
+<dt id="adcp.types.aliases.VastAsset2.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.enums.vast_tracking_event.VastTrackingEvent" href="generated_poc/enums/vast_tracking_event.html#adcp.types.generated_poc.enums.vast_tracking_event.VastTrackingEvent">VastTrackingEvent</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.VastAsset2.vast_version"><code class="name">var <span class="ident">vast_version</span> : <a title="adcp.types.generated_poc.vast_version.VastVersion" href="generated_poc/vast_version.html#adcp.types.generated_poc.vast_version.VastVersion">VastVersion</a> | None</code></dt>
+<dt id="adcp.types.aliases.VastAsset2.vast_version"><code class="name">var <span class="ident">vast_version</span> : <a title="adcp.types.generated_poc.enums.vast_version.VastVersion" href="generated_poc/enums/vast_version.html#adcp.types.generated_poc.enums.vast_version.VastVersion">VastVersion</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3551,6 +3567,7 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.aliases.ActivateSignalResponse1.context" href="#adcp.types.aliases.ActivateSignalResponse1.context">context</a></code></li>
 <li><code><a title="adcp.types.aliases.ActivateSignalResponse1.deployments" href="#adcp.types.aliases.ActivateSignalResponse1.deployments">deployments</a></code></li>
+<li><code><a title="adcp.types.aliases.ActivateSignalResponse1.ext" href="#adcp.types.aliases.ActivateSignalResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.ActivateSignalResponse1.model_config" href="#adcp.types.aliases.ActivateSignalResponse1.model_config">model_config</a></code></li>
 </ul>
 </li>
@@ -3559,6 +3576,7 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.aliases.ActivateSignalResponse2.context" href="#adcp.types.aliases.ActivateSignalResponse2.context">context</a></code></li>
 <li><code><a title="adcp.types.aliases.ActivateSignalResponse2.errors" href="#adcp.types.aliases.ActivateSignalResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.ActivateSignalResponse2.ext" href="#adcp.types.aliases.ActivateSignalResponse2.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.ActivateSignalResponse2.model_config" href="#adcp.types.aliases.ActivateSignalResponse2.model_config">model_config</a></code></li>
 </ul>
 </li>
@@ -3624,6 +3642,7 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.aliases.BuildCreativeResponse1.context" href="#adcp.types.aliases.BuildCreativeResponse1.context">context</a></code></li>
 <li><code><a title="adcp.types.aliases.BuildCreativeResponse1.creative_manifest" href="#adcp.types.aliases.BuildCreativeResponse1.creative_manifest">creative_manifest</a></code></li>
+<li><code><a title="adcp.types.aliases.BuildCreativeResponse1.ext" href="#adcp.types.aliases.BuildCreativeResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.BuildCreativeResponse1.model_config" href="#adcp.types.aliases.BuildCreativeResponse1.model_config">model_config</a></code></li>
 </ul>
 </li>
@@ -3632,6 +3651,7 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.aliases.BuildCreativeResponse2.context" href="#adcp.types.aliases.BuildCreativeResponse2.context">context</a></code></li>
 <li><code><a title="adcp.types.aliases.BuildCreativeResponse2.errors" href="#adcp.types.aliases.BuildCreativeResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.BuildCreativeResponse2.ext" href="#adcp.types.aliases.BuildCreativeResponse2.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.BuildCreativeResponse2.model_config" href="#adcp.types.aliases.BuildCreativeResponse2.model_config">model_config</a></code></li>
 </ul>
 </li>
@@ -3641,6 +3661,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.buyer_ref" href="#adcp.types.aliases.CreateMediaBuyResponse1.buyer_ref">buyer_ref</a></code></li>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.context" href="#adcp.types.aliases.CreateMediaBuyResponse1.context">context</a></code></li>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.creative_deadline" href="#adcp.types.aliases.CreateMediaBuyResponse1.creative_deadline">creative_deadline</a></code></li>
+<li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.ext" href="#adcp.types.aliases.CreateMediaBuyResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.media_buy_id" href="#adcp.types.aliases.CreateMediaBuyResponse1.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.model_config" href="#adcp.types.aliases.CreateMediaBuyResponse1.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.packages" href="#adcp.types.aliases.CreateMediaBuyResponse1.packages">packages</a></code></li>
@@ -3651,6 +3672,7 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse2.context" href="#adcp.types.aliases.CreateMediaBuyResponse2.context">context</a></code></li>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse2.errors" href="#adcp.types.aliases.CreateMediaBuyResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.CreateMediaBuyResponse2.ext" href="#adcp.types.aliases.CreateMediaBuyResponse2.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse2.model_config" href="#adcp.types.aliases.CreateMediaBuyResponse2.model_config">model_config</a></code></li>
 </ul>
 </li>
@@ -3729,14 +3751,15 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.Package.budget" href="#adcp.types.aliases.Package.budget">budget</a></code></li>
 <li><code><a title="adcp.types.aliases.Package.buyer_ref" href="#adcp.types.aliases.Package.buyer_ref">buyer_ref</a></code></li>
 <li><code><a title="adcp.types.aliases.Package.creative_assignments" href="#adcp.types.aliases.Package.creative_assignments">creative_assignments</a></code></li>
+<li><code><a title="adcp.types.aliases.Package.ext" href="#adcp.types.aliases.Package.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.Package.format_ids_to_provide" href="#adcp.types.aliases.Package.format_ids_to_provide">format_ids_to_provide</a></code></li>
 <li><code><a title="adcp.types.aliases.Package.impressions" href="#adcp.types.aliases.Package.impressions">impressions</a></code></li>
 <li><code><a title="adcp.types.aliases.Package.model_config" href="#adcp.types.aliases.Package.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.aliases.Package.pacing" href="#adcp.types.aliases.Package.pacing">pacing</a></code></li>
 <li><code><a title="adcp.types.aliases.Package.package_id" href="#adcp.types.aliases.Package.package_id">package_id</a></code></li>
+<li><code><a title="adcp.types.aliases.Package.paused" href="#adcp.types.aliases.Package.paused">paused</a></code></li>
 <li><code><a title="adcp.types.aliases.Package.pricing_option_id" href="#adcp.types.aliases.Package.pricing_option_id">pricing_option_id</a></code></li>
 <li><code><a title="adcp.types.aliases.Package.product_id" href="#adcp.types.aliases.Package.product_id">product_id</a></code></li>
-<li><code><a title="adcp.types.aliases.Package.status" href="#adcp.types.aliases.Package.status">status</a></code></li>
 <li><code><a title="adcp.types.aliases.Package.targeting_overlay" href="#adcp.types.aliases.Package.targeting_overlay">targeting_overlay</a></code></li>
 </ul>
 </li>
@@ -3745,6 +3768,7 @@ validated to form a valid model.</p>
 <ul class="two-column">
 <li><code><a title="adcp.types.aliases.PreviewCreativeRequest1.context" href="#adcp.types.aliases.PreviewCreativeRequest1.context">context</a></code></li>
 <li><code><a title="adcp.types.aliases.PreviewCreativeRequest1.creative_manifest" href="#adcp.types.aliases.PreviewCreativeRequest1.creative_manifest">creative_manifest</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeRequest1.ext" href="#adcp.types.aliases.PreviewCreativeRequest1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.PreviewCreativeRequest1.format_id" href="#adcp.types.aliases.PreviewCreativeRequest1.format_id">format_id</a></code></li>
 <li><code><a title="adcp.types.aliases.PreviewCreativeRequest1.inputs" href="#adcp.types.aliases.PreviewCreativeRequest1.inputs">inputs</a></code></li>
 <li><code><a title="adcp.types.aliases.PreviewCreativeRequest1.model_config" href="#adcp.types.aliases.PreviewCreativeRequest1.model_config">model_config</a></code></li>
@@ -3755,8 +3779,9 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.aliases.PreviewCreativeRequest2" href="#adcp.types.aliases.PreviewCreativeRequest2">PreviewCreativeRequest2</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.aliases.PreviewCreativeRequest2.context" href="#adcp.types.aliases.PreviewCreativeRequest2.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeRequest2.ext" href="#adcp.types.aliases.PreviewCreativeRequest2.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.PreviewCreativeRequest2.model_config" href="#adcp.types.aliases.PreviewCreativeRequest2.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.aliases.PreviewCreativeRequest2.output_format" href="#adcp.types.aliases.PreviewCreativeRequest2.output_format">output_format</a></code></li>
 <li><code><a title="adcp.types.aliases.PreviewCreativeRequest2.request_type" href="#adcp.types.aliases.PreviewCreativeRequest2.request_type">request_type</a></code></li>
@@ -3768,6 +3793,7 @@ validated to form a valid model.</p>
 <ul class="two-column">
 <li><code><a title="adcp.types.aliases.PreviewCreativeResponse1.context" href="#adcp.types.aliases.PreviewCreativeResponse1.context">context</a></code></li>
 <li><code><a title="adcp.types.aliases.PreviewCreativeResponse1.expires_at" href="#adcp.types.aliases.PreviewCreativeResponse1.expires_at">expires_at</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeResponse1.ext" href="#adcp.types.aliases.PreviewCreativeResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.PreviewCreativeResponse1.interactive_url" href="#adcp.types.aliases.PreviewCreativeResponse1.interactive_url">interactive_url</a></code></li>
 <li><code><a title="adcp.types.aliases.PreviewCreativeResponse1.model_config" href="#adcp.types.aliases.PreviewCreativeResponse1.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.aliases.PreviewCreativeResponse1.previews" href="#adcp.types.aliases.PreviewCreativeResponse1.previews">previews</a></code></li>
@@ -3778,6 +3804,7 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.aliases.PreviewCreativeResponse2" href="#adcp.types.aliases.PreviewCreativeResponse2">PreviewCreativeResponse2</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.aliases.PreviewCreativeResponse2.context" href="#adcp.types.aliases.PreviewCreativeResponse2.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.PreviewCreativeResponse2.ext" href="#adcp.types.aliases.PreviewCreativeResponse2.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.PreviewCreativeResponse2.model_config" href="#adcp.types.aliases.PreviewCreativeResponse2.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.aliases.PreviewCreativeResponse2.response_type" href="#adcp.types.aliases.PreviewCreativeResponse2.response_type">response_type</a></code></li>
 <li><code><a title="adcp.types.aliases.PreviewCreativeResponse2.results" href="#adcp.types.aliases.PreviewCreativeResponse2.results">results</a></code></li>
@@ -3838,6 +3865,7 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse1" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse1">ProvidePerformanceFeedbackResponse1</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse1.context" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse1.ext" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse1.model_config" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse1.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse1.success" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse1.success">success</a></code></li>
 </ul>
@@ -3847,6 +3875,7 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse2.context" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse2.context">context</a></code></li>
 <li><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse2.errors" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse2.ext" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse2.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse2.model_config" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse2.model_config">model_config</a></code></li>
 </ul>
 </li>
@@ -3902,6 +3931,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.SyncCreativesResponse1.context" href="#adcp.types.aliases.SyncCreativesResponse1.context">context</a></code></li>
 <li><code><a title="adcp.types.aliases.SyncCreativesResponse1.creatives" href="#adcp.types.aliases.SyncCreativesResponse1.creatives">creatives</a></code></li>
 <li><code><a title="adcp.types.aliases.SyncCreativesResponse1.dry_run" href="#adcp.types.aliases.SyncCreativesResponse1.dry_run">dry_run</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncCreativesResponse1.ext" href="#adcp.types.aliases.SyncCreativesResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.SyncCreativesResponse1.model_config" href="#adcp.types.aliases.SyncCreativesResponse1.model_config">model_config</a></code></li>
 </ul>
 </li>
@@ -3910,19 +3940,21 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.aliases.SyncCreativesResponse2.context" href="#adcp.types.aliases.SyncCreativesResponse2.context">context</a></code></li>
 <li><code><a title="adcp.types.aliases.SyncCreativesResponse2.errors" href="#adcp.types.aliases.SyncCreativesResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncCreativesResponse2.ext" href="#adcp.types.aliases.SyncCreativesResponse2.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.SyncCreativesResponse2.model_config" href="#adcp.types.aliases.SyncCreativesResponse2.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1" href="#adcp.types.aliases.UpdateMediaBuyRequest1">UpdateMediaBuyRequest1</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1.active" href="#adcp.types.aliases.UpdateMediaBuyRequest1.active">active</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1.buyer_ref" href="#adcp.types.aliases.UpdateMediaBuyRequest1.buyer_ref">buyer_ref</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1.context" href="#adcp.types.aliases.UpdateMediaBuyRequest1.context">context</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1.end_time" href="#adcp.types.aliases.UpdateMediaBuyRequest1.end_time">end_time</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1.ext" href="#adcp.types.aliases.UpdateMediaBuyRequest1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1.media_buy_id" href="#adcp.types.aliases.UpdateMediaBuyRequest1.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1.model_config" href="#adcp.types.aliases.UpdateMediaBuyRequest1.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1.packages" href="#adcp.types.aliases.UpdateMediaBuyRequest1.packages">packages</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1.paused" href="#adcp.types.aliases.UpdateMediaBuyRequest1.paused">paused</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1.push_notification_config" href="#adcp.types.aliases.UpdateMediaBuyRequest1.push_notification_config">push_notification_config</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest1.start_time" href="#adcp.types.aliases.UpdateMediaBuyRequest1.start_time">start_time</a></code></li>
 </ul>
@@ -3930,13 +3962,14 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2" href="#adcp.types.aliases.UpdateMediaBuyRequest2">UpdateMediaBuyRequest2</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2.active" href="#adcp.types.aliases.UpdateMediaBuyRequest2.active">active</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2.buyer_ref" href="#adcp.types.aliases.UpdateMediaBuyRequest2.buyer_ref">buyer_ref</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2.context" href="#adcp.types.aliases.UpdateMediaBuyRequest2.context">context</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2.end_time" href="#adcp.types.aliases.UpdateMediaBuyRequest2.end_time">end_time</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2.ext" href="#adcp.types.aliases.UpdateMediaBuyRequest2.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2.media_buy_id" href="#adcp.types.aliases.UpdateMediaBuyRequest2.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2.model_config" href="#adcp.types.aliases.UpdateMediaBuyRequest2.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2.packages" href="#adcp.types.aliases.UpdateMediaBuyRequest2.packages">packages</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2.paused" href="#adcp.types.aliases.UpdateMediaBuyRequest2.paused">paused</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2.push_notification_config" href="#adcp.types.aliases.UpdateMediaBuyRequest2.push_notification_config">push_notification_config</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyRequest2.start_time" href="#adcp.types.aliases.UpdateMediaBuyRequest2.start_time">start_time</a></code></li>
 </ul>
@@ -3947,6 +3980,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse1.affected_packages" href="#adcp.types.aliases.UpdateMediaBuyResponse1.affected_packages">affected_packages</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse1.buyer_ref" href="#adcp.types.aliases.UpdateMediaBuyResponse1.buyer_ref">buyer_ref</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse1.context" href="#adcp.types.aliases.UpdateMediaBuyResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse1.ext" href="#adcp.types.aliases.UpdateMediaBuyResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse1.implementation_date" href="#adcp.types.aliases.UpdateMediaBuyResponse1.implementation_date">implementation_date</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse1.media_buy_id" href="#adcp.types.aliases.UpdateMediaBuyResponse1.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse1.model_config" href="#adcp.types.aliases.UpdateMediaBuyResponse1.model_config">model_config</a></code></li>
@@ -3957,6 +3991,7 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse2.context" href="#adcp.types.aliases.UpdateMediaBuyResponse2.context">context</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse2.errors" href="#adcp.types.aliases.UpdateMediaBuyResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse2.ext" href="#adcp.types.aliases.UpdateMediaBuyResponse2.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse2.model_config" href="#adcp.types.aliases.UpdateMediaBuyResponse2.model_config">model_config</a></code></li>
 </ul>
 </li>

@@ -88,15 +88,18 @@ el.replaceWith(d);
         Returns:
             Typed TaskResult
         &#34;&#34;&#34;
-        # Handle failed results or missing data
+        # Handle failed results or interim states without data
+        # For A2A: interim states (submitted/working) have data=None but success=True
+        # For MCP: completed tasks always have data, missing data indicates failure
         if not raw_result.success or raw_result.data is None:
-            # Explicitly construct typed result to satisfy type checker
+            # If already marked as unsuccessful, preserve that
+            # If successful but no data (A2A interim state), preserve success=True
             return TaskResult[T](
                 status=raw_result.status,
                 data=None,
                 message=raw_result.message,
-                success=False,
-                error=raw_result.error or &#34;No data returned from adapter&#34;,
+                success=raw_result.success,  # Preserve original success state
+                error=raw_result.error,  # Only use error if one was set
                 metadata=raw_result.metadata,
                 debug_info=raw_result.debug_info,
             )
@@ -204,6 +207,22 @@ el.replaceWith(d);
         pass
 
     @abstractmethod
+    async def get_agent_info(self) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;
+        Get agent information including AdCP extension metadata.
+
+        Returns agent card information including:
+        - Agent name, description, version
+        - AdCP version (from extensions.adcp.adcp_version)
+        - Supported protocols (from extensions.adcp.protocols_supported)
+        - Available tools/skills
+
+        Returns:
+            Dictionary with agent metadata including AdCP extension fields
+        &#34;&#34;&#34;
+        pass
+
+    @abstractmethod
     async def close(self) -&gt; None:
         &#34;&#34;&#34;
         Close the adapter and clean up resources.
@@ -292,6 +311,39 @@ async def create_media_buy(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
     pass</code></pre>
 </details>
 <div class="desc"><p>Create media buy.</p></div>
+</dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.get_agent_info"><code class="name flex">
+<span>async def <span class="ident">get_agent_info</span></span>(<span>self) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def get_agent_info(self) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;
+    Get agent information including AdCP extension metadata.
+
+    Returns agent card information including:
+    - Agent name, description, version
+    - AdCP version (from extensions.adcp.adcp_version)
+    - Supported protocols (from extensions.adcp.protocols_supported)
+    - Available tools/skills
+
+    Returns:
+        Dictionary with agent metadata including AdCP extension fields
+    &#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Get agent information including AdCP extension metadata.</p>
+<p>Returns agent card information including:
+- Agent name, description, version
+- AdCP version (from extensions.adcp.adcp_version)
+- Supported protocols (from extensions.adcp.protocols_supported)
+- Available tools/skills</p>
+<h2 id="returns">Returns</h2>
+<p>Dictionary with agent metadata including AdCP extension fields</p></div>
 </dd>
 <dt id="adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery"><code class="name flex">
 <span>async def <span class="ident">get_media_buy_delivery</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
@@ -474,6 +526,7 @@ async def update_media_buy(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.build_creative" href="#adcp.protocols.base.ProtocolAdapter.build_creative">build_creative</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.close" href="#adcp.protocols.base.ProtocolAdapter.close">close</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.create_media_buy" href="#adcp.protocols.base.ProtocolAdapter.create_media_buy">create_media_buy</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_agent_info" href="#adcp.protocols.base.ProtocolAdapter.get_agent_info">get_agent_info</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery" href="#adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_products" href="#adcp.protocols.base.ProtocolAdapter.get_products">get_products</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_signals" href="#adcp.protocols.base.ProtocolAdapter.get_signals">get_signals</a></code></li>
