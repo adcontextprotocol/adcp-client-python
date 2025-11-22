@@ -8,14 +8,14 @@
       "description": "Single creative preview request",
       "properties": {
         "context": {
-          "$ref": "/schemas/2.4.0/core/context.json"
+          "$ref": "../core/context.json"
         },
         "creative_manifest": {
-          "$ref": "/schemas/2.4.0/core/creative-manifest.json",
+          "$ref": "../core/creative-manifest.json",
           "description": "Complete creative manifest with all required assets (including promoted_offerings if required by the format)"
         },
         "format_id": {
-          "$ref": "/schemas/2.4.0/core/format-id.json",
+          "$ref": "../core/format-id.json",
           "description": "Format identifier for rendering the preview"
         },
         "inputs": {
@@ -47,7 +47,7 @@
           "type": "array"
         },
         "output_format": {
-          "$ref": "/schemas/2.4.0/enums/preview-output-format.json",
+          "$ref": "../enums/preview-output-format.json",
           "default": "url",
           "description": "Output format for previews. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding). Default: 'url' for backward compatibility."
         },
@@ -73,10 +73,10 @@
       "description": "Batch preview request for multiple creatives (5-10x faster than individual calls)",
       "properties": {
         "context": {
-          "$ref": "/schemas/2.4.0/core/context.json"
+          "$ref": "../core/context.json"
         },
         "output_format": {
-          "$ref": "/schemas/2.4.0/enums/preview-output-format.json",
+          "$ref": "../enums/preview-output-format.json",
           "default": "url",
           "description": "Default output format for all requests in this batch. Individual requests can override this. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding)."
         },
@@ -91,11 +91,11 @@
             "additionalProperties": false,
             "properties": {
               "creative_manifest": {
-                "$ref": "/schemas/2.4.0/core/creative-manifest.json",
+                "$ref": "../core/creative-manifest.json",
                 "description": "Complete creative manifest with all required assets"
               },
               "format_id": {
-                "$ref": "/schemas/2.4.0/core/format-id.json",
+                "$ref": "../core/format-id.json",
                 "description": "Format identifier for rendering the preview"
               },
               "inputs": {
@@ -127,7 +127,7 @@
                 "type": "array"
               },
               "output_format": {
-                "$ref": "/schemas/2.4.0/enums/preview-output-format.json",
+                "$ref": "../enums/preview-output-format.json",
                 "default": "url",
                 "description": "Output format for this preview. 'url' returns preview_url, 'html' returns preview_html."
               },
@@ -156,7 +156,7 @@
   ],
   "properties": {
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "title": "Preview Creative Request"

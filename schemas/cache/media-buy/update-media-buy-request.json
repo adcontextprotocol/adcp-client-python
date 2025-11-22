@@ -21,7 +21,7 @@
       "type": "string"
     },
     "context": {
-      "$ref": "/schemas/2.4.0/core/context.json"
+      "$ref": "../core/context.json"
     },
     "end_time": {
       "description": "New end date/time in ISO 8601 format",
@@ -29,7 +29,7 @@
       "type": "string"
     },
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "media_buy_id": {
       "description": "Publisher's ID of the media buy to update",
@@ -74,7 +74,7 @@
             "type": "array"
           },
           "pacing": {
-            "$ref": "/schemas/2.4.0/enums/pacing.json"
+            "$ref": "../enums/pacing.json"
           },
           "package_id": {
             "description": "Publisher's ID of package to update",
@@ -85,7 +85,7 @@
             "type": "boolean"
           },
           "targeting_overlay": {
-            "$ref": "/schemas/2.4.0/core/targeting.json"
+            "$ref": "../core/targeting.json"
           }
         },
         "type": "object"
@@ -97,11 +97,11 @@
       "type": "boolean"
     },
     "push_notification_config": {
-      "$ref": "/schemas/2.4.0/core/push-notification-config.json",
+      "$ref": "../core/push-notification-config.json",
       "description": "Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time."
     },
     "start_time": {
-      "$ref": "/schemas/2.4.0/core/start-timing.json"
+      "$ref": "../core/start-timing.json"
     }
   },
   "title": "Update Media Buy Request",

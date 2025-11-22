@@ -5,7 +5,7 @@
   "description": "Request parameters for discovering available advertising products",
   "properties": {
     "brand_manifest": {
-      "$ref": "/schemas/2.4.0/core/brand-manifest-ref.json",
+      "$ref": "../core/brand-manifest-ref.json",
       "description": "Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest."
     },
     "brief": {
@@ -13,13 +13,13 @@
       "type": "string"
     },
     "context": {
-      "$ref": "/schemas/2.4.0/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "filters": {
-      "$ref": "/schemas/2.4.0/core/product-filters.json"
+      "$ref": "../core/product-filters.json"
     }
   },
   "required": [],

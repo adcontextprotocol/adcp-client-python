@@ -53,13 +53,13 @@
       "type": "string"
     },
     "status": {
-      "$ref": "/schemas/2.4.0/enums/creative-status.json",
+      "$ref": "../enums/creative-status.json",
       "description": "Filter by creative approval status"
     },
     "statuses": {
       "description": "Filter by multiple creative statuses",
       "items": {
-        "$ref": "/schemas/2.4.0/enums/creative-status.json"
+        "$ref": "../enums/creative-status.json"
       },
       "type": "array"
     },

@@ -7,7 +7,7 @@
     "catalog_types": {
       "description": "Filter by catalog type",
       "items": {
-        "$ref": "/schemas/2.4.0/enums/signal-catalog-type.json"
+        "$ref": "../enums/signal-catalog-type.json"
       },
       "type": "array"
     },

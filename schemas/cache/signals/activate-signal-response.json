@@ -13,12 +13,12 @@
       },
       "properties": {
         "context": {
-          "$ref": "/schemas/2.4.0/core/context.json"
+          "$ref": "../core/context.json"
         },
         "deployments": {
           "description": "Array of deployment results for each deployment target",
           "items": {
-            "$ref": "/schemas/2.4.0/core/deployment.json"
+            "$ref": "../core/deployment.json"
           },
           "type": "array"
         }
@@ -38,12 +38,12 @@
       },
       "properties": {
         "context": {
-          "$ref": "/schemas/2.4.0/core/context.json"
+          "$ref": "../core/context.json"
         },
         "errors": {
           "description": "Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)",
           "items": {
-            "$ref": "/schemas/2.4.0/core/error.json"
+            "$ref": "../core/error.json"
           },
           "minItems": 1,
           "type": "array"
@@ -57,7 +57,7 @@
   ],
   "properties": {
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "title": "Activate Signal Response",

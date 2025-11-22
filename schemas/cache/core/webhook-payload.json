@@ -14,7 +14,7 @@
       "then": {
         "properties": {
           "result": {
-            "$ref": "/schemas/2.4.0/media-buy/create-media-buy-response.json"
+            "$ref": "../media-buy/create-media-buy-response.json"
           }
         }
       }
@@ -30,7 +30,7 @@
       "then": {
         "properties": {
           "result": {
-            "$ref": "/schemas/2.4.0/media-buy/update-media-buy-response.json"
+            "$ref": "../media-buy/update-media-buy-response.json"
           }
         }
       }
@@ -46,7 +46,7 @@
       "then": {
         "properties": {
           "result": {
-            "$ref": "/schemas/2.4.0/media-buy/sync-creatives-response.json"
+            "$ref": "../media-buy/sync-creatives-response.json"
           }
         }
       }
@@ -62,7 +62,7 @@
       "then": {
         "properties": {
           "result": {
-            "$ref": "/schemas/2.4.0/signals/activate-signal-response.json"
+            "$ref": "../signals/activate-signal-response.json"
           }
         }
       }
@@ -78,7 +78,7 @@
       "then": {
         "properties": {
           "result": {
-            "$ref": "/schemas/2.4.0/signals/get-signals-response.json"
+            "$ref": "../signals/get-signals-response.json"
           }
         }
       }
@@ -170,7 +170,7 @@
       "type": "string"
     },
     "domain": {
-      "$ref": "/schemas/2.4.0/enums/adcp-domain.json",
+      "$ref": "../enums/adcp-domain.json",
       "description": "AdCP domain this task belongs to. Helps classify the operation type at a high level."
     },
     "error": {
@@ -222,7 +222,7 @@
       ]
     },
     "status": {
-      "$ref": "/schemas/2.4.0/enums/task-status.json",
+      "$ref": "../enums/task-status.json",
       "description": "Current task status. Webhooks are only triggered for status changes after initial submission (e.g., submitted \u2192 input-required, submitted \u2192 completed, submitted \u2192 failed)."
     },
     "task_id": {
@@ -230,7 +230,7 @@
       "type": "string"
     },
     "task_type": {
-      "$ref": "/schemas/2.4.0/enums/task-type.json",
+      "$ref": "../enums/task-type.json",
       "description": "Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic."
     },
     "timestamp": {

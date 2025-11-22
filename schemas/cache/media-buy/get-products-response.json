@@ -5,22 +5,22 @@
   "description": "Response payload for get_products task",
   "properties": {
     "context": {
-      "$ref": "/schemas/2.4.0/core/context.json"
+      "$ref": "../core/context.json"
     },
     "errors": {
       "description": "Task-specific errors and warnings (e.g., product filtering issues)",
       "items": {
-        "$ref": "/schemas/2.4.0/core/error.json"
+        "$ref": "../core/error.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "products": {
       "description": "Array of matching products",
       "items": {
-        "$ref": "/schemas/2.4.0/core/product.json"
+        "$ref": "../core/product.json"
       },
       "type": "array"
     }

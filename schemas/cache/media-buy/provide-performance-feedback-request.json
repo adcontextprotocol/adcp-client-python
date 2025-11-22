@@ -26,7 +26,7 @@
       "type": "string"
     },
     "context": {
-      "$ref": "/schemas/2.4.0/core/context.json"
+      "$ref": "../core/context.json"
     },
     "creative_id": {
       "description": "Specific creative asset (if feedback is creative-specific)",
@@ -34,10 +34,10 @@
       "type": "string"
     },
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "feedback_source": {
-      "$ref": "/schemas/2.4.0/enums/feedback-source.json",
+      "$ref": "../enums/feedback-source.json",
       "default": "buyer_attribution",
       "description": "Source of the performance data"
     },
@@ -68,7 +68,7 @@
       "type": "string"
     },
     "metric_type": {
-      "$ref": "/schemas/2.4.0/enums/metric-type.json",
+      "$ref": "../enums/metric-type.json",
       "default": "overall_performance",
       "description": "The business metric being measured"
     },

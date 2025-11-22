@@ -5,18 +5,18 @@
   "description": "Request parameters for activating a signal on a specific deployment target",
   "properties": {
     "context": {
-      "$ref": "/schemas/2.4.0/core/context.json"
+      "$ref": "../core/context.json"
     },
     "deployments": {
       "description": "Target deployment(s) for activation. If the authenticated caller matches one of these deployment targets, activation keys will be included in the response.",
       "items": {
-        "$ref": "/schemas/2.4.0/core/destination.json"
+        "$ref": "../core/destination.json"
       },
       "minItems": 1,
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "signal_agent_segment_id": {
       "description": "The universal identifier for the signal to activate",

@@ -21,15 +21,15 @@
       "type": "array"
     },
     "context": {
-      "$ref": "/schemas/2.4.0/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "format_ids": {
       "description": "Return only these specific format IDs",
       "items": {
-        "$ref": "/schemas/2.4.0/core/format-id.json"
+        "$ref": "../core/format-id.json"
       },
       "type": "array"
     },

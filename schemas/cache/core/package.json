@@ -21,17 +21,17 @@
     "creative_assignments": {
       "description": "Creative assets assigned to this package",
       "items": {
-        "$ref": "/schemas/2.4.0/core/creative-assignment.json"
+        "$ref": "creative-assignment.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "ext.json"
     },
     "format_ids_to_provide": {
       "description": "Format IDs that creative assets will be provided for this package",
       "items": {
-        "$ref": "/schemas/2.4.0/core/format-id.json"
+        "$ref": "format-id.json"
       },
       "type": "array"
     },
@@ -41,7 +41,7 @@
       "type": "number"
     },
     "pacing": {
-      "$ref": "/schemas/2.4.0/enums/pacing.json"
+      "$ref": "../enums/pacing.json"
     },
     "package_id": {
       "description": "Publisher's unique identifier for the package",
@@ -61,7 +61,7 @@
       "type": "string"
     },
     "targeting_overlay": {
-      "$ref": "/schemas/2.4.0/core/targeting.json"
+      "$ref": "targeting.json"
     }
   },
   "required": [

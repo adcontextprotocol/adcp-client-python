@@ -11,40 +11,40 @@
         "^[a-z0-9_]+$": {
           "oneOf": [
             {
-              "$ref": "/schemas/2.4.0/core/assets/image-asset.json"
+              "$ref": "assets/image-asset.json"
             },
             {
-              "$ref": "/schemas/2.4.0/core/assets/video-asset.json"
+              "$ref": "assets/video-asset.json"
             },
             {
-              "$ref": "/schemas/2.4.0/core/assets/audio-asset.json"
+              "$ref": "assets/audio-asset.json"
             },
             {
-              "$ref": "/schemas/2.4.0/core/assets/vast-asset.json"
+              "$ref": "assets/vast-asset.json"
             },
             {
-              "$ref": "/schemas/2.4.0/core/assets/text-asset.json"
+              "$ref": "assets/text-asset.json"
             },
             {
-              "$ref": "/schemas/2.4.0/core/assets/url-asset.json"
+              "$ref": "assets/url-asset.json"
             },
             {
-              "$ref": "/schemas/2.4.0/core/assets/html-asset.json"
+              "$ref": "assets/html-asset.json"
             },
             {
-              "$ref": "/schemas/2.4.0/core/assets/javascript-asset.json"
+              "$ref": "assets/javascript-asset.json"
             },
             {
-              "$ref": "/schemas/2.4.0/core/assets/webhook-asset.json"
+              "$ref": "assets/webhook-asset.json"
             },
             {
-              "$ref": "/schemas/2.4.0/core/assets/css-asset.json"
+              "$ref": "assets/css-asset.json"
             },
             {
-              "$ref": "/schemas/2.4.0/core/assets/daast-asset.json"
+              "$ref": "assets/daast-asset.json"
             },
             {
-              "$ref": "/schemas/2.4.0/core/promoted-offerings.json"
+              "$ref": "promoted-offerings.json"
             }
           ]
         }
@@ -52,10 +52,10 @@
       "type": "object"
     },
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "ext.json"
     },
     "format_id": {
-      "$ref": "/schemas/2.4.0/core/format-id.json",
+      "$ref": "format-id.json",
       "description": "Format identifier this manifest is for"
     },
     "promoted_offering": {

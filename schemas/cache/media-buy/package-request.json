@@ -28,24 +28,24 @@
     "creatives": {
       "description": "Full creative objects to upload and assign to this package at creation time (alternative to creative_ids - creatives will be added to library). Supports both static and generative creatives.",
       "items": {
-        "$ref": "/schemas/2.4.0/core/creative-asset.json"
+        "$ref": "../core/creative-asset.json"
       },
       "maxItems": 100,
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "format_ids": {
       "description": "Array of format IDs that will be used for this package - must be supported by the product. If omitted, defaults to all formats supported by the product.",
       "items": {
-        "$ref": "/schemas/2.4.0/core/format-id.json"
+        "$ref": "../core/format-id.json"
       },
       "minItems": 1,
       "type": "array"
     },
     "pacing": {
-      "$ref": "/schemas/2.4.0/enums/pacing.json"
+      "$ref": "../enums/pacing.json"
     },
     "pricing_option_id": {
       "description": "ID of the selected pricing option from the product's pricing_options array",
@@ -56,7 +56,7 @@
       "type": "string"
     },
     "targeting_overlay": {
-      "$ref": "/schemas/2.4.0/core/targeting.json"
+      "$ref": "../core/targeting.json"
     }
   },
   "required": [

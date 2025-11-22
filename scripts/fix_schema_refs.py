@@ -2,7 +2,7 @@
 """
 Fix $ref paths in AdCP schemas to be relative file references.
 
-The schemas use absolute URL paths like /schemas/v1/core/error.json
+The schemas use absolute URL paths like /schemas/2.4.0/core/error.json
 which need to be converted to relative file paths for datamodel-codegen.
 """
 
@@ -10,29 +10,56 @@ import json
 import sys
 from pathlib import Path
 
-SCHEMAS_DIR = Path(__file__).parent.parent / "schemas" / "cache" / "latest"
+SCHEMAS_DIR = Path(__file__).parent.parent / "schemas" / "cache"
 
 
-def extract_filename_from_ref(ref: str) -> str:
-    """Extract just the filename from a ref path."""
-    # /schemas/v1/core/error.json -> error.json
-    # /schemas/v1/media-buy/get-products-request.json -> get-products-request.json
-    return ref.split("/")[-1]
+def convert_ref_to_relative(ref: str, current_file: Path) -> str:
+    """
+    Convert absolute $ref to relative path from current file.
+
+    Examples:
+        From: /schemas/2.4.0/core/error.json
+        Current: schemas/cache/media-buy/get-products-request.json
+        To: ../core/error.json
+    """
+    if not ref.startswith("/schemas/"):
+        return ref  # Already relative or not a schema ref
+
+    # Extract path after /schemas/VERSION/
+    # e.g., /schemas/2.4.0/core/error.json -> core/error.json
+    parts = ref.split("/")
+    if len(parts) >= 4:
+        # Skip first 3 parts: '', 'schemas', 'VERSION'
+        target_path = "/".join(parts[3:])
+
+        # Calculate relative path from current file to target
+        current_dir = current_file.parent
+        target_file = SCHEMAS_DIR / target_path
+
+        try:
+            rel_path = target_file.relative_to(current_dir)
+            return str(rel_path)
+        except ValueError:
+            # If relative_to fails, calculate using common parent
+            common = SCHEMAS_DIR
+            current_depth = len(current_dir.relative_to(common).parts)
+            up_dirs = "../" * current_depth
+            return up_dirs + target_path
+
+    return ref
 
 
-def fix_refs(obj):
+def fix_refs(obj, current_file: Path):
     """Recursively fix $ref paths in schema."""
     if isinstance(obj, dict):
         if "$ref" in obj:
             ref = obj["$ref"]
-            if ref.startswith("/schemas/v1/"):
-                # Convert to just filename since all schemas are in one directory
-                obj["$ref"] = extract_filename_from_ref(ref)
+            obj["$ref"] = convert_ref_to_relative(ref, current_file)
         for value in obj.values():
-            fix_refs(value)
+            fix_refs(value, current_file)
     elif isinstance(obj, list):
         for item in obj:
-            fix_refs(item)
+            fix_refs(item, current_file)
 
 
 def main():
@@ -43,19 +70,24 @@ def main():
 
     print(f"Fixing schema references in {SCHEMAS_DIR}...")
 
-    schema_files = list(SCHEMAS_DIR.glob("*.json"))
+    # Find all JSON files recursively (including subdirectories)
+    schema_files = list(SCHEMAS_DIR.rglob("*.json"))
+    # Filter out .hashes.json
+    schema_files = [f for f in schema_files if f.name != ".hashes.json"]
+
     print(f"Found {len(schema_files)} schemas\n")
 
     for schema_file in schema_files:
         with open(schema_file) as f:
             schema = json.load(f)
 
-        fix_refs(schema)
+        fix_refs(schema, schema_file)
 
         with open(schema_file, "w") as f:
             json.dump(schema, f, indent=2)
 
-        print(f"  ✓ {schema_file.name}")
+        rel_path = schema_file.relative_to(SCHEMAS_DIR)
+        print(f"  ✓ {rel_path}")
 
     print(f"\n✓ Fixed {len(schema_files)} schemas")
 

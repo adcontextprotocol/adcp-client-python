@@ -11,17 +11,17 @@
       "type": "string"
     },
     "context": {
-      "$ref": "/schemas/2.4.0/core/context.json"
+      "$ref": "../core/context.json"
     },
     "errors": {
       "description": "Task-specific errors and warnings (e.g., property availability issues)",
       "items": {
-        "$ref": "/schemas/2.4.0/core/error.json"
+        "$ref": "../core/error.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "last_updated": {
       "description": "ISO 8601 timestamp of when the agent's publisher authorization list was last updated. Buyers can use this to determine if their cached publisher adagents.json files might be stale.",
@@ -37,7 +37,7 @@
     "primary_channels": {
       "description": "Primary advertising channels represented in this property portfolio. Helps buying agents quickly filter relevance.",
       "items": {
-        "$ref": "/schemas/2.4.0/enums/channels.json"
+        "$ref": "../enums/channels.json"
       },
       "minItems": 1,
       "type": "array"

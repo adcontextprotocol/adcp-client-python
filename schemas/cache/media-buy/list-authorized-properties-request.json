@@ -5,10 +5,10 @@
   "description": "Request parameters for discovering which publishers this agent is authorized to represent",
   "properties": {
     "context": {
-      "$ref": "/schemas/2.4.0/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "publisher_domains": {
       "description": "Filter to specific publisher domains (optional). If omitted, returns all publishers this agent represents.",

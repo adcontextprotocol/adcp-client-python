@@ -8,7 +8,7 @@
       "description": "Single preview response - each preview URL returns an HTML page that can be embedded in an iframe",
       "properties": {
         "context": {
-          "$ref": "/schemas/2.4.0/core/context.json"
+          "$ref": "../core/context.json"
         },
         "expires_at": {
           "description": "ISO 8601 timestamp when preview links expire",
@@ -55,7 +55,7 @@
               "renders": {
                 "description": "Array of rendered pieces for this preview variant. Most formats render as a single piece. Companion ad formats (video + banner), multi-placement formats, and adaptive formats render as multiple pieces.",
                 "items": {
-                  "$ref": "/schemas/2.4.0/creative/preview-render.json"
+                  "$ref": "preview-render.json"
                 },
                 "minItems": 1,
                 "type": "array"
@@ -89,7 +89,7 @@
       "description": "Batch preview response - contains results for multiple creative requests",
       "properties": {
         "context": {
-          "$ref": "/schemas/2.4.0/core/context.json"
+          "$ref": "../core/context.json"
         },
         "response_type": {
           "const": "batch",
@@ -187,7 +187,7 @@
                         },
                         "renders": {
                           "items": {
-                            "$ref": "/schemas/2.4.0/creative/preview-render.json"
+                            "$ref": "preview-render.json"
                           },
                           "minItems": 1,
                           "type": "array"
@@ -233,7 +233,7 @@
   ],
   "properties": {
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "title": "Preview Creative Response"

@@ -5,19 +5,19 @@
   "description": "Structured filters for product discovery",
   "properties": {
     "delivery_type": {
-      "$ref": "/schemas/2.4.0/enums/delivery-type.json"
+      "$ref": "../enums/delivery-type.json"
     },
     "format_ids": {
       "description": "Filter by specific format IDs",
       "items": {
-        "$ref": "/schemas/2.4.0/core/format-id.json"
+        "$ref": "format-id.json"
       },
       "type": "array"
     },
     "format_types": {
       "description": "Filter by format types",
       "items": {
-        "$ref": "/schemas/2.4.0/enums/format-category.json"
+        "$ref": "../enums/format-category.json"
       },
       "type": "array"
     },

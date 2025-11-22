@@ -5,11 +5,11 @@
   "description": "Creative requirements and restrictions for a product",
   "properties": {
     "co_branding": {
-      "$ref": "/schemas/2.4.0/enums/co-branding-requirement.json",
+      "$ref": "../enums/co-branding-requirement.json",
       "description": "Co-branding requirement"
     },
     "landing_page": {
-      "$ref": "/schemas/2.4.0/enums/landing-page-requirement.json",
+      "$ref": "../enums/landing-page-requirement.json",
       "description": "Landing page requirements"
     },
     "templates_available": {

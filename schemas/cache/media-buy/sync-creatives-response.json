@@ -13,7 +13,7 @@
       },
       "properties": {
         "context": {
-          "$ref": "/schemas/2.4.0/core/context.json"
+          "$ref": "../core/context.json"
         },
         "creatives": {
           "description": "Results for each creative processed. Items with action='failed' indicate per-item validation/processing failures, not operation-level failures.",
@@ -21,7 +21,7 @@
             "additionalProperties": false,
             "properties": {
               "action": {
-                "$ref": "/schemas/2.4.0/enums/creative-action.json",
+                "$ref": "../enums/creative-action.json",
                 "description": "Action taken for this creative"
               },
               "assigned_to": {
@@ -119,12 +119,12 @@
       },
       "properties": {
         "context": {
-          "$ref": "/schemas/2.4.0/core/context.json"
+          "$ref": "../core/context.json"
         },
         "errors": {
           "description": "Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)",
           "items": {
-            "$ref": "/schemas/2.4.0/core/error.json"
+            "$ref": "../core/error.json"
           },
           "minItems": 1,
           "type": "array"
@@ -138,7 +138,7 @@
   ],
   "properties": {
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "title": "Sync Creatives Response",

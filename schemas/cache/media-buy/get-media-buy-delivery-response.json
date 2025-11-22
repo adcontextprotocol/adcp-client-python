@@ -42,7 +42,7 @@
       "type": "object"
     },
     "context": {
-      "$ref": "/schemas/2.4.0/core/context.json"
+      "$ref": "../core/context.json"
     },
     "currency": {
       "description": "ISO 4217 currency code",
@@ -52,12 +52,12 @@
     "errors": {
       "description": "Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)",
       "items": {
-        "$ref": "/schemas/2.4.0/core/error.json"
+        "$ref": "../core/error.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "media_buy_deliveries": {
       "description": "Array of delivery data for media buys. When used in webhook notifications, may contain multiple media buys aggregated by publisher. When used in get_media_buy_delivery API responses, typically contains requested media buys.",
@@ -73,7 +73,7 @@
             "items": {
               "allOf": [
                 {
-                  "$ref": "/schemas/2.4.0/core/delivery-metrics.json"
+                  "$ref": "../core/delivery-metrics.json"
                 },
                 {
                   "properties": {
@@ -111,7 +111,7 @@
                       "type": "boolean"
                     },
                     "pricing_model": {
-                      "$ref": "/schemas/2.4.0/enums/pricing-model.json",
+                      "$ref": "../enums/pricing-model.json",
                       "description": "The pricing model used for this package (e.g., cpm, cpcv, cpp). Indicates how the package is billed and which metrics are most relevant for optimization."
                     },
                     "rate": {
@@ -177,7 +177,7 @@
             "type": "string"
           },
           "pricing_model": {
-            "$ref": "/schemas/2.4.0/enums/pricing-model.json",
+            "$ref": "../enums/pricing-model.json",
             "description": "Pricing model used for this media buy"
           },
           "status": {
@@ -195,7 +195,7 @@
           "totals": {
             "allOf": [
               {
-                "$ref": "/schemas/2.4.0/core/delivery-metrics.json"
+                "$ref": "../core/delivery-metrics.json"
               },
               {
                 "description": "Aggregate metrics for this media buy across all packages",

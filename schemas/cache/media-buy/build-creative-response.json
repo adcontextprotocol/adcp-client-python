@@ -13,10 +13,10 @@
       },
       "properties": {
         "context": {
-          "$ref": "/schemas/2.4.0/core/context.json"
+          "$ref": "../core/context.json"
         },
         "creative_manifest": {
-          "$ref": "/schemas/2.4.0/core/creative-manifest.json",
+          "$ref": "../core/creative-manifest.json",
           "description": "The generated or transformed creative manifest"
         }
       },
@@ -35,12 +35,12 @@
       },
       "properties": {
         "context": {
-          "$ref": "/schemas/2.4.0/core/context.json"
+          "$ref": "../core/context.json"
         },
         "errors": {
           "description": "Array of errors explaining why creative generation failed",
           "items": {
-            "$ref": "/schemas/2.4.0/core/error.json"
+            "$ref": "../core/error.json"
           },
           "minItems": 1,
           "type": "array"
@@ -54,7 +54,7 @@
   ],
   "properties": {
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "title": "Build Creative Response",

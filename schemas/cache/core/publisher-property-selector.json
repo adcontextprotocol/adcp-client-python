@@ -34,7 +34,7 @@
         "property_ids": {
           "description": "Specific property IDs from the publisher's adagents.json",
           "items": {
-            "$ref": "/schemas/2.4.0/core/property-id.json"
+            "$ref": "property-id.json"
           },
           "minItems": 1,
           "type": "array"
@@ -64,7 +64,7 @@
         "property_tags": {
           "description": "Property tags from the publisher's adagents.json. Selector covers all properties with these tags",
           "items": {
-            "$ref": "/schemas/2.4.0/core/property-tag.json"
+            "$ref": "property-tag.json"
           },
           "minItems": 1,
           "type": "array"

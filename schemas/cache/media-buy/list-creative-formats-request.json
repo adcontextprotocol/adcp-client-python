@@ -7,20 +7,20 @@
     "asset_types": {
       "description": "Filter to formats that include these asset types. For third-party tags, search for 'html' or 'javascript'. E.g., ['image', 'text'] returns formats with images and text, ['javascript'] returns formats accepting JavaScript tags.",
       "items": {
-        "$ref": "/schemas/2.4.0/enums/asset-content-type.json"
+        "$ref": "../enums/asset-content-type.json"
       },
       "type": "array"
     },
     "context": {
-      "$ref": "/schemas/2.4.0/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "format_ids": {
       "description": "Return only these specific format IDs (e.g., from get_products response)",
       "items": {
-        "$ref": "/schemas/2.4.0/core/format-id.json"
+        "$ref": "../core/format-id.json"
       },
       "type": "array"
     },
@@ -49,7 +49,7 @@
       "type": "string"
     },
     "type": {
-      "$ref": "/schemas/2.4.0/enums/format-category.json",
+      "$ref": "../enums/format-category.json",
       "description": "Filter by format type (technical categories with distinct requirements)"
     }
   },

@@ -5,7 +5,7 @@
   "description": "Request parameters for discovering signals based on description",
   "properties": {
     "context": {
-      "$ref": "/schemas/2.4.0/core/context.json"
+      "$ref": "../core/context.json"
     },
     "deliver_to": {
       "additionalProperties": false,
@@ -22,7 +22,7 @@
         "deployments": {
           "description": "List of deployment targets (DSPs, sales agents, etc.). If the authenticated caller matches one of these deployment targets, activation keys will be included in the response.",
           "items": {
-            "$ref": "/schemas/2.4.0/core/destination.json"
+            "$ref": "../core/destination.json"
           },
           "minItems": 1,
           "type": "array"
@@ -35,10 +35,10 @@
       "type": "object"
     },
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "filters": {
-      "$ref": "/schemas/2.4.0/core/signal-filters.json"
+      "$ref": "../core/signal-filters.json"
     },
     "max_results": {
       "description": "Maximum number of results to return",

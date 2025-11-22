@@ -19,7 +19,7 @@
       "type": "string"
     },
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "ext.json"
     },
     "media_buy_id": {
       "description": "Publisher's unique identifier for the media buy",
@@ -28,7 +28,7 @@
     "packages": {
       "description": "Array of packages within this media buy",
       "items": {
-        "$ref": "/schemas/2.4.0/core/package.json"
+        "$ref": "package.json"
       },
       "type": "array"
     },
@@ -37,7 +37,7 @@
       "type": "string"
     },
     "status": {
-      "$ref": "/schemas/2.4.0/enums/media-buy-status.json"
+      "$ref": "../enums/media-buy-status.json"
     },
     "total_budget": {
       "description": "Total budget amount",

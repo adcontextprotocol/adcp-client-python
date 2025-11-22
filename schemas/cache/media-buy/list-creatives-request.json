@@ -52,10 +52,10 @@
   ],
   "properties": {
     "context": {
-      "$ref": "/schemas/2.4.0/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "fields": {
       "description": "Specific fields to include in response (omit for all fields)",
@@ -77,7 +77,7 @@
       "type": "array"
     },
     "filters": {
-      "$ref": "/schemas/2.4.0/core/creative-filters.json"
+      "$ref": "../core/creative-filters.json"
     },
     "include_assignments": {
       "default": true,
@@ -119,12 +119,12 @@
       "description": "Sorting parameters",
       "properties": {
         "direction": {
-          "$ref": "/schemas/2.4.0/enums/sort-direction.json",
+          "$ref": "../enums/sort-direction.json",
           "default": "desc",
           "description": "Sort direction"
         },
         "field": {
-          "$ref": "/schemas/2.4.0/enums/creative-sort-field.json",
+          "$ref": "../enums/creative-sort-field.json",
           "default": "created_date",
           "description": "Field to sort by"
         }

@@ -278,7 +278,7 @@
                   "property_ids": {
                     "description": "Property IDs this agent is authorized for. Resolved against the top-level properties array in this file",
                     "items": {
-                      "$ref": "/schemas/2.4.0/core/property-id.json"
+                      "$ref": "core/property-id.json"
                     },
                     "minItems": 1,
                     "type": "array"
@@ -314,7 +314,7 @@
                   "property_tags": {
                     "description": "Tags identifying which properties this agent is authorized for. Resolved against the top-level properties array in this file using tag matching",
                     "items": {
-                      "$ref": "/schemas/2.4.0/core/property-tag.json"
+                      "$ref": "core/property-tag.json"
                     },
                     "minItems": 1,
                     "type": "array"
@@ -350,7 +350,7 @@
                   "properties": {
                     "description": "Specific properties this agent is authorized for (alternative to property_ids/property_tags)",
                     "items": {
-                      "$ref": "/schemas/2.4.0/core/property.json"
+                      "$ref": "core/property.json"
                     },
                     "minItems": 1,
                     "type": "array"
@@ -386,7 +386,7 @@
                   "publisher_properties": {
                     "description": "Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell",
                     "items": {
-                      "$ref": "/schemas/2.4.0/core/publisher-property-selector.json"
+                      "$ref": "core/publisher-property-selector.json"
                     },
                     "minItems": 1,
                     "type": "array"
@@ -458,7 +458,7 @@
         "properties": {
           "description": "Array of all properties covered by this adagents.json file. Defines the canonical property list that authorized agents reference.",
           "items": {
-            "$ref": "/schemas/2.4.0/core/property.json"
+            "$ref": "core/property.json"
           },
           "minItems": 1,
           "type": "array"

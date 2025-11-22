@@ -18,7 +18,7 @@
       "type": "string"
     },
     "feedback_source": {
-      "$ref": "/schemas/2.4.0/enums/feedback-source.json",
+      "$ref": "../enums/feedback-source.json",
       "description": "Source of the performance data"
     },
     "measurement_period": {
@@ -47,7 +47,7 @@
       "type": "string"
     },
     "metric_type": {
-      "$ref": "/schemas/2.4.0/enums/metric-type.json",
+      "$ref": "../enums/metric-type.json",
       "description": "The business metric being measured"
     },
     "package_id": {

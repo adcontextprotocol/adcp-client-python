@@ -17,7 +17,7 @@
           "type": "string"
         },
         "context": {
-          "$ref": "/schemas/2.4.0/core/context.json"
+          "$ref": "../core/context.json"
         },
         "creative_deadline": {
           "description": "ISO 8601 timestamp for creative upload deadline",
@@ -31,7 +31,7 @@
         "packages": {
           "description": "Array of created packages with complete state information",
           "items": {
-            "$ref": "/schemas/2.4.0/core/package.json"
+            "$ref": "../core/package.json"
           },
           "type": "array"
         }
@@ -67,12 +67,12 @@
       },
       "properties": {
         "context": {
-          "$ref": "/schemas/2.4.0/core/context.json"
+          "$ref": "../core/context.json"
         },
         "errors": {
           "description": "Array of errors explaining why the operation failed",
           "items": {
-            "$ref": "/schemas/2.4.0/core/error.json"
+            "$ref": "../core/error.json"
           },
           "minItems": 1,
           "type": "array"
@@ -86,7 +86,7 @@
   ],
   "properties": {
     "ext": {
-      "$ref": "/schemas/2.4.0/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "title": "Create Media Buy Response",

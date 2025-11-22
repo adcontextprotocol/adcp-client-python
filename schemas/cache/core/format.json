@@ -20,7 +20,7 @@
                 "type": "string"
               },
               "asset_type": {
-                "$ref": "/schemas/2.4.0/enums/asset-content-type.json",
+                "$ref": "../enums/asset-content-type.json",
                 "description": "Type of asset"
               },
               "item_type": {
@@ -65,7 +65,7 @@
                       "type": "string"
                     },
                     "asset_type": {
-                      "$ref": "/schemas/2.4.0/enums/asset-content-type.json",
+                      "$ref": "../enums/asset-content-type.json",
                       "description": "Type of asset"
                     },
                     "required": {
@@ -134,7 +134,7 @@
       "description": "Optional standard visual card (300x400px) for displaying this format in user interfaces. Can be rendered via preview_creative or pre-generated.",
       "properties": {
         "format_id": {
-          "$ref": "/schemas/2.4.0/core/format-id.json",
+          "$ref": "format-id.json",
           "description": "Creative format defining the card layout (typically format_card_standard)"
         },
         "manifest": {
@@ -154,7 +154,7 @@
       "description": "Optional detailed card with carousel and full specifications. Provides rich format documentation similar to ad spec pages.",
       "properties": {
         "format_id": {
-          "$ref": "/schemas/2.4.0/core/format-id.json",
+          "$ref": "format-id.json",
           "description": "Creative format defining the detailed card layout (typically format_card_detailed)"
         },
         "manifest": {
@@ -170,7 +170,7 @@
       "type": "object"
     },
     "format_id": {
-      "$ref": "/schemas/2.4.0/core/format-id.json",
+      "$ref": "format-id.json",
       "description": "Structured format identifier with agent URL and format name"
     },
     "name": {
@@ -180,7 +180,7 @@
     "output_format_ids": {
       "description": "For generative formats: array of format IDs that this format can generate. When a format accepts inputs like brand_manifest and message, this specifies what concrete output formats can be produced (e.g., a generative banner format might output standard image banner formats).",
       "items": {
-        "$ref": "/schemas/2.4.0/core/format-id.json"
+        "$ref": "format-id.json"
       },
       "type": "array"
     },
@@ -243,7 +243,7 @@
                 "type": "object"
               },
               "unit": {
-                "$ref": "/schemas/2.4.0/enums/dimension-unit.json",
+                "$ref": "../enums/dimension-unit.json",
                 "default": "px",
                 "description": "Unit of measurement for dimensions"
               },
@@ -280,7 +280,7 @@
       "type": "array"
     },
     "type": {
-      "$ref": "/schemas/2.4.0/enums/format-category.json",
+      "$ref": "../enums/format-category.json",
       "description": "Media type of this format - determines rendering method and asset requirements"
     }
   },
