@@ -45,8 +45,8 @@ def extract_exports_from_module(module_path: Path) -> set[str]:
 
 def generate_consolidated_exports() -> str:
     """Generate the consolidated exports file content."""
-    # Discover all modules
-    modules = sorted(GENERATED_POC_DIR.glob("*.py"))
+    # Discover all modules recursively (including subdirectories)
+    modules = sorted(GENERATED_POC_DIR.rglob("*.py"))
     modules = [m for m in modules if m.stem != "__init__" and not m.stem.startswith(".")]
 
     print(f"Found {len(modules)} modules to consolidate")
@@ -68,7 +68,14 @@ def generate_consolidated_exports() -> str:
     collision_modules_seen: dict[str, set[str]] = {name: set() for name in KNOWN_COLLISIONS}
 
     for module_path in modules:
-        module_name = module_path.stem
+        # Get relative path from generated_poc directory
+        rel_path = module_path.relative_to(GENERATED_POC_DIR)
+        # Convert to module path (e.g., "core/error.py" -> "core.error")
+        module_parts = list(rel_path.parts[:-1]) + [rel_path.stem]
+        module_name = ".".join(module_parts)
+        # For display, use the stem only
+        display_name = rel_path.stem
+
         exports = extract_exports_from_module(module_path)
 
         if not exports:
@@ -78,7 +85,7 @@ def generate_consolidated_exports() -> str:
         unique_exports = set()
         for export_name in exports:
             # Special case: Known collisions - track all modules that define them
-            if export_name in KNOWN_COLLISIONS and module_name in KNOWN_COLLISIONS[export_name]:
+            if export_name in KNOWN_COLLISIONS and display_name in KNOWN_COLLISIONS[export_name]:
                 collision_modules_seen[export_name].add(module_name)
                 export_to_module[export_name] = module_name  # Track that we've seen it
                 continue  # Don't add to unique_exports, we'll handle specially
@@ -94,10 +101,10 @@ def generate_consolidated_exports() -> str:
                 export_to_module[export_name] = module_name
 
         if not unique_exports:
-            print(f"  {module_name}: 0 unique exports (all collisions)")
+            print(f"  {display_name}: 0 unique exports (all collisions)")
             continue
 
-        print(f"  {module_name}: {len(unique_exports)} exports")
+        print(f"  {display_name}: {len(unique_exports)} exports")
 
         # Create import statement with only unique exports
         exports_str = ", ".join(sorted(unique_exports))
@@ -114,7 +121,9 @@ def generate_consolidated_exports() -> str:
             f"  {type_name}: defined in {sorted(modules_seen)} (all exported with qualified names)"
         )
         for module_name in sorted(modules_seen):
-            qualified_name = f"_{type_name}From{module_name.replace('_', ' ').title().replace(' ', '')}"
+            # Create qualified name from module path (e.g., "core.package" -> "Package")
+            parts = module_name.split(".")
+            qualified_name = f"_{type_name}From{parts[-1].replace('_', ' ').title().replace(' ', '')}"
             special_imports.append(
                 f"from adcp.types.generated_poc.{module_name} import {type_name} as {qualified_name}"
             )

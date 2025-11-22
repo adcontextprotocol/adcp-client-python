@@ -34,7 +34,7 @@ def add_model_validator_to_product():
 
 def fix_preview_render_self_reference():
     """Fix self-referential RootModel in preview_render.py."""
-    preview_file = OUTPUT_DIR / "preview_render.py"
+    preview_file = OUTPUT_DIR / "creative" / "preview_render.py"
 
     if not preview_file.exists():
         print("  preview_render.py not found (skipping)")
@@ -78,7 +78,7 @@ def fix_enum_defaults():
     Note: brand_manifest_ref.py was a stale file and has been removed.
     The enum defaults in brand_manifest.py are already correct.
     """
-    brand_manifest_file = OUTPUT_DIR / "brand_manifest.py"
+    brand_manifest_file = OUTPUT_DIR / "core" / "brand_manifest.py"
 
     if not brand_manifest_file.exists():
         print("  brand_manifest.py not found (skipping)")

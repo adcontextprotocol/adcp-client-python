@@ -116,15 +116,16 @@ def fix_forward_references():
     print("Fixing forward references...")
 
     fixes_made = 0
-    for py_file in OUTPUT_DIR.glob("*.py"):
+    for py_file in OUTPUT_DIR.rglob("*.py"):
         if py_file.name == "__init__.py":
             continue
 
         with open(py_file) as f:
             content = f.read()
 
-        # Find imports like: from . import foo as foo_1
-        import_pattern = r"from \. import (\w+) as (\w+_\d+)"
+        # Find imports like: from . import foo as foo_1 or from ..core import foo as foo_1
+        # Pattern matches: "from" + dots + optional path + "import" + name + "as" + alias
+        import_pattern = r"from \.+(?:[\w.]+\s+)?import (\w+) as (\w+_\d+)"
         imports = re.findall(import_pattern, content)
 
         # For each aliased import, fix references
