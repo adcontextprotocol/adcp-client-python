@@ -29,22 +29,15 @@ from urllib.request import Request, urlopen
 
 def get_target_adcp_version() -> str:
     """
-    Get the target AdCP version from the main package.
+    Get the target AdCP version from ADCP_VERSION file.
 
     Returns:
         AdCP version string (e.g., "v1", "v2")
     """
-    # Import here to avoid circular dependency
-    sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-    try:
-        from adcp import get_adcp_version
-
-        return get_adcp_version()
-    except ImportError:
-        # Fallback if package not installed
-        return "v1"
-    finally:
-        sys.path.pop(0)
+    version_file = Path(__file__).parent.parent / "ADCP_VERSION"
+    if version_file.exists():
+        return version_file.read_text().strip()
+    return "v1"  # Fallback
 
 
 # Get target AdCP version

@@ -194,7 +194,13 @@ def get_adcp_version() -> str:
     Returns:
         AdCP specification version (e.g., "v1", "v2")
     """
-    return "v1"
+    from pathlib import Path
+
+    # Read from ADCP_VERSION file at project root
+    version_file = Path(__file__).parent.parent.parent / "ADCP_VERSION"
+    if version_file.exists():
+        return version_file.read_text().strip()
+    return "v1"  # Fallback
 
 __all__ = [
     # Version functions
