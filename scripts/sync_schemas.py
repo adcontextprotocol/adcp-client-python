@@ -198,6 +198,41 @@ def download_schema_file(
         return False, None
 
 
+def discover_transitive_refs(schema: dict) -> list[str]:
+    """
+    Extract all $ref URLs from a schema document.
+
+    This finds schemas referenced by this schema, allowing us to follow
+    the transitive closure of dependencies.
+
+    Returns:
+        List of full URLs referenced by this schema
+    """
+    refs = []
+
+    def extract_refs(obj: dict | list | str) -> None:
+        if isinstance(obj, dict):
+            if "$ref" in obj:
+                ref_path = obj["$ref"]
+                # Convert relative refs like "../core/context.json" to full URLs
+                if ref_path.startswith("../") or ref_path.startswith("./"):
+                    # These will be fixed by fix_schema_refs.py later
+                    # For now, try to resolve to absolute path
+                    # Assume these are relative to schemas/VERSION/
+                    pass
+                elif ref_path.startswith("/schemas/"):
+                    # Absolute schema path
+                    refs.append(f"https://adcontextprotocol.org{ref_path}")
+            for value in obj.values():
+                extract_refs(value)
+        elif isinstance(obj, list):
+            for item in obj:
+                extract_refs(item)
+
+    extract_refs(schema)
+    return refs
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -239,12 +274,39 @@ def main():
 
         # Discover all schemas from index
         print(f"Discovering schemas from index...")
-        schema_urls = discover_schemas_from_index(index_schema)
+        schema_urls = set(discover_schemas_from_index(index_schema))
+
+        print(f"Found {len(schema_urls)} schemas in index")
+        print(f"Checking for transitive dependencies...\n")
+
+        # Follow transitive dependencies
+        # Download schemas and check for additional refs
+        processed = set()
+        to_process = list(schema_urls)
+
+        while to_process:
+            url = to_process.pop(0)
+            if url in processed:
+                continue
+
+            processed.add(url)
+
+            try:
+                schema = download_schema(url)
+                # Find any additional schemas this one references
+                new_refs = discover_transitive_refs(schema)
+                for ref_url in new_refs:
+                    if ref_url not in processed and ref_url not in to_process:
+                        to_process.append(ref_url)
+                        schema_urls.add(ref_url)
+            except Exception as e:
+                # If we can't download, we'll catch it in the main download loop
+                pass
 
         # Remove duplicates and sort
-        schema_urls = sorted(set(schema_urls))
+        schema_urls = sorted(schema_urls)
 
-        print(f"Found {len(schema_urls)} schemas across all directories\n")
+        print(f"Found {len(schema_urls)} total schemas (including dependencies)\n")
 
         # Download all schemas
         print("Downloading schemas:")
