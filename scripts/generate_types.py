@@ -17,7 +17,7 @@ from pathlib import Path
 
 # Paths
 REPO_ROOT = Path(__file__).parent.parent
-SCHEMAS_DIR = REPO_ROOT / "schemas" / "cache" / "1.0.0"
+SCHEMAS_DIR = REPO_ROOT / "schemas" / "cache"
 OUTPUT_DIR = REPO_ROOT / "src" / "adcp" / "types" / "generated_poc"
 TEMP_DIR = REPO_ROOT / ".schema_temp"
 
@@ -53,7 +53,7 @@ def flatten_schemas():
     Flatten schema directory structure and rewrite $ref paths.
 
     The tool has issues with nested $ref paths, so we:
-    1. Copy only flat schemas
+    1. Copy all schemas from subdirectories into flat structure
     2. Rewrite absolute $ref paths to relative paths
     """
     print("Preparing schemas...")
@@ -63,22 +63,30 @@ def flatten_schemas():
         shutil.rmtree(TEMP_DIR)
     TEMP_DIR.mkdir()
 
-    # Copy and rewrite flat JSON schemas (not in subdirectories)
-    for schema_file in SCHEMAS_DIR.glob("*.json"):
-        if schema_file.is_file() and schema_file.name != "index.json":
-            # Load schema
-            with open(schema_file) as f:
-                schema = json.load(f)
+    # Recursively find all JSON schemas (including subdirectories)
+    schema_files = list(SCHEMAS_DIR.rglob("*.json"))
+    # Filter out .hashes.json and index.json
+    schema_files = [
+        f
+        for f in schema_files
+        if f.name not in (".hashes.json", "index.json")
+    ]
 
-            # Rewrite $ref paths
-            schema = rewrite_refs(schema)
+    for schema_file in schema_files:
+        # Load schema
+        with open(schema_file) as f:
+            schema = json.load(f)
 
-            # Write to temp directory
-            output_file = TEMP_DIR / schema_file.name
-            with open(output_file, "w") as f:
-                json.dump(schema, f, indent=2)
+        # Rewrite $ref paths
+        schema = rewrite_refs(schema)
 
-            print(f"  {schema_file.name}")
+        # Write to temp directory (flattened)
+        output_file = TEMP_DIR / schema_file.name
+        with open(output_file, "w") as f:
+            json.dump(schema, f, indent=2)
+
+        rel_path = schema_file.relative_to(SCHEMAS_DIR)
+        print(f"  {rel_path}")
 
     count = len(list(TEMP_DIR.glob("*.json")))
     print(f"\n  Prepared {count} schema files\n")
