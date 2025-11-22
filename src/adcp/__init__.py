@@ -105,7 +105,6 @@ from adcp.types import (
     MediaBuyStatus,
     Package,
     PackageRequest,
-    PackageStatus,
     PreviewCreativeRequest,
     PreviewCreativeResponse,
     PriceGuidance,
@@ -262,7 +261,6 @@ __all__ = [
     # Status enums (for control flow)
     "CreativeStatus",
     "MediaBuyStatus",
-    "PackageStatus",
     "PricingModel",
     # Pricing-related types
     "CpcPricingOption",
