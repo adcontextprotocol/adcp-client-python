@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.12.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.11.1...v2.12.0) (2025-11-22)
+
+
+### Features
+
+* align A2A adapter with canonical response format ([#83](https://github.com/adcontextprotocol/adcp-client-python/issues/83)) ([f7062f2](https://github.com/adcontextprotocol/adcp-client-python/commit/f7062f2857c5a1cb32d40407766992b4ea272c23))
+
 ## [2.11.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.11.0...v2.11.1) (2025-11-21)
 
 
