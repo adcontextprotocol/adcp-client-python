@@ -30,8 +30,8 @@ def flatten_schemas():
     - media-buy/list-creative-formats-request.json
     - creative/list-creative-formats-request.json
 
-    Instead, we preserve the directory structure and let datamodel-code-generator
-    handle the relative refs correctly.
+    Directory names with hyphens are converted to underscores since Python
+    module names cannot contain hyphens (pricing-options -> pricing_options).
     """
     print("Preparing schemas...")
 
@@ -52,7 +52,12 @@ def flatten_schemas():
     for schema_file in schema_files:
         # Preserve directory structure relative to SCHEMAS_DIR
         rel_path = schema_file.relative_to(SCHEMAS_DIR)
-        output_file = TEMP_DIR / rel_path
+
+        # Convert hyphens to underscores in directory names for valid Python identifiers
+        path_parts = list(rel_path.parts)
+        path_parts = [part.replace("-", "_") for part in path_parts]
+        output_rel_path = Path(*path_parts)
+        output_file = TEMP_DIR / output_rel_path
 
         # Create parent directories
         output_file.parent.mkdir(parents=True, exist_ok=True)
