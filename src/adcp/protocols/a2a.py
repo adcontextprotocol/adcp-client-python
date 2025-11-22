@@ -160,28 +160,31 @@ class A2AAdapter(ProtocolAdapter):
                     debug_info=debug_info,
                 )
             elif task_status == "working":
-                # Task is still in progress
+                # Task is still in progress - interim responses don't need structured AdCP data
                 return TaskResult[Any](
                     status=TaskStatus.SUBMITTED,
-                    data=self._extract_result(data),
+                    data=None,  # Interim responses may not have structured AdCP content
                     message=self._extract_text_part(data),
                     success=True,
                     metadata={
                         "task_id": data.get("taskId"),
                         "context_id": data.get("contextId"),
+                        "status": "working",
                     },
                     debug_info=debug_info,
                 )
             else:
-                # Handle other states (submitted, input-required)
+                # Handle other interim states (submitted, pending, input-required)
+                # These don't need to have structured AdCP content
                 return TaskResult[Any](
                     status=TaskStatus.SUBMITTED,
-                    data=self._extract_result(data),
+                    data=None,  # Interim responses may not have structured AdCP content
                     message=self._extract_text_part(data),
                     success=True,
                     metadata={
                         "task_id": data.get("taskId"),
                         "context_id": data.get("contextId"),
+                        "status": task_status,
                     },
                     debug_info=debug_info,
                 )
@@ -243,7 +246,14 @@ class A2AAdapter(ProtocolAdapter):
 
         # Use last DataPart as authoritative (handles streaming scenarios within an artifact)
         last_data_part = data_parts[-1]
-        return last_data_part.get("data", {})
+        data = last_data_part.get("data", {})
+
+        # Some A2A implementations (e.g., ADK) wrap the response in {"response": {...}}
+        # Unwrap it to get the actual AdCP payload
+        if isinstance(data, dict) and "response" in data and len(data) == 1:
+            return data["response"]
+
+        return data
 
     def _extract_text_part(self, response_data: dict[str, Any]) -> str | None:
         """

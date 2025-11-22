@@ -257,6 +257,79 @@ class TestA2AAdapter:
             assert result.message == "Final result"
 
     @pytest.mark.asyncio
+    async def test_call_tool_with_response_wrapper(self, a2a_config):
+        """Test handling ADK-style response wrapper {"response": {...}}."""
+        adapter = A2AAdapter(a2a_config)
+
+        # ADK wraps the actual response in {"response": {...}}
+        mock_response_data = {
+            "status": "completed",
+            "taskId": "task_123",
+            "contextId": "ctx_456",
+            "artifacts": [
+                {
+                    "parts": [
+                        {"kind": "text", "text": "Products retrieved"},
+                        {
+                            "kind": "data",
+                            "data": {
+                                "response": {"products": [{"id": "prod1", "name": "TV Ad"}]}
+                            },
+                        },
+                    ],
+                }
+            ],
+        }
+
+        mock_client = AsyncMock()
+        mock_http_response = MagicMock()
+        mock_http_response.json = MagicMock(return_value=mock_response_data)
+        mock_http_response.raise_for_status = MagicMock()
+        mock_client.post = AsyncMock(return_value=mock_http_response)
+
+        with patch.object(adapter, "_get_client", return_value=mock_client):
+            result = await adapter._call_a2a_tool("get_products", {"brief": "test"})
+
+            assert result.success is True
+            # Should unwrap the "response" wrapper
+            assert result.data == {"products": [{"id": "prod1", "name": "TV Ad"}]}
+            assert result.message == "Products retrieved"
+
+    @pytest.mark.asyncio
+    async def test_interim_response_working(self, a2a_config):
+        """Test handling interim 'working' response without structured data."""
+        adapter = A2AAdapter(a2a_config)
+
+        mock_response_data = {
+            "status": "working",
+            "taskId": "task_123",
+            "contextId": "ctx_456",
+            "artifacts": [
+                {
+                    "parts": [
+                        {"kind": "text", "text": "Processing your request..."},
+                    ],
+                }
+            ],
+        }
+
+        mock_client = AsyncMock()
+        mock_http_response = MagicMock()
+        mock_http_response.json = MagicMock(return_value=mock_response_data)
+        mock_http_response.raise_for_status = MagicMock()
+        mock_client.post = AsyncMock(return_value=mock_http_response)
+
+        with patch.object(adapter, "_get_client", return_value=mock_client):
+            result = await adapter._call_a2a_tool("get_products", {"brief": "test"})
+
+            assert result.success is True
+            assert result.status == TaskStatus.SUBMITTED
+            # Interim responses don't need structured data
+            assert result.data is None
+            assert result.message == "Processing your request..."
+            assert result.metadata["status"] == "working"
+
+    @pytest.mark.asyncio
     async def test_list_tools(self, a2a_config):
         """Test listing tools via A2A agent card."""
         adapter = A2AAdapter(a2a_config)
