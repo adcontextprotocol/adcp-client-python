@@ -30,7 +30,7 @@ from urllib.request import Request, urlopen
 # Use GitHub API and raw content for complete schema discovery
 GITHUB_API_BASE = "https://api.github.com/repos/adcontextprotocol/adcp/contents"
 ADCP_BASE_URL = "https://raw.githubusercontent.com/adcontextprotocol/adcp/main"
-SCHEMA_INDEX_URL = f"{ADCP_BASE_URL}/static/schemas/v1/index.json"
+SCHEMA_INDEX_URL = f"{ADCP_BASE_URL}/static/schemas/source/index.json"
 CACHE_DIR = Path(__file__).parent.parent / "schemas" / "cache"
 HASH_CACHE_FILE = CACHE_DIR / ".hashes.json"
 
@@ -188,21 +188,26 @@ def main():
         hash_cache = {} if args.force else load_hash_cache()
         updated_hashes = {}
 
-        # Download index to get version
+        # Try to download index to get version (optional - may not exist)
         print("Fetching schema index for version info...")
-        index_schema = download_schema(SCHEMA_INDEX_URL)
-        version = index_schema.get("version", "unknown")
+        try:
+            index_schema = download_schema(SCHEMA_INDEX_URL)
+            version = index_schema.get("version", "unknown")
 
-        # Compute hash for index
-        index_content = json.dumps(index_schema, indent=2, sort_keys=True)
-        index_hash = compute_hash(index_content)
-        updated_hashes[SCHEMA_INDEX_URL] = index_hash
+            # Compute hash for index
+            index_content = json.dumps(index_schema, indent=2, sort_keys=True)
+            index_hash = compute_hash(index_content)
+            updated_hashes[SCHEMA_INDEX_URL] = index_hash
 
-        print(f"Schema version: {version}\n")
+            print(f"Schema version: {version}\n")
+        except Exception as e:
+            print(f"Warning: Could not fetch index.json (may not exist): {e}")
+            print("Continuing with version discovery from schemas...\n")
+            version = "1.0.0"  # Default version, will be detected from schemas
 
         # Discover ALL schemas by crawling the directory structure
         print("Discovering all schemas in repository...")
-        schema_urls = discover_all_schemas("static/schemas/v1")
+        schema_urls = discover_all_schemas("static/schemas/source")
 
         # Remove duplicates and sort
         schema_urls = sorted(set(schema_urls))
