@@ -282,7 +282,7 @@ class TestCLIIntegration:
     @pytest.mark.asyncio
     async def test_list_tools_dispatch(self):
         """Test that list_tools is in TOOL_DISPATCH and handled correctly."""
-        from unittest.mock import AsyncMock, MagicMock
+        from unittest.mock import AsyncMock
 
         from adcp.__main__ import _dispatch_tool
         from adcp.client import ADCPClient
@@ -309,7 +309,6 @@ class TestCLIIntegration:
     @pytest.mark.asyncio
     async def test_invalid_tool_name(self):
         """Test that invalid tool names return proper error."""
-        from unittest.mock import AsyncMock
 
         from adcp.__main__ import _dispatch_tool
         from adcp.client import ADCPClient

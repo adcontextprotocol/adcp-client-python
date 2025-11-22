@@ -436,8 +436,9 @@ def test_property_id_and_tag_are_root_models():
     defined in their own schema files, not in an inheritance relationship.
     Both use the same pattern constraint (^[a-z0-9_]+$) but are semantically distinct.
     """
-    from adcp import PropertyId, PropertyTag
     from pydantic import RootModel
+
+    from adcp import PropertyId, PropertyTag
 
     # Create valid PropertyId and PropertyTag
     prop_id = PropertyId("my_property_id")

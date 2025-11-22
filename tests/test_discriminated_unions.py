@@ -813,8 +813,8 @@ class TestPropertyTagSharedSchema:
 
     def test_shared_schema_prevents_collision(self):
         """Verify that both adagents and publisher_property_selector import from shared schema."""
-        from adcp.types.generated_poc import property_tag
         from adcp import PropertyTag
+        from adcp.types.generated_poc import property_tag
 
         # The shared schema is the canonical definition
         assert PropertyTag is property_tag.PropertyTag
@@ -822,6 +822,7 @@ class TestPropertyTagSharedSchema:
         # Both adagents.py and publisher_property_selector.py should import from property_tag module
         # (not define their own)
         import inspect
+
         import adcp.types.generated_poc.adagents as adagents_module
         import adcp.types.generated_poc.publisher_property_selector as selector_module
 
