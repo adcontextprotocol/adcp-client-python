@@ -27,7 +27,7 @@
   "https://adcontextprotocol.org/schemas/2.4.0/core/dimensions.json": "bf7353f2baf6332e8293f8c82003ec028e2c0bcf47802022e1c27f0bb91dd67c",
   "https://adcontextprotocol.org/schemas/2.4.0/core/error.json": "6b837e3162cf8df2b185e55f378768103c7f11bea80b8291e78dc663ecf10277",
   "https://adcontextprotocol.org/schemas/2.4.0/core/ext.json": "6ec59d98a178e1b0dbc54cd8dcc6f262c6db95795b99bfe03ff01160b724b5aa",
-  "https://adcontextprotocol.org/schemas/2.4.0/core/format-id.json": "25b3c11d977bdf6cc9f13be069a5dfbe776c6f7dacbf5eb534a01f8b6a7ff2a0",
+  "https://adcontextprotocol.org/schemas/2.4.0/core/format-id.json": "ee12c4c05de5fbe607f53ac62476cf1a4fe2b79669c2439bd06613f9f5ea2a95",
   "https://adcontextprotocol.org/schemas/2.4.0/core/format.json": "79462d39d93f95f6427dea3c15943020ae3ba659d217db954b2d9187ba087eba",
   "https://adcontextprotocol.org/schemas/2.4.0/core/frequency-cap.json": "286f70e4352b63cac176ec96caacbf7d0b20e9717a073e28e68e691a1f53b8b7",
   "https://adcontextprotocol.org/schemas/2.4.0/core/measurement.json": "66bde691cfe46e18ae63ca9a3e455063c105cc9e89c421a81275c8d3e083b879",

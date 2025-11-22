@@ -1,35 +1,15 @@
 {
+  "$id": "/schemas/2.4.0/core/format-id.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "allOf": [
-    {
-      "oneOf": [
-        {
-          "not": {
-            "anyOf": [
-              {
-                "required": [
-                  "width"
-                ]
-              },
-              {
-                "required": [
-                  "height"
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "allOf": [
-            {
-              "$ref": "dimensions.json"
-            }
-          ]
-        }
-      ]
-    }
-  ],
+  "dependencies": {
+    "height": [
+      "width"
+    ],
+    "width": [
+      "height"
+    ]
+  },
   "description": "Structured format identifier with agent URL and format name. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants.",
   "properties": {
     "agent_url": {
@@ -42,10 +22,20 @@
       "minimum": 1,
       "type": "number"
     },
+    "height": {
+      "description": "Height in pixels for visual formats. When specified, width must also be specified. Both fields together create a parameterized format ID for dimension-specific variants.",
+      "minimum": 1,
+      "type": "integer"
+    },
     "id": {
       "description": "Format identifier within the agent's namespace (e.g., 'display_static', 'video_hosted', 'audio_standard'). When used alone, references a template format. When combined with dimension/duration fields, creates a parameterized format ID for a specific variant.",
       "pattern": "^[a-zA-Z0-9_-]+$",
       "type": "string"
+    },
+    "width": {
+      "description": "Width in pixels for visual formats. When specified, height must also be specified. Both fields together create a parameterized format ID for dimension-specific variants.",
+      "minimum": 1,
+      "type": "integer"
     }
   },
   "required": [

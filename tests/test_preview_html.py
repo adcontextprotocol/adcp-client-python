@@ -9,7 +9,7 @@ from adcp.types import AgentConfig, Protocol
 from adcp.types._generated import (
     CreativeManifest,
     Format,
-    FormatId1 as FormatId,
+    FormatId,
     GetProductsRequest,
     GetProductsResponse,
     ImageAsset,
