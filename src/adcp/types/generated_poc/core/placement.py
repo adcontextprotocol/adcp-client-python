@@ -20,7 +20,7 @@ class Placement(AdCPBaseModel):
         str | None, Field(description='Detailed description of where and how the placement appears')
     ] = None
     format_ids: Annotated[
-        list[FormatId2] | None,
+        list[FormatId1 | FormatId2] | None,
         Field(
             description='Format IDs supported by this specific placement. Can include: (1) concrete format_ids (fixed dimensions), (2) template format_ids without parameters (accepts any dimensions/duration), or (3) parameterized format_ids (specific dimension/duration constraints).',
             min_length=1,

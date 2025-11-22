@@ -190,7 +190,7 @@ def fix_format_id_union_references():
     This fixes field annotations to accept both variants.
     """
     files_to_fix = []
-    for pattern in ["creative/**/*.py", "media_buy/**/*.py"]:
+    for pattern in ["core/**/*.py", "creative/**/*.py", "media_buy/**/*.py"]:
         files_to_fix.extend(OUTPUT_DIR.glob(pattern))
 
     for file_path in files_to_fix:

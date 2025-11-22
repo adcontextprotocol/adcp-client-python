@@ -69,8 +69,7 @@ class CreativeAsset(AdCPBaseModel):
         Field(description='Assets required by the format, keyed by asset_role'),
     ]
     creative_id: Annotated[str, Field(description='Unique identifier for the creative')]
-    format_id: Annotated[
-        FormatId2,
+    format_id: Annotated[FormatId1 | FormatId2,
         Field(
             description='Format identifier specifying which format this creative conforms to. Can be: (1) concrete format_id referencing a format with fixed dimensions, (2) template format_id referencing a template format, or (3) parameterized format_id with dimensions/duration parameters for template formats.',
             title='Format ID',

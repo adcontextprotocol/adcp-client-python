@@ -439,7 +439,11 @@ def _create_sample_manifest_for_format_id(
     from adcp.types import CreativeManifest, ImageAsset, UrlAsset
 
     assets = {
-        "primary_asset": ImageAsset(url="https://example.com/sample-image.jpg"),
+        "primary_asset": ImageAsset(
+            url="https://example.com/sample-image.jpg",
+            width=300,
+            height=250,
+        ),
         "clickthrough_url": UrlAsset(url="https://example.com"),
     }
 

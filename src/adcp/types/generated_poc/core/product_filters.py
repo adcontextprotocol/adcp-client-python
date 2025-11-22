@@ -74,7 +74,7 @@ class ProductFilters(AdCPBaseModel):
         ),
     ] = None
     format_ids: Annotated[
-        list[FormatId2] | None, Field(description='Filter by specific format IDs')
+        list[FormatId1 | FormatId2] | None, Field(description='Filter by specific format IDs')
     ] = None
     format_types: Annotated[
         list[format_category.FormatCategory] | None, Field(description='Filter by format types')

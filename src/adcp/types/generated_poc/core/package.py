@@ -42,7 +42,7 @@ class Package(AdCPBaseModel):
     ] = None
     ext: ext_1.ExtensionObject | None = None
     format_ids_to_provide: Annotated[
-        list[FormatId2] | None,
+        list[FormatId1 | FormatId2] | None,
         Field(description='Format IDs that creative assets will be provided for this package'),
     ] = None
     impressions: Annotated[

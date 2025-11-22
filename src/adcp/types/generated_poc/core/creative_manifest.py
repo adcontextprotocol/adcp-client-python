@@ -54,8 +54,7 @@ class CreativeManifest(AdCPBaseModel):
         ),
     ]
     ext: ext_1.ExtensionObject | None = None
-    format_id: Annotated[
-        FormatId2,
+    format_id: Annotated[FormatId1 | FormatId2,
         Field(
             description="Format identifier this manifest is for. Can be a template format (id only) or a deterministic format (id + dimensions/duration). For dimension-specific creatives, include width/height/unit in the format_id to create a unique identifier (e.g., {id: 'display_static', width: 300, height: 250, unit: 'px'}).",
             title='Format ID',

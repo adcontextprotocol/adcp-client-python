@@ -148,8 +148,7 @@ class FormatCard(AdCPBaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
-    format_id: Annotated[
-        FormatId2,
+    format_id: Annotated[FormatId1 | FormatId2,
         Field(
             description='Creative format defining the card layout (typically format_card_standard)',
             title='Format ID',
@@ -165,8 +164,7 @@ class FormatCardDetailed(AdCPBaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
-    format_id: Annotated[
-        FormatId2,
+    format_id: Annotated[FormatId1 | FormatId2,
         Field(
             description='Creative format defining the detailed card layout (typically format_card_detailed)',
             title='Format ID',
@@ -224,8 +222,7 @@ class Format(AdCPBaseModel):
             description='Optional detailed card with carousel and full specifications. Provides rich format documentation similar to ad spec pages.'
         ),
     ] = None
-    format_id: Annotated[
-        FormatId2,
+    format_id: Annotated[FormatId1 | FormatId2,
         Field(
             description='Structured format identifier with agent URL and format name',
             title='Format ID',
@@ -233,7 +230,7 @@ class Format(AdCPBaseModel):
     ]
     name: Annotated[str, Field(description='Human-readable format name')]
     output_format_ids: Annotated[
-        list[FormatId2] | None,
+        list[FormatId1 | FormatId2] | None,
         Field(
             description='For generative formats: array of format IDs that this format can generate. When a format accepts inputs like brand_manifest and message, this specifies what concrete output formats can be produced (e.g., a generative banner format might output standard image banner formats).'
         ),

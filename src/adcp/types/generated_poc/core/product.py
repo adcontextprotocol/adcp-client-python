@@ -48,8 +48,7 @@ class ProductCard(AdCPBaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
-    format_id: Annotated[
-        FormatId2,
+    format_id: Annotated[FormatId1 | FormatId2,
         Field(
             description='Creative format defining the card layout (typically product_card_standard)',
             title='Format ID',
@@ -65,8 +64,7 @@ class ProductCardDetailed(AdCPBaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
-    format_id: Annotated[
-        FormatId2,
+    format_id: Annotated[FormatId1 | FormatId2,
         Field(
             description='Creative format defining the detailed card layout (typically product_card_detailed)',
             title='Format ID',
@@ -110,7 +108,7 @@ class Product(AdCPBaseModel):
     ] = None
     ext: ext_1.ExtensionObject | None = None
     format_ids: Annotated[
-        list[FormatId2],
+        list[FormatId1 | FormatId2],
         Field(
             description='Array of supported creative format IDs - structured format_id objects with agent_url and id'
         ),
