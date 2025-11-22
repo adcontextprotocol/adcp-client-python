@@ -46,15 +46,18 @@ class ProtocolAdapter(ABC):
         Returns:
             Typed TaskResult
         """
-        # Handle failed results or missing data
+        # Handle failed results or interim states without data
+        # For A2A: interim states (submitted/working) have data=None but success=True
+        # For MCP: completed tasks always have data, missing data indicates failure
         if not raw_result.success or raw_result.data is None:
-            # Explicitly construct typed result to satisfy type checker
+            # If already marked as unsuccessful, preserve that
+            # If successful but no data (A2A interim state), preserve success=True
             return TaskResult[T](
                 status=raw_result.status,
                 data=None,
                 message=raw_result.message,
-                success=False,
-                error=raw_result.error or "No data returned from adapter",
+                success=raw_result.success,  # Preserve original success state
+                error=raw_result.error,  # Only use error if one was set
                 metadata=raw_result.metadata,
                 debug_info=raw_result.debug_info,
             )
