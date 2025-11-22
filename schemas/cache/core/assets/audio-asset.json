@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/core/assets/audio-asset.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Audio asset with URL and specifications",

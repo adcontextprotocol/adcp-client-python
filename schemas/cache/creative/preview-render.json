@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/creative/preview-render.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "A single rendered piece of a creative preview with discriminated output format",
   "oneOf": [

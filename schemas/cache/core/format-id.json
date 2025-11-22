@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/core/format-id.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Structured format identifier with agent URL and format name",

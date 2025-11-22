@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/core/assets/vast-asset.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "VAST (Video Ad Serving Template) tag for third-party video ad serving",
   "oneOf": [
@@ -19,7 +18,7 @@
         "tracking_events": {
           "description": "Tracking events supported by this VAST tag",
           "items": {
-            "$ref": "/schemas/2.4.0/enums/vast-tracking-event.json"
+            "$ref": "../../enums/vast-tracking-event.json"
           },
           "type": "array"
         },
@@ -29,7 +28,7 @@
           "type": "string"
         },
         "vast_version": {
-          "$ref": "/schemas/2.4.0/enums/vast-version.json",
+          "$ref": "../../enums/vast-version.json",
           "description": "VAST specification version"
         },
         "vpaid_enabled": {
@@ -63,12 +62,12 @@
         "tracking_events": {
           "description": "Tracking events supported by this VAST tag",
           "items": {
-            "$ref": "/schemas/2.4.0/enums/vast-tracking-event.json"
+            "$ref": "../../enums/vast-tracking-event.json"
           },
           "type": "array"
         },
         "vast_version": {
-          "$ref": "/schemas/2.4.0/enums/vast-version.json",
+          "$ref": "../../enums/vast-version.json",
           "description": "VAST specification version"
         },
         "vpaid_enabled": {

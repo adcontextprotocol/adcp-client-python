@@ -22,6 +22,31 @@ OUTPUT_DIR = REPO_ROOT / "src" / "adcp" / "types" / "generated_poc"
 TEMP_DIR = REPO_ROOT / ".schema_temp"
 
 
+def rewrite_refs_for_underscores(obj):
+    """
+    Recursively rewrite $ref paths to use underscores instead of hyphens.
+
+    This is needed because Python module names cannot contain hyphens,
+    so we rename directories from media-buy to media_buy, but the refs
+    still point to the hyphenated versions.
+    """
+    if isinstance(obj, dict):
+        if "$ref" in obj:
+            ref_path = obj["$ref"]
+            # Replace hyphens with underscores in each path segment
+            parts = ref_path.split("/")
+            parts = [part.replace("-", "_") for part in parts]
+            obj["$ref"] = "/".join(parts)
+
+        for value in obj.values():
+            rewrite_refs_for_underscores(value)
+    elif isinstance(obj, list):
+        for item in obj:
+            rewrite_refs_for_underscores(item)
+
+    return obj
+
+
 def flatten_schemas():
     """
     Copy schemas to temp directory, preserving directory structure.
@@ -62,9 +87,12 @@ def flatten_schemas():
         # Create parent directories
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
-        # Just copy the schema as-is (refs are already relative from fix_schema_refs.py)
+        # Load schema and rewrite refs to use underscores
         with open(schema_file) as f:
             schema = json.load(f)
+
+        # Rewrite $ref paths to use underscores instead of hyphens
+        schema = rewrite_refs_for_underscores(schema)
 
         with open(output_file, "w") as f:
             json.dump(schema, f, indent=2)

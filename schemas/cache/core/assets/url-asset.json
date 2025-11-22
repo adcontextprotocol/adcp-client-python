@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/core/assets/url-asset.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "URL reference asset",
@@ -14,7 +13,7 @@
       "type": "string"
     },
     "url_type": {
-      "$ref": "/schemas/2.4.0/enums/url-asset-type.json",
+      "$ref": "../../enums/url-asset-type.json",
       "description": "Type of URL asset: 'clickthrough' for user click destination (landing page), 'tracker_pixel' for impression/event tracking via HTTP request (fires GET, expects pixel/204 response), 'tracker_script' for measurement SDKs that must load as <script> tag (OMID verification, native event trackers using method:2)"
     }
   },
