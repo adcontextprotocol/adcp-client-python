@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Standard advertising channels supported by AdCP",
+  "enum": [
+    "display",
+    "video",
+    "audio",
+    "native",
+    "dooh",
+    "ctv",
+    "podcast",
+    "retail",
+    "social"
+  ],
+  "title": "Advertising Channels",
+  "type": "string"
+}

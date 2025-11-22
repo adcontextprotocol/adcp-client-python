@@ -391,6 +391,50 @@ class MCPAdapter(ProtocolAdapter):
         result = await session.list_tools()
         return [tool.name for tool in result.tools]
 
+    async def get_agent_info(self) -> dict[str, Any]:
+        """
+        Get agent information including AdCP extension metadata from MCP server.
+
+        MCP servers may expose metadata through:
+        - Server capabilities exposed during initialization
+        - extensions.adcp in server info (if supported)
+        - Tool list
+
+        Returns:
+            Dictionary with agent metadata
+        """
+        session = await self._get_session()
+
+        # Extract basic MCP server info
+        info: dict[str, Any] = {
+            "name": getattr(session, "server_name", None),
+            "version": getattr(session, "server_version", None),
+            "protocol": "mcp",
+        }
+
+        # Get available tools
+        try:
+            tools_result = await session.list_tools()
+            tool_names = [tool.name for tool in tools_result.tools]
+            if tool_names:
+                info["tools"] = tool_names
+        except Exception as e:
+            logger.warning(f"Failed to list tools for {self.agent_config.id}: {e}")
+
+        # Try to extract AdCP extension metadata from server capabilities
+        # MCP servers may expose this in their initialization response
+        if hasattr(session, "_server_capabilities"):
+            capabilities = session._server_capabilities
+            if isinstance(capabilities, dict):
+                extensions = capabilities.get("extensions", {})
+                adcp_ext = extensions.get("adcp", {})
+                if adcp_ext:
+                    info["adcp_version"] = adcp_ext.get("adcp_version")
+                    info["protocols_supported"] = adcp_ext.get("protocols_supported")
+
+        logger.info(f"Retrieved agent info for {self.agent_config.id}")
+        return info
+
     async def close(self) -> None:
         """Close the MCP session and clean up resources."""
         await self._cleanup_failed_connection("during close")

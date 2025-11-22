@@ -47,7 +47,13 @@ async def test_preview_creative():
     format_id = make_format_id("display_300x250")
     manifest = CreativeManifest(
         format_id=format_id,
-        assets={"image": ImageAsset(url="https://example.com/img.jpg")},
+        assets={
+            "image": ImageAsset(
+                url="https://example.com/img.jpg",
+                width=300,
+                height=250,
+            )
+        },
     )
 
     # Raw result from adapter (unparsed)
@@ -116,7 +122,13 @@ async def test_get_preview_data_for_manifest():
     format_id = make_format_id("display_300x250")
     manifest = CreativeManifest(
         format_id=format_id,
-        assets={"image": ImageAsset(url="https://example.com/img.jpg")},
+        assets={
+            "image": ImageAsset(
+                url="https://example.com/img.jpg",
+                width=300,
+                height=250,
+            )
+        },
     )
 
     # Raw result from adapter (unparsed)
@@ -170,7 +182,13 @@ async def test_preview_data_caching():
     format_id = make_format_id("display_300x250")
     manifest = CreativeManifest(
         format_id=format_id,
-        assets={"image": ImageAsset(url="https://example.com/img.jpg")},
+        assets={
+            "image": ImageAsset(
+                url="https://example.com/img.jpg",
+                width=300,
+                height=250,
+            )
+        },
     )
 
     # Raw result from adapter (unparsed)

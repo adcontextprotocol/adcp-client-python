@@ -83,9 +83,10 @@ async def execute_tool(
 
 # Tool dispatch mapping - single source of truth for ADCP methods
 # Types are filled at runtime to avoid circular imports
-# Special case: list_tools takes no parameters (None means no request type)
+# Special case: list_tools and get_info take no parameters (None means no request type)
 TOOL_DISPATCH: dict[str, tuple[str, type | None]] = {
     "list_tools": ("list_tools", None),  # Protocol introspection - no request type
+    "get_info": ("get_info", None),  # Agent info - no request type
     "get_products": ("get_products", None),
     "list_creative_formats": ("list_creative_formats", None),
     "preview_creative": ("preview_creative", None),
@@ -162,7 +163,8 @@ async def _dispatch_tool(client: ADCPClient, tool_name: str, payload: dict[str, 
     method_name, request_type = TOOL_DISPATCH[tool_name]
     method = getattr(client, method_name)
 
-    # Special case: list_tools takes no parameters and returns list[str], not TaskResult
+    # Special case: list_tools and get_info take no parameters and return
+    # data directly, not TaskResult
     if tool_name == "list_tools":
         try:
             tools = await method()
@@ -178,7 +180,22 @@ async def _dispatch_tool(client: ADCPClient, tool_name: str, payload: dict[str, 
                 error=f"Failed to list tools: {e}",
             )
 
-    # Type guard - request_type should be initialized by this point for non-list_tools
+    if tool_name == "get_info":
+        try:
+            info = await method()
+            return TaskResult(
+                status=TaskStatus.COMPLETED,
+                data=info,
+                success=True,
+            )
+        except Exception as e:
+            return TaskResult(
+                status=TaskStatus.FAILED,
+                success=False,
+                error=f"Failed to get agent info: {e}",
+            )
+
+    # Type guard - request_type should be initialized by this point for methods that need it
     if request_type is None:
         return TaskResult(
             status=TaskStatus.FAILED,
@@ -323,6 +340,7 @@ def main() -> None:
     parser.add_argument("--list-agents", action="store_true", help="List saved agents")
     parser.add_argument("--remove-agent", metavar="ALIAS", help="Remove saved agent")
     parser.add_argument("--show-config", action="store_true", help="Show config file location")
+    parser.add_argument("--version", action="store_true", help="Show SDK and AdCP version")
 
     # Execution options
     parser.add_argument("--protocol", choices=["mcp", "a2a"], help="Force protocol type")
@@ -348,19 +366,29 @@ def main() -> None:
                 args.list_agents,
                 args.remove_agent,
                 args.show_config,
+                args.version,
             ]
         )
     ):
         parser.print_help()
         print("\nExamples:")
+        print("  adcp --version")
         print("  adcp --save-auth myagent https://agent.example.com mcp")
         print("  adcp --list-agents")
+        print("  adcp myagent get_info")
         print("  adcp myagent list_tools")
         print('  adcp myagent get_products \'{"brief":"TV ads"}\'')
         print("  adcp https://agent.example.com list_tools")
         sys.exit(0)
 
     # Handle configuration commands
+    if args.version:
+        from adcp import __version__, get_adcp_version
+
+        print(f"AdCP Python SDK: v{__version__}")
+        print(f"Target AdCP Spec: {get_adcp_version()}")
+        sys.exit(0)
+
     if args.save_auth:
         url = args.agent if args.agent else None
         protocol = args.tool if args.tool else None

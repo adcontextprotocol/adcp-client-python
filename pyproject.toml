@@ -63,6 +63,13 @@ where = ["src"]
 [tool.setuptools.package-data]
 adcp = ["py.typed"]
 
+# Include ADCP_VERSION file in package
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.data-files]
+"." = ["ADCP_VERSION"]
+
 [tool.black]
 line-length = 100
 target-version = ["py310", "py311", "py312"]

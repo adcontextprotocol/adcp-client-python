@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Selects properties from a publisher's adagents.json. Used for both product definitions and agent authorization. Supports three selection patterns: all properties, specific IDs, or by tags.",
+  "discriminator": {
+    "propertyName": "selection_type"
+  },
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "Select all properties from the publisher domain",
+      "properties": {
+        "publisher_domain": {
+          "description": "Domain where publisher's adagents.json is hosted (e.g., 'cnn.com')",
+          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
+          "type": "string"
+        },
+        "selection_type": {
+          "const": "all",
+          "description": "Discriminator indicating all properties from this publisher are included",
+          "type": "string"
+        }
+      },
+      "required": [
+        "publisher_domain",
+        "selection_type"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Select specific properties by ID",
+      "properties": {
+        "property_ids": {
+          "description": "Specific property IDs from the publisher's adagents.json",
+          "items": {
+            "$ref": "property-id.json"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "publisher_domain": {
+          "description": "Domain where publisher's adagents.json is hosted (e.g., 'cnn.com')",
+          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
+          "type": "string"
+        },
+        "selection_type": {
+          "const": "by_id",
+          "description": "Discriminator indicating selection by specific property IDs",
+          "type": "string"
+        }
+      },
+      "required": [
+        "publisher_domain",
+        "selection_type",
+        "property_ids"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Select properties by tag membership",
+      "properties": {
+        "property_tags": {
+          "description": "Property tags from the publisher's adagents.json. Selector covers all properties with these tags",
+          "items": {
+            "$ref": "property-tag.json"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "publisher_domain": {
+          "description": "Domain where publisher's adagents.json is hosted (e.g., 'cnn.com')",
+          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
+          "type": "string"
+        },
+        "selection_type": {
+          "const": "by_tag",
+          "description": "Discriminator indicating selection by property tags",
+          "type": "string"
+        }
+      },
+      "required": [
+        "publisher_domain",
+        "selection_type",
+        "property_tags"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "Publisher Property Selector"
+}

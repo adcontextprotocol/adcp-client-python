@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Valid identifier types for publisher/legal entity identification",
+  "enum": [
+    "tag_id",
+    "duns",
+    "lei",
+    "seller_id",
+    "gln"
+  ],
+  "examples": [
+    "tag_id",
+    "seller_id",
+    "duns"
+  ],
+  "title": "Publisher Identifier Types",
+  "type": "string"
+}

@@ -1,0 +1,163 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Request to generate previews of one or more creative manifests. Accepts either a single creative request or an array of requests for batch processing.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "Single creative preview request",
+      "properties": {
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "creative_manifest": {
+          "$ref": "../core/creative-manifest.json",
+          "description": "Complete creative manifest with all required assets (including promoted_offerings if required by the format)"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
+        "format_id": {
+          "$ref": "../core/format-id.json",
+          "description": "Format identifier for rendering the preview"
+        },
+        "inputs": {
+          "description": "Array of input sets for generating multiple preview variants. Each input set defines macros and context values for one preview rendering. If not provided, creative agent will generate default previews.",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "context_description": {
+                "description": "Natural language description of the context for AI-generated content (e.g., 'User just searched for running shoes', 'Podcast discussing weather patterns', 'Article about electric vehicles')",
+                "type": "string"
+              },
+              "macros": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Macro values to use for this preview. Supports all universal macros from the format's supported_macros list. See docs/media-buy/creatives/universal-macros.md for available macros.",
+                "type": "object"
+              },
+              "name": {
+                "description": "Human-readable name for this input set (e.g., 'Sunny morning on mobile', 'Evening podcast ad', 'Desktop dark mode')",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "output_format": {
+          "$ref": "../enums/preview-output-format.json",
+          "default": "url",
+          "description": "Output format for previews. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding). Default: 'url' for backward compatibility."
+        },
+        "request_type": {
+          "const": "single",
+          "description": "Discriminator indicating this is a single preview request",
+          "type": "string"
+        },
+        "template_id": {
+          "description": "Specific template ID for custom format rendering",
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_type",
+        "format_id",
+        "creative_manifest"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Batch preview request for multiple creatives (5-10x faster than individual calls)",
+      "properties": {
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
+        "output_format": {
+          "$ref": "../enums/preview-output-format.json",
+          "default": "url",
+          "description": "Default output format for all requests in this batch. Individual requests can override this. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding)."
+        },
+        "request_type": {
+          "const": "batch",
+          "description": "Discriminator indicating this is a batch preview request",
+          "type": "string"
+        },
+        "requests": {
+          "description": "Array of preview requests (1-50 items). Each follows the single request structure.",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "creative_manifest": {
+                "$ref": "../core/creative-manifest.json",
+                "description": "Complete creative manifest with all required assets"
+              },
+              "format_id": {
+                "$ref": "../core/format-id.json",
+                "description": "Format identifier for rendering the preview"
+              },
+              "inputs": {
+                "description": "Array of input sets for generating multiple preview variants",
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "context_description": {
+                      "description": "Natural language description of the context for AI-generated content",
+                      "type": "string"
+                    },
+                    "macros": {
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "description": "Macro values to use for this preview",
+                      "type": "object"
+                    },
+                    "name": {
+                      "description": "Human-readable name for this input set",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "output_format": {
+                "$ref": "../enums/preview-output-format.json",
+                "default": "url",
+                "description": "Output format for this preview. 'url' returns preview_url, 'html' returns preview_html."
+              },
+              "template_id": {
+                "description": "Specific template ID for custom format rendering",
+                "type": "string"
+              }
+            },
+            "required": [
+              "format_id",
+              "creative_manifest"
+            ],
+            "type": "object"
+          },
+          "maxItems": 50,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "request_type",
+        "requests"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "Preview Creative Request"
+}

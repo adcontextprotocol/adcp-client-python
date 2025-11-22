@@ -1,0 +1,124 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Creative asset for upload to library - supports static assets, generative formats, and third-party snippets",
+  "properties": {
+    "approved": {
+      "description": "For generative creatives: set to true to approve and finalize, false to request regeneration with updated assets/message. Omit for non-generative creatives.",
+      "type": "boolean"
+    },
+    "assets": {
+      "additionalProperties": false,
+      "description": "Assets required by the format, keyed by asset_role",
+      "patternProperties": {
+        "^[a-zA-Z0-9_-]+$": {
+          "oneOf": [
+            {
+              "$ref": "assets/image-asset.json"
+            },
+            {
+              "$ref": "assets/video-asset.json"
+            },
+            {
+              "$ref": "assets/audio-asset.json"
+            },
+            {
+              "$ref": "assets/text-asset.json"
+            },
+            {
+              "$ref": "assets/html-asset.json"
+            },
+            {
+              "$ref": "assets/css-asset.json"
+            },
+            {
+              "$ref": "assets/javascript-asset.json"
+            },
+            {
+              "$ref": "assets/vast-asset.json"
+            },
+            {
+              "$ref": "assets/daast-asset.json"
+            },
+            {
+              "$ref": "promoted-offerings.json"
+            },
+            {
+              "$ref": "assets/url-asset.json"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "creative_id": {
+      "description": "Unique identifier for the creative",
+      "type": "string"
+    },
+    "format_id": {
+      "$ref": "format-id.json",
+      "description": "Format identifier specifying which format this creative conforms to. Can be: (1) concrete format_id referencing a format with fixed dimensions, (2) template format_id referencing a template format, or (3) parameterized format_id with dimensions/duration parameters for template formats."
+    },
+    "inputs": {
+      "description": "Preview contexts for generative formats - defines what scenarios to generate previews for",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "context_description": {
+            "description": "Natural language description of the context for AI-generated content",
+            "type": "string"
+          },
+          "macros": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Macro values to apply for this preview",
+            "type": "object"
+          },
+          "name": {
+            "description": "Human-readable name for this preview variant",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "name": {
+      "description": "Human-readable creative name",
+      "type": "string"
+    },
+    "placement_ids": {
+      "description": "Optional array of placement IDs where this creative should run when uploading via create_media_buy or update_media_buy. References placement_id values from the product's placements array. If omitted, creative runs on all placements. Only used during upload to media buy - not stored in creative library.",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "tags": {
+      "description": "User-defined tags for organization and searchability",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "weight": {
+      "description": "Optional delivery weight for creative rotation when uploading via create_media_buy or update_media_buy (0-100). If omitted, platform determines rotation. Only used during upload to media buy - not stored in creative library.",
+      "maximum": 100,
+      "minimum": 0,
+      "type": "number"
+    }
+  },
+  "required": [
+    "creative_id",
+    "name",
+    "format_id",
+    "assets"
+  ],
+  "title": "Creative Asset",
+  "type": "object"
+}

@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Request parameters for discovering supported creative formats",
+  "properties": {
+    "asset_types": {
+      "description": "Filter to formats that include these asset types. For third-party tags, search for 'html' or 'javascript'. E.g., ['image', 'text'] returns formats with images and text, ['javascript'] returns formats accepting JavaScript tags.",
+      "items": {
+        "$ref": "../enums/asset-content-type.json"
+      },
+      "type": "array"
+    },
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "format_ids": {
+      "description": "Return only these specific format IDs (e.g., from get_products response)",
+      "items": {
+        "$ref": "../core/format-id.json"
+      },
+      "type": "array"
+    },
+    "is_responsive": {
+      "description": "Filter for responsive formats that adapt to container size. When true, returns formats without fixed dimensions.",
+      "type": "boolean"
+    },
+    "max_height": {
+      "description": "Maximum height in pixels (inclusive). Returns formats where ANY render has height <= this value. For multi-render formats, matches if at least one render fits.",
+      "type": "integer"
+    },
+    "max_width": {
+      "description": "Maximum width in pixels (inclusive). Returns formats where ANY render has width <= this value. For multi-render formats, matches if at least one render fits.",
+      "type": "integer"
+    },
+    "min_height": {
+      "description": "Minimum height in pixels (inclusive). Returns formats where ANY render has height >= this value.",
+      "type": "integer"
+    },
+    "min_width": {
+      "description": "Minimum width in pixels (inclusive). Returns formats where ANY render has width >= this value.",
+      "type": "integer"
+    },
+    "name_search": {
+      "description": "Search for formats by name (case-insensitive partial match)",
+      "type": "string"
+    },
+    "type": {
+      "$ref": "../enums/format-category.json",
+      "description": "Filter by format type (technical categories with distinct requirements)"
+    }
+  },
+  "title": "List Creative Formats Request",
+  "type": "object"
+}

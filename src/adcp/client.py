@@ -781,6 +781,22 @@ class ADCPClient:
         """
         return await self.adapter.list_tools()
 
+    async def get_info(self) -> dict[str, Any]:
+        """
+        Get agent information including AdCP extension metadata.
+
+        Returns agent card information including:
+        - Agent name, description, version
+        - Protocol type (mcp or a2a)
+        - AdCP version (from extensions.adcp.adcp_version)
+        - Supported protocols (from extensions.adcp.protocols_supported)
+        - Available tools/skills
+
+        Returns:
+            Dictionary with agent metadata
+        """
+        return await self.adapter.get_agent_info()
+
     async def close(self) -> None:
         """Close the adapter and clean up resources."""
         if hasattr(self.adapter, "close"):

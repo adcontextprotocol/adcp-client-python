@@ -105,7 +105,6 @@ from adcp.types import (
     MediaBuyStatus,
     Package,
     PackageRequest,
-    PackageStatus,
     PreviewCreativeRequest,
     PreviewCreativeResponse,
     PriceGuidance,
@@ -182,7 +181,29 @@ from adcp.validation import (
 
 __version__ = "2.11.1"
 
+
+def get_adcp_version() -> str:
+    """
+    Get the target AdCP specification version this SDK is built for.
+
+    This version determines which AdCP schemas are used for type generation
+    and validation. The SDK is designed to work with this specific version
+    of the AdCP specification.
+
+    Returns:
+        AdCP specification version (e.g., "v1", "v2")
+    """
+    from pathlib import Path
+
+    # Read from ADCP_VERSION file at project root
+    version_file = Path(__file__).parent.parent.parent / "ADCP_VERSION"
+    if version_file.exists():
+        return version_file.read_text().strip()
+    return "v1"  # Fallback
+
 __all__ = [
+    # Version functions
+    "get_adcp_version",
     # Client classes
     "ADCPClient",
     "ADCPMultiAgentClient",
@@ -240,7 +261,6 @@ __all__ = [
     # Status enums (for control flow)
     "CreativeStatus",
     "MediaBuyStatus",
-    "PackageStatus",
     "PricingModel",
     # Pricing-related types
     "CpcPricingOption",

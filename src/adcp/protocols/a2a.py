@@ -127,35 +127,51 @@ class A2AAdapter(ProtocolAdapter):
                     duration_ms=duration_ms,
                 )
 
-            # Parse A2A response format
+            # Parse A2A response format per canonical spec
             # A2A tasks have lifecycle: submitted, working, completed, failed, input-required
-            task_status = data.get("task", {}).get("status")
+            task_status = data.get("status")
 
-            if task_status in ("completed", "working"):
-                # Extract the result from the response message
+            if task_status == "completed":
+                # Extract the result from the artifacts array
                 result_data = self._extract_result(data)
+
+                # Check for task-level errors in the payload
+                errors = result_data.get("errors", []) if isinstance(result_data, dict) else []
+                has_errors = bool(errors)
 
                 return TaskResult[Any](
                     status=TaskStatus.COMPLETED,
                     data=result_data,
-                    success=True,
-                    metadata={"task_id": data.get("task", {}).get("id")},
+                    message=self._extract_text_part(data),
+                    success=not has_errors,
+                    metadata={
+                        "task_id": data.get("taskId"),
+                        "context_id": data.get("contextId"),
+                    },
                     debug_info=debug_info,
                 )
             elif task_status == "failed":
+                # Protocol-level failure - extract error message from TextPart
+                error_msg = self._extract_text_part(data) or "Task failed"
                 return TaskResult[Any](
                     status=TaskStatus.FAILED,
-                    error=data.get("message", {}).get("parts", [{}])[0].get("text", "Task failed"),
+                    error=error_msg,
                     success=False,
                     debug_info=debug_info,
                 )
             else:
-                # Handle other states (submitted, input-required)
+                # Handle all interim states (submitted, working, pending, input-required)
+                # These don't need to have structured AdCP content - only completed responses do
                 return TaskResult[Any](
                     status=TaskStatus.SUBMITTED,
-                    data=data,
+                    data=None,  # Interim responses may not have structured AdCP content
+                    message=self._extract_text_part(data),
                     success=True,
-                    metadata={"task_id": data.get("task", {}).get("id")},
+                    metadata={
+                        "task_id": data.get("taskId"),
+                        "context_id": data.get("contextId"),
+                        "status": task_status,  # submitted, working, pending, input-required, etc.
+                    },
                     debug_info=debug_info,
                 )
 
@@ -182,27 +198,79 @@ class A2AAdapter(ProtocolAdapter):
         return f"Execute tool: {tool_name}\nParameters: {json.dumps(params, indent=2)}"
 
     def _extract_result(self, response_data: dict[str, Any]) -> Any:
-        """Extract result data from A2A response."""
-        # Try to extract structured data from response
-        message = response_data.get("message", {})
-        parts = message.get("parts", [])
+        """
+        Extract result data from A2A response following canonical format.
 
-        if not parts:
+        Per A2A response spec:
+        - Responses MUST include at least one DataPart (kind: "data")
+        - When multiple DataParts exist in an artifact, the last one is authoritative
+        - When multiple artifacts exist, use the last one (most recent in streaming)
+        - DataParts contain structured AdCP payload
+        """
+        artifacts = response_data.get("artifacts", [])
+
+        if not artifacts:
+            logger.warning("A2A response missing required artifacts array")
             return response_data
 
-        # Return the first part's content
-        first_part = parts[0]
-        if first_part.get("type") == "text":
-            # Try to parse as JSON if it looks like structured data
-            text = first_part.get("text", "")
-            try:
-                import json
+        # Use last artifact (most recent in streaming scenarios)
+        # A2A spec doesn't define artifact.status, so we simply take the last one
+        target_artifact = artifacts[-1]
 
-                return json.loads(text)
-            except (json.JSONDecodeError, ValueError):
-                return text
+        parts = target_artifact.get("parts", [])
 
-        return first_part
+        if not parts:
+            logger.warning("A2A response artifact has no parts")
+            return response_data
+
+        # Find all DataParts (kind: "data")
+        data_parts = [p for p in parts if p.get("kind") == "data"]
+
+        if not data_parts:
+            logger.warning("A2A response missing required DataPart (kind: 'data')")
+            return response_data
+
+        # Use last DataPart as authoritative (handles streaming scenarios within an artifact)
+        last_data_part = data_parts[-1]
+        data = last_data_part.get("data", {})
+
+        # Some A2A implementations (e.g., ADK) wrap the response in {"response": {...}}
+        # Unwrap it to get the actual AdCP payload if present
+        # ADK is inconsistent - some DataParts have the wrapper, others don't
+        if isinstance(data, dict) and "response" in data:
+            # If response is the only key, unwrap completely
+            if len(data) == 1:
+                return data["response"]
+            # If there are other keys alongside response, prefer the wrapped content
+            # but keep it flexible for edge cases
+            return data["response"]
+
+        return data
+
+    def _extract_text_part(self, response_data: dict[str, Any]) -> str | None:
+        """
+        Extract human-readable message from TextPart if present.
+
+        Uses last artifact (same logic as _extract_result).
+        """
+        artifacts = response_data.get("artifacts", [])
+
+        if not artifacts:
+            return None
+
+        # Use last artifact (most recent in streaming scenarios)
+        # A2A spec doesn't define artifact.status, so we simply take the last one
+        target_artifact = artifacts[-1]
+
+        parts = target_artifact.get("parts", [])
+
+        # Find TextPart (kind: "text")
+        for part in parts:
+            if part.get("kind") == "text":
+                text = part.get("text")
+                return str(text) if text is not None else None
+
+        return None
 
     # ========================================================================
     # ADCP Protocol Methods
@@ -324,6 +392,91 @@ class A2AAdapter(ProtocolAdapter):
             ) from e
         except httpx.HTTPError as e:
             logger.error(f"HTTP error fetching agent card: {e}")
+            raise ADCPConnectionError(
+                f"Failed to fetch agent card: {e}",
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
+            ) from e
+
+    async def get_agent_info(self) -> dict[str, Any]:
+        """
+        Get agent information including AdCP extension metadata from A2A agent card.
+
+        Fetches the agent card from /.well-known/agent.json and extracts:
+        - Basic agent info (name, description, version)
+        - AdCP extension (extensions.adcp.adcp_version, extensions.adcp.protocols_supported)
+        - Available skills/tools
+
+        Returns:
+            Dictionary with agent metadata
+        """
+        client = await self._get_client()
+
+        headers = {"Content-Type": "application/json"}
+
+        if self.agent_config.auth_token:
+            if self.agent_config.auth_type == "bearer":
+                headers[self.agent_config.auth_header] = f"Bearer {self.agent_config.auth_token}"
+            else:
+                headers[self.agent_config.auth_header] = self.agent_config.auth_token
+
+        url = f"{self.agent_config.agent_uri}/.well-known/agent.json"
+
+        logger.debug(f"Fetching A2A agent info for {self.agent_config.id} from {url}")
+
+        try:
+            response = await client.get(url, headers=headers, timeout=self.agent_config.timeout)
+            response.raise_for_status()
+
+            agent_card = response.json()
+
+            # Extract basic info
+            info: dict[str, Any] = {
+                "name": agent_card.get("name"),
+                "description": agent_card.get("description"),
+                "version": agent_card.get("version"),
+                "protocol": "a2a",
+            }
+
+            # Extract skills/tools
+            skills = agent_card.get("skills", [])
+            tool_names = [skill.get("name") for skill in skills if skill.get("name")]
+            if tool_names:
+                info["tools"] = tool_names
+
+            # Extract AdCP extension metadata
+            extensions = agent_card.get("extensions", {})
+            adcp_ext = extensions.get("adcp", {})
+
+            if adcp_ext:
+                info["adcp_version"] = adcp_ext.get("adcp_version")
+                info["protocols_supported"] = adcp_ext.get("protocols_supported")
+
+            logger.info(f"Retrieved agent info for {self.agent_config.id}")
+            return info
+
+        except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code
+            if status_code in (401, 403):
+                raise ADCPAuthenticationError(
+                    f"Authentication failed: HTTP {status_code}",
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
+                ) from e
+            else:
+                raise ADCPConnectionError(
+                    f"Failed to fetch agent card: HTTP {status_code}",
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
+                ) from e
+        except httpx.TimeoutException as e:
+            raise ADCPTimeoutError(
+                f"Timeout fetching agent card: {e}",
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
+                timeout=self.agent_config.timeout,
+            ) from e
+        except httpx.HTTPError as e:
             raise ADCPConnectionError(
                 f"Failed to fetch agent card: {e}",
                 agent_id=self.agent_config.id,

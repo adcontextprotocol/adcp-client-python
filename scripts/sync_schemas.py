@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 """
-Sync AdCP JSON schemas from GitHub main branch.
+Sync AdCP JSON schemas from the authoritative public website.
 
-This script downloads ALL AdCP schemas from the repository directory structure,
-not just those listed in index.json. This ensures we get all schemas including
-asset types (vast-asset.json, daast-asset.json) with discriminators from PR #189.
+This script downloads AdCP schemas from https://adcontextprotocol.org/schemas/
+which is the canonical, versioned source of truth for AdCP schemas.
 
 Features:
+- Downloads from versioned public API (e.g., v1, v2)
 - Content-based change detection (only updates files when content changes)
 - Automatic cleanup of orphaned schemas (files removed upstream)
 - Preserves directory structure from upstream
-- Symlink to latest version for convenience
 
 Usage:
     python scripts/sync_schemas.py          # Normal sync (uses content hashing)
@@ -27,10 +26,26 @@ from pathlib import Path
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
-# Use GitHub API and raw content for complete schema discovery
-GITHUB_API_BASE = "https://api.github.com/repos/adcontextprotocol/adcp/contents"
-ADCP_BASE_URL = "https://raw.githubusercontent.com/adcontextprotocol/adcp/main"
-SCHEMA_INDEX_URL = f"{ADCP_BASE_URL}/static/schemas/v1/index.json"
+
+def get_target_adcp_version() -> str:
+    """
+    Get the target AdCP version from ADCP_VERSION file.
+
+    Returns:
+        AdCP version string (e.g., "v1", "v2")
+    """
+    version_file = Path(__file__).parent.parent / "ADCP_VERSION"
+    if version_file.exists():
+        return version_file.read_text().strip()
+    return "v1"  # Fallback
+
+
+# Get target AdCP version
+TARGET_ADCP_VERSION = get_target_adcp_version()
+
+# Use authoritative public website as source
+ADCP_BASE_URL = "https://adcontextprotocol.org/schemas"
+SCHEMA_INDEX_URL = f"{ADCP_BASE_URL}/{TARGET_ADCP_VERSION}/index.json"
 CACHE_DIR = Path(__file__).parent.parent / "schemas" / "cache"
 HASH_CACHE_FILE = CACHE_DIR / ".hashes.json"
 
@@ -76,59 +91,76 @@ def download_schema(url: str) -> dict:
         raise
 
 
-def list_directory_contents(api_path: str) -> list[dict]:
-    """List contents of a GitHub directory via API."""
-    try:
-        url = f"{GITHUB_API_BASE}/{api_path}"
-        with urlopen(url) as response:
-            return json.loads(response.read().decode())
-    except URLError as e:
-        print(f"Error listing {api_path}: {e}", file=sys.stderr)
-        return []
-
-
-def discover_all_schemas(api_path: str = "static/schemas/v1") -> list[str]:
+def discover_schemas_from_index(index_data: dict) -> list[str]:
     """
-    Recursively discover all .json schema files in the GitHub repository.
+    Discover all schema URLs from index.json.
+
+    The index contains references to all schemas organized by category.
+    We recursively extract all $ref paths and convert them to full URLs.
 
     Returns:
-        List of raw GitHub URLs for all schema files
+        List of schema URLs
     """
     schema_urls = []
-    contents = list_directory_contents(api_path)
 
-    for item in contents:
-        if item["type"] == "file" and item["name"].endswith(".json"):
-            # Convert download_url to raw GitHub URL for consistency
-            raw_url = item["download_url"]
-            schema_urls.append(raw_url)
-        elif item["type"] == "dir":
-            # Recursively explore subdirectories
-            subdir_urls = discover_all_schemas(item["path"])
-            schema_urls.extend(subdir_urls)
+    def extract_refs(obj: dict | list | str) -> None:
+        """Recursively extract all $ref values from nested structure."""
+        if isinstance(obj, dict):
+            if "$ref" in obj:
+                # Found a schema reference
+                # $ref paths are like "/schemas/2.4.0/core/package.json"
+                # Convert to full URL by prepending domain only
+                ref_path = obj["$ref"]
+                schema_url = f"https://adcontextprotocol.org{ref_path}"
+                schema_urls.append(schema_url)
+            # Recurse into nested objects
+            for value in obj.values():
+                extract_refs(value)
+        elif isinstance(obj, list):
+            # Recurse into lists
+            for item in obj:
+                extract_refs(item)
+
+    # Start extraction from schemas section
+    schemas = index_data.get("schemas", {})
+    extract_refs(schemas)
 
     return schema_urls
 
 
 def download_schema_file(
-    url: str, version: str, hash_cache: dict[str, str], force: bool = False
+    url: str, hash_cache: dict[str, str], force: bool = False
 ) -> tuple[bool, str | None]:
     """
     Download a schema and save it to cache, using content hashing for change detection.
+    Preserves directory structure from URL path.
 
     Returns:
         Tuple of (was_updated, new_hash)
     """
-    # Extract filename from URL
-    filename = url.split("/")[-1]
-    if not filename.endswith(".json"):
-        filename += ".json"
+    # Extract path from URL
+    # URL format: https://adcontextprotocol.org/schemas/2.4.0/core/package.json
+    # We want to extract: core/package.json
+    # The URL from index has full path including version number
+    url_path = url.replace(f"{ADCP_BASE_URL}/", "")
+    # Split and skip the version part (e.g., "2.4.0" or "v1")
+    parts = url_path.split("/")
+    if len(parts) > 1:
+        # Skip first part (version), keep rest
+        url_parts = parts[1:]
+    else:
+        url_parts = parts
 
-    # Create version directory
-    version_dir = CACHE_DIR / version
-    version_dir.mkdir(parents=True, exist_ok=True)
-
-    output_path = version_dir / filename
+    # Create subdirectories if needed (directly in CACHE_DIR)
+    if len(url_parts) > 1:
+        subdir = CACHE_DIR / Path(*url_parts[:-1])
+        subdir.mkdir(parents=True, exist_ok=True)
+        output_path = subdir / url_parts[-1]
+        display_name = "/".join(url_parts)
+    else:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        output_path = CACHE_DIR / url_parts[0]
+        display_name = url_parts[0]
 
     # Download schema
     try:
@@ -144,13 +176,13 @@ def download_schema_file(
 
             if cached_hash == new_hash:
                 # Content unchanged
-                print(f"  ✓ {filename} (unchanged)")
+                print(f"  ✓ {display_name} (unchanged)")
                 return False, new_hash
 
             # Content changed
             with open(output_path, "w") as f:
                 f.write(content)
-            print(f"  ↻ {filename} (updated)")
+            print(f"  ↻ {display_name} (updated)")
             return True, new_hash
 
         # New file or forced download
@@ -158,12 +190,47 @@ def download_schema_file(
             f.write(content)
 
         status = "downloaded" if not output_path.exists() else "forced update"
-        print(f"  ✓ {filename} ({status})")
+        print(f"  ✓ {display_name} ({status})")
         return True, new_hash
 
     except Exception as e:
-        print(f"  ✗ {filename} (failed: {e})", file=sys.stderr)
+        print(f"  ✗ {display_name} (failed: {e})", file=sys.stderr)
         return False, None
+
+
+def discover_transitive_refs(schema: dict) -> list[str]:
+    """
+    Extract all $ref URLs from a schema document.
+
+    This finds schemas referenced by this schema, allowing us to follow
+    the transitive closure of dependencies.
+
+    Returns:
+        List of full URLs referenced by this schema
+    """
+    refs = []
+
+    def extract_refs(obj: dict | list | str) -> None:
+        if isinstance(obj, dict):
+            if "$ref" in obj:
+                ref_path = obj["$ref"]
+                # Convert relative refs like "../core/context.json" to full URLs
+                if ref_path.startswith("../") or ref_path.startswith("./"):
+                    # These will be fixed by fix_schema_refs.py later
+                    # For now, try to resolve to absolute path
+                    # Assume these are relative to schemas/VERSION/
+                    pass
+                elif ref_path.startswith("/schemas/"):
+                    # Absolute schema path
+                    refs.append(f"https://adcontextprotocol.org{ref_path}")
+            for value in obj.values():
+                extract_refs(value)
+        elif isinstance(obj, list):
+            for item in obj:
+                extract_refs(item)
+
+    extract_refs(schema)
+    return refs
 
 
 def main():
@@ -179,7 +246,8 @@ def main():
     )
     args = parser.parse_args()
 
-    print("Syncing AdCP schemas from GitHub main branch...")
+    print(f"Syncing AdCP schemas from {ADCP_BASE_URL}...")
+    print(f"Target version: {TARGET_ADCP_VERSION}")
     print(f"Cache directory: {CACHE_DIR}")
     print(f"Mode: {'FORCE' if args.force else 'NORMAL (using content hashing)'}\n")
 
@@ -188,26 +256,57 @@ def main():
         hash_cache = {} if args.force else load_hash_cache()
         updated_hashes = {}
 
-        # Download index to get version
-        print("Fetching schema index for version info...")
-        index_schema = download_schema(SCHEMA_INDEX_URL)
-        version = index_schema.get("version", "unknown")
+        # Download index to get schema list
+        print("Fetching schema index...")
+        try:
+            index_schema = download_schema(SCHEMA_INDEX_URL)
 
-        # Compute hash for index
-        index_content = json.dumps(index_schema, indent=2, sort_keys=True)
-        index_hash = compute_hash(index_content)
-        updated_hashes[SCHEMA_INDEX_URL] = index_hash
+            # Compute hash for index
+            index_content = json.dumps(index_schema, indent=2, sort_keys=True)
+            index_hash = compute_hash(index_content)
+            updated_hashes[SCHEMA_INDEX_URL] = index_hash
 
-        print(f"Schema version: {version}\n")
+            print(f"Schema index retrieved\n")
+        except Exception as e:
+            print(f"Error: Could not fetch index.json from {SCHEMA_INDEX_URL}")
+            print(f"Details: {e}\n")
+            sys.exit(1)
 
-        # Discover ALL schemas by crawling the directory structure
-        print("Discovering all schemas in repository...")
-        schema_urls = discover_all_schemas("static/schemas/v1")
+        # Discover all schemas from index
+        print(f"Discovering schemas from index...")
+        schema_urls = set(discover_schemas_from_index(index_schema))
+
+        print(f"Found {len(schema_urls)} schemas in index")
+        print(f"Checking for transitive dependencies...\n")
+
+        # Follow transitive dependencies
+        # Download schemas and check for additional refs
+        processed = set()
+        to_process = list(schema_urls)
+
+        while to_process:
+            url = to_process.pop(0)
+            if url in processed:
+                continue
+
+            processed.add(url)
+
+            try:
+                schema = download_schema(url)
+                # Find any additional schemas this one references
+                new_refs = discover_transitive_refs(schema)
+                for ref_url in new_refs:
+                    if ref_url not in processed and ref_url not in to_process:
+                        to_process.append(ref_url)
+                        schema_urls.add(ref_url)
+            except Exception as e:
+                # If we can't download, we'll catch it in the main download loop
+                pass
 
         # Remove duplicates and sort
-        schema_urls = sorted(set(schema_urls))
+        schema_urls = sorted(schema_urls)
 
-        print(f"Found {len(schema_urls)} schemas across all directories\n")
+        print(f"Found {len(schema_urls)} total schemas (including dependencies)\n")
 
         # Download all schemas
         print("Downloading schemas:")
@@ -216,7 +315,7 @@ def main():
         removed_count = 0
 
         for url in schema_urls:
-            was_updated, new_hash = download_schema_file(url, version, hash_cache, force=args.force)
+            was_updated, new_hash = download_schema_file(url, hash_cache, force=args.force)
 
             if was_updated:
                 updated_count += 1
@@ -227,8 +326,7 @@ def main():
                 updated_hashes[url] = new_hash
 
         # Clean up orphaned schemas (files that exist locally but not upstream)
-        version_dir = CACHE_DIR / version
-        if version_dir.exists():
+        if CACHE_DIR.exists():
             # Get list of expected filenames from URLs
             expected_files = {url.split("/")[-1] for url in schema_urls}
             # Also allow the hash cache file
@@ -236,7 +334,7 @@ def main():
 
             # Find orphaned JSON files
             orphaned_files = []
-            for json_file in version_dir.rglob("*.json"):
+            for json_file in CACHE_DIR.rglob("*.json"):
                 if json_file.name not in expected_files and json_file.name != ".hashes.json":
                     orphaned_files.append(json_file)
 
@@ -244,7 +342,7 @@ def main():
             if orphaned_files:
                 print("\nCleaning up orphaned schemas:")
                 for orphan in orphaned_files:
-                    rel_path = orphan.relative_to(version_dir)
+                    rel_path = orphan.relative_to(CACHE_DIR)
                     print(f"  ✗ {rel_path} (removed - no longer in upstream)")
                     orphan.unlink()
                     removed_count += 1
@@ -252,7 +350,7 @@ def main():
                     # Remove empty directories
                     parent = orphan.parent
                     try:
-                        if parent != version_dir and not any(parent.iterdir()):
+                        if parent != CACHE_DIR and not any(parent.iterdir()):
                             parent.rmdir()
                     except OSError:
                         pass
@@ -261,18 +359,9 @@ def main():
         if updated_hashes:
             save_hash_cache(updated_hashes)
 
-        # Create latest symlink
-        latest_link = CACHE_DIR / "latest"
-        version_dir = CACHE_DIR / version
-
-        if latest_link.exists() or latest_link.is_symlink():
-            latest_link.unlink()
-
-        latest_link.symlink_to(version, target_is_directory=True)
-
         print(f"\n✓ Successfully synced {len(schema_urls)} schemas")
-        print(f"  Version: {version}")
-        print(f"  Location: {version_dir}")
+        print(f"  Target AdCP version: {TARGET_ADCP_VERSION}")
+        print(f"  Location: {CACHE_DIR}")
         print(f"  Updated: {updated_count}")
         print(f"  Cached: {cached_count}")
         if removed_count > 0:

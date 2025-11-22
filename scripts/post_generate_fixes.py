@@ -34,7 +34,7 @@ def add_model_validator_to_product():
 
 def fix_preview_render_self_reference():
     """Fix self-referential RootModel in preview_render.py."""
-    preview_file = OUTPUT_DIR / "preview_render.py"
+    preview_file = OUTPUT_DIR / "creative" / "preview_render.py"
 
     if not preview_file.exists():
         print("  preview_render.py not found (skipping)")
@@ -60,13 +60,36 @@ def fix_preview_render_self_reference():
 
 
 def fix_brand_manifest_references():
-    """Fix BrandManifest forward references in multiple files.
+    """Fix BrandManifest forward references in promoted_offerings.py.
 
-    NOTE: This fix is deprecated after upstream schema consolidation.
-    The BrandManifest schema is now a single clean type, so no fixes needed.
-    Keeping function as no-op for backwards compatibility.
+    datamodel-code-generator imports brand_manifest with an alias (_1 suffix)
+    but then references it without the alias in the type annotation.
+    This fix updates the type annotation to use the correct alias.
     """
-    print("  BrandManifest references: no fixes needed (schema consolidated upstream)")
+    promoted_offerings_file = OUTPUT_DIR / "core" / "promoted_offerings.py"
+
+    if not promoted_offerings_file.exists():
+        print("  promoted_offerings.py not found (skipping)")
+        return
+
+    with open(promoted_offerings_file) as f:
+        content = f.read()
+
+    # Check if already fixed
+    if "brand_manifest_1.BrandManifest" in content:
+        print("  promoted_offerings.py already fixed")
+        return
+
+    # Fix the import alias mismatch
+    # Line imports: from . import brand_manifest as brand_manifest_1
+    # But uses: brand_manifest.BrandManifest
+    # Need to change to: brand_manifest_1.BrandManifest
+    content = content.replace("brand_manifest.BrandManifest", "brand_manifest_1.BrandManifest")
+
+    with open(promoted_offerings_file, "w") as f:
+        f.write(content)
+
+    print("  promoted_offerings.py brand_manifest references fixed")
 
 
 def fix_enum_defaults():
@@ -78,7 +101,7 @@ def fix_enum_defaults():
     Note: brand_manifest_ref.py was a stale file and has been removed.
     The enum defaults in brand_manifest.py are already correct.
     """
-    brand_manifest_file = OUTPUT_DIR / "brand_manifest.py"
+    brand_manifest_file = OUTPUT_DIR / "core" / "brand_manifest.py"
 
     if not brand_manifest_file.exists():
         print("  brand_manifest.py not found (skipping)")
@@ -110,6 +133,42 @@ def fix_enum_defaults():
     print("  brand_manifest.py enum defaults fixed")
 
 
+
+
+def fix_preview_creative_request_discriminator():
+    """Add discriminator to PreviewCreativeRequest union.
+
+    The schema uses request_type as a discriminator with const values 'single'
+    and 'batch', but datamodel-code-generator doesn't add the discriminator to
+    the Field annotation. This adds it explicitly for Pydantic to properly
+    validate the union.
+    """
+    preview_request_file = OUTPUT_DIR / "creative" / "preview_creative_request.py"
+
+    if not preview_request_file.exists():
+        print("  preview_creative_request.py not found (skipping)")
+        return
+
+    with open(preview_request_file) as f:
+        content = f.read()
+
+    # Check if already fixed
+    if "discriminator='request_type'" in content:
+        print("  preview_creative_request.py discriminator already added")
+        return
+
+    # Add discriminator to the Field
+    content = content.replace(
+        "Field(\n            description='Request to generate previews",
+        "Field(\n            discriminator='request_type',\n            description='Request to generate previews"
+    )
+
+    with open(preview_request_file, "w") as f:
+        f.write(content)
+
+    print("  preview_creative_request.py discriminator added")
+
+
 def main():
     """Apply all post-generation fixes."""
     print("Applying post-generation fixes...")
@@ -118,6 +177,7 @@ def main():
     fix_preview_render_self_reference()
     fix_brand_manifest_references()
     fix_enum_defaults()
+    fix_preview_creative_request_discriminator()
 
     print("\n✓ Post-generation fixes complete\n")
 

@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "A pricing model option offered by a publisher for a product. Each pricing model has its own schema with model-specific requirements.",
+  "oneOf": [
+    {
+      "$ref": "../pricing-options/cpm-fixed-option.json"
+    },
+    {
+      "$ref": "../pricing-options/cpm-auction-option.json"
+    },
+    {
+      "$ref": "../pricing-options/vcpm-fixed-option.json"
+    },
+    {
+      "$ref": "../pricing-options/vcpm-auction-option.json"
+    },
+    {
+      "$ref": "../pricing-options/cpc-option.json"
+    },
+    {
+      "$ref": "../pricing-options/cpcv-option.json"
+    },
+    {
+      "$ref": "../pricing-options/cpv-option.json"
+    },
+    {
+      "$ref": "../pricing-options/cpp-option.json"
+    },
+    {
+      "$ref": "../pricing-options/flat-rate-option.json"
+    }
+  ],
+  "title": "Pricing Option"
+}

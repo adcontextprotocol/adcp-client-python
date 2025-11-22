@@ -17,44 +17,46 @@ from pathlib import Path
 
 # Paths
 REPO_ROOT = Path(__file__).parent.parent
-SCHEMAS_DIR = REPO_ROOT / "schemas" / "cache" / "1.0.0"
+SCHEMAS_DIR = REPO_ROOT / "schemas" / "cache"
 OUTPUT_DIR = REPO_ROOT / "src" / "adcp" / "types" / "generated_poc"
 TEMP_DIR = REPO_ROOT / ".schema_temp"
 
 
-def rewrite_refs(obj: dict | list | str) -> dict | list | str:
+def rewrite_refs_for_underscores(obj):
     """
-    Recursively rewrite absolute $ref paths to relative paths.
+    Recursively rewrite $ref paths to use underscores instead of hyphens.
 
-    Converts paths like "/schemas/v1/core/error.json" to "./error.json"
+    This is needed because Python module names cannot contain hyphens,
+    so we rename directories from media-buy to media_buy, but the refs
+    still point to the hyphenated versions.
     """
     if isinstance(obj, dict):
-        result = {}
-        for key, value in obj.items():
-            if key == "$ref" and isinstance(value, str):
-                # Convert absolute path to relative
-                if value.startswith("/schemas/v1/"):
-                    # Extract just the filename
-                    filename = value.split("/")[-1]
-                    result[key] = f"./{filename}"
-                else:
-                    result[key] = value
-            else:
-                result[key] = rewrite_refs(value)
-        return result
+        if "$ref" in obj:
+            ref_path = obj["$ref"]
+            # Replace hyphens with underscores in each path segment
+            parts = ref_path.split("/")
+            parts = [part.replace("-", "_") for part in parts]
+            obj["$ref"] = "/".join(parts)
+
+        for value in obj.values():
+            rewrite_refs_for_underscores(value)
     elif isinstance(obj, list):
-        return [rewrite_refs(item) for item in obj]
-    else:
-        return obj
+        for item in obj:
+            rewrite_refs_for_underscores(item)
+
+    return obj
 
 
 def flatten_schemas():
     """
-    Flatten schema directory structure and rewrite $ref paths.
+    Copy schemas to temp directory, preserving directory structure.
 
-    The tool has issues with nested $ref paths, so we:
-    1. Copy only flat schemas
-    2. Rewrite absolute $ref paths to relative paths
+    We can't truly flatten because there are filename collisions:
+    - media-buy/list-creative-formats-request.json
+    - creative/list-creative-formats-request.json
+
+    Directory names with hyphens are converted to underscores since Python
+    module names cannot contain hyphens (pricing-options -> pricing_options).
     """
     print("Preparing schemas...")
 
@@ -63,24 +65,41 @@ def flatten_schemas():
         shutil.rmtree(TEMP_DIR)
     TEMP_DIR.mkdir()
 
-    # Copy and rewrite flat JSON schemas (not in subdirectories)
-    for schema_file in SCHEMAS_DIR.glob("*.json"):
-        if schema_file.is_file() and schema_file.name != "index.json":
-            # Load schema
-            with open(schema_file) as f:
-                schema = json.load(f)
+    # Recursively find all JSON schemas (including subdirectories)
+    schema_files = list(SCHEMAS_DIR.rglob("*.json"))
+    # Filter out .hashes.json and index.json
+    schema_files = [
+        f
+        for f in schema_files
+        if f.name not in (".hashes.json", "index.json")
+    ]
 
-            # Rewrite $ref paths
-            schema = rewrite_refs(schema)
+    for schema_file in schema_files:
+        # Preserve directory structure relative to SCHEMAS_DIR
+        rel_path = schema_file.relative_to(SCHEMAS_DIR)
 
-            # Write to temp directory
-            output_file = TEMP_DIR / schema_file.name
-            with open(output_file, "w") as f:
-                json.dump(schema, f, indent=2)
+        # Convert hyphens to underscores in directory names for valid Python identifiers
+        path_parts = list(rel_path.parts)
+        path_parts = [part.replace("-", "_") for part in path_parts]
+        output_rel_path = Path(*path_parts)
+        output_file = TEMP_DIR / output_rel_path
 
-            print(f"  {schema_file.name}")
+        # Create parent directories
+        output_file.parent.mkdir(parents=True, exist_ok=True)
 
-    count = len(list(TEMP_DIR.glob("*.json")))
+        # Load schema and rewrite refs to use underscores
+        with open(schema_file) as f:
+            schema = json.load(f)
+
+        # Rewrite $ref paths to use underscores instead of hyphens
+        schema = rewrite_refs_for_underscores(schema)
+
+        with open(output_file, "w") as f:
+            json.dump(schema, f, indent=2)
+
+        print(f"  {rel_path}")
+
+    count = len(schema_files)
     print(f"\n  Prepared {count} schema files\n")
     return TEMP_DIR
 
@@ -97,15 +116,16 @@ def fix_forward_references():
     print("Fixing forward references...")
 
     fixes_made = 0
-    for py_file in OUTPUT_DIR.glob("*.py"):
+    for py_file in OUTPUT_DIR.rglob("*.py"):
         if py_file.name == "__init__.py":
             continue
 
         with open(py_file) as f:
             content = f.read()
 
-        # Find imports like: from . import foo as foo_1
-        import_pattern = r"from \. import (\w+) as (\w+_\d+)"
+        # Find imports like: from . import foo as foo_1 or from ..core import foo as foo_1
+        # Pattern matches: "from" + dots + optional path + "import" + name + "as" + alias
+        import_pattern = r"from \.+(?:[\w.]+\s+)?import (\w+) as (\w+_\d+)"
         imports = re.findall(import_pattern, content)
 
         # For each aliased import, fix references

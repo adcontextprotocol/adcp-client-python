@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Standard VAST tracking events for video ad playback and interaction",
+  "enum": [
+    "start",
+    "firstQuartile",
+    "midpoint",
+    "thirdQuartile",
+    "complete",
+    "impression",
+    "click",
+    "pause",
+    "resume",
+    "skip",
+    "mute",
+    "unmute",
+    "fullscreen",
+    "exitFullscreen",
+    "playerExpand",
+    "playerCollapse"
+  ],
+  "title": "VAST Tracking Event",
+  "type": "string"
+}

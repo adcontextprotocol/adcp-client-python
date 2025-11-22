@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "VAST (Video Ad Serving Template) tag for third-party video ad serving",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "delivery_type": {
+          "const": "url",
+          "description": "Discriminator indicating VAST is delivered via URL endpoint",
+          "type": "string"
+        },
+        "duration_ms": {
+          "description": "Expected video duration in milliseconds (if known)",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tracking_events": {
+          "description": "Tracking events supported by this VAST tag",
+          "items": {
+            "$ref": "../../enums/vast-tracking-event.json"
+          },
+          "type": "array"
+        },
+        "url": {
+          "description": "URL endpoint that returns VAST XML",
+          "format": "uri",
+          "type": "string"
+        },
+        "vast_version": {
+          "$ref": "../../enums/vast-version.json",
+          "description": "VAST specification version"
+        },
+        "vpaid_enabled": {
+          "description": "Whether VPAID (Video Player-Ad Interface Definition) is supported",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "delivery_type",
+        "url"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "description": "Inline VAST XML content",
+          "type": "string"
+        },
+        "delivery_type": {
+          "const": "inline",
+          "description": "Discriminator indicating VAST is delivered as inline XML content",
+          "type": "string"
+        },
+        "duration_ms": {
+          "description": "Expected video duration in milliseconds (if known)",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tracking_events": {
+          "description": "Tracking events supported by this VAST tag",
+          "items": {
+            "$ref": "../../enums/vast-tracking-event.json"
+          },
+          "type": "array"
+        },
+        "vast_version": {
+          "$ref": "../../enums/vast-version.json",
+          "description": "VAST specification version"
+        },
+        "vpaid_enabled": {
+          "description": "Whether VPAID (Video Player-Ad Interface Definition) is supported",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "delivery_type",
+        "content"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "VAST Asset"
+}

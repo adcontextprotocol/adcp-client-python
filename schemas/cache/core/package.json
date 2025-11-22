@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "A specific product within a media buy (line item)",
+  "properties": {
+    "bid_price": {
+      "description": "Bid price for auction-based CPM pricing (present if using cpm-auction-option)",
+      "minimum": 0,
+      "type": "number"
+    },
+    "budget": {
+      "description": "Budget allocation for this package in the currency specified by the pricing option",
+      "minimum": 0,
+      "type": "number"
+    },
+    "buyer_ref": {
+      "description": "Buyer's reference identifier for this package",
+      "type": "string"
+    },
+    "creative_assignments": {
+      "description": "Creative assets assigned to this package",
+      "items": {
+        "$ref": "creative-assignment.json"
+      },
+      "type": "array"
+    },
+    "ext": {
+      "$ref": "ext.json"
+    },
+    "format_ids_to_provide": {
+      "description": "Format IDs that creative assets will be provided for this package",
+      "items": {
+        "$ref": "format-id.json"
+      },
+      "type": "array"
+    },
+    "impressions": {
+      "description": "Impression goal for this package",
+      "minimum": 0,
+      "type": "number"
+    },
+    "pacing": {
+      "$ref": "../enums/pacing.json"
+    },
+    "package_id": {
+      "description": "Publisher's unique identifier for the package",
+      "type": "string"
+    },
+    "paused": {
+      "default": false,
+      "description": "Whether this package is paused by the buyer. Paused packages do not deliver impressions. Defaults to false.",
+      "type": "boolean"
+    },
+    "pricing_option_id": {
+      "description": "ID of the selected pricing option from the product's pricing_options array",
+      "type": "string"
+    },
+    "product_id": {
+      "description": "ID of the product this package is based on",
+      "type": "string"
+    },
+    "targeting_overlay": {
+      "$ref": "targeting.json"
+    }
+  },
+  "required": [
+    "package_id"
+  ],
+  "title": "Package",
+  "type": "object"
+}

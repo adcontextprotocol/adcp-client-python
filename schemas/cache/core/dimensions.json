@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Pixel dimensions for visual formats (width and height must be specified together)",
+  "properties": {
+    "height": {
+      "description": "Height in pixels",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "width": {
+      "description": "Width in pixels",
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "width",
+    "height"
+  ],
+  "title": "Dimensions",
+  "type": "object"
+}

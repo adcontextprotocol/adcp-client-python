@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Response payload for get_products task",
+  "properties": {
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "errors": {
+      "description": "Task-specific errors and warnings (e.g., product filtering issues)",
+      "items": {
+        "$ref": "../core/error.json"
+      },
+      "type": "array"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "products": {
+      "description": "Array of matching products",
+      "items": {
+        "$ref": "../core/product.json"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "products"
+  ],
+  "title": "Get Products Response",
+  "type": "object"
+}
