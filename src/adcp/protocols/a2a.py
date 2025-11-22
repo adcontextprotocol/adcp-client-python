@@ -142,6 +142,7 @@ class A2AAdapter(ProtocolAdapter):
                 return TaskResult[Any](
                     status=TaskStatus.COMPLETED,
                     data=result_data,
+                    message=self._extract_text_part(data),
                     success=not has_errors,
                     metadata={
                         "task_id": data.get("taskId"),
@@ -163,6 +164,7 @@ class A2AAdapter(ProtocolAdapter):
                 return TaskResult[Any](
                     status=TaskStatus.SUBMITTED,
                     data=self._extract_result(data),
+                    message=self._extract_text_part(data),
                     success=True,
                     metadata={
                         "task_id": data.get("taskId"),
@@ -175,6 +177,7 @@ class A2AAdapter(ProtocolAdapter):
                 return TaskResult[Any](
                     status=TaskStatus.SUBMITTED,
                     data=self._extract_result(data),
+                    message=self._extract_text_part(data),
                     success=True,
                     metadata={
                         "task_id": data.get("taskId"),

@@ -86,6 +86,7 @@ class TestA2AAdapter:
             assert result.success is True
             assert result.status == TaskStatus.COMPLETED
             assert result.data == {"result": "success", "products": []}
+            assert result.message == "Found 3 products matching criteria"
             assert result.metadata["task_id"] == "task_123"
             assert result.metadata["context_id"] == "ctx_456"
 
