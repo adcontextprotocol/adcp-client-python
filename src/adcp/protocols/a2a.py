@@ -211,7 +211,8 @@ class A2AAdapter(ProtocolAdapter):
 
         Per A2A response spec:
         - Responses MUST include at least one DataPart (kind: "data")
-        - When multiple DataParts exist, the last one is authoritative
+        - When multiple DataParts exist in an artifact, the last one is authoritative
+        - When multiple artifacts exist, use the first one with completed status
         - DataParts contain structured AdCP payload
         """
         artifacts = response_data.get("artifacts", [])
@@ -220,8 +221,20 @@ class A2AAdapter(ProtocolAdapter):
             logger.warning("A2A response missing required artifacts array")
             return response_data
 
-        # Extract parts from first artifact (single artifact pattern per spec)
-        parts = artifacts[0].get("parts", [])
+        # Find first artifact with completed status (for streaming scenarios)
+        # If no status field on artifacts, use the first artifact
+        target_artifact = None
+        for artifact in artifacts:
+            artifact_status = artifact.get("status")
+            if artifact_status == "completed" or artifact_status is None:
+                target_artifact = artifact
+                break
+
+        if target_artifact is None:
+            # No completed artifact found, fall back to first artifact
+            target_artifact = artifacts[0]
+
+        parts = target_artifact.get("parts", [])
 
         if not parts:
             logger.warning("A2A response artifact has no parts")
@@ -234,18 +247,34 @@ class A2AAdapter(ProtocolAdapter):
             logger.warning("A2A response missing required DataPart (kind: 'data')")
             return response_data
 
-        # Use last DataPart as authoritative (handles streaming scenarios)
+        # Use last DataPart as authoritative (handles streaming scenarios within an artifact)
         last_data_part = data_parts[-1]
         return last_data_part.get("data", {})
 
     def _extract_text_part(self, response_data: dict[str, Any]) -> str | None:
-        """Extract human-readable message from TextPart if present."""
+        """
+        Extract human-readable message from TextPart if present.
+
+        Uses first completed artifact (same logic as _extract_result).
+        """
         artifacts = response_data.get("artifacts", [])
 
         if not artifacts:
             return None
 
-        parts = artifacts[0].get("parts", [])
+        # Find first artifact with completed status (for streaming scenarios)
+        target_artifact = None
+        for artifact in artifacts:
+            artifact_status = artifact.get("status")
+            if artifact_status == "completed" or artifact_status is None:
+                target_artifact = artifact
+                break
+
+        if target_artifact is None:
+            # No completed artifact found, fall back to first artifact
+            target_artifact = artifacts[0]
+
+        parts = target_artifact.get("parts", [])
 
         # Find TextPart (kind: "text")
         for part in parts:

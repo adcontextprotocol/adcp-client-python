@@ -209,6 +209,54 @@ class TestA2AAdapter:
             assert result.data == {"status": "completed", "result": "final"}
 
     @pytest.mark.asyncio
+    async def test_call_tool_multiple_artifacts_first_completed(self, a2a_config):
+        """Test that first completed artifact is used when multiple artifacts exist."""
+        adapter = A2AAdapter(a2a_config)
+
+        # Simulates streaming with multiple artifacts (working, then completed)
+        mock_response_data = {
+            "status": "completed",
+            "taskId": "task_123",
+            "contextId": "ctx_456",
+            "artifacts": [
+                {
+                    "status": "working",
+                    "parts": [
+                        {"kind": "text", "text": "Processing..."},
+                        {"kind": "data", "data": {"status": "working", "progress": 75}},
+                    ],
+                },
+                {
+                    "status": "completed",
+                    "parts": [
+                        {"kind": "text", "text": "Processing complete"},
+                        {"kind": "data", "data": {"status": "completed", "products": ["prod1"]}},
+                    ],
+                },
+                {
+                    "status": "completed",
+                    "parts": [
+                        {"kind": "text", "text": "Another completed artifact"},
+                        {"kind": "data", "data": {"status": "completed", "products": ["prod2"]}},
+                    ],
+                },
+            ],
+        }
+
+        mock_client = AsyncMock()
+        mock_http_response = MagicMock()
+        mock_http_response.json = MagicMock(return_value=mock_response_data)
+        mock_http_response.raise_for_status = MagicMock()
+        mock_client.post = AsyncMock(return_value=mock_http_response)
+
+        with patch.object(adapter, "_get_client", return_value=mock_client):
+            result = await adapter._call_a2a_tool("get_products", {"brief": "test"})
+
+            assert result.success is True
+            # Should use first completed artifact (second in array)
+            assert result.data == {"status": "completed", "products": ["prod1"]}
+
+    @pytest.mark.asyncio
     async def test_list_tools(self, a2a_config):
         """Test listing tools via A2A agent card."""
         adapter = A2AAdapter(a2a_config)
