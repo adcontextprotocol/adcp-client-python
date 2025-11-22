@@ -60,13 +60,36 @@ def fix_preview_render_self_reference():
 
 
 def fix_brand_manifest_references():
-    """Fix BrandManifest forward references in multiple files.
+    """Fix BrandManifest forward references in promoted_offerings.py.
 
-    NOTE: This fix is deprecated after upstream schema consolidation.
-    The BrandManifest schema is now a single clean type, so no fixes needed.
-    Keeping function as no-op for backwards compatibility.
+    datamodel-code-generator imports brand_manifest with an alias (_1 suffix)
+    but then references it without the alias in the type annotation.
+    This fix updates the type annotation to use the correct alias.
     """
-    print("  BrandManifest references: no fixes needed (schema consolidated upstream)")
+    promoted_offerings_file = OUTPUT_DIR / "core" / "promoted_offerings.py"
+
+    if not promoted_offerings_file.exists():
+        print("  promoted_offerings.py not found (skipping)")
+        return
+
+    with open(promoted_offerings_file) as f:
+        content = f.read()
+
+    # Check if already fixed
+    if "brand_manifest_1.BrandManifest" in content:
+        print("  promoted_offerings.py already fixed")
+        return
+
+    # Fix the import alias mismatch
+    # Line imports: from . import brand_manifest as brand_manifest_1
+    # But uses: brand_manifest.BrandManifest
+    # Need to change to: brand_manifest_1.BrandManifest
+    content = content.replace("brand_manifest.BrandManifest", "brand_manifest_1.BrandManifest")
+
+    with open(promoted_offerings_file, "w") as f:
+        f.write(content)
+
+    print("  promoted_offerings.py brand_manifest references fixed")
 
 
 def fix_enum_defaults():

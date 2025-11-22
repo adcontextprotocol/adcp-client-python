@@ -210,34 +210,32 @@ class TestA2AAdapter:
             assert result.data == {"status": "completed", "result": "final"}
 
     @pytest.mark.asyncio
-    async def test_call_tool_multiple_artifacts_first_completed(self, a2a_config):
-        """Test that first completed artifact is used when multiple artifacts exist."""
+    async def test_call_tool_multiple_artifacts_uses_last(self, a2a_config):
+        """Test that last artifact is used when multiple artifacts exist (streaming scenario)."""
         adapter = A2AAdapter(a2a_config)
 
-        # Simulates streaming with multiple artifacts (working, then completed)
+        # Simulates streaming with multiple artifacts
+        # A2A spec doesn't define artifact.status, so we use the last (most recent) one
         mock_response_data = {
             "status": "completed",
             "taskId": "task_123",
             "contextId": "ctx_456",
             "artifacts": [
                 {
-                    "status": "working",
                     "parts": [
                         {"kind": "text", "text": "Processing..."},
                         {"kind": "data", "data": {"status": "working", "progress": 75}},
                     ],
                 },
                 {
-                    "status": "completed",
                     "parts": [
                         {"kind": "text", "text": "Processing complete"},
                         {"kind": "data", "data": {"status": "completed", "products": ["prod1"]}},
                     ],
                 },
                 {
-                    "status": "completed",
                     "parts": [
-                        {"kind": "text", "text": "Another completed artifact"},
+                        {"kind": "text", "text": "Final result"},
                         {"kind": "data", "data": {"status": "completed", "products": ["prod2"]}},
                     ],
                 },
@@ -254,8 +252,9 @@ class TestA2AAdapter:
             result = await adapter._call_a2a_tool("get_products", {"brief": "test"})
 
             assert result.success is True
-            # Should use first completed artifact (second in array)
-            assert result.data == {"status": "completed", "products": ["prod1"]}
+            # Should use last artifact (most recent)
+            assert result.data == {"status": "completed", "products": ["prod2"]}
+            assert result.message == "Final result"
 
     @pytest.mark.asyncio
     async def test_list_tools(self, a2a_config):

@@ -786,15 +786,15 @@ class TestPropertyTagSharedSchema:
         """Public PropertyTag should be from the shared property_tag schema."""
         from adcp import PropertyTag
 
-        # Should come from the shared schema, not embedded in another schema
-        assert PropertyTag.__module__ == "adcp.types.generated_poc.property_tag"
+        # Should come from the shared schema in core/, not embedded in another schema
+        assert PropertyTag.__module__ == "adcp.types.generated_poc.core.property_tag"
 
     def test_property_id_is_from_shared_schema(self):
         """Public PropertyId should be from the shared property_id schema."""
         from adcp import PropertyId
 
-        # Should come from the shared schema
-        assert PropertyId.__module__ == "adcp.types.generated_poc.property_id"
+        # Should come from the shared schema in core/
+        assert PropertyId.__module__ == "adcp.types.generated_poc.core.property_id"
 
     def test_property_tag_works_with_publisher_properties_by_tag(self):
         """PropertyTag should work correctly with PublisherPropertiesByTag."""
@@ -814,24 +814,25 @@ class TestPropertyTagSharedSchema:
     def test_shared_schema_prevents_collision(self):
         """Verify that both adagents and publisher_property_selector import from shared schema."""
         from adcp import PropertyTag
-        from adcp.types.generated_poc import property_tag
+        from adcp.types.generated_poc.core import property_tag
 
-        # The shared schema is the canonical definition
+        # The shared schema is the canonical definition in core/
         assert PropertyTag is property_tag.PropertyTag
 
-        # Both adagents.py and publisher_property_selector.py should import from property_tag module
+        # Both adagents.py and publisher_property_selector.py should import from core.property_tag module
         # (not define their own)
         import inspect
 
         import adcp.types.generated_poc.adagents as adagents_module
-        import adcp.types.generated_poc.publisher_property_selector as selector_module
+        import adcp.types.generated_poc.core.publisher_property_selector as selector_module
 
         # Check that they import from property_tag, not define their own
         adagents_source = inspect.getsource(adagents_module)
         selector_source = inspect.getsource(selector_module)
 
         # May be on same line as other imports or separate line
-        assert "property_tag" in adagents_source and "from . import" in adagents_source
+        # Both should import property_tag (from .core or from .) rather than defining their own
+        assert "property_tag" in adagents_source and ("from .core import" in adagents_source or "from . import" in adagents_source)
         assert "property_tag" in selector_source and "from . import" in selector_source
 
     def test_property_tag_validation(self):

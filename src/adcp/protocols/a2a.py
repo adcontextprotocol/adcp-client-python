@@ -215,7 +215,7 @@ class A2AAdapter(ProtocolAdapter):
         Per A2A response spec:
         - Responses MUST include at least one DataPart (kind: "data")
         - When multiple DataParts exist in an artifact, the last one is authoritative
-        - When multiple artifacts exist, use the first one with completed status
+        - When multiple artifacts exist, use the last one (most recent in streaming)
         - DataParts contain structured AdCP payload
         """
         artifacts = response_data.get("artifacts", [])
@@ -224,18 +224,9 @@ class A2AAdapter(ProtocolAdapter):
             logger.warning("A2A response missing required artifacts array")
             return response_data
 
-        # Find first artifact with completed status (for streaming scenarios)
-        # If no status field on artifacts, use the first artifact
-        target_artifact = None
-        for artifact in artifacts:
-            artifact_status = artifact.get("status")
-            if artifact_status == "completed" or artifact_status is None:
-                target_artifact = artifact
-                break
-
-        if target_artifact is None:
-            # No completed artifact found, fall back to first artifact
-            target_artifact = artifacts[0]
+        # Use last artifact (most recent in streaming scenarios)
+        # A2A spec doesn't define artifact.status, so we simply take the last one
+        target_artifact = artifacts[-1]
 
         parts = target_artifact.get("parts", [])
 
@@ -258,24 +249,16 @@ class A2AAdapter(ProtocolAdapter):
         """
         Extract human-readable message from TextPart if present.
 
-        Uses first completed artifact (same logic as _extract_result).
+        Uses last artifact (same logic as _extract_result).
         """
         artifacts = response_data.get("artifacts", [])
 
         if not artifacts:
             return None
 
-        # Find first artifact with completed status (for streaming scenarios)
-        target_artifact = None
-        for artifact in artifacts:
-            artifact_status = artifact.get("status")
-            if artifact_status == "completed" or artifact_status is None:
-                target_artifact = artifact
-                break
-
-        if target_artifact is None:
-            # No completed artifact found, fall back to first artifact
-            target_artifact = artifacts[0]
+        # Use last artifact (most recent in streaming scenarios)
+        # A2A spec doesn't define artifact.status, so we simply take the last one
+        target_artifact = artifacts[-1]
 
         parts = target_artifact.get("parts", [])
 

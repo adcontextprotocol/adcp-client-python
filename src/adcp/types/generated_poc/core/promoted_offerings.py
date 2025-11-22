@@ -68,7 +68,7 @@ class PromotedOfferings(AdCPBaseModel):
         Field(description='Selectors to choose specific assets from the brand manifest'),
     ] = None
     brand_manifest: Annotated[
-        brand_manifest.BrandManifest | AnyUrl,
+        brand_manifest_1.BrandManifest | AnyUrl,
         Field(
             description='Brand information manifest containing assets, themes, and guidelines. Can be provided inline or as a URL reference to a hosted manifest.',
             examples=[

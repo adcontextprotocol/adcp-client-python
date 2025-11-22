@@ -209,6 +209,29 @@ def generate_consolidated_exports() -> str:
     all_lines.append("")
 
     lines.extend(all_lines)
+
+    # Add model_rebuild() calls for types with forward references
+    # This resolves Pydantic forward references after all types are imported
+    rebuild_lines = [
+        "",
+        "# Rebuild models with forward references",
+        "# This must happen AFTER all imports to resolve module-qualified type references",
+        "# like brand_manifest.BrandManifest used in generated code",
+        "",
+        "# Import individual modules needed for rebuilding",
+        "from adcp.types import generated_poc",
+        "",
+        "# Rebuild models that reference other models via forward refs",
+        "BrandManifest.model_rebuild()",
+        "PromotedOfferings.model_rebuild()",
+        "CreativeManifest.model_rebuild()",
+        "PreviewCreativeRequest1.model_rebuild()",
+        "PreviewCreativeRequest2.model_rebuild()",
+        "PreviewCreativeRequest.model_rebuild()",
+        "",
+    ]
+    lines.extend(rebuild_lines)
+
     return "\n".join(lines)
 
 
