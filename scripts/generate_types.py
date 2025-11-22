@@ -29,6 +29,7 @@ def rewrite_refs(obj: dict | list | str) -> dict | list | str:
     Since we flatten all schemas into a single directory, we need to convert:
     - Absolute paths: "/schemas/v1/core/error.json" -> "./error.json"
     - Relative paths: "../core/error.json" -> "./error.json"
+    - Directory paths: "core/error.json" -> "./error.json"
     - Same-dir refs: "./error.json" -> "./error.json" (unchanged)
     """
     if isinstance(obj, dict):
@@ -40,8 +41,8 @@ def rewrite_refs(obj: dict | list | str) -> dict | list | str:
                     # Absolute path: /schemas/v1/core/error.json
                     filename = value.split("/")[-1]
                     result[key] = f"./{filename}"
-                elif value.startswith("../") or value.startswith("./"):
-                    # Relative path: ../core/error.json or ./error.json
+                elif "/" in value:
+                    # Any path with / in it (../core/error.json, core/error.json, etc.)
                     filename = value.split("/")[-1]
                     result[key] = f"./{filename}"
                 else:
