@@ -24,20 +24,28 @@ TEMP_DIR = REPO_ROOT / ".schema_temp"
 
 def rewrite_refs(obj: dict | list | str) -> dict | list | str:
     """
-    Recursively rewrite absolute $ref paths to relative paths.
+    Recursively rewrite $ref paths to flat references.
 
-    Converts paths like "/schemas/v1/core/error.json" to "./error.json"
+    Since we flatten all schemas into a single directory, we need to convert:
+    - Absolute paths: "/schemas/v1/core/error.json" -> "./error.json"
+    - Relative paths: "../core/error.json" -> "./error.json"
+    - Same-dir refs: "./error.json" -> "./error.json" (unchanged)
     """
     if isinstance(obj, dict):
         result = {}
         for key, value in obj.items():
             if key == "$ref" and isinstance(value, str):
-                # Convert absolute path to relative
-                if value.startswith("/schemas/v1/"):
-                    # Extract just the filename
+                # Extract just the filename from any $ref format
+                if value.startswith("/schemas/"):
+                    # Absolute path: /schemas/v1/core/error.json
+                    filename = value.split("/")[-1]
+                    result[key] = f"./{filename}"
+                elif value.startswith("../") or value.startswith("./"):
+                    # Relative path: ../core/error.json or ./error.json
                     filename = value.split("/")[-1]
                     result[key] = f"./{filename}"
                 else:
+                    # Already just a filename or other format
                     result[key] = value
             else:
                 result[key] = rewrite_refs(value)
