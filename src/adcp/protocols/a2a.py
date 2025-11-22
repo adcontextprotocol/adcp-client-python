@@ -395,3 +395,88 @@ class A2AAdapter(ProtocolAdapter):
                 agent_id=self.agent_config.id,
                 agent_uri=self.agent_config.agent_uri,
             ) from e
+
+    async def get_agent_info(self) -> dict[str, Any]:
+        """
+        Get agent information including AdCP extension metadata from A2A agent card.
+
+        Fetches the agent card from /.well-known/agent.json and extracts:
+        - Basic agent info (name, description, version)
+        - AdCP extension (extensions.adcp.adcp_version, extensions.adcp.protocols_supported)
+        - Available skills/tools
+
+        Returns:
+            Dictionary with agent metadata
+        """
+        client = await self._get_client()
+
+        headers = {"Content-Type": "application/json"}
+
+        if self.agent_config.auth_token:
+            if self.agent_config.auth_type == "bearer":
+                headers[self.agent_config.auth_header] = f"Bearer {self.agent_config.auth_token}"
+            else:
+                headers[self.agent_config.auth_header] = self.agent_config.auth_token
+
+        url = f"{self.agent_config.agent_uri}/.well-known/agent.json"
+
+        logger.debug(f"Fetching A2A agent info for {self.agent_config.id} from {url}")
+
+        try:
+            response = await client.get(url, headers=headers, timeout=self.agent_config.timeout)
+            response.raise_for_status()
+
+            agent_card = response.json()
+
+            # Extract basic info
+            info: dict[str, Any] = {
+                "name": agent_card.get("name"),
+                "description": agent_card.get("description"),
+                "version": agent_card.get("version"),
+                "protocol": "a2a",
+            }
+
+            # Extract skills/tools
+            skills = agent_card.get("skills", [])
+            tool_names = [skill.get("name") for skill in skills if skill.get("name")]
+            if tool_names:
+                info["tools"] = tool_names
+
+            # Extract AdCP extension metadata
+            extensions = agent_card.get("extensions", {})
+            adcp_ext = extensions.get("adcp", {})
+
+            if adcp_ext:
+                info["adcp_version"] = adcp_ext.get("adcp_version")
+                info["protocols_supported"] = adcp_ext.get("protocols_supported")
+
+            logger.info(f"Retrieved agent info for {self.agent_config.id}")
+            return info
+
+        except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code
+            if status_code in (401, 403):
+                raise ADCPAuthenticationError(
+                    f"Authentication failed: HTTP {status_code}",
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
+                ) from e
+            else:
+                raise ADCPConnectionError(
+                    f"Failed to fetch agent card: HTTP {status_code}",
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
+                ) from e
+        except httpx.TimeoutException as e:
+            raise ADCPTimeoutError(
+                f"Timeout fetching agent card: {e}",
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
+                timeout=self.agent_config.timeout,
+            ) from e
+        except httpx.HTTPError as e:
+            raise ADCPConnectionError(
+                f"Failed to fetch agent card: {e}",
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
+            ) from e

@@ -162,6 +162,22 @@ class ProtocolAdapter(ABC):
         pass
 
     @abstractmethod
+    async def get_agent_info(self) -> dict[str, Any]:
+        """
+        Get agent information including AdCP extension metadata.
+
+        Returns agent card information including:
+        - Agent name, description, version
+        - AdCP version (from extensions.adcp.adcp_version)
+        - Supported protocols (from extensions.adcp.protocols_supported)
+        - Available tools/skills
+
+        Returns:
+            Dictionary with agent metadata including AdCP extension fields
+        """
+        pass
+
+    @abstractmethod
     async def close(self) -> None:
         """
         Close the adapter and clean up resources.

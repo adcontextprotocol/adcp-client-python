@@ -295,6 +295,79 @@ class TestA2AAdapter:
             assert "create_media_buy" in tools
             assert "list_creative_formats" in tools
 
+    @pytest.mark.asyncio
+    async def test_get_agent_info(self, a2a_config):
+        """Test getting agent info including AdCP extension metadata."""
+        adapter = A2AAdapter(a2a_config)
+
+        mock_agent_card = {
+            "name": "Test AdCP Agent",
+            "description": "Test agent for AdCP protocol",
+            "version": "1.0.0",
+            "skills": [
+                {"name": "get_products"},
+                {"name": "create_media_buy"},
+            ],
+            "extensions": {
+                "adcp": {
+                    "adcp_version": "2.4.0",
+                    "protocols_supported": ["media_buy", "creative"]
+                }
+            }
+        }
+
+        mock_client = AsyncMock()
+        mock_http_response = MagicMock()
+        mock_http_response.json = MagicMock(return_value=mock_agent_card)
+        mock_http_response.raise_for_status = MagicMock()
+        mock_client.get = AsyncMock(return_value=mock_http_response)
+
+        with patch.object(adapter, "_get_client", return_value=mock_client):
+            info = await adapter.get_agent_info()
+
+            # Verify basic agent info
+            assert info["name"] == "Test AdCP Agent"
+            assert info["description"] == "Test agent for AdCP protocol"
+            assert info["version"] == "1.0.0"
+            assert info["protocol"] == "a2a"
+
+            # Verify tools list
+            assert len(info["tools"]) == 2
+            assert "get_products" in info["tools"]
+            assert "create_media_buy" in info["tools"]
+
+            # Verify AdCP extension metadata
+            assert info["adcp_version"] == "2.4.0"
+            assert info["protocols_supported"] == ["media_buy", "creative"]
+
+    @pytest.mark.asyncio
+    async def test_get_agent_info_without_extensions(self, a2a_config):
+        """Test getting agent info when AdCP extension is not present."""
+        adapter = A2AAdapter(a2a_config)
+
+        mock_agent_card = {
+            "name": "Basic Agent",
+            "skills": [{"name": "get_products"}],
+        }
+
+        mock_client = AsyncMock()
+        mock_http_response = MagicMock()
+        mock_http_response.json = MagicMock(return_value=mock_agent_card)
+        mock_http_response.raise_for_status = MagicMock()
+        mock_client.get = AsyncMock(return_value=mock_http_response)
+
+        with patch.object(adapter, "_get_client", return_value=mock_client):
+            info = await adapter.get_agent_info()
+
+            # Verify basic info is still available
+            assert info["name"] == "Basic Agent"
+            assert info["protocol"] == "a2a"
+            assert "get_products" in info["tools"]
+
+            # Verify AdCP extension fields are not present
+            assert "adcp_version" not in info
+            assert "protocols_supported" not in info
+
 
 class TestMCPAdapter:
     """Tests for MCP protocol adapter."""
