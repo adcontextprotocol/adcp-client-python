@@ -1,0 +1,19 @@
+{
+  "$id": "/schemas/2.4.0/enums/creative-status.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Status of a creative asset",
+  "enum": [
+    "processing",
+    "approved",
+    "rejected",
+    "pending_review"
+  ],
+  "enumDescriptions": {
+    "approved": "Creative has been approved and is ready for delivery",
+    "pending_review": "Creative is under review",
+    "processing": "Creative is being processed or transcoded",
+    "rejected": "Creative has been rejected due to policy or technical issues"
+  },
+  "title": "Creative Status",
+  "type": "string"
+}

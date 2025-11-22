@@ -1,0 +1,14 @@
+{
+  "$id": "/schemas/2.4.0/enums/creative-action.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Action taken on a creative during sync operation",
+  "enum": [
+    "created",
+    "updated",
+    "unchanged",
+    "failed",
+    "deleted"
+  ],
+  "title": "Creative Action",
+  "type": "string"
+}

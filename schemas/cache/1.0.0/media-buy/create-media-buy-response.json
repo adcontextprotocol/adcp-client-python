@@ -1,0 +1,94 @@
+{
+  "$id": "/schemas/2.4.0/media-buy/create-media-buy-response.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Response payload for create_media_buy task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - the media buy is either fully created or not created at all.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "Success response - media buy created successfully",
+      "not": {
+        "required": [
+          "errors"
+        ]
+      },
+      "properties": {
+        "buyer_ref": {
+          "description": "Buyer's reference identifier for this media buy",
+          "type": "string"
+        },
+        "context": {
+          "$ref": "/schemas/2.4.0/core/context.json"
+        },
+        "creative_deadline": {
+          "description": "ISO 8601 timestamp for creative upload deadline",
+          "format": "date-time",
+          "type": "string"
+        },
+        "media_buy_id": {
+          "description": "Publisher's unique identifier for the created media buy",
+          "type": "string"
+        },
+        "packages": {
+          "description": "Array of created packages with complete state information",
+          "items": {
+            "$ref": "/schemas/2.4.0/core/package.json"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "media_buy_id",
+        "buyer_ref",
+        "packages"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Error response - operation failed, no media buy created",
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "media_buy_id"
+            ]
+          },
+          {
+            "required": [
+              "buyer_ref"
+            ]
+          },
+          {
+            "required": [
+              "packages"
+            ]
+          }
+        ]
+      },
+      "properties": {
+        "context": {
+          "$ref": "/schemas/2.4.0/core/context.json"
+        },
+        "errors": {
+          "description": "Array of errors explaining why the operation failed",
+          "items": {
+            "$ref": "/schemas/2.4.0/core/error.json"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "errors"
+      ],
+      "type": "object"
+    }
+  ],
+  "properties": {
+    "ext": {
+      "$ref": "/schemas/2.4.0/core/ext.json"
+    }
+  },
+  "title": "Create Media Buy Response",
+  "type": "object"
+}

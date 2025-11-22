@@ -192,14 +192,9 @@ def get_adcp_version() -> str:
     of the AdCP specification.
 
     Returns:
-        AdCP specification version (e.g., "v2", "source")
-
-    Note:
-        Currently returns "source" as upstream repository has not yet
-        migrated to versioned paths. Will be updated to "v2" when
-        upstream completes the migration.
+        AdCP specification version (e.g., "v1", "v2")
     """
-    return "source"  # TODO: Update to "v2" when upstream migrates to versioned paths
+    return "v1"
 
 __all__ = [
     # Version functions

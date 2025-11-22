@@ -1,0 +1,250 @@
+{
+  "$id": "/schemas/2.4.0/core/webhook-payload.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "task_type": {
+            "const": "create_media_buy"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "$ref": "/schemas/2.4.0/media-buy/create-media-buy-response.json"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_type": {
+            "const": "update_media_buy"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "$ref": "/schemas/2.4.0/media-buy/update-media-buy-response.json"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_type": {
+            "const": "sync_creatives"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "$ref": "/schemas/2.4.0/media-buy/sync-creatives-response.json"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_type": {
+            "const": "activate_signal"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "$ref": "/schemas/2.4.0/signals/activate-signal-response.json"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_type": {
+            "const": "get_signals"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "$ref": "/schemas/2.4.0/signals/get-signals-response.json"
+          }
+        }
+      }
+    }
+  ],
+  "description": "Payload structure sent to webhook endpoints when async task status changes. Protocol-level fields are at the top level and the task-specific payload is nested under the 'result' field. This schema represents what your webhook handler will receive when a task transitions from 'submitted' to a terminal or intermediate state.",
+  "examples": [
+    {
+      "data": {
+        "context_id": "ctx_abc123",
+        "domain": "media-buy",
+        "message": "Campaign budget $150K requires VP approval to proceed",
+        "operation_id": "op_456",
+        "result": {
+          "errors": [
+            {
+              "code": "APPROVAL_REQUIRED",
+              "field": "packages[0].budget",
+              "message": "Budget exceeds auto-approval threshold of $100K. Awaiting VP approval before media buy creation."
+            }
+          ]
+        },
+        "status": "input-required",
+        "task_id": "task_456",
+        "task_type": "create_media_buy",
+        "timestamp": "2025-01-22T10:15:00Z"
+      },
+      "description": "Webhook for input-required status (human approval needed)"
+    },
+    {
+      "data": {
+        "domain": "media-buy",
+        "message": "Media buy created successfully with 2 packages ready for creative assignment",
+        "operation_id": "op_456",
+        "result": {
+          "buyer_ref": "nike_q1_campaign_2024",
+          "creative_deadline": "2024-01-30T23:59:59Z",
+          "media_buy_id": "mb_12345",
+          "packages": [
+            {
+              "budget": 60000,
+              "buyer_ref": "nike_ctv_package",
+              "creative_assignments": [],
+              "format_ids_to_provide": [
+                {
+                  "agent_url": "https://creative.adcontextprotocol.org",
+                  "id": "video_standard_30s"
+                }
+              ],
+              "pacing": "even",
+              "package_id": "pkg_12345_001",
+              "paused": false,
+              "pricing_option_id": "cpm-fixed-sports",
+              "product_id": "ctv_sports_premium"
+            }
+          ]
+        },
+        "status": "completed",
+        "task_id": "task_456",
+        "task_type": "create_media_buy",
+        "timestamp": "2025-01-22T10:30:00Z"
+      },
+      "description": "Webhook for completed create_media_buy"
+    },
+    {
+      "data": {
+        "domain": "media-buy",
+        "error": "invalid_assets: One or more creative assets could not be accessed",
+        "message": "Creative sync failed due to invalid asset URLs",
+        "operation_id": "op_789",
+        "status": "failed",
+        "task_id": "task_789",
+        "task_type": "sync_creatives",
+        "timestamp": "2025-01-22T10:46:00Z"
+      },
+      "description": "Webhook for failed sync_creatives"
+    }
+  ],
+  "notes": [
+    "Webhooks are ONLY triggered when the initial response status is 'submitted' (long-running operations)",
+    "Webhook payloads include protocol-level fields (operation_id, task_type, status, optional task_id/context_id/timestamp/message) and the task-specific payload nested under 'result'",
+    "The task-specific response data is NOT merged at the top level; it is contained entirely within the 'result' field",
+    "For example, a create_media_buy webhook will include operation_id, task_type, status, and result.buyer_ref, result.media_buy_id, result.packages, etc.",
+    "Your webhook handler receives the complete information needed to process the result without making additional API calls"
+  ],
+  "properties": {
+    "context_id": {
+      "description": "Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters.",
+      "type": "string"
+    },
+    "domain": {
+      "$ref": "/schemas/2.4.0/enums/adcp-domain.json",
+      "description": "AdCP domain this task belongs to. Helps classify the operation type at a high level."
+    },
+    "error": {
+      "description": "Error message for failed tasks. Only present when status is 'failed'.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "message": {
+      "description": "Human-readable summary of the current task state. Provides context about what happened and what action may be needed.",
+      "type": "string"
+    },
+    "operation_id": {
+      "description": "Publisher-defined operation identifier correlating a sequence of task updates across webhooks.",
+      "type": "string"
+    },
+    "progress": {
+      "additionalProperties": false,
+      "description": "Progress information for tasks still in 'working' state. Rarely seen in webhooks since 'working' tasks typically complete synchronously, but may appear if a task transitions from 'submitted' to 'working'.",
+      "properties": {
+        "current_step": {
+          "description": "Current step or phase of the operation",
+          "type": "string"
+        },
+        "percentage": {
+          "description": "Completion percentage (0-100)",
+          "maximum": 100,
+          "minimum": 0,
+          "type": "number"
+        },
+        "step_number": {
+          "description": "Current step number",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "total_steps": {
+          "description": "Total number of steps in the operation",
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "result": {
+      "description": "Task-specific payload for this status update. Validated against the appropriate response schema based on task_type.",
+      "type": [
+        "object"
+      ]
+    },
+    "status": {
+      "$ref": "/schemas/2.4.0/enums/task-status.json",
+      "description": "Current task status. Webhooks are only triggered for status changes after initial submission (e.g., submitted \u2192 input-required, submitted \u2192 completed, submitted \u2192 failed)."
+    },
+    "task_id": {
+      "description": "Unique identifier for this task. Use this to correlate webhook notifications with the original task submission.",
+      "type": "string"
+    },
+    "task_type": {
+      "$ref": "/schemas/2.4.0/enums/task-type.json",
+      "description": "Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic."
+    },
+    "timestamp": {
+      "description": "ISO 8601 timestamp when this webhook was generated.",
+      "format": "date-time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "task_id",
+    "task_type",
+    "status",
+    "timestamp"
+  ],
+  "title": "Webhook Payload",
+  "type": "object"
+}

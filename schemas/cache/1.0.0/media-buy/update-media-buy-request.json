@@ -1,0 +1,109 @@
+{
+  "$id": "/schemas/2.4.0/media-buy/update-media-buy-request.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Request parameters for updating campaign and package settings",
+  "oneOf": [
+    {
+      "required": [
+        "media_buy_id"
+      ]
+    },
+    {
+      "required": [
+        "buyer_ref"
+      ]
+    }
+  ],
+  "properties": {
+    "buyer_ref": {
+      "description": "Buyer's reference for the media buy to update",
+      "type": "string"
+    },
+    "context": {
+      "$ref": "/schemas/2.4.0/core/context.json"
+    },
+    "end_time": {
+      "description": "New end date/time in ISO 8601 format",
+      "format": "date-time",
+      "type": "string"
+    },
+    "ext": {
+      "$ref": "/schemas/2.4.0/core/ext.json"
+    },
+    "media_buy_id": {
+      "description": "Publisher's ID of the media buy to update",
+      "type": "string"
+    },
+    "packages": {
+      "description": "Package-specific updates",
+      "items": {
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "required": [
+              "package_id"
+            ]
+          },
+          {
+            "required": [
+              "buyer_ref"
+            ]
+          }
+        ],
+        "properties": {
+          "bid_price": {
+            "description": "Updated bid price for auction-based pricing options (only applies when pricing_option is auction-based)",
+            "minimum": 0,
+            "type": "number"
+          },
+          "budget": {
+            "description": "Updated budget allocation for this package in the currency specified by the pricing option",
+            "minimum": 0,
+            "type": "number"
+          },
+          "buyer_ref": {
+            "description": "Buyer's reference for the package to update",
+            "type": "string"
+          },
+          "creative_ids": {
+            "description": "Update creative assignments",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "pacing": {
+            "$ref": "/schemas/2.4.0/enums/pacing.json"
+          },
+          "package_id": {
+            "description": "Publisher's ID of package to update",
+            "type": "string"
+          },
+          "paused": {
+            "description": "Pause/resume specific package (true = paused, false = active)",
+            "type": "boolean"
+          },
+          "targeting_overlay": {
+            "$ref": "/schemas/2.4.0/core/targeting.json"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "paused": {
+      "description": "Pause/resume the entire media buy (true = paused, false = active)",
+      "type": "boolean"
+    },
+    "push_notification_config": {
+      "$ref": "/schemas/2.4.0/core/push-notification-config.json",
+      "description": "Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time."
+    },
+    "start_time": {
+      "$ref": "/schemas/2.4.0/core/start-timing.json"
+    }
+  },
+  "title": "Update Media Buy Request",
+  "type": "object"
+}

@@ -1,0 +1,63 @@
+{
+  "$id": "/schemas/2.4.0/media-buy/provide-performance-feedback-response.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Response payload for provide_performance_feedback task. Returns either success confirmation OR error information, never both.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "Success response - feedback received and processed",
+      "not": {
+        "required": [
+          "errors"
+        ]
+      },
+      "properties": {
+        "context": {
+          "$ref": "/schemas/2.4.0/core/context.json"
+        },
+        "success": {
+          "const": true,
+          "description": "Whether the performance feedback was successfully received",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Error response - feedback rejected or could not be processed",
+      "not": {
+        "required": [
+          "success"
+        ]
+      },
+      "properties": {
+        "context": {
+          "$ref": "/schemas/2.4.0/core/context.json"
+        },
+        "errors": {
+          "description": "Array of errors explaining why feedback was rejected (e.g., invalid measurement period, missing campaign data)",
+          "items": {
+            "$ref": "/schemas/2.4.0/core/error.json"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "errors"
+      ],
+      "type": "object"
+    }
+  ],
+  "properties": {
+    "ext": {
+      "$ref": "/schemas/2.4.0/core/ext.json"
+    }
+  },
+  "title": "Provide Performance Feedback Response",
+  "type": "object"
+}

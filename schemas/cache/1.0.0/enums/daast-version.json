@@ -1,0 +1,11 @@
+{
+  "$id": "/schemas/2.4.0/enums/daast-version.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Supported DAAST (Digital Audio Ad Serving Template) specification versions",
+  "enum": [
+    "1.0",
+    "1.1"
+  ],
+  "title": "DAAST Version",
+  "type": "string"
+}

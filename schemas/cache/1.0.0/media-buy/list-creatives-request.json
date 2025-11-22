@@ -1,0 +1,137 @@
+{
+  "$id": "/schemas/2.4.0/media-buy/list-creatives-request.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Request parameters for querying creative assets from the centralized library with filtering, sorting, and pagination",
+  "examples": [
+    {
+      "data": {
+        "filters": {
+          "format": "video",
+          "status": "approved"
+        }
+      },
+      "description": "List all approved video creatives"
+    },
+    {
+      "data": {
+        "filters": {
+          "has_performance_data": true,
+          "name_contains": "nike"
+        },
+        "include_performance": true
+      },
+      "description": "Search for Nike creatives with performance data"
+    },
+    {
+      "data": {
+        "filters": {
+          "unassigned": true
+        },
+        "pagination": {
+          "limit": 20
+        },
+        "sort": {
+          "direction": "desc",
+          "field": "created_date"
+        }
+      },
+      "description": "Get unassigned creatives for assignment"
+    },
+    {
+      "data": {
+        "fields": [
+          "creative_id",
+          "name",
+          "status"
+        ],
+        "include_assignments": false
+      },
+      "description": "Lightweight list with minimal fields"
+    }
+  ],
+  "properties": {
+    "context": {
+      "$ref": "/schemas/2.4.0/core/context.json"
+    },
+    "ext": {
+      "$ref": "/schemas/2.4.0/core/ext.json"
+    },
+    "fields": {
+      "description": "Specific fields to include in response (omit for all fields)",
+      "items": {
+        "enum": [
+          "creative_id",
+          "name",
+          "format",
+          "status",
+          "created_date",
+          "updated_date",
+          "tags",
+          "assignments",
+          "performance",
+          "sub_assets"
+        ],
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "filters": {
+      "$ref": "/schemas/2.4.0/core/creative-filters.json"
+    },
+    "include_assignments": {
+      "default": true,
+      "description": "Include package assignment information in response",
+      "type": "boolean"
+    },
+    "include_performance": {
+      "default": false,
+      "description": "Include aggregated performance metrics in response",
+      "type": "boolean"
+    },
+    "include_sub_assets": {
+      "default": false,
+      "description": "Include sub-assets (for carousel/native formats) in response",
+      "type": "boolean"
+    },
+    "pagination": {
+      "additionalProperties": false,
+      "description": "Pagination parameters",
+      "properties": {
+        "limit": {
+          "default": 50,
+          "description": "Maximum number of creatives to return",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "description": "Number of creatives to skip",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "sort": {
+      "additionalProperties": false,
+      "description": "Sorting parameters",
+      "properties": {
+        "direction": {
+          "$ref": "/schemas/2.4.0/enums/sort-direction.json",
+          "default": "desc",
+          "description": "Sort direction"
+        },
+        "field": {
+          "$ref": "/schemas/2.4.0/enums/creative-sort-field.json",
+          "default": "created_date",
+          "description": "Field to sort by"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "title": "List Creatives Request",
+  "type": "object"
+}

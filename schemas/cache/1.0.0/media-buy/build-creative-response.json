@@ -1,0 +1,62 @@
+{
+  "$id": "/schemas/2.4.0/media-buy/build-creative-response.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Response containing the transformed or generated creative manifest, ready for use with preview_creative or sync_creatives. Returns either the complete creative manifest OR error information, never both.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "Success response - creative manifest generated successfully",
+      "not": {
+        "required": [
+          "errors"
+        ]
+      },
+      "properties": {
+        "context": {
+          "$ref": "/schemas/2.4.0/core/context.json"
+        },
+        "creative_manifest": {
+          "$ref": "/schemas/2.4.0/core/creative-manifest.json",
+          "description": "The generated or transformed creative manifest"
+        }
+      },
+      "required": [
+        "creative_manifest"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Error response - creative generation failed",
+      "not": {
+        "required": [
+          "creative_manifest"
+        ]
+      },
+      "properties": {
+        "context": {
+          "$ref": "/schemas/2.4.0/core/context.json"
+        },
+        "errors": {
+          "description": "Array of errors explaining why creative generation failed",
+          "items": {
+            "$ref": "/schemas/2.4.0/core/error.json"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "errors"
+      ],
+      "type": "object"
+    }
+  ],
+  "properties": {
+    "ext": {
+      "$ref": "/schemas/2.4.0/core/ext.json"
+    }
+  },
+  "title": "Build Creative Response",
+  "type": "object"
+}
