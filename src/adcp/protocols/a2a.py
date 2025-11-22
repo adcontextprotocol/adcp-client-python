@@ -159,23 +159,9 @@ class A2AAdapter(ProtocolAdapter):
                     success=False,
                     debug_info=debug_info,
                 )
-            elif task_status == "working":
-                # Task is still in progress - interim responses don't need structured AdCP data
-                return TaskResult[Any](
-                    status=TaskStatus.SUBMITTED,
-                    data=None,  # Interim responses may not have structured AdCP content
-                    message=self._extract_text_part(data),
-                    success=True,
-                    metadata={
-                        "task_id": data.get("taskId"),
-                        "context_id": data.get("contextId"),
-                        "status": "working",
-                    },
-                    debug_info=debug_info,
-                )
             else:
-                # Handle other interim states (submitted, pending, input-required)
-                # These don't need to have structured AdCP content
+                # Handle all interim states (submitted, working, pending, input-required)
+                # These don't need to have structured AdCP content - only completed responses do
                 return TaskResult[Any](
                     status=TaskStatus.SUBMITTED,
                     data=None,  # Interim responses may not have structured AdCP content
@@ -184,7 +170,7 @@ class A2AAdapter(ProtocolAdapter):
                     metadata={
                         "task_id": data.get("taskId"),
                         "context_id": data.get("contextId"),
-                        "status": task_status,
+                        "status": task_status,  # submitted, working, pending, input-required, etc.
                     },
                     debug_info=debug_info,
                 )

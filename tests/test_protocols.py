@@ -369,6 +369,40 @@ class TestA2AAdapter:
             assert result.metadata["status"] == "working"
 
     @pytest.mark.asyncio
+    async def test_interim_response_submitted(self, a2a_config):
+        """Test handling interim 'submitted' response without structured data."""
+        adapter = A2AAdapter(a2a_config)
+
+        mock_response_data = {
+            "status": "submitted",
+            "taskId": "task_123",
+            "contextId": "ctx_456",
+            "artifacts": [
+                {
+                    "parts": [
+                        {"kind": "text", "text": "Task submitted successfully"},
+                    ],
+                }
+            ],
+        }
+
+        mock_client = AsyncMock()
+        mock_http_response = MagicMock()
+        mock_http_response.json = MagicMock(return_value=mock_response_data)
+        mock_http_response.raise_for_status = MagicMock()
+        mock_client.post = AsyncMock(return_value=mock_http_response)
+
+        with patch.object(adapter, "_get_client", return_value=mock_client):
+            result = await adapter._call_a2a_tool("get_products", {"brief": "test"})
+
+            assert result.success is True
+            assert result.status == TaskStatus.SUBMITTED
+            # Interim responses don't need structured data
+            assert result.data is None
+            assert result.message == "Task submitted successfully"
+            assert result.metadata["status"] == "submitted"
+
+    @pytest.mark.asyncio
     async def test_list_tools(self, a2a_config):
         """Test listing tools via A2A agent card."""
         adapter = A2AAdapter(a2a_config)
