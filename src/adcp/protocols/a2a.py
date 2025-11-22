@@ -127,35 +127,59 @@ class A2AAdapter(ProtocolAdapter):
                     duration_ms=duration_ms,
                 )
 
-            # Parse A2A response format
+            # Parse A2A response format per canonical spec
             # A2A tasks have lifecycle: submitted, working, completed, failed, input-required
-            task_status = data.get("task", {}).get("status")
+            task_status = data.get("status")
 
-            if task_status in ("completed", "working"):
-                # Extract the result from the response message
+            if task_status == "completed":
+                # Extract the result from the artifacts array
                 result_data = self._extract_result(data)
+
+                # Check for task-level errors in the payload
+                errors = result_data.get("errors", []) if isinstance(result_data, dict) else []
+                has_errors = bool(errors)
 
                 return TaskResult[Any](
                     status=TaskStatus.COMPLETED,
                     data=result_data,
-                    success=True,
-                    metadata={"task_id": data.get("task", {}).get("id")},
+                    success=not has_errors,
+                    metadata={
+                        "task_id": data.get("taskId"),
+                        "context_id": data.get("contextId"),
+                    },
                     debug_info=debug_info,
                 )
             elif task_status == "failed":
+                # Protocol-level failure - extract error message from TextPart
+                error_msg = self._extract_text_part(data) or "Task failed"
                 return TaskResult[Any](
                     status=TaskStatus.FAILED,
-                    error=data.get("message", {}).get("parts", [{}])[0].get("text", "Task failed"),
+                    error=error_msg,
                     success=False,
+                    debug_info=debug_info,
+                )
+            elif task_status == "working":
+                # Task is still in progress
+                return TaskResult[Any](
+                    status=TaskStatus.SUBMITTED,
+                    data=self._extract_result(data),
+                    success=True,
+                    metadata={
+                        "task_id": data.get("taskId"),
+                        "context_id": data.get("contextId"),
+                    },
                     debug_info=debug_info,
                 )
             else:
                 # Handle other states (submitted, input-required)
                 return TaskResult[Any](
                     status=TaskStatus.SUBMITTED,
-                    data=data,
+                    data=self._extract_result(data),
                     success=True,
-                    metadata={"task_id": data.get("task", {}).get("id")},
+                    metadata={
+                        "task_id": data.get("taskId"),
+                        "context_id": data.get("contextId"),
+                    },
                     debug_info=debug_info,
                 )
 
@@ -182,27 +206,54 @@ class A2AAdapter(ProtocolAdapter):
         return f"Execute tool: {tool_name}\nParameters: {json.dumps(params, indent=2)}"
 
     def _extract_result(self, response_data: dict[str, Any]) -> Any:
-        """Extract result data from A2A response."""
-        # Try to extract structured data from response
-        message = response_data.get("message", {})
-        parts = message.get("parts", [])
+        """
+        Extract result data from A2A response following canonical format.
 
-        if not parts:
+        Per A2A response spec:
+        - Responses MUST include at least one DataPart (kind: "data")
+        - When multiple DataParts exist, the last one is authoritative
+        - DataParts contain structured AdCP payload
+        """
+        artifacts = response_data.get("artifacts", [])
+
+        if not artifacts:
+            logger.warning("A2A response missing required artifacts array")
             return response_data
 
-        # Return the first part's content
-        first_part = parts[0]
-        if first_part.get("type") == "text":
-            # Try to parse as JSON if it looks like structured data
-            text = first_part.get("text", "")
-            try:
-                import json
+        # Extract parts from first artifact (single artifact pattern per spec)
+        parts = artifacts[0].get("parts", [])
 
-                return json.loads(text)
-            except (json.JSONDecodeError, ValueError):
-                return text
+        if not parts:
+            logger.warning("A2A response artifact has no parts")
+            return response_data
 
-        return first_part
+        # Find all DataParts (kind: "data")
+        data_parts = [p for p in parts if p.get("kind") == "data"]
+
+        if not data_parts:
+            logger.warning("A2A response missing required DataPart (kind: 'data')")
+            return response_data
+
+        # Use last DataPart as authoritative (handles streaming scenarios)
+        last_data_part = data_parts[-1]
+        return last_data_part.get("data", {})
+
+    def _extract_text_part(self, response_data: dict[str, Any]) -> str | None:
+        """Extract human-readable message from TextPart if present."""
+        artifacts = response_data.get("artifacts", [])
+
+        if not artifacts:
+            return None
+
+        parts = artifacts[0].get("parts", [])
+
+        # Find TextPart (kind: "text")
+        for part in parts:
+            if part.get("kind") == "text":
+                text = part.get("text")
+                return str(text) if text is not None else None
+
+        return None
 
     # ========================================================================
     # ADCP Protocol Methods
