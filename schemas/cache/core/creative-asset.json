@@ -91,12 +91,26 @@
       "description": "Human-readable creative name",
       "type": "string"
     },
+    "placement_ids": {
+      "description": "Optional array of placement IDs where this creative should run when uploading via create_media_buy or update_media_buy. References placement_id values from the product's placements array. If omitted, creative runs on all placements. Only used during upload to media buy - not stored in creative library.",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
     "tags": {
       "description": "User-defined tags for organization and searchability",
       "items": {
         "type": "string"
       },
       "type": "array"
+    },
+    "weight": {
+      "description": "Optional delivery weight for creative rotation when uploading via create_media_buy or update_media_buy (0-100). If omitted, platform determines rotation. Only used during upload to media buy - not stored in creative library.",
+      "maximum": 100,
+      "minimum": 0,
+      "type": "number"
     }
   },
   "required": [

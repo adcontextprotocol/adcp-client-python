@@ -14,6 +14,13 @@
       },
       "type": "array"
     },
+    "buyer_refs": {
+      "description": "Filter creatives assigned to media buys with any of these buyer references",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "created_after": {
       "description": "Filter creatives created after this date (ISO 8601)",
       "format": "date-time",
@@ -46,6 +53,13 @@
     "has_performance_data": {
       "description": "Filter creatives that have performance data when true",
       "type": "boolean"
+    },
+    "media_buy_ids": {
+      "description": "Filter creatives assigned to any of these media buys",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
     },
     "name_contains": {
       "description": "Filter by creative names containing this text (case-insensitive)",

@@ -3,8 +3,65 @@
   "additionalProperties": false,
   "description": "Structured filters for product discovery",
   "properties": {
+    "budget_range": {
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "min"
+          ]
+        },
+        {
+          "required": [
+            "max"
+          ]
+        }
+      ],
+      "description": "Budget range to filter appropriate products",
+      "properties": {
+        "currency": {
+          "description": "ISO 4217 currency code (e.g., 'USD', 'EUR', 'GBP')",
+          "pattern": "^[A-Z]{3}$",
+          "type": "string"
+        },
+        "max": {
+          "description": "Maximum budget amount",
+          "minimum": 0,
+          "type": "number"
+        },
+        "min": {
+          "description": "Minimum budget amount",
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "currency"
+      ],
+      "type": "object"
+    },
+    "channels": {
+      "description": "Filter by advertising channels (e.g., ['display', 'video', 'dooh'])",
+      "items": {
+        "$ref": "../enums/channels.json"
+      },
+      "type": "array"
+    },
+    "countries": {
+      "description": "Filter by target countries using ISO 3166-1 alpha-2 country codes (e.g., ['US', 'CA', 'GB'])",
+      "items": {
+        "pattern": "^[A-Z]{2}$",
+        "type": "string"
+      },
+      "type": "array"
+    },
     "delivery_type": {
       "$ref": "../enums/delivery-type.json"
+    },
+    "end_date": {
+      "description": "Campaign end date (ISO 8601 date format: YYYY-MM-DD) for availability checks",
+      "format": "date",
+      "type": "string"
     },
     "format_ids": {
       "description": "Filter by specific format IDs",
@@ -32,6 +89,11 @@
     "standard_formats_only": {
       "description": "Only return products accepting IAB standard formats",
       "type": "boolean"
+    },
+    "start_date": {
+      "description": "Campaign start date (ISO 8601 date format: YYYY-MM-DD) for availability checks",
+      "format": "date",
+      "type": "string"
     }
   },
   "title": "Product Filters",

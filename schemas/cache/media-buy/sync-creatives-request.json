@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "description": "Request parameters for syncing creative assets with upsert semantics - supports bulk operations, patch updates, and assignment management",
+  "description": "Request parameters for syncing creative assets with upsert semantics - supports bulk operations, scoped updates, and assignment management",
   "examples": [
     {
       "data": {
@@ -68,6 +68,48 @@
         ]
       },
       "description": "Generative creative with approval"
+    },
+    {
+      "data": {
+        "creative_ids": [
+          "hero_video_30s",
+          "banner_300x250"
+        ],
+        "creatives": [
+          {
+            "assets": {
+              "video": {
+                "duration_ms": 30000,
+                "height": 1080,
+                "url": "https://cdn.example.com/updated-hero.mp4",
+                "width": 1920
+              }
+            },
+            "creative_id": "hero_video_30s",
+            "format_id": {
+              "agent_url": "https://creative.adcontextprotocol.org",
+              "id": "video_standard_30s"
+            },
+            "name": "Brand Hero Video 30s - Updated"
+          },
+          {
+            "assets": {
+              "image": {
+                "height": 250,
+                "url": "https://cdn.example.com/updated-banner.png",
+                "width": 300
+              }
+            },
+            "creative_id": "banner_300x250",
+            "format_id": {
+              "agent_url": "https://creative.adcontextprotocol.org",
+              "id": "display_300x250"
+            },
+            "name": "Display Banner 300x250 - Updated"
+          }
+        ]
+      },
+      "description": "Scoped update using creative_ids filter"
     }
   ],
   "properties": {
@@ -87,6 +129,14 @@
     },
     "context": {
       "$ref": "../core/context.json"
+    },
+    "creative_ids": {
+      "description": "Optional filter to limit sync scope to specific creative IDs. When provided, only these creatives will be created/updated. Other creatives in the library are unaffected. Useful for partial updates and error recovery.",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 100,
+      "type": "array"
     },
     "creatives": {
       "description": "Array of creative assets to sync (create or update)",
@@ -108,11 +158,6 @@
     },
     "ext": {
       "$ref": "../core/ext.json"
-    },
-    "patch": {
-      "default": false,
-      "description": "When true, only provided fields are updated (partial update). When false, entire creative is replaced (full upsert).",
-      "type": "boolean"
     },
     "push_notification_config": {
       "$ref": "../core/push-notification-config.json",
