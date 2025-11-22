@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/enums/history-entry-type.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Type of entry in task execution history",
   "enum": [

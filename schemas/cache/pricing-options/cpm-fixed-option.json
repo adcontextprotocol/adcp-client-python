@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/pricing-options/cpm-fixed-option.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Cost Per Mille (cost per 1,000 impressions) with guaranteed fixed rate - common for direct/guaranteed deals",

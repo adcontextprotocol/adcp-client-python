@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/signals/get-signals-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Request parameters for discovering signals based on description",

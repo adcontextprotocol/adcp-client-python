@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/enums/media-buy-status.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Status of a media buy",
   "enum": [

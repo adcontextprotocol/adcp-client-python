@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/creative/list-creative-formats-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Request parameters for discovering creative formats provided by this creative agent",

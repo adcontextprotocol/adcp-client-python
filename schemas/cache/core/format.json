@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/core/format.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Represents a creative format with its requirements",

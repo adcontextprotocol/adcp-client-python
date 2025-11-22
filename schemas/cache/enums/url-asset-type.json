@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/enums/url-asset-type.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Types of URL assets for tracking and click-through purposes",
   "enum": [

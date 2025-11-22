@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/creative/preview-creative-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Response containing preview links for one or more creatives. Format matches the request: single preview response for single requests, batch results for batch requests.",
   "oneOf": [

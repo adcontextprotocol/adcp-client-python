@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/pricing-options/cpp-option.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Cost Per Point (Gross Rating Point) fixed-rate pricing for TV and audio campaigns requiring demographic measurement",

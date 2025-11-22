@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/media-buy/package-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Package configuration for media buy creation",

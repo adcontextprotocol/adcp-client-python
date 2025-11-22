@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/enums/channels.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Standard advertising channels supported by AdCP",
   "enum": [

@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/core/creative-policy.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Creative requirements and restrictions for a product",

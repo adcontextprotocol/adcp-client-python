@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/core/deployment.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "A signal deployment to a specific deployment target with activation status and key",
   "oneOf": [

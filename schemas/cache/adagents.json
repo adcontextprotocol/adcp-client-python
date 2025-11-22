@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/adagents.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Declaration of authorized sales agents for advertising inventory. Hosted at /.well-known/adagents.json on publisher domains. Can either contain the full structure inline or reference an authoritative URL.",
   "examples": [

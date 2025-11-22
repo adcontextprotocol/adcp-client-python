@@ -52,6 +52,11 @@ def convert_ref_to_relative(ref: str, current_file: Path) -> str:
 def fix_refs(obj, current_file: Path):
     """Recursively fix $ref paths in schema."""
     if isinstance(obj, dict):
+        # Remove $id field as it causes issues with relative path resolution
+        # datamodel-code-generator tries to resolve relative $refs from the $id path
+        if "$id" in obj:
+            del obj["$id"]
+
         if "$ref" in obj:
             ref = obj["$ref"]
             obj["$ref"] = convert_ref_to_relative(ref, current_file)

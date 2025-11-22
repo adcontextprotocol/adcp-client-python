@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/core/creative-filters.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Filter criteria for querying creative assets from the centralized library",

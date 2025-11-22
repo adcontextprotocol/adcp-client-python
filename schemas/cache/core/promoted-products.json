@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/core/promoted-products.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Specification of products or offerings being promoted in a campaign. Supports multiple selection methods from the brand manifest that can be combined using UNION (OR) logic. When multiple selection methods are provided, products matching ANY of the criteria are selected (logical OR, not AND).",

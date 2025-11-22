@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/media-buy/list-authorized-properties-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Response payload for list_authorized_properties task. Lists publisher domains and authorization scope (property_ids or property_tags). Buyers fetch actual property definitions from each publisher's canonical adagents.json file.",

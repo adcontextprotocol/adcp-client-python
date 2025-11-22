@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/enums/available-metric.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Standard delivery and performance metrics available for reporting",
   "enum": [

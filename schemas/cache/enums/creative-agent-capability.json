@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/enums/creative-agent-capability.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Capabilities supported by creative agents for format handling",
   "enum": [

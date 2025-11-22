@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/core/response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Protocol-level response wrapper (MCP/A2A) - contains AdCP task data plus protocol fields",

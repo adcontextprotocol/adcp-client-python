@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/core/sub-asset.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Sub-asset for multi-asset creative formats, including carousel images and native ad template variables",
   "oneOf": [

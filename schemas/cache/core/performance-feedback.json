@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/core/performance-feedback.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Represents performance feedback data for a media buy or package",

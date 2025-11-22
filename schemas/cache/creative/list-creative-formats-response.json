@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/2.4.0/creative/list-creative-formats-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Response payload for list_creative_formats task from creative agent - returns full format definitions",
