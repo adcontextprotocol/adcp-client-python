@@ -25,6 +25,9 @@
         "context": {
           "$ref": "../core/context.json"
         },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
         "implementation_date": {
           "description": "ISO 8601 timestamp when changes take effect (null if pending approval)",
           "format": "date-time",
@@ -77,6 +80,9 @@
           },
           "minItems": 1,
           "type": "array"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
         }
       },
       "required": [
@@ -85,11 +91,6 @@
       "type": "object"
     }
   ],
-  "properties": {
-    "ext": {
-      "$ref": "../core/ext.json"
-    }
-  },
   "title": "Update Media Buy Response",
   "type": "object"
 }

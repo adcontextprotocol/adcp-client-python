@@ -13,6 +13,9 @@
           "$ref": "../core/creative-manifest.json",
           "description": "Complete creative manifest with all required assets (including promoted_offerings if required by the format)"
         },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
         "format_id": {
           "$ref": "../core/format-id.json",
           "description": "Format identifier for rendering the preview"
@@ -73,6 +76,9 @@
       "properties": {
         "context": {
           "$ref": "../core/context.json"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
         },
         "output_format": {
           "$ref": "../enums/preview-output-format.json",
@@ -153,10 +159,5 @@
       "type": "object"
     }
   ],
-  "properties": {
-    "ext": {
-      "$ref": "../core/ext.json"
-    }
-  },
   "title": "Preview Creative Request"
 }

@@ -82,7 +82,9 @@ from adcp.types._generated import (
     FormatCard,
     FormatCardDetailed,
     FormatCategory,
-    FormatId,
+    FormatId1,
+    FormatId2,
+    FormatIdParameter,
     FrequencyCap,
     FrequencyCapScope,
     GeoCountryAnyOfItem,
@@ -154,7 +156,6 @@ from adcp.types._generated import (
     PushNotificationConfig,
     QuartileData,
     QuerySummary,
-    Render,
     ReportingCapabilities,
     ReportingFrequency,
     ReportingPeriod,
@@ -280,6 +281,10 @@ from adcp.types.core import AgentConfig, Protocol, TaskResult, WebhookMetadata
 # Backward compatibility aliases
 AssetType = AssetContentType  # Use AssetContentType instead
 
+# FormatId split into discriminated union (FormatId1 and FormatId2)
+# Provide union type for backward compatibility
+FormatId = FormatId1 | FormatId2
+
 # Schema renames from filter ref split (v1.0.0)
 Action = CreativeAction
 Capability = CreativeAgentCapability
@@ -397,7 +402,6 @@ __all__ = [
     "PromotedProducts",
     "Property",
     "QuartileData",
-    "Render",
     "Request",
     "Response",
     "Results",

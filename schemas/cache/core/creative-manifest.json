@@ -55,7 +55,7 @@
     },
     "format_id": {
       "$ref": "format-id.json",
-      "description": "Format identifier this manifest is for"
+      "description": "Format identifier this manifest is for. Can be a template format (id only) or a deterministic format (id + dimensions/duration). For dimension-specific creatives, include width/height/unit in the format_id to create a unique identifier (e.g., {id: 'display_static', width: 300, height: 250, unit: 'px'})."
     },
     "promoted_offering": {
       "description": "Product name or offering being advertised. Maps to promoted_offerings in create_media_buy request to associate creative with the product being promoted.",

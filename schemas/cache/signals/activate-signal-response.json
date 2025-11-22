@@ -20,6 +20,9 @@
             "$ref": "../core/deployment.json"
           },
           "type": "array"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
         }
       },
       "required": [
@@ -46,6 +49,9 @@
           },
           "minItems": 1,
           "type": "array"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
         }
       },
       "required": [
@@ -54,11 +60,6 @@
       "type": "object"
     }
   ],
-  "properties": {
-    "ext": {
-      "$ref": "../core/ext.json"
-    }
-  },
   "title": "Activate Signal Response",
   "type": "object"
 }

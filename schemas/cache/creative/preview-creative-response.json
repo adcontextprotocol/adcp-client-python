@@ -14,6 +14,9 @@
           "format": "date-time",
           "type": "string"
         },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
         "interactive_url": {
           "description": "Optional URL to an interactive testing page that shows all preview variants with controls to switch between them, modify macro values, and test different scenarios.",
           "format": "uri",
@@ -89,6 +92,9 @@
       "properties": {
         "context": {
           "$ref": "../core/context.json"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
         },
         "response_type": {
           "const": "batch",
@@ -230,10 +236,5 @@
       "type": "object"
     }
   ],
-  "properties": {
-    "ext": {
-      "$ref": "../core/ext.json"
-    }
-  },
   "title": "Preview Creative Response"
 }

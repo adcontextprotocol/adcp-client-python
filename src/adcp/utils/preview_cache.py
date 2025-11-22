@@ -465,9 +465,17 @@ def _create_sample_asset(asset_type: str | None) -> Any:
     )
 
     if asset_type == "image":
-        return ImageAsset(url="https://via.placeholder.com/300x250.png")
+        return ImageAsset(
+            url="https://via.placeholder.com/300x250.png",
+            width=300,
+            height=250,
+        )
     elif asset_type == "video":
-        return VideoAsset(url="https://example.com/sample-video.mp4")
+        return VideoAsset(
+            url="https://example.com/sample-video.mp4",
+            width=1920,
+            height=1080,
+        )
     elif asset_type == "text":
         return TextAsset(content="Sample advertising text")
     elif asset_type == "url":

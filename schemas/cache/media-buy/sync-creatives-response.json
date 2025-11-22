@@ -92,6 +92,9 @@
         "dry_run": {
           "description": "Whether this was a dry run (no actual changes made)",
           "type": "boolean"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
         }
       },
       "required": [
@@ -127,6 +130,9 @@
           },
           "minItems": 1,
           "type": "array"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
         }
       },
       "required": [
@@ -135,11 +141,6 @@
       "type": "object"
     }
   ],
-  "properties": {
-    "ext": {
-      "$ref": "../core/ext.json"
-    }
-  },
   "title": "Sync Creatives Response",
   "type": "object"
 }

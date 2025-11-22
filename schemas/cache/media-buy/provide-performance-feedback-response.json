@@ -14,6 +14,9 @@
         "context": {
           "$ref": "../core/context.json"
         },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
         "success": {
           "const": true,
           "description": "Whether the performance feedback was successfully received",
@@ -44,6 +47,9 @@
           },
           "minItems": 1,
           "type": "array"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
         }
       },
       "required": [
@@ -52,11 +58,6 @@
       "type": "object"
     }
   ],
-  "properties": {
-    "ext": {
-      "$ref": "../core/ext.json"
-    }
-  },
   "title": "Provide Performance Feedback Response",
   "type": "object"
 }

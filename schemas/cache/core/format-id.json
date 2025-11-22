@@ -1,15 +1,49 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "description": "Structured format identifier with agent URL and format name",
+  "allOf": [
+    {
+      "oneOf": [
+        {
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "width"
+                ]
+              },
+              {
+                "required": [
+                  "height"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "dimensions.json"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "description": "Structured format identifier with agent URL and format name. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants.",
   "properties": {
     "agent_url": {
       "description": "URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)",
       "format": "uri",
       "type": "string"
     },
+    "duration_ms": {
+      "description": "Duration in milliseconds for time-based formats (video, audio). When specified, creates a parameterized format ID. Omit to reference a template format without parameters.",
+      "minimum": 1,
+      "type": "number"
+    },
     "id": {
-      "description": "Format identifier within the agent's namespace (e.g., 'display_300x250', 'video_standard_30s')",
+      "description": "Format identifier within the agent's namespace (e.g., 'display_static', 'video_hosted', 'audio_standard'). When used alone, references a template format. When combined with dimension/duration fields, creates a parameterized format ID for a specific variant.",
       "pattern": "^[a-zA-Z0-9_-]+$",
       "type": "string"
     }

@@ -168,7 +168,7 @@ async def test_preview_creative_simple_api():
 
     with patch.object(creative_agent, "preview_creative", new=AsyncMock(return_value=mock_result)):
         # Call simplified API with new schema structure
-        from adcp.types._generated import CreativeManifest, FormatId
+        from adcp.types._generated import CreativeManifest, FormatId1 as FormatId
 
         format_id = FormatId(agent_url="https://creative.example.com", id="banner_300x250")
         creative_manifest = CreativeManifest.model_construct(format_id=format_id, assets={})

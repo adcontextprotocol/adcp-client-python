@@ -23,6 +23,9 @@
           "format": "date-time",
           "type": "string"
         },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
         "media_buy_id": {
           "description": "Publisher's unique identifier for the created media buy",
           "type": "string"
@@ -75,6 +78,9 @@
           },
           "minItems": 1,
           "type": "array"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
         }
       },
       "required": [
@@ -83,11 +89,6 @@
       "type": "object"
     }
   ],
-  "properties": {
-    "ext": {
-      "$ref": "../core/ext.json"
-    }
-  },
   "title": "Create Media Buy Response",
   "type": "object"
 }

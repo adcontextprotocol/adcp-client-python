@@ -3,6 +3,14 @@
   "additionalProperties": false,
   "description": "Represents a creative format with its requirements",
   "properties": {
+    "accepts_parameters": {
+      "description": "List of parameters this format accepts in format_id. Template formats define which parameters (dimensions, duration, etc.) can be specified when instantiating the format. Empty or omitted means this is a concrete format with fixed parameters.",
+      "items": {
+        "$ref": "../enums/format-id-parameter.json"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
     "assets_required": {
       "description": "Array of required assets or asset groups for this format. Each asset is identified by its asset_id, which must be used as the key in creative manifests. Can contain individual assets or repeatable asset sequences (e.g., carousel products, slideshow frames).",
       "items": {
@@ -33,7 +41,7 @@
               },
               "requirements": {
                 "additionalProperties": true,
-                "description": "Technical requirements for this asset (dimensions, file size, duration, etc.)",
+                "description": "Technical requirements for this asset (dimensions, file size, duration, etc.). For template formats, use parameters_from_format_id: true to indicate asset parameters must match the format_id parameters (width/height/unit and/or duration_ms).",
                 "type": "object"
               }
             },
@@ -73,7 +81,7 @@
                     },
                     "requirements": {
                       "additionalProperties": true,
-                      "description": "Technical requirements for this asset",
+                      "description": "Technical requirements for this asset. For template formats, use parameters_from_format_id: true to indicate asset parameters must match the format_id parameters (width/height/unit and/or duration_ms).",
                       "type": "object"
                     }
                   },
@@ -191,9 +199,36 @@
     "renders": {
       "description": "Specification of rendered pieces for this format. Most formats produce a single render. Companion ad formats (video + banner), adaptive formats, and multi-placement formats produce multiple renders. Each render specifies its role and dimensions.",
       "items": {
+        "oneOf": [
+          {
+            "not": {
+              "required": [
+                "parameters_from_format_id"
+              ]
+            },
+            "required": [
+              "dimensions"
+            ]
+          },
+          {
+            "not": {
+              "required": [
+                "dimensions"
+              ]
+            },
+            "properties": {
+              "parameters_from_format_id": {
+                "const": true
+              }
+            },
+            "required": [
+              "parameters_from_format_id"
+            ]
+          }
+        ],
         "properties": {
           "dimensions": {
-            "description": "Dimensions for this rendered piece",
+            "description": "Dimensions for this rendered piece (in pixels)",
             "properties": {
               "aspect_ratio": {
                 "description": "Fixed aspect ratio constraint (e.g., '16:9', '4:3', '1:1')",
@@ -201,29 +236,29 @@
                 "type": "string"
               },
               "height": {
-                "description": "Fixed height in specified units",
-                "minimum": 0,
-                "type": "number"
+                "description": "Fixed height in pixels",
+                "minimum": 1,
+                "type": "integer"
               },
               "max_height": {
-                "description": "Maximum height for responsive renders",
-                "minimum": 0,
-                "type": "number"
+                "description": "Maximum height in pixels for responsive renders",
+                "minimum": 1,
+                "type": "integer"
               },
               "max_width": {
-                "description": "Maximum width for responsive renders",
-                "minimum": 0,
-                "type": "number"
+                "description": "Maximum width in pixels for responsive renders",
+                "minimum": 1,
+                "type": "integer"
               },
               "min_height": {
-                "description": "Minimum height for responsive renders",
-                "minimum": 0,
-                "type": "number"
+                "description": "Minimum height in pixels for responsive renders",
+                "minimum": 1,
+                "type": "integer"
               },
               "min_width": {
-                "description": "Minimum width for responsive renders",
-                "minimum": 0,
-                "type": "number"
+                "description": "Minimum width in pixels for responsive renders",
+                "minimum": 1,
+                "type": "integer"
               },
               "responsive": {
                 "description": "Indicates which dimensions are responsive/fluid",
@@ -241,21 +276,17 @@
                 ],
                 "type": "object"
               },
-              "unit": {
-                "$ref": "../enums/dimension-unit.json",
-                "default": "px",
-                "description": "Unit of measurement for dimensions"
-              },
               "width": {
-                "description": "Fixed width in specified units",
-                "minimum": 0,
-                "type": "number"
+                "description": "Fixed width in pixels",
+                "minimum": 1,
+                "type": "integer"
               }
             },
-            "required": [
-              "unit"
-            ],
             "type": "object"
+          },
+          "parameters_from_format_id": {
+            "description": "When true, parameters for this render (dimensions and/or duration) are specified in the format_id. Used for template formats that accept parameters. Mutually exclusive with specifying dimensions object explicitly.",
+            "type": "boolean"
           },
           "role": {
             "description": "Semantic role of this rendered piece (e.g., 'primary', 'companion', 'mobile_variant')",
@@ -263,8 +294,7 @@
           }
         },
         "required": [
-          "role",
-          "dimensions"
+          "role"
         ],
         "type": "object"
       },
