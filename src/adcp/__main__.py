@@ -163,7 +163,8 @@ async def _dispatch_tool(client: ADCPClient, tool_name: str, payload: dict[str, 
     method_name, request_type = TOOL_DISPATCH[tool_name]
     method = getattr(client, method_name)
 
-    # Special case: list_tools and get_info take no parameters and return data directly, not TaskResult
+    # Special case: list_tools and get_info take no parameters and return
+    # data directly, not TaskResult
     if tool_name == "list_tools":
         try:
             tools = await method()
