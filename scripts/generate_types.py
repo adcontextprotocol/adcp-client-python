@@ -22,48 +22,16 @@ OUTPUT_DIR = REPO_ROOT / "src" / "adcp" / "types" / "generated_poc"
 TEMP_DIR = REPO_ROOT / ".schema_temp"
 
 
-def rewrite_refs(obj: dict | list | str) -> dict | list | str:
-    """
-    Recursively rewrite $ref paths to flat references.
-
-    Since we flatten all schemas into a single directory, we need to convert:
-    - Absolute paths: "/schemas/v1/core/error.json" -> "./error.json"
-    - Relative paths: "../core/error.json" -> "./error.json"
-    - Directory paths: "core/error.json" -> "./error.json"
-    - Same-dir refs: "./error.json" -> "./error.json" (unchanged)
-    """
-    if isinstance(obj, dict):
-        result = {}
-        for key, value in obj.items():
-            if key == "$ref" and isinstance(value, str):
-                # Extract just the filename from any $ref format
-                if value.startswith("/schemas/"):
-                    # Absolute path: /schemas/v1/core/error.json
-                    filename = value.split("/")[-1]
-                    result[key] = f"./{filename}"
-                elif "/" in value:
-                    # Any path with / in it (../core/error.json, core/error.json, etc.)
-                    filename = value.split("/")[-1]
-                    result[key] = f"./{filename}"
-                else:
-                    # Already just a filename or other format
-                    result[key] = value
-            else:
-                result[key] = rewrite_refs(value)
-        return result
-    elif isinstance(obj, list):
-        return [rewrite_refs(item) for item in obj]
-    else:
-        return obj
-
-
 def flatten_schemas():
     """
-    Flatten schema directory structure and rewrite $ref paths.
+    Copy schemas to temp directory, preserving directory structure.
 
-    The tool has issues with nested $ref paths, so we:
-    1. Copy all schemas from subdirectories into flat structure
-    2. Rewrite absolute $ref paths to relative paths
+    We can't truly flatten because there are filename collisions:
+    - media-buy/list-creative-formats-request.json
+    - creative/list-creative-formats-request.json
+
+    Instead, we preserve the directory structure and let datamodel-code-generator
+    handle the relative refs correctly.
     """
     print("Preparing schemas...")
 
@@ -82,22 +50,23 @@ def flatten_schemas():
     ]
 
     for schema_file in schema_files:
-        # Load schema
+        # Preserve directory structure relative to SCHEMAS_DIR
+        rel_path = schema_file.relative_to(SCHEMAS_DIR)
+        output_file = TEMP_DIR / rel_path
+
+        # Create parent directories
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Just copy the schema as-is (refs are already relative from fix_schema_refs.py)
         with open(schema_file) as f:
             schema = json.load(f)
 
-        # Rewrite $ref paths
-        schema = rewrite_refs(schema)
-
-        # Write to temp directory (flattened)
-        output_file = TEMP_DIR / schema_file.name
         with open(output_file, "w") as f:
             json.dump(schema, f, indent=2)
 
-        rel_path = schema_file.relative_to(SCHEMAS_DIR)
         print(f"  {rel_path}")
 
-    count = len(list(TEMP_DIR.glob("*.json")))
+    count = len(schema_files)
     print(f"\n  Prepared {count} schema files\n")
     return TEMP_DIR
 
