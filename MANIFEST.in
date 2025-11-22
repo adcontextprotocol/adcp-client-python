@@ -1,0 +1,4 @@
+include ADCP_VERSION
+include README.md
+include LICENSE
+recursive-include src/adcp py.typed
