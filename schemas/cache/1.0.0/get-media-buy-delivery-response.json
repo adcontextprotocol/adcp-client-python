@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/media-buy/get-media-buy-delivery-response.json",
+  "$id": "/schemas/media-buy/get-media-buy-delivery-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Response payload for get_media_buy_delivery task",
@@ -54,7 +54,7 @@
     "errors": {
       "description": "Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)",
       "items": {
-        "$ref": "error.json"
+        "$ref": "/schemas/core/error.json"
       },
       "type": "array"
     },
@@ -72,7 +72,7 @@
             "items": {
               "allOf": [
                 {
-                  "$ref": "delivery-metrics.json"
+                  "$ref": "/schemas/core/delivery-metrics.json"
                 },
                 {
                   "properties": {
@@ -85,6 +85,17 @@
                       "pattern": "^[A-Z]{3}$",
                       "type": "string"
                     },
+                    "delivery_status": {
+                      "description": "System-reported operational state of this package. Reflects actual delivery state independent of buyer pause control.",
+                      "enum": [
+                        "delivering",
+                        "completed",
+                        "budget_exhausted",
+                        "flight_ended",
+                        "goal_met"
+                      ],
+                      "type": "string"
+                    },
                     "pacing_index": {
                       "description": "Delivery pace (1.0 = on track, <1.0 = behind, >1.0 = ahead)",
                       "minimum": 0,
@@ -94,8 +105,12 @@
                       "description": "Publisher's package identifier",
                       "type": "string"
                     },
+                    "paused": {
+                      "description": "Whether this package is currently paused by the buyer",
+                      "type": "boolean"
+                    },
                     "pricing_model": {
-                      "$ref": "pricing-model.json",
+                      "$ref": "/schemas/enums/pricing-model.json",
                       "description": "The pricing model used for this package (e.g., cpm, cpcv, cpp). Indicates how the package is billed and which metrics are most relevant for optimization."
                     },
                     "rate": {
@@ -161,7 +176,7 @@
             "type": "string"
           },
           "pricing_model": {
-            "$ref": "pricing-model.json",
+            "$ref": "/schemas/enums/pricing-model.json",
             "description": "Pricing model used for this media buy"
           },
           "status": {
@@ -179,7 +194,7 @@
           "totals": {
             "allOf": [
               {
-                "$ref": "delivery-metrics.json"
+                "$ref": "/schemas/core/delivery-metrics.json"
               },
               {
                 "description": "Aggregate metrics for this media buy across all packages",

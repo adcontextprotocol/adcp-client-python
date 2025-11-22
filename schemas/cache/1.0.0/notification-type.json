@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/enums/notification-type.json",
+  "$id": "/schemas/enums/notification-type.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Type of delivery notification for media buy reporting",
   "enum": [

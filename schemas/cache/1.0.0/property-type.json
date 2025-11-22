@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/enums/property-type.json",
+  "$id": "/schemas/enums/property-type.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Types of advertising properties that can be represented in AdCP",
   "enum": [

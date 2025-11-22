@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/core/targeting.json",
+  "$id": "/schemas/core/targeting.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Optional geographic refinements for media buys. Most targeting should be expressed in the brief and handled by the publisher. These fields are primarily for geographic restrictions (RCT testing, regulatory compliance).",
@@ -13,7 +13,7 @@
       "type": "string"
     },
     "frequency_cap": {
-      "$ref": "frequency-cap.json"
+      "$ref": "/schemas/core/frequency-cap.json"
     },
     "geo_country_any_of": {
       "description": "Restrict delivery to specific countries (ISO codes). Use for regulatory compliance or RCT testing.",

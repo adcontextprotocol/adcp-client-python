@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/core/assets/daast-asset.json",
+  "$id": "/schemas/core/assets/daast-asset.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "DAAST (Digital Audio Ad Serving Template) tag for third-party audio ad serving",
   "oneOf": [
@@ -11,7 +11,7 @@
           "type": "boolean"
         },
         "daast_version": {
-          "$ref": "/schemas/v1/enums/daast-version.json",
+          "$ref": "/schemas/enums/daast-version.json",
           "description": "DAAST specification version"
         },
         "delivery_type": {
@@ -27,7 +27,7 @@
         "tracking_events": {
           "description": "Tracking events supported by this DAAST tag",
           "items": {
-            "$ref": "/schemas/v1/enums/daast-tracking-event.json"
+            "$ref": "/schemas/enums/daast-tracking-event.json"
           },
           "type": "array"
         },
@@ -55,7 +55,7 @@
           "type": "string"
         },
         "daast_version": {
-          "$ref": "/schemas/v1/enums/daast-version.json",
+          "$ref": "/schemas/enums/daast-version.json",
           "description": "DAAST specification version"
         },
         "delivery_type": {
@@ -71,7 +71,7 @@
         "tracking_events": {
           "description": "Tracking events supported by this DAAST tag",
           "items": {
-            "$ref": "/schemas/v1/enums/daast-tracking-event.json"
+            "$ref": "/schemas/enums/daast-tracking-event.json"
           },
           "type": "array"
         }

@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/core/tasks-list-request.json",
+  "$id": "/schemas/core/tasks-list-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Request parameters for listing and filtering async tasks across all AdCP domains with state reconciliation capabilities",
@@ -79,13 +79,13 @@
           "type": "string"
         },
         "domain": {
-          "$ref": "/schemas/v1/enums/adcp-domain.json",
+          "$ref": "/schemas/enums/adcp-domain.json",
           "description": "Filter by single AdCP domain"
         },
         "domains": {
           "description": "Filter by multiple AdCP domains",
           "items": {
-            "$ref": "/schemas/v1/enums/adcp-domain.json"
+            "$ref": "/schemas/enums/adcp-domain.json"
           },
           "type": "array"
         },
@@ -94,13 +94,13 @@
           "type": "boolean"
         },
         "status": {
-          "$ref": "/schemas/v1/enums/task-status.json",
+          "$ref": "/schemas/enums/task-status.json",
           "description": "Filter by single task status"
         },
         "statuses": {
           "description": "Filter by multiple task statuses",
           "items": {
-            "$ref": "/schemas/v1/enums/task-status.json"
+            "$ref": "/schemas/enums/task-status.json"
           },
           "type": "array"
         },
@@ -113,13 +113,13 @@
           "type": "array"
         },
         "task_type": {
-          "$ref": "/schemas/v1/enums/task-type.json",
+          "$ref": "/schemas/enums/task-type.json",
           "description": "Filter by single task type"
         },
         "task_types": {
           "description": "Filter by multiple task types",
           "items": {
-            "$ref": "/schemas/v1/enums/task-type.json"
+            "$ref": "/schemas/enums/task-type.json"
           },
           "type": "array"
         },
@@ -166,7 +166,7 @@
       "description": "Sorting parameters",
       "properties": {
         "direction": {
-          "$ref": "/schemas/v1/enums/sort-direction.json",
+          "$ref": "/schemas/enums/sort-direction.json",
           "default": "desc",
           "description": "Sort direction"
         },

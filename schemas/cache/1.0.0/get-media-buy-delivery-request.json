@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/media-buy/get-media-buy-delivery-request.json",
+  "$id": "/schemas/media-buy/get-media-buy-delivery-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Request parameters for retrieving comprehensive delivery metrics",
@@ -37,11 +37,11 @@
       "description": "Filter by status. Can be a single status or array of statuses",
       "oneOf": [
         {
-          "$ref": "/schemas/v1/enums/media-buy-status.json"
+          "$ref": "/schemas/enums/media-buy-status.json"
         },
         {
           "items": {
-            "$ref": "/schemas/v1/enums/media-buy-status.json"
+            "$ref": "/schemas/enums/media-buy-status.json"
           },
           "type": "array"
         }

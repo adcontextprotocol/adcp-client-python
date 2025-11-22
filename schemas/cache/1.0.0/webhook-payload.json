@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/core/webhook-payload.json",
+  "$id": "/schemas/core/webhook-payload.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "allOf": [
@@ -14,7 +14,7 @@
       "then": {
         "properties": {
           "result": {
-            "$ref": "/schemas/v1/media-buy/create-media-buy-response.json"
+            "$ref": "/schemas/media-buy/create-media-buy-response.json"
           }
         }
       }
@@ -30,7 +30,7 @@
       "then": {
         "properties": {
           "result": {
-            "$ref": "/schemas/v1/media-buy/update-media-buy-response.json"
+            "$ref": "/schemas/media-buy/update-media-buy-response.json"
           }
         }
       }
@@ -46,7 +46,7 @@
       "then": {
         "properties": {
           "result": {
-            "$ref": "/schemas/v1/media-buy/sync-creatives-response.json"
+            "$ref": "/schemas/media-buy/sync-creatives-response.json"
           }
         }
       }
@@ -62,7 +62,7 @@
       "then": {
         "properties": {
           "result": {
-            "$ref": "/schemas/v1/signals/activate-signal-response.json"
+            "$ref": "/schemas/signals/activate-signal-response.json"
           }
         }
       }
@@ -78,7 +78,7 @@
       "then": {
         "properties": {
           "result": {
-            "$ref": "/schemas/v1/signals/get-signals-response.json"
+            "$ref": "/schemas/signals/get-signals-response.json"
           }
         }
       }
@@ -130,9 +130,9 @@
               ],
               "pacing": "even",
               "package_id": "pkg_12345_001",
+              "paused": false,
               "pricing_option_id": "cpm-fixed-sports",
-              "product_id": "ctv_sports_premium",
-              "status": "active"
+              "product_id": "ctv_sports_premium"
             }
           ]
         },
@@ -170,7 +170,7 @@
       "type": "string"
     },
     "domain": {
-      "$ref": "/schemas/v1/enums/adcp-domain.json",
+      "$ref": "/schemas/enums/adcp-domain.json",
       "description": "AdCP domain this task belongs to. Helps classify the operation type at a high level."
     },
     "error": {
@@ -222,7 +222,7 @@
       ]
     },
     "status": {
-      "$ref": "/schemas/v1/enums/task-status.json",
+      "$ref": "/schemas/enums/task-status.json",
       "description": "Current task status. Webhooks are only triggered for status changes after initial submission (e.g., submitted \u2192 input-required, submitted \u2192 completed, submitted \u2192 failed)."
     },
     "task_id": {
@@ -230,7 +230,7 @@
       "type": "string"
     },
     "task_type": {
-      "$ref": "/schemas/v1/enums/task-type.json",
+      "$ref": "/schemas/enums/task-type.json",
       "description": "Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic."
     },
     "timestamp": {

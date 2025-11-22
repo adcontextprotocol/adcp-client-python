@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/pricing-options/cpcv-option.json",
+  "$id": "/schemas/pricing-options/cpcv-option.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Cost Per Completed View (100% video/audio completion) fixed-rate pricing",

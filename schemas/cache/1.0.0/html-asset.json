@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/core/assets/html-asset.json",
+  "$id": "/schemas/core/assets/html-asset.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "HTML content asset",

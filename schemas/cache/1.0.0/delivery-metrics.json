@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/core/delivery-metrics.json",
+  "$id": "/schemas/core/delivery-metrics.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Standard delivery metrics that can be reported at media buy, package, or creative level",

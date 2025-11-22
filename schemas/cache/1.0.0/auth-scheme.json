@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/enums/auth-scheme.json",
+  "$id": "/schemas/enums/auth-scheme.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Authentication schemes for push notification endpoints",
   "enum": [

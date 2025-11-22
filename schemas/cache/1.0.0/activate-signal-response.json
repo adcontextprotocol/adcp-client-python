@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/signals/activate-signal-response.json",
+  "$id": "/schemas/signals/activate-signal-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Response payload for activate_signal task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - the signal is either fully activated or not activated at all.",
   "oneOf": [
@@ -20,7 +20,7 @@
         "deployments": {
           "description": "Array of deployment results for each deployment target",
           "items": {
-            "$ref": "/schemas/v1/core/deployment.json"
+            "$ref": "/schemas/core/deployment.json"
           },
           "type": "array"
         }
@@ -47,7 +47,7 @@
         "errors": {
           "description": "Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)",
           "items": {
-            "$ref": "/schemas/v1/core/error.json"
+            "$ref": "/schemas/core/error.json"
           },
           "minItems": 1,
           "type": "array"

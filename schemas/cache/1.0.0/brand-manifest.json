@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/core/brand-manifest.json",
+  "$id": "/schemas/core/brand-manifest.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Standardized brand information manifest for creative generation and media buying. Enables low-friction creative workflows by providing brand context that can be easily cached and shared across requests.",
@@ -125,7 +125,7 @@
             "type": "string"
           },
           "asset_type": {
-            "$ref": "/schemas/v1/enums/asset-content-type.json",
+            "$ref": "/schemas/enums/asset-content-type.json",
             "description": "Type of asset. Note: Brand manifests typically contain basic media assets (image, video, audio, text). Code assets (html, javascript, css) and ad markup (vast, daast) are usually not part of brand asset libraries."
           },
           "description": {

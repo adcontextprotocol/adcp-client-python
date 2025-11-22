@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/creative/preview-creative-response.json",
+  "$id": "/schemas/creative/preview-creative-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Response containing preview links for one or more creatives. Format matches the request: single preview response for single requests, batch results for batch requests.",
   "oneOf": [
@@ -57,7 +57,7 @@
               "renders": {
                 "description": "Array of rendered pieces for this preview variant. Most formats render as a single piece. Companion ad formats (video + banner), multi-placement formats, and adaptive formats render as multiple pieces.",
                 "items": {
-                  "$ref": "preview-render.json"
+                  "$ref": "/schemas/creative/preview-render.json"
                 },
                 "minItems": 1,
                 "type": "array"
@@ -191,7 +191,7 @@
                         },
                         "renders": {
                           "items": {
-                            "$ref": "preview-render.json"
+                            "$ref": "/schemas/creative/preview-render.json"
                           },
                           "minItems": 1,
                           "type": "array"

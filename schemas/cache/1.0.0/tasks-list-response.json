@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/core/tasks-list-response.json",
+  "$id": "/schemas/core/tasks-list-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Response from task listing query with filtered results and state reconciliation data across all AdCP domains",
@@ -142,7 +142,7 @@
             "type": "boolean"
           },
           "status": {
-            "$ref": "task-status.json",
+            "$ref": "/schemas/enums/task-status.json",
             "description": "Current task status"
           },
           "task_id": {
@@ -150,7 +150,7 @@
             "type": "string"
           },
           "task_type": {
-            "$ref": "task-type.json",
+            "$ref": "/schemas/enums/task-type.json",
             "description": "Type of AdCP operation"
           },
           "updated_at": {

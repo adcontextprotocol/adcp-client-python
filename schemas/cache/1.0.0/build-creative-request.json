@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/media-buy/build-creative-request.json",
+  "$id": "/schemas/media-buy/build-creative-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Request to transform or generate a creative manifest. Takes a source manifest (which may be minimal for pure generation) and produces a target manifest in the specified format. The source manifest should include all assets required by the target format (e.g., promoted_offerings for generative formats).",
@@ -10,7 +10,7 @@
       "type": "object"
     },
     "creative_manifest": {
-      "$ref": "creative-manifest.json",
+      "$ref": "/schemas/core/creative-manifest.json",
       "description": "Creative manifest to transform or generate from. For pure generation, this should include the target format_id and any required input assets (e.g., promoted_offerings for generative formats). For transformation (e.g., resizing, reformatting), this is the complete creative to adapt."
     },
     "message": {
@@ -18,7 +18,7 @@
       "type": "string"
     },
     "target_format_id": {
-      "$ref": "format-id.json",
+      "$ref": "/schemas/core/format-id.json",
       "description": "Format ID to generate. The format definition specifies required input assets and output structure."
     }
   },

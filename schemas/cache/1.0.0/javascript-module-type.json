@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/enums/javascript-module-type.json",
+  "$id": "/schemas/enums/javascript-module-type.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "JavaScript module format types for creative assets",
   "enum": [

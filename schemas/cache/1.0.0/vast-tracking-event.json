@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/enums/vast-tracking-event.json",
+  "$id": "/schemas/enums/vast-tracking-event.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Standard VAST tracking events for video ad playback and interaction",
   "enum": [

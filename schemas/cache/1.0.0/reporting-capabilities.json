@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/core/reporting-capabilities.json",
+  "$id": "/schemas/core/reporting-capabilities.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Reporting capabilities available for a product",
@@ -20,7 +20,7 @@
         ]
       ],
       "items": {
-        "$ref": "/schemas/v1/enums/available-metric.json"
+        "$ref": "/schemas/enums/available-metric.json"
       },
       "type": "array",
       "uniqueItems": true
@@ -28,7 +28,7 @@
     "available_reporting_frequencies": {
       "description": "Supported reporting frequency options",
       "items": {
-        "$ref": "/schemas/v1/enums/reporting-frequency.json"
+        "$ref": "/schemas/enums/reporting-frequency.json"
       },
       "minItems": 1,
       "type": "array",

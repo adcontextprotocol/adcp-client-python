@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/core/product.json",
+  "$id": "/schemas/core/product.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Represents available advertising inventory",
@@ -9,7 +9,7 @@
       "type": "string"
     },
     "creative_policy": {
-      "$ref": "/schemas/v1/core/creative-policy.json"
+      "$ref": "/schemas/core/creative-policy.json"
     },
     "delivery_measurement": {
       "description": "Measurement provider and methodology for delivery metrics. The buyer accepts the declared provider as the source of truth for the buy. REQUIRED for all products.",
@@ -29,7 +29,7 @@
       "type": "object"
     },
     "delivery_type": {
-      "$ref": "/schemas/v1/enums/delivery-type.json"
+      "$ref": "/schemas/enums/delivery-type.json"
     },
     "description": {
       "description": "Detailed description of the product and its inventory",
@@ -48,7 +48,7 @@
     "format_ids": {
       "description": "Array of supported creative format IDs - structured format_id objects with agent_url and id",
       "items": {
-        "$ref": "/schemas/v1/core/format-id.json"
+        "$ref": "/schemas/core/format-id.json"
       },
       "type": "array"
     },
@@ -57,7 +57,7 @@
       "type": "boolean"
     },
     "measurement": {
-      "$ref": "/schemas/v1/core/measurement.json"
+      "$ref": "/schemas/core/measurement.json"
     },
     "name": {
       "description": "Human-readable product name",
@@ -66,7 +66,7 @@
     "placements": {
       "description": "Optional array of specific placements within this product. When provided, buyers can target specific placements when assigning creatives.",
       "items": {
-        "$ref": "/schemas/v1/core/placement.json"
+        "$ref": "/schemas/core/placement.json"
       },
       "minItems": 1,
       "type": "array"
@@ -74,7 +74,7 @@
     "pricing_options": {
       "description": "Available pricing models for this product",
       "items": {
-        "$ref": "/schemas/v1/core/pricing-option.json"
+        "$ref": "/schemas/core/pricing-option.json"
       },
       "minItems": 1,
       "type": "array"
@@ -84,7 +84,7 @@
       "description": "Optional standard visual card (300x400px) for displaying this product in user interfaces. Can be rendered via preview_creative or pre-generated.",
       "properties": {
         "format_id": {
-          "$ref": "/schemas/v1/core/format-id.json",
+          "$ref": "/schemas/core/format-id.json",
           "description": "Creative format defining the card layout (typically product_card_standard)"
         },
         "manifest": {
@@ -104,7 +104,7 @@
       "description": "Optional detailed card with carousel and full specifications. Provides rich product presentation similar to media kit pages.",
       "properties": {
         "format_id": {
-          "$ref": "/schemas/v1/core/format-id.json",
+          "$ref": "/schemas/core/format-id.json",
           "description": "Creative format defining the detailed card layout (typically product_card_detailed)"
         },
         "manifest": {
@@ -126,13 +126,13 @@
     "publisher_properties": {
       "description": "Publisher properties covered by this product. Buyers fetch actual property definitions from each publisher's adagents.json and validate agent authorization. Selection patterns mirror the authorization patterns in adagents.json for consistency.",
       "items": {
-        "$ref": "/schemas/v1/core/publisher-property-selector.json"
+        "$ref": "/schemas/core/publisher-property-selector.json"
       },
       "minItems": 1,
       "type": "array"
     },
     "reporting_capabilities": {
-      "$ref": "/schemas/v1/core/reporting-capabilities.json"
+      "$ref": "/schemas/core/reporting-capabilities.json"
     }
   },
   "required": [

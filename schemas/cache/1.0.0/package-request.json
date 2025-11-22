@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/media-buy/package-request.json",
+  "$id": "/schemas/media-buy/package-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Package configuration for media buy creation",
@@ -28,7 +28,7 @@
     "creatives": {
       "description": "Full creative objects to upload and assign to this package at creation time (alternative to creative_ids - creatives will be added to library). Supports both static and generative creatives.",
       "items": {
-        "$ref": "creative-asset.json"
+        "$ref": "/schemas/core/creative-asset.json"
       },
       "maxItems": 100,
       "type": "array"
@@ -36,13 +36,13 @@
     "format_ids": {
       "description": "Array of format IDs that will be used for this package - must be supported by the product. If omitted, defaults to all formats supported by the product.",
       "items": {
-        "$ref": "format-id.json"
+        "$ref": "/schemas/core/format-id.json"
       },
       "minItems": 1,
       "type": "array"
     },
     "pacing": {
-      "$ref": "pacing.json"
+      "$ref": "/schemas/enums/pacing.json"
     },
     "pricing_option_id": {
       "description": "ID of the selected pricing option from the product's pricing_options array",
@@ -53,7 +53,7 @@
       "type": "string"
     },
     "targeting_overlay": {
-      "$ref": "targeting.json"
+      "$ref": "/schemas/core/targeting.json"
     }
   },
   "required": [

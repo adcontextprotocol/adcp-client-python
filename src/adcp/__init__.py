@@ -182,7 +182,28 @@ from adcp.validation import (
 
 __version__ = "2.11.1"
 
+
+def get_adcp_version() -> str:
+    """
+    Get the target AdCP specification version this SDK is built for.
+
+    This version determines which AdCP schemas are used for type generation
+    and validation. The SDK is designed to work with this specific version
+    of the AdCP specification.
+
+    Returns:
+        AdCP specification version (e.g., "v2", "source")
+
+    Note:
+        Currently returns "source" as upstream repository has not yet
+        migrated to versioned paths. Will be updated to "v2" when
+        upstream completes the migration.
+    """
+    return "source"  # TODO: Update to "v2" when upstream migrates to versioned paths
+
 __all__ = [
+    # Version functions
+    "get_adcp_version",
     # Client classes
     "ADCPClient",
     "ADCPMultiAgentClient",

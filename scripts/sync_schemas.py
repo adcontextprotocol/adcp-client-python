@@ -27,10 +27,35 @@ from pathlib import Path
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
+
+def get_target_adcp_version() -> str:
+    """
+    Get the target AdCP version from the main package.
+
+    Returns:
+        AdCP version string (e.g., "v2")
+    """
+    # Import here to avoid circular dependency
+    sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+    try:
+        from adcp import get_adcp_version
+
+        return get_adcp_version()
+    except ImportError:
+        # Fallback if package not installed
+        return "v2"
+    finally:
+        sys.path.pop(0)
+
+
+# Get target AdCP version
+TARGET_ADCP_VERSION = get_target_adcp_version()
+
 # Use GitHub API and raw content for complete schema discovery
 GITHUB_API_BASE = "https://api.github.com/repos/adcontextprotocol/adcp/contents"
 ADCP_BASE_URL = "https://raw.githubusercontent.com/adcontextprotocol/adcp/main"
-SCHEMA_INDEX_URL = f"{ADCP_BASE_URL}/static/schemas/source/index.json"
+SCHEMA_INDEX_URL = f"{ADCP_BASE_URL}/static/schemas/{TARGET_ADCP_VERSION}/index.json"
+SCHEMA_SOURCE_PATH = f"static/schemas/{TARGET_ADCP_VERSION}"
 CACHE_DIR = Path(__file__).parent.parent / "schemas" / "cache"
 HASH_CACHE_FILE = CACHE_DIR / ".hashes.json"
 
@@ -206,8 +231,8 @@ def main():
             version = "1.0.0"  # Default version, will be detected from schemas
 
         # Discover ALL schemas by crawling the directory structure
-        print("Discovering all schemas in repository...")
-        schema_urls = discover_all_schemas("static/schemas/source")
+        print(f"Discovering all schemas for AdCP {TARGET_ADCP_VERSION}...")
+        schema_urls = discover_all_schemas(SCHEMA_SOURCE_PATH)
 
         # Remove duplicates and sort
         schema_urls = sorted(set(schema_urls))

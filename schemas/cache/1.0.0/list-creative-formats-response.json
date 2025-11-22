@@ -1,8 +1,8 @@
 {
-  "$id": "/schemas/v1/media-buy/list-creative-formats-response.json",
+  "$id": "/schemas/creative/list-creative-formats-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "description": "Response payload for list_creative_formats task",
+  "description": "Response payload for list_creative_formats task from creative agent - returns full format definitions",
   "properties": {
     "context": {
       "additionalProperties": true,
@@ -25,7 +25,7 @@
           "capabilities": {
             "description": "Capabilities this creative agent provides",
             "items": {
-              "$ref": "/schemas/v1/enums/creative-agent-capability.json"
+              "$ref": "/schemas/enums/creative-agent-capability.json"
             },
             "type": "array"
           }
@@ -38,16 +38,16 @@
       "type": "array"
     },
     "errors": {
-      "description": "Task-specific errors and warnings (e.g., format availability issues)",
+      "description": "Task-specific errors and warnings",
       "items": {
-        "$ref": "/schemas/v1/core/error.json"
+        "$ref": "/schemas/core/error.json"
       },
       "type": "array"
     },
     "formats": {
       "description": "Full format definitions for all formats this agent supports. Each format's authoritative source is indicated by its agent_url field.",
       "items": {
-        "$ref": "/schemas/v1/core/format.json"
+        "$ref": "/schemas/core/format.json"
       },
       "type": "array"
     }
@@ -55,6 +55,6 @@
   "required": [
     "formats"
   ],
-  "title": "List Creative Formats Response",
+  "title": "List Creative Formats Response (Creative Agent)",
   "type": "object"
 }

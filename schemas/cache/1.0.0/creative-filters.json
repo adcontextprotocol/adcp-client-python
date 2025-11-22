@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/core/creative-filters.json",
+  "$id": "/schemas/core/creative-filters.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Filter criteria for querying creative assets from the centralized library",
@@ -53,13 +53,13 @@
       "type": "string"
     },
     "status": {
-      "$ref": "/schemas/v1/enums/creative-status.json",
+      "$ref": "/schemas/enums/creative-status.json",
       "description": "Filter by creative approval status"
     },
     "statuses": {
       "description": "Filter by multiple creative statuses",
       "items": {
-        "$ref": "/schemas/v1/enums/creative-status.json"
+        "$ref": "/schemas/enums/creative-status.json"
       },
       "type": "array"
     },

@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/media-buy/get-products-response.json",
+  "$id": "/schemas/media-buy/get-products-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Response payload for get_products task",
@@ -12,14 +12,14 @@
     "errors": {
       "description": "Task-specific errors and warnings (e.g., product filtering issues)",
       "items": {
-        "$ref": "error.json"
+        "$ref": "/schemas/core/error.json"
       },
       "type": "array"
     },
     "products": {
       "description": "Array of matching products",
       "items": {
-        "$ref": "product.json"
+        "$ref": "/schemas/core/product.json"
       },
       "type": "array"
     }

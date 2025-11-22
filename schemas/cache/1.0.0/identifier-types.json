@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/enums/identifier-types.json",
+  "$id": "/schemas/enums/identifier-types.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Valid identifier types for property identification across different media types",
   "enum": [

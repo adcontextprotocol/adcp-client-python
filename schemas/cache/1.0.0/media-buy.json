@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/core/media-buy.json",
+  "$id": "/schemas/core/media-buy.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Represents a purchased advertising campaign",
@@ -25,7 +25,7 @@
     "packages": {
       "description": "Array of packages within this media buy",
       "items": {
-        "$ref": "package.json"
+        "$ref": "/schemas/core/package.json"
       },
       "type": "array"
     },
@@ -34,7 +34,7 @@
       "type": "string"
     },
     "status": {
-      "$ref": "media-buy-status.json"
+      "$ref": "/schemas/enums/media-buy-status.json"
     },
     "total_budget": {
       "description": "Total budget amount",

@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/pricing-options/cpc-option.json",
+  "$id": "/schemas/pricing-options/cpc-option.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Cost Per Click fixed-rate pricing for performance-driven advertising campaigns",

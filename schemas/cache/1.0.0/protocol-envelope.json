@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/core/protocol-envelope.json",
+  "$id": "/schemas/core/protocol-envelope.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Standard envelope structure for AdCP task responses. This envelope is added by the protocol layer (MCP, A2A, REST) and wraps the task-specific response payload. Task response schemas should NOT include these fields - they are protocol-level concerns.",
@@ -120,11 +120,11 @@
       "type": "object"
     },
     "push_notification_config": {
-      "$ref": "push-notification-config.json",
+      "$ref": "/schemas/core/push-notification-config.json",
       "description": "Push notification configuration for async task updates (A2A and REST protocols). Echoed from the request to confirm webhook settings. Specifies URL, authentication scheme (Bearer or HMAC-SHA256), and credentials. MCP uses progress notifications instead of webhooks."
     },
     "status": {
-      "$ref": "task-status.json",
+      "$ref": "/schemas/enums/task-status.json",
       "description": "Current task execution state. Indicates whether the task is completed, in progress (working), submitted for async processing, failed, or requires user input. Managed by the protocol layer."
     },
     "task_id": {

@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/signals/activate-signal-request.json",
+  "$id": "/schemas/signals/activate-signal-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Request parameters for activating a signal on a specific deployment target",
@@ -12,7 +12,7 @@
     "deployments": {
       "description": "Target deployment(s) for activation. If the authenticated caller matches one of these deployment targets, activation keys will be included in the response.",
       "items": {
-        "$ref": "/schemas/v1/core/destination.json"
+        "$ref": "/schemas/core/destination.json"
       },
       "minItems": 1,
       "type": "array"

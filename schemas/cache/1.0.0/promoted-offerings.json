@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/core/promoted-offerings.json",
+  "$id": "/schemas/core/promoted-offerings.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Complete offering specification combining brand manifest, product selectors, and asset filters. Provides all context needed for creative generation about what is being promoted.",
@@ -69,7 +69,7 @@
       "type": "object"
     },
     "brand_manifest": {
-      "$ref": "/schemas/v1/core/brand-manifest-ref.json",
+      "$ref": "/schemas/core/brand-manifest-ref.json",
       "description": "Brand information manifest containing assets, themes, and guidelines. Can be provided inline or as a URL reference to a hosted manifest."
     },
     "offerings": {
@@ -103,7 +103,7 @@
       "type": "array"
     },
     "product_selectors": {
-      "$ref": "/schemas/v1/core/promoted-products.json",
+      "$ref": "/schemas/core/promoted-products.json",
       "description": "Selectors to choose which products/offerings from the brand manifest product catalog to promote"
     }
   },

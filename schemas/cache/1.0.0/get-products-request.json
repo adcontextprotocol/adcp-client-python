@@ -1,11 +1,11 @@
 {
-  "$id": "/schemas/v1/media-buy/get-products-request.json",
+  "$id": "/schemas/media-buy/get-products-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Request parameters for discovering available advertising products",
   "properties": {
     "brand_manifest": {
-      "$ref": "/schemas/v1/core/brand-manifest-ref.json",
+      "$ref": "/schemas/core/brand-manifest-ref.json",
       "description": "Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest."
     },
     "brief": {
@@ -18,7 +18,7 @@
       "type": "object"
     },
     "filters": {
-      "$ref": "/schemas/v1/core/product-filters.json"
+      "$ref": "/schemas/core/product-filters.json"
     }
   },
   "required": [],

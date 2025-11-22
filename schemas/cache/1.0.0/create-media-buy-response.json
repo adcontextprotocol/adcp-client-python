@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/media-buy/create-media-buy-response.json",
+  "$id": "/schemas/media-buy/create-media-buy-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Response payload for create_media_buy task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - the media buy is either fully created or not created at all.",
   "oneOf": [
@@ -33,7 +33,7 @@
         "packages": {
           "description": "Array of created packages with complete state information",
           "items": {
-            "$ref": "/schemas/v1/core/package.json"
+            "$ref": "/schemas/core/package.json"
           },
           "type": "array"
         }
@@ -76,7 +76,7 @@
         "errors": {
           "description": "Array of errors explaining why the operation failed",
           "items": {
-            "$ref": "/schemas/v1/core/error.json"
+            "$ref": "/schemas/core/error.json"
           },
           "minItems": 1,
           "type": "array"

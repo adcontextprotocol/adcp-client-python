@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/pricing-options/cpm-auction-option.json",
+  "$id": "/schemas/pricing-options/cpm-auction-option.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Cost Per Mille (cost per 1,000 impressions) with auction-based pricing - common for programmatic/non-guaranteed inventory",

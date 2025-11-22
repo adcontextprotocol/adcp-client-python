@@ -323,6 +323,7 @@ def main() -> None:
     parser.add_argument("--list-agents", action="store_true", help="List saved agents")
     parser.add_argument("--remove-agent", metavar="ALIAS", help="Remove saved agent")
     parser.add_argument("--show-config", action="store_true", help="Show config file location")
+    parser.add_argument("--version", action="store_true", help="Show SDK and AdCP version")
 
     # Execution options
     parser.add_argument("--protocol", choices=["mcp", "a2a"], help="Force protocol type")
@@ -348,11 +349,13 @@ def main() -> None:
                 args.list_agents,
                 args.remove_agent,
                 args.show_config,
+                args.version,
             ]
         )
     ):
         parser.print_help()
         print("\nExamples:")
+        print("  adcp --version")
         print("  adcp --save-auth myagent https://agent.example.com mcp")
         print("  adcp --list-agents")
         print("  adcp myagent list_tools")
@@ -361,6 +364,13 @@ def main() -> None:
         sys.exit(0)
 
     # Handle configuration commands
+    if args.version:
+        from adcp import __version__, get_adcp_version
+
+        print(f"AdCP Python SDK: v{__version__}")
+        print(f"Target AdCP Spec: {get_adcp_version()}")
+        sys.exit(0)
+
     if args.save_auth:
         url = args.agent if args.agent else None
         protocol = args.tool if args.tool else None

@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/media-buy/update-media-buy-request.json",
+  "$id": "/schemas/media-buy/update-media-buy-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Request parameters for updating campaign and package settings",
@@ -16,10 +16,6 @@
     }
   ],
   "properties": {
-    "active": {
-      "description": "Pause/resume the entire media buy",
-      "type": "boolean"
-    },
     "buyer_ref": {
       "description": "Buyer's reference for the media buy to update",
       "type": "string"
@@ -55,10 +51,6 @@
           }
         ],
         "properties": {
-          "active": {
-            "description": "Pause/resume specific package",
-            "type": "boolean"
-          },
           "bid_price": {
             "description": "Updated bid price for auction-based pricing options (only applies when pricing_option is auction-based)",
             "minimum": 0,
@@ -81,26 +73,34 @@
             "type": "array"
           },
           "pacing": {
-            "$ref": "pacing.json"
+            "$ref": "/schemas/enums/pacing.json"
           },
           "package_id": {
             "description": "Publisher's ID of package to update",
             "type": "string"
           },
+          "paused": {
+            "description": "Pause/resume specific package (true = paused, false = active)",
+            "type": "boolean"
+          },
           "targeting_overlay": {
-            "$ref": "targeting.json"
+            "$ref": "/schemas/core/targeting.json"
           }
         },
         "type": "object"
       },
       "type": "array"
     },
+    "paused": {
+      "description": "Pause/resume the entire media buy (true = paused, false = active)",
+      "type": "boolean"
+    },
     "push_notification_config": {
-      "$ref": "push-notification-config.json",
+      "$ref": "/schemas/core/push-notification-config.json",
       "description": "Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time."
     },
     "start_time": {
-      "$ref": "start-timing.json"
+      "$ref": "/schemas/core/start-timing.json"
     }
   },
   "title": "Update Media Buy Request",

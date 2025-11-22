@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/core/creative-asset.json",
+  "$id": "/schemas/core/creative-asset.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Creative asset for upload to library - supports static assets, generative formats, and third-party snippets",
@@ -15,37 +15,37 @@
         "^[a-zA-Z0-9_-]+$": {
           "oneOf": [
             {
-              "$ref": "image-asset.json"
+              "$ref": "/schemas/core/assets/image-asset.json"
             },
             {
-              "$ref": "video-asset.json"
+              "$ref": "/schemas/core/assets/video-asset.json"
             },
             {
-              "$ref": "audio-asset.json"
+              "$ref": "/schemas/core/assets/audio-asset.json"
             },
             {
-              "$ref": "text-asset.json"
+              "$ref": "/schemas/core/assets/text-asset.json"
             },
             {
-              "$ref": "html-asset.json"
+              "$ref": "/schemas/core/assets/html-asset.json"
             },
             {
-              "$ref": "css-asset.json"
+              "$ref": "/schemas/core/assets/css-asset.json"
             },
             {
-              "$ref": "javascript-asset.json"
+              "$ref": "/schemas/core/assets/javascript-asset.json"
             },
             {
-              "$ref": "vast-asset.json"
+              "$ref": "/schemas/core/assets/vast-asset.json"
             },
             {
-              "$ref": "daast-asset.json"
+              "$ref": "/schemas/core/assets/daast-asset.json"
             },
             {
-              "$ref": "promoted-offerings.json"
+              "$ref": "/schemas/core/promoted-offerings.json"
             },
             {
-              "$ref": "url-asset.json"
+              "$ref": "/schemas/core/assets/url-asset.json"
             }
           ]
         }
@@ -57,7 +57,7 @@
       "type": "string"
     },
     "format_id": {
-      "$ref": "format-id.json",
+      "$ref": "/schemas/core/format-id.json",
       "description": "Format identifier specifying which format this creative conforms to"
     },
     "inputs": {

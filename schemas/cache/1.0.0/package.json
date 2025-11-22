@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/v1/core/package.json",
+  "$id": "/schemas/core/package.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "A specific product within a media buy (line item)",
@@ -21,14 +21,14 @@
     "creative_assignments": {
       "description": "Creative assets assigned to this package",
       "items": {
-        "$ref": "creative-assignment.json"
+        "$ref": "/schemas/core/creative-assignment.json"
       },
       "type": "array"
     },
     "format_ids_to_provide": {
       "description": "Format IDs that creative assets will be provided for this package",
       "items": {
-        "$ref": "format-id.json"
+        "$ref": "/schemas/core/format-id.json"
       },
       "type": "array"
     },
@@ -38,11 +38,16 @@
       "type": "number"
     },
     "pacing": {
-      "$ref": "pacing.json"
+      "$ref": "/schemas/enums/pacing.json"
     },
     "package_id": {
       "description": "Publisher's unique identifier for the package",
       "type": "string"
+    },
+    "paused": {
+      "default": false,
+      "description": "Whether this package is paused by the buyer. Paused packages do not deliver impressions. Defaults to false.",
+      "type": "boolean"
     },
     "pricing_option_id": {
       "description": "ID of the selected pricing option from the product's pricing_options array",
@@ -52,16 +57,12 @@
       "description": "ID of the product this package is based on",
       "type": "string"
     },
-    "status": {
-      "$ref": "package-status.json"
-    },
     "targeting_overlay": {
-      "$ref": "targeting.json"
+      "$ref": "/schemas/core/targeting.json"
     }
   },
   "required": [
-    "package_id",
-    "status"
+    "package_id"
   ],
   "title": "Package",
   "type": "object"
