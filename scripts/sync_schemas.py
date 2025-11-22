@@ -129,7 +129,7 @@ def discover_schemas_from_index(index_data: dict) -> list[str]:
 
 
 def download_schema_file(
-    url: str, version: str, hash_cache: dict[str, str], force: bool = False
+    url: str, hash_cache: dict[str, str], force: bool = False
 ) -> tuple[bool, str | None]:
     """
     Download a schema and save it to cache, using content hashing for change detection.
@@ -151,16 +151,15 @@ def download_schema_file(
     else:
         url_parts = parts
 
-    # Create subdirectories if needed
-    version_dir = CACHE_DIR / version
+    # Create subdirectories if needed (directly in CACHE_DIR)
     if len(url_parts) > 1:
-        subdir = version_dir / Path(*url_parts[:-1])
+        subdir = CACHE_DIR / Path(*url_parts[:-1])
         subdir.mkdir(parents=True, exist_ok=True)
         output_path = subdir / url_parts[-1]
         display_name = "/".join(url_parts)
     else:
-        version_dir.mkdir(parents=True, exist_ok=True)
-        output_path = version_dir / url_parts[0]
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        output_path = CACHE_DIR / url_parts[0]
         display_name = url_parts[0]
 
     # Download schema
@@ -222,18 +221,17 @@ def main():
         hash_cache = {} if args.force else load_hash_cache()
         updated_hashes = {}
 
-        # Download index to get version and schema list
+        # Download index to get schema list
         print("Fetching schema index...")
         try:
             index_schema = download_schema(SCHEMA_INDEX_URL)
-            version = index_schema.get("version", TARGET_ADCP_VERSION)
 
             # Compute hash for index
             index_content = json.dumps(index_schema, indent=2, sort_keys=True)
             index_hash = compute_hash(index_content)
             updated_hashes[SCHEMA_INDEX_URL] = index_hash
 
-            print(f"Schema version: {version}\n")
+            print(f"Schema index retrieved\n")
         except Exception as e:
             print(f"Error: Could not fetch index.json from {SCHEMA_INDEX_URL}")
             print(f"Details: {e}\n")
@@ -255,7 +253,7 @@ def main():
         removed_count = 0
 
         for url in schema_urls:
-            was_updated, new_hash = download_schema_file(url, version, hash_cache, force=args.force)
+            was_updated, new_hash = download_schema_file(url, hash_cache, force=args.force)
 
             if was_updated:
                 updated_count += 1
@@ -266,8 +264,7 @@ def main():
                 updated_hashes[url] = new_hash
 
         # Clean up orphaned schemas (files that exist locally but not upstream)
-        version_dir = CACHE_DIR / version
-        if version_dir.exists():
+        if CACHE_DIR.exists():
             # Get list of expected filenames from URLs
             expected_files = {url.split("/")[-1] for url in schema_urls}
             # Also allow the hash cache file
@@ -275,7 +272,7 @@ def main():
 
             # Find orphaned JSON files
             orphaned_files = []
-            for json_file in version_dir.rglob("*.json"):
+            for json_file in CACHE_DIR.rglob("*.json"):
                 if json_file.name not in expected_files and json_file.name != ".hashes.json":
                     orphaned_files.append(json_file)
 
@@ -283,7 +280,7 @@ def main():
             if orphaned_files:
                 print("\nCleaning up orphaned schemas:")
                 for orphan in orphaned_files:
-                    rel_path = orphan.relative_to(version_dir)
+                    rel_path = orphan.relative_to(CACHE_DIR)
                     print(f"  ✗ {rel_path} (removed - no longer in upstream)")
                     orphan.unlink()
                     removed_count += 1
@@ -291,7 +288,7 @@ def main():
                     # Remove empty directories
                     parent = orphan.parent
                     try:
-                        if parent != version_dir and not any(parent.iterdir()):
+                        if parent != CACHE_DIR and not any(parent.iterdir()):
                             parent.rmdir()
                     except OSError:
                         pass
@@ -300,18 +297,9 @@ def main():
         if updated_hashes:
             save_hash_cache(updated_hashes)
 
-        # Create latest symlink
-        latest_link = CACHE_DIR / "latest"
-        version_dir = CACHE_DIR / version
-
-        if latest_link.exists() or latest_link.is_symlink():
-            latest_link.unlink()
-
-        latest_link.symlink_to(version, target_is_directory=True)
-
         print(f"\n✓ Successfully synced {len(schema_urls)} schemas")
-        print(f"  Version: {version}")
-        print(f"  Location: {version_dir}")
+        print(f"  Target AdCP version: {TARGET_ADCP_VERSION}")
+        print(f"  Location: {CACHE_DIR}")
         print(f"  Updated: {updated_count}")
         print(f"  Cached: {cached_count}")
         if removed_count > 0:
