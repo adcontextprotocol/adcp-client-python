@@ -196,10 +196,10 @@ def get_adcp_version() -> str:
     Raises:
         FileNotFoundError: If ADCP_VERSION file is missing from package
     """
-    from pathlib import Path
+    from importlib.resources import files
 
-    # Read from ADCP_VERSION file in package directory
-    version_file = Path(__file__).parent / "ADCP_VERSION"
+    # Read from ADCP_VERSION file in package
+    version_file = files("adcp") / "ADCP_VERSION"
     return version_file.read_text().strip()
 
 __all__ = [
