@@ -61,14 +61,7 @@ Issues = "https://github.com/adcontextprotocol/adcp-client-python/issues"
 where = ["src"]
 
 [tool.setuptools.package-data]
-adcp = ["py.typed"]
-
-# Include ADCP_VERSION file in package
-[tool.setuptools]
-include-package-data = true
-
-[tool.setuptools.data-files]
-"." = ["ADCP_VERSION"]
+adcp = ["py.typed", "ADCP_VERSION"]
 
 [tool.black]
 line-length = 100
