@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.12.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.12.0...v2.12.1) (2025-11-24)
+
+
+### Bug Fixes
+
+* correct ADCP_VERSION packaging for PyPI ([#85](https://github.com/adcontextprotocol/adcp-client-python/issues/85)) ([161656d](https://github.com/adcontextprotocol/adcp-client-python/commit/161656d97af9651cd76332935a3421ddf07acf55))
+
 ## [2.12.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.11.1...v2.12.0) (2025-11-22)
 
 
