@@ -1,5 +1,6 @@
 """Tests for protocol adapters."""
 
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -846,6 +847,10 @@ class TestMCPAdapter:
         assert adapter._session is None
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(
+        sys.version_info < (3, 11),
+        reason="ExceptionGroup is only available in Python 3.11+",
+    )
     async def test_cleanup_handles_exception_group(self, mcp_config):
         """Test that cleanup handles ExceptionGroup from task group failures."""
         from contextlib import AsyncExitStack
