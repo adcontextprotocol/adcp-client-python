@@ -12,11 +12,11 @@ from urllib.parse import urlparse
 
 # ExceptionGroup is available in Python 3.11+
 if sys.version_info >= (3, 11):
-    from builtins import BaseExceptionGroup
+    ExceptionGroup = ExceptionGroup  # Built-in type in 3.11+
 else:
-    # For Python 3.10, BaseExceptionGroup doesn't exist
+    # For Python 3.10, ExceptionGroup doesn't exist
     # We handle this gracefully by checking if it's None before using isinstance
-    BaseExceptionGroup = None
+    ExceptionGroup = None
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +31,14 @@ try:
     MCP_AVAILABLE = True
 except ImportError:
     MCP_AVAILABLE = False
+
+try:
+    from httpx import HTTPStatusError
+
+    HTTPX_AVAILABLE = True
+except ImportError:
+    HTTPX_AVAILABLE = False
+    HTTPStatusError = None  # type: ignore[assignment, misc]
 
 from adcp.exceptions import ADCPConnectionError, ADCPTimeoutError
 from adcp.protocols.base import ProtocolAdapter
@@ -67,13 +75,17 @@ class MCPAdapter(ProtocolAdapter):
                 await old_stack.aclose()
             except BaseException as cleanup_error:
                 # Handle all cleanup errors including ExceptionGroup
+                # Re-raise KeyboardInterrupt and SystemExit immediately
+                if isinstance(cleanup_error, (KeyboardInterrupt, SystemExit)):
+                    raise
+
                 if isinstance(cleanup_error, asyncio.CancelledError):
                     logger.debug(f"MCP session cleanup cancelled {context}")
                     return
 
                 # Handle ExceptionGroup from task group failures (Python 3.11+)
-                if BaseExceptionGroup is not None and isinstance(
-                    cleanup_error, BaseExceptionGroup
+                if ExceptionGroup is not None and isinstance(
+                    cleanup_error, ExceptionGroup
                 ):
                     for exc in cleanup_error.exceptions:
                         self._log_cleanup_error(exc, context)
@@ -83,15 +95,15 @@ class MCPAdapter(ProtocolAdapter):
     def _log_cleanup_error(self, exc: BaseException, context: str) -> None:
         """Log a cleanup error without raising."""
         # Check for known cleanup error patterns from httpx/anyio
-        exc_type_name = type(exc).__name__
         exc_str = str(exc).lower()
 
         # Common cleanup errors that are expected when connection fails
         is_known_cleanup_error = (
-            isinstance(exc, RuntimeError) and
-            ("cancel scope" in exc_str or "async context" in exc_str)
+            isinstance(exc, RuntimeError)
+            and ("cancel scope" in exc_str or "async context" in exc_str)
         ) or (
-            exc_type_name == "HTTPStatusError"  # HTTP errors during cleanup
+            # HTTP errors during cleanup (if httpx is available)
+            HTTPX_AVAILABLE and HTTPStatusError is not None and isinstance(exc, HTTPStatusError)
         )
 
         if is_known_cleanup_error:
