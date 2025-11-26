@@ -844,3 +844,33 @@ class TestMCPAdapter:
         # Verify adapter state is clean after all failed attempts
         assert adapter._exit_stack is None
         assert adapter._session is None
+
+    @pytest.mark.asyncio
+    async def test_cleanup_handles_exception_group(self, mcp_config):
+        """Test that cleanup handles ExceptionGroup from task group failures."""
+        from contextlib import AsyncExitStack
+
+        import httpx
+
+        adapter = MCPAdapter(mcp_config)
+
+        # Create an ExceptionGroup like what anyio task groups raise
+        http_error = httpx.HTTPStatusError(
+            "Client error '405 Method Not Allowed' for url 'https://test.example.com'",
+            request=MagicMock(),
+            response=MagicMock(status_code=405),
+        )
+        exception_group = ExceptionGroup("unhandled errors in a TaskGroup", [http_error])
+
+        # Mock exit stack that raises ExceptionGroup on cleanup
+        mock_exit_stack = AsyncMock(spec=AsyncExitStack)
+        mock_exit_stack.aclose = AsyncMock(side_effect=exception_group)
+        adapter._exit_stack = mock_exit_stack
+
+        # cleanup should not raise despite the ExceptionGroup
+        await adapter._cleanup_failed_connection("during test")
+
+        # Verify cleanup was attempted and state is clean
+        mock_exit_stack.aclose.assert_called_once()
+        assert adapter._exit_stack is None
+        assert adapter._session is None

@@ -4,10 +4,19 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sys
 import time
 from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
+
+# ExceptionGroup is available in Python 3.11+
+if sys.version_info >= (3, 11):
+    from builtins import BaseExceptionGroup
+else:
+    # For Python 3.10, BaseExceptionGroup doesn't exist
+    # We handle this gracefully by checking if it's None before using isinstance
+    BaseExceptionGroup = None
 
 logger = logging.getLogger(__name__)
 
@@ -56,22 +65,41 @@ class MCPAdapter(ProtocolAdapter):
             self._session = None
             try:
                 await old_stack.aclose()
-            except asyncio.CancelledError:
-                logger.debug(f"MCP session cleanup cancelled {context}")
-            except RuntimeError as cleanup_error:
-                # Known anyio task group cleanup issue
-                error_msg = str(cleanup_error).lower()
-                if "cancel scope" in error_msg or "async context" in error_msg:
-                    logger.debug(f"Ignoring anyio cleanup error {context}: {cleanup_error}")
+            except BaseException as cleanup_error:
+                # Handle all cleanup errors including ExceptionGroup
+                if isinstance(cleanup_error, asyncio.CancelledError):
+                    logger.debug(f"MCP session cleanup cancelled {context}")
+                    return
+
+                # Handle ExceptionGroup from task group failures (Python 3.11+)
+                if BaseExceptionGroup is not None and isinstance(
+                    cleanup_error, BaseExceptionGroup
+                ):
+                    for exc in cleanup_error.exceptions:
+                        self._log_cleanup_error(exc, context)
                 else:
-                    logger.warning(
-                        f"Unexpected RuntimeError during cleanup {context}: {cleanup_error}"
-                    )
-            except Exception as cleanup_error:
-                # Log unexpected cleanup errors but don't raise to preserve original error
-                logger.warning(
-                    f"Unexpected error during cleanup {context}: {cleanup_error}", exc_info=True
-                )
+                    self._log_cleanup_error(cleanup_error, context)
+
+    def _log_cleanup_error(self, exc: BaseException, context: str) -> None:
+        """Log a cleanup error without raising."""
+        # Check for known cleanup error patterns from httpx/anyio
+        exc_type_name = type(exc).__name__
+        exc_str = str(exc).lower()
+
+        # Common cleanup errors that are expected when connection fails
+        is_known_cleanup_error = (
+            isinstance(exc, RuntimeError) and
+            ("cancel scope" in exc_str or "async context" in exc_str)
+        ) or (
+            exc_type_name == "HTTPStatusError"  # HTTP errors during cleanup
+        )
+
+        if is_known_cleanup_error:
+            # Expected cleanup errors - log at debug level without stack trace
+            logger.debug(f"Ignoring expected cleanup error {context}: {exc}")
+        else:
+            # Truly unexpected cleanup errors - log at warning with full context
+            logger.warning(f"Unexpected error during cleanup {context}: {exc}", exc_info=True)
 
     async def _get_session(self) -> ClientSession:
         """
@@ -146,7 +174,11 @@ class MCPAdapter(ProtocolAdapter):
                         )
 
                     return self._session  # type: ignore[no-any-return]
-                except Exception as e:
+                except BaseException as e:
+                    # Catch BaseException to handle CancelledError from failed initialization
+                    # Re-raise KeyboardInterrupt and SystemExit immediately
+                    if isinstance(e, (KeyboardInterrupt, SystemExit)):
+                        raise
                     last_error = e
                     # Clean up the exit stack on failure to avoid resource leaks
                     await self._cleanup_failed_connection("during connection attempt")
