@@ -83,22 +83,45 @@ el.replaceWith(d);
             self._session = None
             try:
                 await old_stack.aclose()
-            except asyncio.CancelledError:
-                logger.debug(f&#34;MCP session cleanup cancelled {context}&#34;)
-            except RuntimeError as cleanup_error:
-                # Known anyio task group cleanup issue
-                error_msg = str(cleanup_error).lower()
-                if &#34;cancel scope&#34; in error_msg or &#34;async context&#34; in error_msg:
-                    logger.debug(f&#34;Ignoring anyio cleanup error {context}: {cleanup_error}&#34;)
+            except BaseException as cleanup_error:
+                # Handle all cleanup errors including ExceptionGroup
+                # Re-raise KeyboardInterrupt and SystemExit immediately
+                if isinstance(cleanup_error, (KeyboardInterrupt, SystemExit)):
+                    raise
+
+                if isinstance(cleanup_error, asyncio.CancelledError):
+                    logger.debug(f&#34;MCP session cleanup cancelled {context}&#34;)
+                    return
+
+                # Handle ExceptionGroup from task group failures (Python 3.11+)
+                if _ExceptionGroup is not None and isinstance(
+                    cleanup_error, _ExceptionGroup
+                ):
+                    for exc in cleanup_error.exceptions:  # type: ignore[attr-defined]
+                        self._log_cleanup_error(exc, context)
                 else:
-                    logger.warning(
-                        f&#34;Unexpected RuntimeError during cleanup {context}: {cleanup_error}&#34;
-                    )
-            except Exception as cleanup_error:
-                # Log unexpected cleanup errors but don&#39;t raise to preserve original error
-                logger.warning(
-                    f&#34;Unexpected error during cleanup {context}: {cleanup_error}&#34;, exc_info=True
-                )
+                    self._log_cleanup_error(cleanup_error, context)
+
+    def _log_cleanup_error(self, exc: BaseException, context: str) -&gt; None:
+        &#34;&#34;&#34;Log a cleanup error without raising.&#34;&#34;&#34;
+        # Check for known cleanup error patterns from httpx/anyio
+        exc_str = str(exc).lower()
+
+        # Common cleanup errors that are expected when connection fails
+        is_known_cleanup_error = (
+            isinstance(exc, RuntimeError)
+            and (&#34;cancel scope&#34; in exc_str or &#34;async context&#34; in exc_str)
+        ) or (
+            # HTTP errors during cleanup (if httpx is available)
+            HTTPX_AVAILABLE and HTTPStatusError is not None and isinstance(exc, HTTPStatusError)
+        )
+
+        if is_known_cleanup_error:
+            # Expected cleanup errors - log at debug level without stack trace
+            logger.debug(f&#34;Ignoring expected cleanup error {context}: {exc}&#34;)
+        else:
+            # Truly unexpected cleanup errors - log at warning with full context
+            logger.warning(f&#34;Unexpected error during cleanup {context}: {exc}&#34;, exc_info=True)
 
     async def _get_session(self) -&gt; ClientSession:
         &#34;&#34;&#34;
@@ -173,7 +196,11 @@ el.replaceWith(d);
                         )
 
                     return self._session  # type: ignore[no-any-return]
-                except Exception as e:
+                except BaseException as e:
+                    # Catch BaseException to handle CancelledError from failed initialization
+                    # Re-raise KeyboardInterrupt and SystemExit immediately
+                    if isinstance(e, (KeyboardInterrupt, SystemExit)):
+                        raise
                     last_error = e
                     # Clean up the exit stack on failure to avoid resource leaks
                     await self._cleanup_failed_connection(&#34;during connection attempt&#34;)
