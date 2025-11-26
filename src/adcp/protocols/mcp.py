@@ -4,19 +4,18 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sys
 import time
 from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 # ExceptionGroup is available in Python 3.11+
-if sys.version_info >= (3, 11):
-    ExceptionGroup = ExceptionGroup  # Built-in type in 3.11+
-else:
-    # For Python 3.10, ExceptionGroup doesn't exist
-    # We handle this gracefully by checking if it's None before using isinstance
-    ExceptionGroup = None
+# In 3.11+, it's a built-in type. For 3.10, we need to handle its absence.
+try:
+    _ExceptionGroup: type[BaseException] | None = ExceptionGroup  # type: ignore[name-defined]
+except NameError:
+    # Python 3.10 - ExceptionGroup doesn't exist
+    _ExceptionGroup = None
 
 logger = logging.getLogger(__name__)
 
@@ -84,10 +83,10 @@ class MCPAdapter(ProtocolAdapter):
                     return
 
                 # Handle ExceptionGroup from task group failures (Python 3.11+)
-                if ExceptionGroup is not None and isinstance(
-                    cleanup_error, ExceptionGroup
+                if _ExceptionGroup is not None and isinstance(
+                    cleanup_error, _ExceptionGroup
                 ):
-                    for exc in cleanup_error.exceptions:
+                    for exc in cleanup_error.exceptions:  # type: ignore[attr-defined]
                         self._log_cleanup_error(exc, context)
                 else:
                     self._log_cleanup_error(cleanup_error, context)
