@@ -791,7 +791,9 @@ class TestMCPAdapter:
             request=MagicMock(),
             response=MagicMock(status_code=405),
         )
-        exception_group = ExceptionGroup("unhandled errors in a TaskGroup", [http_error])
+        exception_group = ExceptionGroup(  # type: ignore[name-defined]  # noqa: F821
+            "unhandled errors in a TaskGroup", [http_error]
+        )
 
         # Mock exit stack that raises ExceptionGroup on cleanup
         mock_exit_stack = AsyncMock(spec=AsyncExitStack)
@@ -805,3 +807,40 @@ class TestMCPAdapter:
         mock_exit_stack.aclose.assert_called_once()
         assert adapter._exit_stack is None
         assert adapter._session is None
+
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(
+        sys.version_info < (3, 11),
+        reason="ExceptionGroup is only available in Python 3.11+",
+    )
+    async def test_cleanup_handles_exception_group_with_cancelled_error(self, mcp_config):
+        """Test that cleanup handles ExceptionGroup containing CancelledError."""
+        import asyncio
+        from contextlib import AsyncExitStack
+
+        adapter = MCPAdapter(mcp_config)
+
+        # Create a BaseExceptionGroup with CancelledError like what happens in the real error
+        # In Python 3.11+, BaseExceptionGroup is used for BaseException subclasses
+        cancelled_error = asyncio.CancelledError("Cancelled via cancel scope")
+        if sys.version_info >= (3, 11):
+            exception_group = BaseExceptionGroup(  # type: ignore[name-defined]  # noqa: F821
+                "unhandled errors in a TaskGroup", [cancelled_error]
+            )
+        else:
+            # Should not reach here due to skipif, but handle gracefully
+            return
+
+        # Mock exit stack that raises BaseExceptionGroup on cleanup
+        mock_exit_stack = AsyncMock(spec=AsyncExitStack)
+        mock_exit_stack.aclose = AsyncMock(side_effect=exception_group)
+        adapter._exit_stack = mock_exit_stack
+
+        # cleanup should not raise despite the BaseExceptionGroup with CancelledError
+        await adapter._cleanup_failed_connection("during test")
+
+        # Verify cleanup was attempted and state is clean
+        mock_exit_stack.aclose.assert_called_once()
+        assert adapter._exit_stack is None
+        assert adapter._session is None
+

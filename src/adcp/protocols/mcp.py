@@ -9,13 +9,15 @@ from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
-# ExceptionGroup is available in Python 3.11+
-# In 3.11+, it's a built-in type. For 3.10, we need to handle its absence.
+# ExceptionGroup and BaseExceptionGroup are available in Python 3.11+
+# In 3.11+, they're built-in types. For 3.10, we need to handle their absence.
 try:
     _ExceptionGroup: type[BaseException] | None = ExceptionGroup  # type: ignore[name-defined]
+    _BaseExceptionGroup: type[BaseException] | None = BaseExceptionGroup  # type: ignore[name-defined]
 except NameError:
     # Python 3.10 - ExceptionGroup doesn't exist
     _ExceptionGroup = None
+    _BaseExceptionGroup = None
 
 logger = logging.getLogger(__name__)
 
@@ -82,11 +84,33 @@ class MCPAdapter(ProtocolAdapter):
                     logger.debug(f"MCP session cleanup cancelled {context}")
                     return
 
-                # Handle ExceptionGroup from task group failures (Python 3.11+)
-                if _ExceptionGroup is not None and isinstance(
-                    cleanup_error, _ExceptionGroup
-                ):
+                # Handle ExceptionGroup/BaseExceptionGroup from task group failures (Python 3.11+)
+                # BaseExceptionGroup is used for BaseException subclasses like CancelledError
+                is_exception_group = (
+                    (_ExceptionGroup is not None and isinstance(cleanup_error, _ExceptionGroup))
+                    or (
+                        _BaseExceptionGroup is not None
+                        and isinstance(cleanup_error, _BaseExceptionGroup)
+                    )
+                )
+
+                if is_exception_group:
+                    # Check if all exceptions in the group are CancelledError
+                    # If so, treat the entire group as a cancellation
+                    all_cancelled = all(
+                        isinstance(exc, asyncio.CancelledError)
+                        for exc in cleanup_error.exceptions  # type: ignore[attr-defined]
+                    )
+                    if all_cancelled:
+                        logger.debug(f"MCP session cleanup cancelled {context}")
+                        return
+
+                    # Otherwise, log each exception individually
                     for exc in cleanup_error.exceptions:  # type: ignore[attr-defined]
+                        # Skip CancelledErrors when mixed with other exceptions
+                        if isinstance(exc, asyncio.CancelledError):
+                            logger.debug(f"MCP session cleanup cancelled {context}")
+                            continue
                         self._log_cleanup_error(exc, context)
                 else:
                     self._log_cleanup_error(cleanup_error, context)
