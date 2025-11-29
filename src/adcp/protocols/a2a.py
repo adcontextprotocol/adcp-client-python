@@ -150,7 +150,11 @@ class A2AAdapter(ProtocolAdapter):
 
         try:
             # Use official A2A client
-            response = await a2a_client.send_message(request)
+            sdk_response = await a2a_client.send_message(request)
+
+            # SendMessageResponse is a RootModel union - unwrap it to get the actual response
+            # (either JSONRPCSuccessResponse or JSONRPCErrorResponse)
+            response = sdk_response.root if hasattr(sdk_response, "root") else sdk_response
 
             # Handle JSON-RPC error response
             if hasattr(response, "error"):
