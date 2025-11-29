@@ -107,11 +107,11 @@ class MCPAdapter(ProtocolAdapter):
                         return
 
                     # Mixed group: skip CancelledErrors and log real errors
-                    cancelled_count = sum(
-                        1
-                        for exc in cleanup_error.exceptions  # type: ignore[attr-defined]
-                        if isinstance(exc, asyncio.CancelledError)
-                    )
+                    exceptions = cleanup_error.exceptions  # type: ignore[attr-defined]
+                    cancelled_errors = [
+                        exc for exc in exceptions if isinstance(exc, asyncio.CancelledError)
+                    ]
+                    cancelled_count = len(cancelled_errors)
                     if cancelled_count > 0:
                         logger.debug(
                             f"Skipping {cancelled_count} CancelledError(s) "
@@ -119,7 +119,7 @@ class MCPAdapter(ProtocolAdapter):
                         )
 
                     # Log each non-cancelled exception individually
-                    for exc in cleanup_error.exceptions:  # type: ignore[attr-defined]
+                    for exc in exceptions:
                         if not isinstance(exc, asyncio.CancelledError):
                             self._log_cleanup_error(exc, context)
                 else:
