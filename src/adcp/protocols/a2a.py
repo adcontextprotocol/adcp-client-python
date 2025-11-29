@@ -9,7 +9,16 @@ from uuid import uuid4
 
 import httpx
 from a2a.client import A2ACardResolver, A2AClient
-from a2a.types import Message, MessageSendParams, Part, Role, SendMessageRequest, Task, TextPart
+from a2a.types import (
+    DataPart,
+    Message,
+    MessageSendParams,
+    Part,
+    Role,
+    SendMessageRequest,
+    Task,
+    TextPart,
+)
 
 from adcp.exceptions import (
     ADCPAuthenticationError,
@@ -115,19 +124,50 @@ class A2AAdapter(ProtocolAdapter):
             self._httpx_client = None
             self._a2a_client = None
 
-    async def _call_a2a_tool(self, tool_name: str, params: dict[str, Any]) -> TaskResult[Any]:
-        """Call a tool using A2A protocol via official a2a-sdk client."""
+    async def _call_a2a_tool(
+        self, tool_name: str, params: dict[str, Any], use_explicit_skill: bool = True
+    ) -> TaskResult[Any]:
+        """
+        Call a tool using A2A protocol via official a2a-sdk client.
+
+        Args:
+            tool_name: Name of the skill/tool to invoke
+            params: Parameters to pass to the skill
+            use_explicit_skill: If True, use explicit skill invocation (deterministic).
+                               If False, use natural language (flexible).
+
+        The default is explicit skill invocation for predictable, repeatable behavior.
+        See: https://docs.adcontextprotocol.org/docs/protocols/a2a-guide
+        """
         start_time = time.time() if self.agent_config.debug else None
         a2a_client = await self._get_a2a_client()
 
         # Build A2A message
         message_id = str(uuid4())
-        text_part = TextPart(text=self._format_tool_request(tool_name, params))
-        message = Message(
-            message_id=message_id,
-            role=Role.user,
-            parts=[Part(root=text_part)],
-        )
+
+        if use_explicit_skill:
+            # Explicit skill invocation (deterministic)
+            # Use DataPart with skill name and parameters
+            data_part = DataPart(
+                data={
+                    "skill": tool_name,
+                    "parameters": params,
+                }
+            )
+            message = Message(
+                message_id=message_id,
+                role=Role.user,
+                parts=[Part(root=data_part)],
+            )
+        else:
+            # Natural language invocation (flexible)
+            # Agent interprets intent from text
+            text_part = TextPart(text=self._format_tool_request(tool_name, params))
+            message = Message(
+                message_id=message_id,
+                role=Role.user,
+                parts=[Part(root=text_part)],
+            )
 
         # Build request params
         params_obj = MessageSendParams(message=message)
