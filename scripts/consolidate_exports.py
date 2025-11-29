@@ -9,6 +9,8 @@ that imports and re-exports all public types, handling naming conflicts appropri
 from __future__ import annotations
 
 import ast
+import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -256,6 +258,22 @@ def main():
 
     print(f"\nWriting {OUTPUT_FILE}...")
     OUTPUT_FILE.write_text(content)
+
+    # Run black to format the generated file
+    print("Formatting with black...")
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "black", str(OUTPUT_FILE), "--quiet"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            print("✓ Formatted with black")
+        else:
+            print(f"⚠ Black formatting had issues: {result.stderr}")
+    except Exception as e:
+        print(f"⚠ Could not run black (not critical): {e}")
 
     print("✓ Successfully generated consolidated exports")
     export_count = len(
