@@ -30,6 +30,15 @@ repos:
         pass_filenames: false
         args: [src/adcp]
 
+  # Security scanning with bandit
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.10
+    hooks:
+      - id: bandit
+        args: ["-c", "pyproject.toml"]
+        additional_dependencies: ["bandit[toml]"]
+        exclude: ^(tests/|scripts/)
+
   # Basic file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

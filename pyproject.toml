@@ -101,6 +101,47 @@ ignore_errors = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = [
+    "unit: Unit tests that don't require external services",
+    "integration: Integration tests that hit real endpoints (may be slow/flaky)",
+    "slow: Tests that take significant time to run",
+]
+# By default, skip integration tests for fast local development
+addopts = "-m 'not integration'"
+
+[tool.coverage.run]
+source = ["src/adcp"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/_generated.py",
+    "*/generated_poc/*",
+]
+branch = true
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+# Maintain current 86% coverage, fail if it drops below 80%
+fail_under = 80
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.bandit]
+exclude_dirs = ["tests", "scripts"]
+skips = ["B101"]  # Allow assert in code (we're not using -O optimization)
 
 [dependency-groups]
 dev = [
