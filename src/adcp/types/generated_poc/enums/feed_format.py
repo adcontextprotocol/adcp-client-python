@@ -8,6 +8,6 @@ from enum import Enum
 
 
 class FeedFormat(Enum):
-    google_merchant_center = 'google_merchant_center'
-    facebook_catalog = 'facebook_catalog'
-    custom = 'custom'
+    google_merchant_center = "google_merchant_center"
+    facebook_catalog = "facebook_catalog"
+    custom = "custom"

@@ -652,9 +652,7 @@ Example:
 """
 
 # Publisher properties union (for product requests)
-PublisherProperties = (
-    PublisherPropertiesAll | PublisherPropertiesById | PublisherPropertiesByTag
-)
+PublisherProperties = PublisherPropertiesAll | PublisherPropertiesById | PublisherPropertiesByTag
 """Union type for all publisher properties variants.
 
 Use this for type hints in product filtering:

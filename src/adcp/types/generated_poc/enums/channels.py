@@ -8,12 +8,12 @@ from enum import Enum
 
 
 class AdvertisingChannels(Enum):
-    display = 'display'
-    video = 'video'
-    audio = 'audio'
-    native = 'native'
-    dooh = 'dooh'
-    ctv = 'ctv'
-    podcast = 'podcast'
-    retail = 'retail'
-    social = 'social'
+    display = "display"
+    video = "video"
+    audio = "audio"
+    native = "native"
+    dooh = "dooh"
+    ctv = "ctv"
+    podcast = "podcast"
+    retail = "retail"
+    social = "social"

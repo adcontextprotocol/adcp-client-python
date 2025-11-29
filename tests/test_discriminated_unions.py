@@ -803,7 +803,7 @@ class TestPropertyTagSharedSchema:
         props = PublisherPropertiesByTag(
             publisher_domain="example.com",
             selection_type="by_tag",
-            property_tags=[PropertyTag("premium"), PropertyTag("video")]
+            property_tags=[PropertyTag("premium"), PropertyTag("video")],
         )
 
         assert props.selection_type == "by_tag"
@@ -832,7 +832,9 @@ class TestPropertyTagSharedSchema:
 
         # May be on same line as other imports or separate line
         # Both should import property_tag (from .core or from .) rather than defining their own
-        assert "property_tag" in adagents_source and ("from .core import" in adagents_source or "from . import" in adagents_source)
+        assert "property_tag" in adagents_source and (
+            "from .core import" in adagents_source or "from . import" in adagents_source
+        )
         assert "property_tag" in selector_source and "from . import" in selector_source
 
     def test_property_tag_validation(self):

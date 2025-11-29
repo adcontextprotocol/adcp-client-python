@@ -8,5 +8,5 @@ from enum import Enum
 
 
 class AdcpDomain(Enum):
-    media_buy = 'media-buy'
-    signals = 'signals'
+    media_buy = "media-buy"
+    signals = "signals"

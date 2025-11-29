@@ -266,18 +266,18 @@ def main():
             index_hash = compute_hash(index_content)
             updated_hashes[SCHEMA_INDEX_URL] = index_hash
 
-            print(f"Schema index retrieved\n")
+            print("Schema index retrieved\n")
         except Exception as e:
             print(f"Error: Could not fetch index.json from {SCHEMA_INDEX_URL}")
             print(f"Details: {e}\n")
             sys.exit(1)
 
         # Discover all schemas from index
-        print(f"Discovering schemas from index...")
+        print("Discovering schemas from index...")
         schema_urls = set(discover_schemas_from_index(index_schema))
 
         print(f"Found {len(schema_urls)} schemas in index")
-        print(f"Checking for transitive dependencies...\n")
+        print("Checking for transitive dependencies...\n")
 
         # Follow transitive dependencies
         # Download schemas and check for additional refs
@@ -299,7 +299,7 @@ def main():
                     if ref_url not in processed and ref_url not in to_process:
                         to_process.append(ref_url)
                         schema_urls.add(ref_url)
-            except Exception as e:
+            except Exception:
                 # If we can't download, we'll catch it in the main download loop
                 pass
 

@@ -368,9 +368,7 @@ def test_publisher_properties_aliases_can_instantiate():
     )
 
     # Create PublisherPropertiesAll
-    props_all = PublisherPropertiesAll(
-        publisher_domain="example.com", selection_type="all"
-    )
+    props_all = PublisherPropertiesAll(publisher_domain="example.com", selection_type="all")
     assert props_all.publisher_domain == "example.com"
     assert props_all.selection_type == "all"
 

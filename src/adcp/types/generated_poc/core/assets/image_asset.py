@@ -12,8 +12,8 @@ from ..dimensions import Dimensions
 
 
 class ImageAsset(Dimensions):
-    alt_text: Annotated[str | None, Field(description='Alternative text for accessibility')] = None
+    alt_text: Annotated[str | None, Field(description="Alternative text for accessibility")] = None
     format: Annotated[
-        str | None, Field(description='Image file format (jpg, png, gif, webp, etc.)')
+        str | None, Field(description="Image file format (jpg, png, gif, webp, etc.)")
     ] = None
-    url: Annotated[AnyUrl, Field(description='URL to the image asset')]
+    url: Annotated[AnyUrl, Field(description="URL to the image asset")]

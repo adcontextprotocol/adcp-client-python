@@ -13,9 +13,9 @@ class PropertyId(RootModel[str]):
     root: Annotated[
         str,
         Field(
-            description='Identifier for a publisher property. Must be lowercase alphanumeric with underscores only.',
-            examples=['cnn_ctv_app', 'homepage', 'mobile_ios', 'instagram'],
-            pattern='^[a-z0-9_]+$',
-            title='Property ID',
+            description="Identifier for a publisher property. Must be lowercase alphanumeric with underscores only.",
+            examples=["cnn_ctv_app", "homepage", "mobile_ios", "instagram"],
+            pattern="^[a-z0-9_]+$",
+            title="Property ID",
         ),
     ]

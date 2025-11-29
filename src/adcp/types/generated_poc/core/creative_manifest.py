@@ -29,7 +29,7 @@ from .assets import (
 
 class CreativeManifest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     assets: Annotated[
         dict[
@@ -63,6 +63,6 @@ class CreativeManifest(AdCPBaseModel):
     promoted_offering: Annotated[
         str | None,
         Field(
-            description='Product name or offering being advertised. Maps to promoted_offerings in create_media_buy request to associate creative with the product being promoted.'
+            description="Product name or offering being advertised. Maps to promoted_offerings in create_media_buy request to associate creative with the product being promoted."
         ),
     ] = None

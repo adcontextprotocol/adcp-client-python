@@ -12,7 +12,6 @@ handled by datamodel-code-generator directly:
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
@@ -133,8 +132,6 @@ def fix_enum_defaults():
     print("  brand_manifest.py enum defaults fixed")
 
 
-
-
 def fix_preview_creative_request_discriminator():
     """Add discriminator to PreviewCreativeRequest union.
 
@@ -160,7 +157,7 @@ def fix_preview_creative_request_discriminator():
     # Add discriminator to the Field
     content = content.replace(
         "Field(\n            description='Request to generate previews",
-        "Field(\n            discriminator='request_type',\n            description='Request to generate previews"
+        "Field(\n            discriminator='request_type',\n            description='Request to generate previews",
     )
 
     with open(preview_request_file, "w") as f:

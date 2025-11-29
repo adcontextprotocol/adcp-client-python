@@ -17,12 +17,12 @@ from ..core import product
 
 class GetProductsResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error] | None,
-        Field(description='Task-specific errors and warnings (e.g., product filtering issues)'),
+        Field(description="Task-specific errors and warnings (e.g., product filtering issues)"),
     ] = None
     ext: ext_1.ExtensionObject | None = None
-    products: Annotated[list[product.Product], Field(description='Array of matching products')]
+    products: Annotated[list[product.Product], Field(description="Array of matching products")]

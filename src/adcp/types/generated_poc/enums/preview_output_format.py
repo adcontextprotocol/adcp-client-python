@@ -8,5 +8,5 @@ from enum import Enum
 
 
 class PreviewOutputFormat(Enum):
-    url = 'url'
-    html = 'html'
+    url = "url"
+    html = "html"

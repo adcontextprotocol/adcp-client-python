@@ -8,6 +8,6 @@ from enum import Enum
 
 
 class JavascriptModuleType(Enum):
-    esm = 'esm'
-    commonjs = 'commonjs'
-    script = 'script'
+    esm = "esm"
+    commonjs = "commonjs"
+    script = "script"

@@ -17,7 +17,7 @@ class AssetsRequired(AdCPBaseModel):
     asset_id: Annotated[
         str,
         Field(
-            description='Unique identifier for this asset. Creative manifests MUST use this exact value as the key in the assets object.'
+            description="Unique identifier for this asset. Creative manifests MUST use this exact value as the key in the assets object."
         ),
     ]
     asset_role: Annotated[
@@ -26,36 +26,36 @@ class AssetsRequired(AdCPBaseModel):
             description="Optional descriptive label for this asset's purpose (e.g., 'hero_image', 'logo'). Not used for referencing assets in manifests—use asset_id instead. This field is for human-readable documentation and UI display only."
         ),
     ] = None
-    asset_type: Annotated[asset_content_type.AssetContentType, Field(description='Type of asset')]
+    asset_type: Annotated[asset_content_type.AssetContentType, Field(description="Type of asset")]
     item_type: Annotated[
-        Literal['individual'],
-        Field(description='Discriminator indicating this is an individual asset requirement'),
+        Literal["individual"],
+        Field(description="Discriminator indicating this is an individual asset requirement"),
     ]
-    required: Annotated[bool | None, Field(description='Whether this asset is required')] = None
+    required: Annotated[bool | None, Field(description="Whether this asset is required")] = None
     requirements: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Technical requirements for this asset (dimensions, file size, duration, etc.). For template formats, use parameters_from_format_id: true to indicate asset parameters must match the format_id parameters (width/height/unit and/or duration_ms).'
+            description="Technical requirements for this asset (dimensions, file size, duration, etc.). For template formats, use parameters_from_format_id: true to indicate asset parameters must match the format_id parameters (width/height/unit and/or duration_ms)."
         ),
     ] = None
 
 
 class Asset(AdCPBaseModel):
-    asset_id: Annotated[str, Field(description='Identifier for this asset within the group')]
+    asset_id: Annotated[str, Field(description="Identifier for this asset within the group")]
     asset_role: Annotated[
         str | None,
         Field(
             description="Optional descriptive label for this asset's purpose (e.g., 'hero_image', 'logo'). Not used for referencing assets in manifests—use asset_id instead. This field is for human-readable documentation and UI display only."
         ),
     ] = None
-    asset_type: Annotated[asset_content_type.AssetContentType, Field(description='Type of asset')]
+    asset_type: Annotated[asset_content_type.AssetContentType, Field(description="Type of asset")]
     required: Annotated[
-        bool | None, Field(description='Whether this asset is required in each repetition')
+        bool | None, Field(description="Whether this asset is required in each repetition")
     ] = None
     requirements: Annotated[
         dict[str, Any] | None,
         Field(
-            description='Technical requirements for this asset. For template formats, use parameters_from_format_id: true to indicate asset parameters must match the format_id parameters (width/height/unit and/or duration_ms).'
+            description="Technical requirements for this asset. For template formats, use parameters_from_format_id: true to indicate asset parameters must match the format_id parameters (width/height/unit and/or duration_ms)."
         ),
     ] = None
 
@@ -64,13 +64,13 @@ class AssetsRequired1(AdCPBaseModel):
     asset_group_id: Annotated[
         str, Field(description="Identifier for this asset group (e.g., 'product', 'slide', 'card')")
     ]
-    assets: Annotated[list[Asset], Field(description='Assets within each repetition of this group')]
+    assets: Annotated[list[Asset], Field(description="Assets within each repetition of this group")]
     item_type: Annotated[
-        Literal['repeatable_group'],
-        Field(description='Discriminator indicating this is a repeatable asset group'),
+        Literal["repeatable_group"],
+        Field(description="Discriminator indicating this is a repeatable asset group"),
     ]
-    max_count: Annotated[int, Field(description='Maximum number of repetitions allowed', ge=1)]
-    min_count: Annotated[int, Field(description='Minimum number of repetitions required', ge=1)]
+    max_count: Annotated[int, Field(description="Maximum number of repetitions allowed", ge=1)]
+    min_count: Annotated[int, Field(description="Minimum number of repetitions required", ge=1)]
 
 
 class Responsive(AdCPBaseModel):
@@ -83,36 +83,36 @@ class Dimensions(AdCPBaseModel):
         str | None,
         Field(
             description="Fixed aspect ratio constraint (e.g., '16:9', '4:3', '1:1')",
-            pattern='^\\d+:\\d+$',
+            pattern="^\\d+:\\d+$",
         ),
     ] = None
-    height: Annotated[int | None, Field(description='Fixed height in pixels', ge=1)] = None
+    height: Annotated[int | None, Field(description="Fixed height in pixels", ge=1)] = None
     max_height: Annotated[
-        int | None, Field(description='Maximum height in pixels for responsive renders', ge=1)
+        int | None, Field(description="Maximum height in pixels for responsive renders", ge=1)
     ] = None
     max_width: Annotated[
-        int | None, Field(description='Maximum width in pixels for responsive renders', ge=1)
+        int | None, Field(description="Maximum width in pixels for responsive renders", ge=1)
     ] = None
     min_height: Annotated[
-        int | None, Field(description='Minimum height in pixels for responsive renders', ge=1)
+        int | None, Field(description="Minimum height in pixels for responsive renders", ge=1)
     ] = None
     min_width: Annotated[
-        int | None, Field(description='Minimum width in pixels for responsive renders', ge=1)
+        int | None, Field(description="Minimum width in pixels for responsive renders", ge=1)
     ] = None
     responsive: Annotated[
-        Responsive | None, Field(description='Indicates which dimensions are responsive/fluid')
+        Responsive | None, Field(description="Indicates which dimensions are responsive/fluid")
     ] = None
-    width: Annotated[int | None, Field(description='Fixed width in pixels', ge=1)] = None
+    width: Annotated[int | None, Field(description="Fixed width in pixels", ge=1)] = None
 
 
 class Renders(AdCPBaseModel):
     dimensions: Annotated[
-        Dimensions, Field(description='Dimensions for this rendered piece (in pixels)')
+        Dimensions, Field(description="Dimensions for this rendered piece (in pixels)")
     ]
     parameters_from_format_id: Annotated[
         bool | None,
         Field(
-            description='When true, parameters for this render (dimensions and/or duration) are specified in the format_id. Used for template formats that accept parameters. Mutually exclusive with specifying dimensions object explicitly.'
+            description="When true, parameters for this render (dimensions and/or duration) are specified in the format_id. Used for template formats that accept parameters. Mutually exclusive with specifying dimensions object explicitly."
         ),
     ] = None
     role: Annotated[
@@ -128,12 +128,12 @@ Dimensions2 = Dimensions
 
 class Renders1(AdCPBaseModel):
     dimensions: Annotated[
-        Dimensions2 | None, Field(description='Dimensions for this rendered piece (in pixels)')
+        Dimensions2 | None, Field(description="Dimensions for this rendered piece (in pixels)")
     ] = None
     parameters_from_format_id: Annotated[
         Literal[True],
         Field(
-            description='When true, parameters for this render (dimensions and/or duration) are specified in the format_id. Used for template formats that accept parameters. Mutually exclusive with specifying dimensions object explicitly.'
+            description="When true, parameters for this render (dimensions and/or duration) are specified in the format_id. Used for template formats that accept parameters. Mutually exclusive with specifying dimensions object explicitly."
         ),
     ]
     role: Annotated[
@@ -146,115 +146,115 @@ class Renders1(AdCPBaseModel):
 
 class FormatCard(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     format_id: Annotated[
         format_id_1.FormatId,
         Field(
-            description='Creative format defining the card layout (typically format_card_standard)'
+            description="Creative format defining the card layout (typically format_card_standard)"
         ),
     ]
     manifest: Annotated[
         dict[str, Any],
-        Field(description='Asset manifest for rendering the card, structure defined by the format'),
+        Field(description="Asset manifest for rendering the card, structure defined by the format"),
     ]
 
 
 class FormatCardDetailed(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     format_id: Annotated[
         format_id_1.FormatId,
         Field(
-            description='Creative format defining the detailed card layout (typically format_card_detailed)'
+            description="Creative format defining the detailed card layout (typically format_card_detailed)"
         ),
     ]
     manifest: Annotated[
         dict[str, Any],
         Field(
-            description='Asset manifest for rendering the detailed card, structure defined by the format'
+            description="Asset manifest for rendering the detailed card, structure defined by the format"
         ),
     ]
 
 
 class Format(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     accepts_parameters: Annotated[
         list[format_id_parameter.FormatIdParameter] | None,
         Field(
-            description='List of parameters this format accepts in format_id. Template formats define which parameters (dimensions, duration, etc.) can be specified when instantiating the format. Empty or omitted means this is a concrete format with fixed parameters.'
+            description="List of parameters this format accepts in format_id. Template formats define which parameters (dimensions, duration, etc.) can be specified when instantiating the format. Empty or omitted means this is a concrete format with fixed parameters."
         ),
     ] = None
     assets_required: Annotated[
         list[AssetsRequired | AssetsRequired1] | None,
         Field(
-            description='Array of required assets or asset groups for this format. Each asset is identified by its asset_id, which must be used as the key in creative manifests. Can contain individual assets or repeatable asset sequences (e.g., carousel products, slideshow frames).'
+            description="Array of required assets or asset groups for this format. Each asset is identified by its asset_id, which must be used as the key in creative manifests. Can contain individual assets or repeatable asset sequences (e.g., carousel products, slideshow frames)."
         ),
     ] = None
     delivery: Annotated[
         dict[str, Any] | None,
-        Field(description='Delivery method specifications (e.g., hosted, VAST, third-party tags)'),
+        Field(description="Delivery method specifications (e.g., hosted, VAST, third-party tags)"),
     ] = None
     description: Annotated[
         str | None,
         Field(
-            description='Plain text explanation of what this format does and what assets it requires'
+            description="Plain text explanation of what this format does and what assets it requires"
         ),
     ] = None
     example_url: Annotated[
         AnyUrl | None,
         Field(
-            description='Optional URL to showcase page with examples and interactive demos of this format'
+            description="Optional URL to showcase page with examples and interactive demos of this format"
         ),
     ] = None
     format_card: Annotated[
         FormatCard | None,
         Field(
-            description='Optional standard visual card (300x400px) for displaying this format in user interfaces. Can be rendered via preview_creative or pre-generated.'
+            description="Optional standard visual card (300x400px) for displaying this format in user interfaces. Can be rendered via preview_creative or pre-generated."
         ),
     ] = None
     format_card_detailed: Annotated[
         FormatCardDetailed | None,
         Field(
-            description='Optional detailed card with carousel and full specifications. Provides rich format documentation similar to ad spec pages.'
+            description="Optional detailed card with carousel and full specifications. Provides rich format documentation similar to ad spec pages."
         ),
     ] = None
     format_id: Annotated[
         format_id_1.FormatId,
-        Field(description='Structured format identifier with agent URL and format name'),
+        Field(description="Structured format identifier with agent URL and format name"),
     ]
-    name: Annotated[str, Field(description='Human-readable format name')]
+    name: Annotated[str, Field(description="Human-readable format name")]
     output_format_ids: Annotated[
         list[format_id_1.FormatId] | None,
         Field(
-            description='For generative formats: array of format IDs that this format can generate. When a format accepts inputs like brand_manifest and message, this specifies what concrete output formats can be produced (e.g., a generative banner format might output standard image banner formats).'
+            description="For generative formats: array of format IDs that this format can generate. When a format accepts inputs like brand_manifest and message, this specifies what concrete output formats can be produced (e.g., a generative banner format might output standard image banner formats)."
         ),
     ] = None
     preview_image: Annotated[
         AnyUrl | None,
         Field(
-            description='DEPRECATED: Use format_card instead. Optional preview image URL for format browsing/discovery UI. Should be 400x300px (4:3 aspect ratio) PNG or JPG. Used as thumbnail/card image in format browsers. This field is maintained for backward compatibility but format_card provides a more flexible, structured approach.'
+            description="DEPRECATED: Use format_card instead. Optional preview image URL for format browsing/discovery UI. Should be 400x300px (4:3 aspect ratio) PNG or JPG. Used as thumbnail/card image in format browsers. This field is maintained for backward compatibility but format_card provides a more flexible, structured approach."
         ),
     ] = None
     renders: Annotated[
         list[Renders | Renders1] | None,
         Field(
-            description='Specification of rendered pieces for this format. Most formats produce a single render. Companion ad formats (video + banner), adaptive formats, and multi-placement formats produce multiple renders. Each render specifies its role and dimensions.',
+            description="Specification of rendered pieces for this format. Most formats produce a single render. Companion ad formats (video + banner), adaptive formats, and multi-placement formats produce multiple renders. Each render specifies its role and dimensions.",
             min_length=1,
         ),
     ] = None
     supported_macros: Annotated[
         list[str] | None,
         Field(
-            description='List of universal macros supported by this format (e.g., MEDIA_BUY_ID, CACHEBUSTER, DEVICE_ID). Used for validation and developer tooling.'
+            description="List of universal macros supported by this format (e.g., MEDIA_BUY_ID, CACHEBUSTER, DEVICE_ID). Used for validation and developer tooling."
         ),
     ] = None
     type: Annotated[
         format_category.FormatCategory,
         Field(
-            description='Media type of this format - determines rendering method and asset requirements'
+            description="Media type of this format - determines rendering method and asset requirements"
         ),
     ]

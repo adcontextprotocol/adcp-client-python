@@ -202,6 +202,7 @@ def get_adcp_version() -> str:
     version_file = files("adcp") / "ADCP_VERSION"
     return version_file.read_text().strip()
 
+
 __all__ = [
     # Version functions
     "get_adcp_version",

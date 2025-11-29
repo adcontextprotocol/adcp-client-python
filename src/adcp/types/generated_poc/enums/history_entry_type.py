@@ -8,5 +8,5 @@ from enum import Enum
 
 
 class HistoryEntryType(Enum):
-    request = 'request'
-    response = 'response'
+    request = "request"
+    response = "response"

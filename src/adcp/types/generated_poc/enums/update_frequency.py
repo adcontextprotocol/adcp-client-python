@@ -8,7 +8,7 @@ from enum import Enum
 
 
 class UpdateFrequency(Enum):
-    realtime = 'realtime'
-    hourly = 'hourly'
-    daily = 'daily'
-    weekly = 'weekly'
+    realtime = "realtime"
+    hourly = "hourly"
+    daily = "daily"
+    weekly = "weekly"

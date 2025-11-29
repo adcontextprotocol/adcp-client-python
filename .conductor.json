@@ -8,6 +8,12 @@
         "description": "Copy .env configuration from repository root",
         "command": "python3 scripts/setup_conductor_env.py",
         "runOnCreate": true
+      },
+      {
+        "name": "install-pre-commit",
+        "description": "Install pre-commit hooks for code quality checks",
+        "command": "pre-commit install",
+        "runOnCreate": true
       }
     ]
   },

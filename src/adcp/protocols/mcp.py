@@ -136,7 +136,9 @@ class MCPAdapter(ProtocolAdapter):
             and ("cancel scope" in exc_str or "async context" in exc_str)
         ) or (
             # HTTP errors during cleanup (if httpx is available)
-            HTTPX_AVAILABLE and HTTPStatusError is not None and isinstance(exc, HTTPStatusError)
+            HTTPX_AVAILABLE
+            and HTTPStatusError is not None
+            and isinstance(exc, HTTPStatusError)
         )
 
         if is_known_cleanup_error:

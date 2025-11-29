@@ -8,5 +8,5 @@ from enum import Enum
 
 
 class MarkdownFlavor(Enum):
-    commonmark = 'commonmark'
-    gfm = 'gfm'
+    commonmark = "commonmark"
+    gfm = "gfm"

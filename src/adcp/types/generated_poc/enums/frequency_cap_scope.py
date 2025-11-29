@@ -9,8 +9,8 @@ from typing import Annotated, Literal
 from pydantic import Field, RootModel
 
 
-class FrequencyCapScope(RootModel[Literal['package']]):
+class FrequencyCapScope(RootModel[Literal["package"]]):
     root: Annotated[
-        Literal['package'],
-        Field(description='Scope for frequency cap application', title='Frequency Cap Scope'),
+        Literal["package"],
+        Field(description="Scope for frequency cap application", title="Frequency Cap Scope"),
     ]

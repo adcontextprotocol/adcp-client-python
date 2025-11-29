@@ -17,31 +17,31 @@ from ..core import product_filters
 
 class GetProductsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     brand_manifest: Annotated[
         brand_manifest_1.BrandManifest | AnyUrl | None,
         Field(
-            description='Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest.',
+            description="Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest.",
             examples=[
                 {
-                    'data': {
-                        'colors': {'primary': '#FF6B35'},
-                        'name': 'ACME Corporation',
-                        'url': 'https://acmecorp.com',
+                    "data": {
+                        "colors": {"primary": "#FF6B35"},
+                        "name": "ACME Corporation",
+                        "url": "https://acmecorp.com",
                     },
-                    'description': 'Inline brand manifest',
+                    "description": "Inline brand manifest",
                 },
                 {
-                    'data': 'https://cdn.acmecorp.com/brand-manifest.json',
-                    'description': 'URL string reference to hosted manifest',
+                    "data": "https://cdn.acmecorp.com/brand-manifest.json",
+                    "description": "URL string reference to hosted manifest",
                 },
             ],
-            title='Brand Manifest Reference',
+            title="Brand Manifest Reference",
         ),
     ] = None
     brief: Annotated[
-        str | None, Field(description='Natural language description of campaign requirements')
+        str | None, Field(description="Natural language description of campaign requirements")
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None

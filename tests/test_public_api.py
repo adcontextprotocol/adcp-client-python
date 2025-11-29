@@ -118,9 +118,7 @@ def test_public_api_types_are_pydantic_models():
         name = model_class.__name__
         assert hasattr(model_class, "model_validate"), f"{name} missing model_validate"
         assert hasattr(model_class, "model_dump"), f"{name} missing model_dump"
-        assert hasattr(model_class, "model_validate_json"), (
-            f"{name} missing model_validate_json"
-        )
+        assert hasattr(model_class, "model_validate_json"), f"{name} missing model_validate_json"
         assert hasattr(model_class, "model_dump_json"), f"{name} missing model_dump_json"
         assert hasattr(model_class, "model_fields"), f"{name} missing model_fields"
 
@@ -167,17 +165,13 @@ def test_pricing_options_are_discriminated_by_is_fixed():
     fixed_types = [CpmFixedRatePricingOption, CpcPricingOption]
     for pricing_type in fixed_types:
         name = pricing_type.__name__
-        assert "is_fixed" in pricing_type.model_fields, (
-            f"{name} missing is_fixed discriminator"
-        )
+        assert "is_fixed" in pricing_type.model_fields, f"{name} missing is_fixed discriminator"
 
     # Auction options should have is_fixed discriminator
     auction_types = [CpmAuctionPricingOption]
     for pricing_type in auction_types:
         name = pricing_type.__name__
-        assert "is_fixed" in pricing_type.model_fields, (
-            f"{name} missing is_fixed discriminator"
-        )
+        assert "is_fixed" in pricing_type.model_fields, f"{name} missing is_fixed discriminator"
 
 
 def test_semantic_aliases_point_to_discriminated_variants():

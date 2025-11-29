@@ -60,12 +60,12 @@ def generate_consolidated_exports() -> str:
 
     # Special handling for known collisions
     # We need BOTH versions of these types available, so import them with qualified names
-    KNOWN_COLLISIONS = {
+    known_collisions = {
         "Package": {"package", "create_media_buy_response"},
     }
 
     special_imports = []
-    collision_modules_seen: dict[str, set[str]] = {name: set() for name in KNOWN_COLLISIONS}
+    collision_modules_seen: dict[str, set[str]] = {name: set() for name in known_collisions}
 
     for module_path in modules:
         # Get relative path from generated_poc directory
@@ -85,7 +85,7 @@ def generate_consolidated_exports() -> str:
         unique_exports = set()
         for export_name in exports:
             # Special case: Known collisions - track all modules that define them
-            if export_name in KNOWN_COLLISIONS and display_name in KNOWN_COLLISIONS[export_name]:
+            if export_name in known_collisions and display_name in known_collisions[export_name]:
                 collision_modules_seen[export_name].add(module_name)
                 export_to_module[export_name] = module_name  # Track that we've seen it
                 continue  # Don't add to unique_exports, we'll handle specially
@@ -123,7 +123,9 @@ def generate_consolidated_exports() -> str:
         for module_name in sorted(modules_seen):
             # Create qualified name from module path (e.g., "core.package" -> "Package")
             parts = module_name.split(".")
-            qualified_name = f"_{type_name}From{parts[-1].replace('_', ' ').title().replace(' ', '')}"
+            qualified_name = (
+                f"_{type_name}From{parts[-1].replace('_', ' ').title().replace(' ', '')}"
+            )
             special_imports.append(
                 f"from adcp.types.generated_poc.{module_name} import {type_name} as {qualified_name}"
             )
@@ -161,7 +163,12 @@ def generate_consolidated_exports() -> str:
 
     # Add special imports for name collisions
     if special_imports:
-        lines.extend(["", "# Special imports for name collisions (qualified names for types defined in multiple modules)"])
+        lines.extend(
+            [
+                "",
+                "# Special imports for name collisions (qualified names for types defined in multiple modules)",
+            ]
+        )
         lines.extend(special_imports)
 
     # Add backward compatibility aliases (only if source exists)
@@ -173,10 +180,12 @@ def generate_consolidated_exports() -> str:
 
     alias_lines = []
     if aliases:
-        alias_lines.extend([
-            "",
-            "# Backward compatibility aliases for renamed types",
-        ])
+        alias_lines.extend(
+            [
+                "",
+                "# Backward compatibility aliases for renamed types",
+            ]
+        )
         for alias, target in aliases.items():
             alias_lines.append(f"{alias} = {target}")
 

@@ -16,7 +16,7 @@ from ..enums import channels
 
 
 class PrimaryCountry(RootModel[str]):
-    root: Annotated[str, Field(pattern='^[A-Z]{2}$')]
+    root: Annotated[str, Field(pattern="^[A-Z]{2}$")]
 
 
 class PublisherDomain(RootModel[str]):
@@ -24,14 +24,14 @@ class PublisherDomain(RootModel[str]):
         str,
         Field(
             description="Domain where publisher's adagents.json is hosted (e.g., 'cnn.com')",
-            pattern='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$',
+            pattern="^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
         ),
     ]
 
 
 class ListAuthorizedPropertiesResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     advertising_policies: Annotated[
         str | None,
@@ -44,7 +44,7 @@ class ListAuthorizedPropertiesResponse(AdCPBaseModel):
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error] | None,
-        Field(description='Task-specific errors and warnings (e.g., property availability issues)'),
+        Field(description="Task-specific errors and warnings (e.g., property availability issues)"),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     last_updated: Annotated[
@@ -56,7 +56,7 @@ class ListAuthorizedPropertiesResponse(AdCPBaseModel):
     portfolio_description: Annotated[
         str | None,
         Field(
-            description='Markdown-formatted description of the property portfolio, including inventory types, audience characteristics, and special features.',
+            description="Markdown-formatted description of the property portfolio, including inventory types, audience characteristics, and special features.",
             max_length=5000,
             min_length=1,
         ),
@@ -64,14 +64,14 @@ class ListAuthorizedPropertiesResponse(AdCPBaseModel):
     primary_channels: Annotated[
         list[channels.AdvertisingChannels] | None,
         Field(
-            description='Primary advertising channels represented in this property portfolio. Helps buying agents quickly filter relevance.',
+            description="Primary advertising channels represented in this property portfolio. Helps buying agents quickly filter relevance.",
             min_length=1,
         ),
     ] = None
     primary_countries: Annotated[
         list[PrimaryCountry] | None,
         Field(
-            description='Primary countries (ISO 3166-1 alpha-2 codes) where properties are concentrated. Helps buying agents quickly filter relevance.',
+            description="Primary countries (ISO 3166-1 alpha-2 codes) where properties are concentrated. Helps buying agents quickly filter relevance.",
             min_length=1,
         ),
     ] = None

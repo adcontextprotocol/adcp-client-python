@@ -126,7 +126,7 @@
 
 ### ⚠ BREAKING CHANGES
 
-* 
+*
 
 ### Features
 

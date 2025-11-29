@@ -8,8 +8,8 @@ from enum import Enum
 
 
 class CreativeAction(Enum):
-    created = 'created'
-    updated = 'updated'
-    unchanged = 'unchanged'
-    failed = 'failed'
-    deleted = 'deleted'
+    created = "created"
+    updated = "updated"
+    unchanged = "unchanged"
+    failed = "failed"
+    deleted = "deleted"

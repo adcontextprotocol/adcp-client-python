@@ -11,9 +11,6 @@ Compare with test_discriminated_unions.py to see the differences.
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
 import pytest
 
 # ✅ CORRECT: Import from public API
@@ -185,16 +182,12 @@ class TestProductDiscoveryWorkflow:
                             "property_tags": ["morning", "lifestyle"],
                         }
                     ],
-                    "pricing_options": [
-                        {"model": "cpm_fixed_rate", "is_fixed": True, "cpm": 4.50}
-                    ],
+                    "pricing_options": [{"model": "cpm_fixed_rate", "is_fixed": True, "cpm": 4.50}],
                 }
             ]
         }
 
-        mock_result = TaskResult(
-            status=TaskStatus.COMPLETED, data=mock_response_data, success=True
-        )
+        mock_result = TaskResult(status=TaskStatus.COMPLETED, data=mock_response_data, success=True)
 
         mocker.patch.object(client.adapter, "get_products", return_value=mock_result)
 
@@ -227,9 +220,7 @@ class TestProductDiscoveryWorkflow:
         client = ADCPClient(config)
 
         # Mock empty response
-        mock_result = TaskResult(
-            status=TaskStatus.COMPLETED, data={"products": []}, success=True
-        )
+        mock_result = TaskResult(status=TaskStatus.COMPLETED, data={"products": []}, success=True)
 
         mocker.patch.object(client.adapter, "get_products", return_value=mock_result)
 
@@ -309,11 +300,7 @@ class TestPublicAPIBehavior:
         # Mock error response
         mock_result = TaskResult(
             status=TaskStatus.COMPLETED,
-            data={
-                "errors": [
-                    {"code": "budget_exceeded", "message": "Budget exceeds limit"}
-                ]
-            },
+            data={"errors": [{"code": "budget_exceeded", "message": "Budget exceeds limit"}]},
             success=True,  # Note: Protocol success, but logical error
         )
 
@@ -425,9 +412,7 @@ class AntiPatterns:
                     "property_ids": ["site1"],
                 }
             ],
-            "pricing_options": [
-                {"model": "cpm_fixed_rate", "is_fixed": True, "cpm": 5.0}
-            ],
+            "pricing_options": [{"model": "cpm_fixed_rate", "is_fixed": True, "cpm": 5.0}],
         }
 
         product = Product.model_validate(product_json)
@@ -525,9 +510,7 @@ def sample_product_json():
                 "property_ids": ["homepage", "mobile_app"],
             }
         ],
-        "pricing_options": [
-            {"model": "cpm_fixed_rate", "is_fixed": True, "cpm": 5.50}
-        ],
+        "pricing_options": [{"model": "cpm_fixed_rate", "is_fixed": True, "cpm": 5.50}],
     }
 
 

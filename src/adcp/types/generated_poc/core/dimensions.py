@@ -12,7 +12,7 @@ from pydantic import ConfigDict, Field
 
 class Dimensions(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    height: Annotated[int, Field(description='Height in pixels', ge=1)]
-    width: Annotated[int, Field(description='Width in pixels', ge=1)]
+    height: Annotated[int, Field(description="Height in pixels", ge=1)]
+    width: Annotated[int, Field(description="Width in pixels", ge=1)]

@@ -8,6 +8,6 @@ from enum import Enum
 
 
 class WebhookSecurityMethod(Enum):
-    hmac_sha256 = 'hmac_sha256'
-    api_key = 'api_key'
-    none = 'none'
+    hmac_sha256 = "hmac_sha256"
+    api_key = "api_key"
+    none = "none"

@@ -68,11 +68,7 @@ def flatten_schemas():
     # Recursively find all JSON schemas (including subdirectories)
     schema_files = list(SCHEMAS_DIR.rglob("*.json"))
     # Filter out .hashes.json and index.json
-    schema_files = [
-        f
-        for f in schema_files
-        if f.name not in (".hashes.json", "index.json")
-    ]
+    schema_files = [f for f in schema_files if f.name not in (".hashes.json", "index.json")]
 
     for schema_file in schema_files:
         # Preserve directory structure relative to SCHEMAS_DIR

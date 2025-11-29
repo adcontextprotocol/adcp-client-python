@@ -8,8 +8,8 @@ from enum import Enum
 
 
 class TaskType(Enum):
-    create_media_buy = 'create_media_buy'
-    update_media_buy = 'update_media_buy'
-    sync_creatives = 'sync_creatives'
-    activate_signal = 'activate_signal'
-    get_signals = 'get_signals'
+    create_media_buy = "create_media_buy"
+    update_media_buy = "update_media_buy"
+    sync_creatives = "sync_creatives"
+    activate_signal = "activate_signal"
+    get_signals = "get_signals"

@@ -8,6 +8,6 @@ from enum import Enum
 
 
 class CoBrandingRequirement(Enum):
-    required = 'required'
-    optional = 'optional'
-    none = 'none'
+    required = "required"
+    optional = "optional"
+    none = "none"

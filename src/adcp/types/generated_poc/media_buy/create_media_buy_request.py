@@ -18,28 +18,28 @@ from . import package_request
 
 
 class ReportingFrequency(Enum):
-    hourly = 'hourly'
-    daily = 'daily'
-    monthly = 'monthly'
+    hourly = "hourly"
+    daily = "daily"
+    monthly = "monthly"
 
 
 class RequestedMetric(Enum):
-    impressions = 'impressions'
-    spend = 'spend'
-    clicks = 'clicks'
-    ctr = 'ctr'
-    video_completions = 'video_completions'
-    completion_rate = 'completion_rate'
-    conversions = 'conversions'
-    viewability = 'viewability'
-    engagement_rate = 'engagement_rate'
+    impressions = "impressions"
+    spend = "spend"
+    clicks = "clicks"
+    ctr = "ctr"
+    video_completions = "video_completions"
+    completion_rate = "completion_rate"
+    conversions = "conversions"
+    viewability = "viewability"
+    engagement_rate = "engagement_rate"
 
 
 class ReportingWebhook(PushNotificationConfig):
     reporting_frequency: Annotated[
         ReportingFrequency,
         Field(
-            description='Frequency for automated reporting delivery. Must be supported by all products in the media buy.'
+            description="Frequency for automated reporting delivery. Must be supported by all products in the media buy."
         ),
     ]
     requested_metrics: Annotated[
@@ -52,43 +52,43 @@ class ReportingWebhook(PushNotificationConfig):
 
 class CreateMediaBuyRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     brand_manifest: Annotated[
         brand_manifest_1.BrandManifest | AnyUrl,
         Field(
-            description='Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests.',
+            description="Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests.",
             examples=[
                 {
-                    'data': {
-                        'colors': {'primary': '#FF6B35'},
-                        'name': 'ACME Corporation',
-                        'url': 'https://acmecorp.com',
+                    "data": {
+                        "colors": {"primary": "#FF6B35"},
+                        "name": "ACME Corporation",
+                        "url": "https://acmecorp.com",
                     },
-                    'description': 'Inline brand manifest',
+                    "description": "Inline brand manifest",
                 },
                 {
-                    'data': 'https://cdn.acmecorp.com/brand-manifest.json',
-                    'description': 'URL string reference to hosted manifest',
+                    "data": "https://cdn.acmecorp.com/brand-manifest.json",
+                    "description": "URL string reference to hosted manifest",
                 },
             ],
-            title='Brand Manifest Reference',
+            title="Brand Manifest Reference",
         ),
     ]
     buyer_ref: Annotated[str, Field(description="Buyer's reference identifier for this media buy")]
     context: context_1.ContextObject | None = None
     end_time: Annotated[
-        AwareDatetime, Field(description='Campaign end date/time in ISO 8601 format')
+        AwareDatetime, Field(description="Campaign end date/time in ISO 8601 format")
     ]
     ext: ext_1.ExtensionObject | None = None
     packages: Annotated[
-        list[package_request.PackageRequest], Field(description='Array of package configurations')
+        list[package_request.PackageRequest], Field(description="Array of package configurations")
     ]
-    po_number: Annotated[str | None, Field(description='Purchase order number for tracking')] = None
+    po_number: Annotated[str | None, Field(description="Purchase order number for tracking")] = None
     reporting_webhook: ReportingWebhook | None = None
     start_time: Annotated[
         str | AwareDatetime,
         Field(
-            description="Campaign start timing: 'asap' or ISO 8601 date-time", title='Start Timing'
+            description="Campaign start timing: 'asap' or ISO 8601 date-time", title="Start Timing"
         ),
     ]
