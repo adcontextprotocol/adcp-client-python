@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.12.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.12.1...v2.12.2) (2025-11-29)
+
+
+### Bug Fixes
+
+* handle BaseExceptionGroup with CancelledError during cleanup ([#89](https://github.com/adcontextprotocol/adcp-client-python/issues/89)) ([940e6ee](https://github.com/adcontextprotocol/adcp-client-python/commit/940e6eef57c9ffdfde2981fe8d3a36d66ddb76b2))
+* handle ExceptionGroup and CancelledError in MCP error flow ([#87](https://github.com/adcontextprotocol/adcp-client-python/issues/87)) ([27ff0ae](https://github.com/adcontextprotocol/adcp-client-python/commit/27ff0ae9e2451540bbba7d7d0cbc4133c0c7d223))
+* use official A2A SDK for spec-compliant client implementation ([#90](https://github.com/adcontextprotocol/adcp-client-python/issues/90)) ([d1b55cf](https://github.com/adcontextprotocol/adcp-client-python/commit/d1b55cfbb19675c286336d6a484efa797b8df1c9))
+
 ## [2.12.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.12.0...v2.12.1) (2025-11-24)
 
 
