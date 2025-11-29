@@ -66,7 +66,7 @@ adcp = ["py.typed", "ADCP_VERSION"]
 [tool.black]
 line-length = 100
 target-version = ["py310", "py311", "py312"]
-extend-exclude = "/(_generated|tasks)\\.py$"
+extend-exclude = "/(tasks)\\.py$"
 
 [tool.ruff]
 line-length = 100
