@@ -4,6 +4,17 @@ import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from a2a.types import (
+    AgentCard,
+    Artifact,
+    DataPart,
+    Message,
+    SendMessageSuccessResponse,
+    Task,
+    TaskState,
+    TaskStatus as A2ATaskStatus,
+    TextPart,
+)
 
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.mcp import MCPAdapter
@@ -18,6 +29,38 @@ def a2a_config():
         agent_uri="https://a2a.example.com",
         protocol=Protocol.A2A,
         auth_token="test_token",
+    )
+
+
+def create_mock_a2a_task(
+    task_id: str = "task_123",
+    context_id: str = "ctx_456",
+    state: str = "completed",
+    parts: list = None,
+) -> Task:
+    """Helper to create mock A2A Task responses."""
+    if parts is None:
+        parts = [TextPart(text="Default message"), DataPart(data={})]
+
+    return Task(
+        id=task_id,
+        context_id=context_id,
+        status=A2ATaskStatus(state=state),
+        artifacts=[Artifact(artifact_id="artifact_1", parts=parts)],
+    )
+
+
+def create_mock_agent_card() -> AgentCard:
+    """Helper to create mock AgentCard."""
+    return AgentCard(
+        name="test_agent",
+        version="1.0.0",
+        description="Test A2A agent",
+        url="https://a2a.example.com",
+        capabilities={"streaming": False},
+        defaultInputModes=["text"],
+        defaultOutputModes=["text"],
+        skills=[],
     )
 
 
@@ -40,48 +83,24 @@ class TestA2AAdapter:
         """Test successful tool call via A2A using canonical response format."""
         adapter = A2AAdapter(a2a_config)
 
-        # Use canonical A2A response format with artifacts and typed parts
-        mock_response_data = {
-            "status": "completed",
-            "taskId": "task_123",
-            "contextId": "ctx_456",
-            "artifacts": [
-                {
-                    "parts": [
-                        {"kind": "text", "text": "Found 3 products matching criteria"},
-                        {"kind": "data", "data": {"result": "success", "products": []}},
-                    ]
-                }
-            ],
-        }
+        # Create A2A SDK Task response
+        mock_task = create_mock_a2a_task(
+            parts=[
+                TextPart(text="Found 3 products matching criteria"),
+                DataPart(data={"result": "success", "products": []}),
+            ]
+        )
+        mock_response = SendMessageSuccessResponse(result=mock_task)
 
-        mock_client = AsyncMock()
-        mock_http_response = MagicMock()
-        mock_http_response.json = MagicMock(return_value=mock_response_data)
-        mock_http_response.raise_for_status = MagicMock()
-        mock_client.post = AsyncMock(return_value=mock_http_response)
+        # Mock the A2A client
+        mock_a2a_client = AsyncMock()
+        mock_a2a_client.send_message = AsyncMock(return_value=mock_response)
 
-        with patch.object(adapter, "_get_client", return_value=mock_client):
+        with patch.object(adapter, "_get_a2a_client", return_value=mock_a2a_client):
             result = await adapter._call_a2a_tool("get_products", {"brief": "test"})
 
-            # Verify the adapter logic - check HTTP request details
-            mock_client.post.assert_called_once()
-            call_args = mock_client.post.call_args
-
-            # Verify URL includes /message/send endpoint
-            assert call_args[0][0] == "https://a2a.example.com/message/send"
-
-            # Verify headers include auth token (default auth_type is "token", not "bearer")
-            headers = call_args[1]["headers"]
-            assert "x-adcp-auth" in headers
-            assert headers["x-adcp-auth"] == "test_token"
-
-            # Verify request body structure matches A2A spec
-            json_body = call_args[1]["json"]
-            assert "message" in json_body
-            assert json_body["message"]["role"] == "user"
-            assert "parts" in json_body["message"]
-            assert "context_id" in json_body
+            # Verify the A2A client was called
+            mock_a2a_client.send_message.assert_called_once()
 
             # Verify result parsing
             assert result.success is True
@@ -96,35 +115,17 @@ class TestA2AAdapter:
         """Test failed tool call via A2A using canonical response format."""
         adapter = A2AAdapter(a2a_config)
 
-        # Protocol-level failure uses status: "failed" with TextPart for error message
-        mock_response_data = {
-            "status": "failed",
-            "taskId": "task_123",
-            "contextId": "ctx_456",
-            "artifacts": [
-                {
-                    "parts": [
-                        {"kind": "text", "text": "Authentication failed"},
-                    ]
-                }
-            ],
-        }
+        # Protocol-level failure uses state: "failed" with TextPart for error message
+        mock_task = create_mock_a2a_task(
+            state="failed", parts=[TextPart(text="Authentication failed")]
+        )
+        mock_response = SendMessageSuccessResponse(result=mock_task)
 
-        mock_client = AsyncMock()
-        mock_http_response = MagicMock()
-        mock_http_response.json = MagicMock(return_value=mock_response_data)
-        mock_http_response.raise_for_status = MagicMock()
-        mock_client.post = AsyncMock(return_value=mock_http_response)
+        mock_a2a_client = AsyncMock()
+        mock_a2a_client.send_message = AsyncMock(return_value=mock_response)
 
-        with patch.object(adapter, "_get_client", return_value=mock_client):
+        with patch.object(adapter, "_get_a2a_client", return_value=mock_a2a_client):
             result = await adapter._call_a2a_tool("get_products", {"brief": "test"})
-
-            # Verify HTTP request was made with correct parameters
-            mock_client.post.assert_called_once()
-            call_args = mock_client.post.call_args
-            assert call_args[0][0] == "https://a2a.example.com/message/send"
-            assert call_args[1]["headers"]["x-adcp-auth"] == "test_token"
-            assert "message" in call_args[1]["json"]
 
             # Verify failure handling
             assert result.success is False
@@ -137,39 +138,29 @@ class TestA2AAdapter:
         adapter = A2AAdapter(a2a_config)
 
         # Task completes but has partial failures in errors array
-        mock_response_data = {
-            "status": "completed",
-            "taskId": "task_123",
-            "contextId": "ctx_456",
-            "artifacts": [
-                {
-                    "parts": [
-                        {"kind": "text", "text": "Media buy created with warnings"},
-                        {
-                            "kind": "data",
-                            "data": {
-                                "media_buy_id": "mb_123",
-                                "errors": [
-                                    {
-                                        "code": "APPROVAL_REQUIRED",
-                                        "message": "Budget exceeds threshold",
-                                        "severity": "warning",
-                                    }
-                                ],
-                            },
-                        },
-                    ]
-                }
-            ],
-        }
+        mock_task = create_mock_a2a_task(
+            parts=[
+                TextPart(text="Media buy created with warnings"),
+                DataPart(
+                    data={
+                        "media_buy_id": "mb_123",
+                        "errors": [
+                            {
+                                "code": "APPROVAL_REQUIRED",
+                                "message": "Budget exceeds threshold",
+                                "severity": "warning",
+                            }
+                        ],
+                    }
+                ),
+            ]
+        )
+        mock_response = SendMessageSuccessResponse(result=mock_task)
 
-        mock_client = AsyncMock()
-        mock_http_response = MagicMock()
-        mock_http_response.json = MagicMock(return_value=mock_response_data)
-        mock_http_response.raise_for_status = MagicMock()
-        mock_client.post = AsyncMock(return_value=mock_http_response)
+        mock_a2a_client = AsyncMock()
+        mock_a2a_client.send_message = AsyncMock(return_value=mock_response)
 
-        with patch.object(adapter, "_get_client", return_value=mock_client):
+        with patch.object(adapter, "_get_a2a_client", return_value=mock_a2a_client):
             result = await adapter._call_a2a_tool("create_media_buy", {"budget": 10000})
 
             assert result.status == TaskStatus.COMPLETED
@@ -183,27 +174,18 @@ class TestA2AAdapter:
         adapter = A2AAdapter(a2a_config)
 
         # Simulates streaming scenario with intermediate + final DataParts
-        mock_response_data = {
-            "status": "completed",
-            "taskId": "task_123",
-            "contextId": "ctx_456",
-            "artifacts": [
-                {
-                    "parts": [
-                        {"kind": "data", "data": {"status": "processing", "progress": 50}},
-                        {"kind": "data", "data": {"status": "completed", "result": "final"}},
-                    ]
-                }
-            ],
-        }
+        mock_task = create_mock_a2a_task(
+            parts=[
+                DataPart(data={"status": "processing", "progress": 50}),
+                DataPart(data={"status": "completed", "result": "final"}),
+            ]
+        )
+        mock_response = SendMessageSuccessResponse(result=mock_task)
 
-        mock_client = AsyncMock()
-        mock_http_response = MagicMock()
-        mock_http_response.json = MagicMock(return_value=mock_response_data)
-        mock_http_response.raise_for_status = MagicMock()
-        mock_client.post = AsyncMock(return_value=mock_http_response)
+        mock_a2a_client = AsyncMock()
+        mock_a2a_client.send_message = AsyncMock(return_value=mock_response)
 
-        with patch.object(adapter, "_get_client", return_value=mock_client):
+        with patch.object(adapter, "_get_a2a_client", return_value=mock_a2a_client):
             result = await adapter._call_a2a_tool("get_products", {"brief": "test"})
 
             assert result.success is True
@@ -217,39 +199,40 @@ class TestA2AAdapter:
 
         # Simulates streaming with multiple artifacts
         # A2A spec doesn't define artifact.status, so we use the last (most recent) one
-        mock_response_data = {
-            "status": "completed",
-            "taskId": "task_123",
-            "contextId": "ctx_456",
-            "artifacts": [
-                {
-                    "parts": [
-                        {"kind": "text", "text": "Processing..."},
-                        {"kind": "data", "data": {"status": "working", "progress": 75}},
+        mock_task = Task(
+            id="task_123",
+            context_id="ctx_456",
+            status=A2ATaskStatus(state="completed"),
+            artifacts=[
+                Artifact(
+                    artifact_id="artifact_1",
+                    parts=[
+                        TextPart(text="Processing..."),
+                        DataPart(data={"status": "working", "progress": 75}),
                     ],
-                },
-                {
-                    "parts": [
-                        {"kind": "text", "text": "Processing complete"},
-                        {"kind": "data", "data": {"status": "completed", "products": ["prod1"]}},
+                ),
+                Artifact(
+                    artifact_id="artifact_2",
+                    parts=[
+                        TextPart(text="Processing complete"),
+                        DataPart(data={"status": "completed", "products": ["prod1"]}),
                     ],
-                },
-                {
-                    "parts": [
-                        {"kind": "text", "text": "Final result"},
-                        {"kind": "data", "data": {"status": "completed", "products": ["prod2"]}},
+                ),
+                Artifact(
+                    artifact_id="artifact_3",
+                    parts=[
+                        TextPart(text="Final result"),
+                        DataPart(data={"status": "completed", "products": ["prod2"]}),
                     ],
-                },
+                ),
             ],
-        }
+        )
+        mock_response = SendMessageSuccessResponse(result=mock_task)
 
-        mock_client = AsyncMock()
-        mock_http_response = MagicMock()
-        mock_http_response.json = MagicMock(return_value=mock_response_data)
-        mock_http_response.raise_for_status = MagicMock()
-        mock_client.post = AsyncMock(return_value=mock_http_response)
+        mock_a2a_client = AsyncMock()
+        mock_a2a_client.send_message = AsyncMock(return_value=mock_response)
 
-        with patch.object(adapter, "_get_client", return_value=mock_client):
+        with patch.object(adapter, "_get_a2a_client", return_value=mock_a2a_client):
             result = await adapter._call_a2a_tool("get_products", {"brief": "test"})
 
             assert result.success is True
@@ -263,32 +246,18 @@ class TestA2AAdapter:
         adapter = A2AAdapter(a2a_config)
 
         # ADK wraps the actual response in {"response": {...}}
-        mock_response_data = {
-            "status": "completed",
-            "taskId": "task_123",
-            "contextId": "ctx_456",
-            "artifacts": [
-                {
-                    "parts": [
-                        {"kind": "text", "text": "Products retrieved"},
-                        {
-                            "kind": "data",
-                            "data": {
-                                "response": {"products": [{"id": "prod1", "name": "TV Ad"}]}
-                            },
-                        },
-                    ],
-                }
-            ],
-        }
+        mock_task = create_mock_a2a_task(
+            parts=[
+                TextPart(text="Products retrieved"),
+                DataPart(data={"response": {"products": [{"id": "prod1", "name": "TV Ad"}]}}),
+            ]
+        )
+        mock_response = SendMessageSuccessResponse(result=mock_task)
 
-        mock_client = AsyncMock()
-        mock_http_response = MagicMock()
-        mock_http_response.json = MagicMock(return_value=mock_response_data)
-        mock_http_response.raise_for_status = MagicMock()
-        mock_client.post = AsyncMock(return_value=mock_http_response)
+        mock_a2a_client = AsyncMock()
+        mock_a2a_client.send_message = AsyncMock(return_value=mock_response)
 
-        with patch.object(adapter, "_get_client", return_value=mock_client):
+        with patch.object(adapter, "_get_a2a_client", return_value=mock_a2a_client):
             result = await adapter._call_a2a_tool("get_products", {"brief": "test"})
 
             assert result.success is True
@@ -302,33 +271,23 @@ class TestA2AAdapter:
         adapter = A2AAdapter(a2a_config)
 
         # Some ADK responses have both "response" and other metadata
-        mock_response_data = {
-            "status": "completed",
-            "taskId": "task_123",
-            "contextId": "ctx_456",
-            "artifacts": [
-                {
-                    "parts": [
-                        {"kind": "text", "text": "Products retrieved"},
-                        {
-                            "kind": "data",
-                            "data": {
-                                "response": {"products": [{"id": "prod1"}]},
-                                "metadata": {"cache_hit": True},
-                            },
-                        },
-                    ],
-                }
-            ],
-        }
+        mock_task = create_mock_a2a_task(
+            parts=[
+                TextPart(text="Products retrieved"),
+                DataPart(
+                    data={
+                        "response": {"products": [{"id": "prod1"}]},
+                        "metadata": {"cache_hit": True},
+                    }
+                ),
+            ]
+        )
+        mock_response = SendMessageSuccessResponse(result=mock_task)
 
-        mock_client = AsyncMock()
-        mock_http_response = MagicMock()
-        mock_http_response.json = MagicMock(return_value=mock_response_data)
-        mock_http_response.raise_for_status = MagicMock()
-        mock_client.post = AsyncMock(return_value=mock_http_response)
+        mock_a2a_client = AsyncMock()
+        mock_a2a_client.send_message = AsyncMock(return_value=mock_response)
 
-        with patch.object(adapter, "_get_client", return_value=mock_client):
+        with patch.object(adapter, "_get_a2a_client", return_value=mock_a2a_client):
             result = await adapter._call_a2a_tool("get_products", {"brief": "test"})
 
             assert result.success is True
@@ -340,26 +299,15 @@ class TestA2AAdapter:
         """Test handling interim 'working' response without structured data."""
         adapter = A2AAdapter(a2a_config)
 
-        mock_response_data = {
-            "status": "working",
-            "taskId": "task_123",
-            "contextId": "ctx_456",
-            "artifacts": [
-                {
-                    "parts": [
-                        {"kind": "text", "text": "Processing your request..."},
-                    ],
-                }
-            ],
-        }
+        mock_task = create_mock_a2a_task(
+            state="working", parts=[TextPart(text="Processing your request...")]
+        )
+        mock_response = SendMessageSuccessResponse(result=mock_task)
 
-        mock_client = AsyncMock()
-        mock_http_response = MagicMock()
-        mock_http_response.json = MagicMock(return_value=mock_response_data)
-        mock_http_response.raise_for_status = MagicMock()
-        mock_client.post = AsyncMock(return_value=mock_http_response)
+        mock_a2a_client = AsyncMock()
+        mock_a2a_client.send_message = AsyncMock(return_value=mock_response)
 
-        with patch.object(adapter, "_get_client", return_value=mock_client):
+        with patch.object(adapter, "_get_a2a_client", return_value=mock_a2a_client):
             result = await adapter._call_a2a_tool("get_products", {"brief": "test"})
 
             assert result.success is True
@@ -374,26 +322,15 @@ class TestA2AAdapter:
         """Test handling interim 'submitted' response without structured data."""
         adapter = A2AAdapter(a2a_config)
 
-        mock_response_data = {
-            "status": "submitted",
-            "taskId": "task_123",
-            "contextId": "ctx_456",
-            "artifacts": [
-                {
-                    "parts": [
-                        {"kind": "text", "text": "Task submitted successfully"},
-                    ],
-                }
-            ],
-        }
+        mock_task = create_mock_a2a_task(
+            state="submitted", parts=[TextPart(text="Task submitted successfully")]
+        )
+        mock_response = SendMessageSuccessResponse(result=mock_task)
 
-        mock_client = AsyncMock()
-        mock_http_response = MagicMock()
-        mock_http_response.json = MagicMock(return_value=mock_response_data)
-        mock_http_response.raise_for_status = MagicMock()
-        mock_client.post = AsyncMock(return_value=mock_http_response)
+        mock_a2a_client = AsyncMock()
+        mock_a2a_client.send_message = AsyncMock(return_value=mock_response)
 
-        with patch.object(adapter, "_get_client", return_value=mock_client):
+        with patch.object(adapter, "_get_a2a_client", return_value=mock_a2a_client):
             result = await adapter._call_a2a_tool("get_products", {"brief": "test"})
 
             assert result.success is True
@@ -408,33 +345,25 @@ class TestA2AAdapter:
         """Test listing tools via A2A agent card."""
         adapter = A2AAdapter(a2a_config)
 
-        mock_agent_card = {
-            "skills": [
-                {"name": "get_products"},
-                {"name": "create_media_buy"},
-                {"name": "list_creative_formats"},
-            ]
-        }
+        # Use MagicMock to allow setting arbitrary attributes
+        mock_agent_card = MagicMock()
+        # Create skill mocks with .name attribute (not using name= parameter)
+        skill1 = MagicMock()
+        skill1.name = "get_products"
+        skill2 = MagicMock()
+        skill2.name = "create_media_buy"
+        skill3 = MagicMock()
+        skill3.name = "list_creative_formats"
+        mock_agent_card.skills = [skill1, skill2, skill3]
 
-        mock_client = AsyncMock()
-        mock_http_response = MagicMock()
-        mock_http_response.json = MagicMock(return_value=mock_agent_card)
-        mock_http_response.raise_for_status = MagicMock()
-        mock_client.get = AsyncMock(return_value=mock_http_response)
+        mock_a2a_client = AsyncMock()
+        mock_a2a_client.get_card = AsyncMock(return_value=mock_agent_card)
 
-        with patch.object(adapter, "_get_client", return_value=mock_client):
+        with patch.object(adapter, "_get_a2a_client", return_value=mock_a2a_client):
             tools = await adapter.list_tools()
 
-            # Verify agent card URL construction (A2A spec uses agent.json)
-            mock_client.get.assert_called_once()
-            call_args = mock_client.get.call_args
-            expected_url = "https://a2a.example.com/.well-known/agent.json"
-            assert call_args[0][0] == expected_url
-
-            # Verify auth headers are included (default auth_type is "token")
-            headers = call_args[1]["headers"]
-            assert "x-adcp-auth" in headers
-            assert headers["x-adcp-auth"] == "test_token"
+            # Verify get_card was called
+            mock_a2a_client.get_card.assert_called_once()
 
             # Verify tool list parsing
             assert len(tools) == 3
@@ -447,29 +376,25 @@ class TestA2AAdapter:
         """Test getting agent info including AdCP extension metadata."""
         adapter = A2AAdapter(a2a_config)
 
-        mock_agent_card = {
-            "name": "Test AdCP Agent",
-            "description": "Test agent for AdCP protocol",
-            "version": "1.0.0",
-            "skills": [
-                {"name": "get_products"},
-                {"name": "create_media_buy"},
-            ],
-            "extensions": {
-                "adcp": {
-                    "adcp_version": "2.4.0",
-                    "protocols_supported": ["media_buy", "creative"]
-                }
-            }
+        # Use MagicMock to allow setting arbitrary attributes including extensions
+        mock_agent_card = MagicMock()
+        mock_agent_card.name = "Test AdCP Agent"
+        mock_agent_card.description = "Test agent for AdCP protocol"
+        mock_agent_card.version = "1.0.0"
+        # Create skill mocks with .name attribute (not using name= parameter)
+        skill1 = MagicMock()
+        skill1.name = "get_products"
+        skill2 = MagicMock()
+        skill2.name = "create_media_buy"
+        mock_agent_card.skills = [skill1, skill2]
+        mock_agent_card.extensions = {
+            "adcp": {"adcp_version": "2.4.0", "protocols_supported": ["media_buy", "creative"]}
         }
 
-        mock_client = AsyncMock()
-        mock_http_response = MagicMock()
-        mock_http_response.json = MagicMock(return_value=mock_agent_card)
-        mock_http_response.raise_for_status = MagicMock()
-        mock_client.get = AsyncMock(return_value=mock_http_response)
+        mock_a2a_client = AsyncMock()
+        mock_a2a_client.get_card = AsyncMock(return_value=mock_agent_card)
 
-        with patch.object(adapter, "_get_client", return_value=mock_client):
+        with patch.object(adapter, "_get_a2a_client", return_value=mock_a2a_client):
             info = await adapter.get_agent_info()
 
             # Verify basic agent info
@@ -492,18 +417,19 @@ class TestA2AAdapter:
         """Test getting agent info when AdCP extension is not present."""
         adapter = A2AAdapter(a2a_config)
 
-        mock_agent_card = {
-            "name": "Basic Agent",
-            "skills": [{"name": "get_products"}],
-        }
+        # Use MagicMock to allow setting arbitrary attributes
+        mock_agent_card = MagicMock()
+        mock_agent_card.name = "Basic Agent"
+        # Create skill mock with .name attribute (not using name= parameter)
+        skill1 = MagicMock()
+        skill1.name = "get_products"
+        mock_agent_card.skills = [skill1]
+        mock_agent_card.extensions = None
 
-        mock_client = AsyncMock()
-        mock_http_response = MagicMock()
-        mock_http_response.json = MagicMock(return_value=mock_agent_card)
-        mock_http_response.raise_for_status = MagicMock()
-        mock_client.get = AsyncMock(return_value=mock_http_response)
+        mock_a2a_client = AsyncMock()
+        mock_a2a_client.get_card = AsyncMock(return_value=mock_agent_card)
 
-        with patch.object(adapter, "_get_client", return_value=mock_client):
+        with patch.object(adapter, "_get_a2a_client", return_value=mock_a2a_client):
             info = await adapter.get_agent_info()
 
             # Verify basic info is still available

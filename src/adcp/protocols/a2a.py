@@ -1,10 +1,6 @@
 from __future__ import annotations
 
-"""A2A protocol adapter using HTTP client.
-
-The official a2a-sdk is primarily for building A2A servers. For client functionality,
-we implement the A2A protocol using HTTP requests as per the A2A specification.
-"""
+"""A2A protocol adapter using the official a2a-sdk client."""
 
 import logging
 import time
@@ -12,6 +8,15 @@ from typing import Any
 from uuid import uuid4
 
 import httpx
+from a2a.client import A2ACardResolver, A2AClient
+from a2a.types import (
+    Message,
+    SendMessageRequest,
+    SendMessageSuccessResponse,
+    Task,
+    TaskState,
+    TextPart,
+)
 
 from adcp.exceptions import (
     ADCPAuthenticationError,
@@ -25,157 +30,217 @@ logger = logging.getLogger(__name__)
 
 
 class A2AAdapter(ProtocolAdapter):
-    """Adapter for A2A protocol following the Agent2Agent specification."""
+    """Adapter for A2A protocol using official a2a-sdk client."""
 
     def __init__(self, agent_config: AgentConfig):
-        """Initialize A2A adapter with reusable HTTP client."""
+        """Initialize A2A adapter with official A2A client."""
         super().__init__(agent_config)
-        self._client: httpx.AsyncClient | None = None
+        self._httpx_client: httpx.AsyncClient | None = None
+        self._a2a_client: A2AClient | None = None
 
-    async def _get_client(self) -> httpx.AsyncClient:
+    async def _get_httpx_client(self) -> httpx.AsyncClient:
         """Get or create the HTTP client with connection pooling."""
-        if self._client is None:
-            # Configure connection pooling for better performance
+        if self._httpx_client is None:
             limits = httpx.Limits(
                 max_keepalive_connections=10,
                 max_connections=20,
                 keepalive_expiry=30.0,
             )
-            self._client = httpx.AsyncClient(limits=limits)
-            logger.debug(
-                f"Created HTTP client with connection pooling for agent {self.agent_config.id}"
-            )
-        return self._client
 
-    async def close(self) -> None:
-        """Close the HTTP client and clean up resources."""
-        if self._client is not None:
-            logger.debug(f"Closing A2A adapter client for agent {self.agent_config.id}")
-            await self._client.aclose()
-            self._client = None
+            headers = {}
+            if self.agent_config.auth_token:
+                if self.agent_config.auth_type == "bearer":
+                    headers["Authorization"] = f"Bearer {self.agent_config.auth_token}"
+                else:
+                    headers[self.agent_config.auth_header] = self.agent_config.auth_token
 
-    async def _call_a2a_tool(self, tool_name: str, params: dict[str, Any]) -> TaskResult[Any]:
-        """
-        Call a tool using A2A protocol.
-
-        A2A uses a tasks/send endpoint to initiate tasks. The agent responds with
-        task status and may require multiple roundtrips for completion.
-        """
-        start_time = time.time() if self.agent_config.debug else None
-        client = await self._get_client()
-
-        headers = {"Content-Type": "application/json"}
-
-        if self.agent_config.auth_token:
-            # Support custom auth headers and types
-            if self.agent_config.auth_type == "bearer":
-                headers[self.agent_config.auth_header] = f"Bearer {self.agent_config.auth_token}"
-            else:
-                headers[self.agent_config.auth_header] = self.agent_config.auth_token
-
-        # Construct A2A message
-        message = {
-            "role": "user",
-            "parts": [
-                {
-                    "type": "text",
-                    "text": self._format_tool_request(tool_name, params),
-                }
-            ],
-        }
-
-        # A2A uses message/send endpoint
-        url = f"{self.agent_config.agent_uri}/message/send"
-
-        request_data = {
-            "message": message,
-            "context_id": str(uuid4()),
-        }
-
-        debug_info = None
-        if self.agent_config.debug:
-            debug_request = {
-                "url": url,
-                "method": "POST",
-                "headers": {
-                    k: (
-                        v
-                        if k.lower() not in ("authorization", self.agent_config.auth_header.lower())
-                        else "***"
-                    )
-                    for k, v in headers.items()
-                },
-                "body": request_data,
-            }
-
-        try:
-            response = await client.post(
-                url,
-                json=request_data,
+            self._httpx_client = httpx.AsyncClient(
+                limits=limits,
                 headers=headers,
                 timeout=self.agent_config.timeout,
             )
-            response.raise_for_status()
+            logger.debug(
+                f"Created HTTP client with connection pooling for agent {self.agent_config.id}"
+            )
+        return self._httpx_client
 
-            data = response.json()
+    async def _get_a2a_client(self) -> A2AClient:
+        """Get or create the A2A client."""
+        if self._a2a_client is None:
+            httpx_client = await self._get_httpx_client()
 
-            if self.agent_config.debug and start_time:
-                duration_ms = (time.time() - start_time) * 1000
-                debug_info = DebugInfo(
-                    request=debug_request,
-                    response={"status": response.status_code, "body": data},
-                    duration_ms=duration_ms,
-                )
+            # Use A2ACardResolver to fetch the agent card
+            card_resolver = A2ACardResolver(
+                httpx_client=httpx_client,
+                base_url=self.agent_config.agent_uri,
+            )
 
-            # Parse A2A response format per canonical spec
-            # A2A tasks have lifecycle: submitted, working, completed, failed, input-required
-            task_status = data.get("status")
+            try:
+                agent_card = await card_resolver.get_agent_card()
+                logger.debug(f"Fetched agent card for {self.agent_config.id}")
+            except httpx.HTTPStatusError as e:
+                status_code = e.response.status_code
+                if status_code in (401, 403):
+                    raise ADCPAuthenticationError(
+                        f"Authentication failed: HTTP {status_code}",
+                        agent_id=self.agent_config.id,
+                        agent_uri=self.agent_config.agent_uri,
+                    ) from e
+                else:
+                    raise ADCPConnectionError(
+                        f"Failed to fetch agent card: HTTP {status_code}",
+                        agent_id=self.agent_config.id,
+                        agent_uri=self.agent_config.agent_uri,
+                    ) from e
+            except httpx.TimeoutException as e:
+                raise ADCPTimeoutError(
+                    f"Timeout fetching agent card: {e}",
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
+                    timeout=self.agent_config.timeout,
+                ) from e
+            except httpx.HTTPError as e:
+                raise ADCPConnectionError(
+                    f"Failed to fetch agent card: {e}",
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
+                ) from e
 
-            if task_status == "completed":
-                # Extract the result from the artifacts array
-                result_data = self._extract_result(data)
+            self._a2a_client = A2AClient(
+                httpx_client=httpx_client,
+                agent_card=agent_card,
+            )
+            logger.debug(f"Created A2A client for agent {self.agent_config.id}")
 
-                # Check for task-level errors in the payload
-                errors = result_data.get("errors", []) if isinstance(result_data, dict) else []
-                has_errors = bool(errors)
+        return self._a2a_client
 
-                return TaskResult[Any](
-                    status=TaskStatus.COMPLETED,
-                    data=result_data,
-                    message=self._extract_text_part(data),
-                    success=not has_errors,
-                    metadata={
-                        "task_id": data.get("taskId"),
-                        "context_id": data.get("contextId"),
-                    },
-                    debug_info=debug_info,
-                )
-            elif task_status == "failed":
-                # Protocol-level failure - extract error message from TextPart
-                error_msg = self._extract_text_part(data) or "Task failed"
+    async def close(self) -> None:
+        """Close the HTTP client and clean up resources."""
+        if self._httpx_client is not None:
+            logger.debug(f"Closing A2A adapter client for agent {self.agent_config.id}")
+            await self._httpx_client.aclose()
+            self._httpx_client = None
+            self._a2a_client = None
+
+    async def _call_a2a_tool(self, tool_name: str, params: dict[str, Any]) -> TaskResult[Any]:
+        """Call a tool using A2A protocol via official a2a-sdk client."""
+        start_time = time.time() if self.agent_config.debug else None
+        a2a_client = await self._get_a2a_client()
+
+        # Build A2A message
+        message = Message(
+            messageId=str(uuid4()),
+            role="user",
+            parts=[TextPart(text=self._format_tool_request(tool_name, params))],
+        )
+
+        # Build request
+        request = SendMessageRequest(
+            id=str(uuid4()),
+            params={"message": message},
+        )
+
+        debug_info = None
+        debug_request = None
+        if self.agent_config.debug:
+            debug_request = {
+                "method": "send_message",
+                "message_id": message.messageId,
+                "tool": tool_name,
+                "params": params,
+            }
+
+        try:
+            # Use official A2A client
+            response = await a2a_client.send_message(request)
+
+            # Handle JSON-RPC error response
+            if hasattr(response, "error"):
+                error_msg = response.error.message if response.error.message else "Unknown error"
+                if self.agent_config.debug and start_time:
+                    duration_ms = (time.time() - start_time) * 1000
+                    debug_info = DebugInfo(
+                        request=debug_request,
+                        response={"error": response.error.model_dump()},
+                        duration_ms=duration_ms,
+                    )
                 return TaskResult[Any](
                     status=TaskStatus.FAILED,
                     error=error_msg,
                     success=False,
                     debug_info=debug_info,
                 )
-            else:
-                # Handle all interim states (submitted, working, pending, input-required)
-                # These don't need to have structured AdCP content - only completed responses do
-                return TaskResult[Any](
-                    status=TaskStatus.SUBMITTED,
-                    data=None,  # Interim responses may not have structured AdCP content
-                    message=self._extract_text_part(data),
-                    success=True,
-                    metadata={
-                        "task_id": data.get("taskId"),
-                        "context_id": data.get("contextId"),
-                        "status": task_status,  # submitted, working, pending, input-required, etc.
-                    },
-                    debug_info=debug_info,
+
+            # Handle success response
+            if hasattr(response, "result"):
+                result = response.result
+
+                if self.agent_config.debug and start_time:
+                    duration_ms = (time.time() - start_time) * 1000
+                    debug_info = DebugInfo(
+                        request=debug_request,
+                        response={"result": result.model_dump()},
+                        duration_ms=duration_ms,
+                    )
+
+                # Result can be either Task or Message
+                if isinstance(result, Task):
+                    return self._process_task_response(result, debug_info)
+                else:
+                    # Message response (shouldn't happen for send_message, but handle it)
+                    logger.warning(f"Received Message instead of Task from A2A agent {self.agent_config.id}")
+                    return TaskResult[Any](
+                        status=TaskStatus.COMPLETED,
+                        data=None,
+                        message="Received message response",
+                        success=True,
+                        debug_info=debug_info,
+                    )
+
+            # Shouldn't reach here
+            return TaskResult[Any](
+                status=TaskStatus.FAILED,
+                error="Invalid response from A2A client",
+                success=False,
+                debug_info=debug_info,
+            )
+
+        except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code
+            if self.agent_config.debug and start_time:
+                duration_ms = (time.time() - start_time) * 1000
+                debug_info = DebugInfo(
+                    request=debug_request,
+                    response={"error": str(e), "status_code": status_code},
+                    duration_ms=duration_ms,
                 )
 
-        except httpx.HTTPError as e:
+            if status_code in (401, 403):
+                error_msg = f"Authentication failed: HTTP {status_code}"
+            else:
+                error_msg = f"HTTP {status_code} error: {e}"
+
+            return TaskResult[Any](
+                status=TaskStatus.FAILED,
+                error=error_msg,
+                success=False,
+                debug_info=debug_info,
+            )
+        except httpx.TimeoutException as e:
+            if self.agent_config.debug and start_time:
+                duration_ms = (time.time() - start_time) * 1000
+                debug_info = DebugInfo(
+                    request=debug_request,
+                    response={"error": str(e)},
+                    duration_ms=duration_ms,
+                )
+            return TaskResult[Any](
+                status=TaskStatus.FAILED,
+                error=f"Timeout: {e}",
+                success=False,
+                debug_info=debug_info,
+            )
+        except Exception as e:
             if self.agent_config.debug and start_time:
                 duration_ms = (time.time() - start_time) * 1000
                 debug_info = DebugInfo(
@@ -190,16 +255,62 @@ class A2AAdapter(ProtocolAdapter):
                 debug_info=debug_info,
             )
 
+    def _process_task_response(self, task: Task, debug_info: DebugInfo | None) -> TaskResult[Any]:
+        """Process a Task response from A2A into our TaskResult format."""
+        task_state = task.status.state
+
+        if task_state == "completed":
+            # Extract the result from the artifacts array
+            result_data = self._extract_result_from_task(task)
+
+            # Check for task-level errors in the payload
+            errors = result_data.get("errors", []) if isinstance(result_data, dict) else []
+            has_errors = bool(errors)
+
+            return TaskResult[Any](
+                status=TaskStatus.COMPLETED,
+                data=result_data,
+                message=self._extract_text_from_task(task),
+                success=not has_errors,
+                metadata={
+                    "task_id": task.id,
+                    "context_id": task.context_id,
+                },
+                debug_info=debug_info,
+            )
+        elif task_state == "failed":
+            # Protocol-level failure - extract error message from TextPart
+            error_msg = self._extract_text_from_task(task) or "Task failed"
+            return TaskResult[Any](
+                status=TaskStatus.FAILED,
+                error=error_msg,
+                success=False,
+                debug_info=debug_info,
+            )
+        else:
+            # Handle all interim states (submitted, working, input-required, etc.)
+            return TaskResult[Any](
+                status=TaskStatus.SUBMITTED,
+                data=None,  # Interim responses may not have structured AdCP content
+                message=self._extract_text_from_task(task),
+                success=True,
+                metadata={
+                    "task_id": task.id,
+                    "context_id": task.context_id,
+                    "status": task_state,
+                },
+                debug_info=debug_info,
+            )
+
     def _format_tool_request(self, tool_name: str, params: dict[str, Any]) -> str:
         """Format tool request as natural language for A2A."""
-        # For AdCP tools, we format as a structured request
         import json
 
         return f"Execute tool: {tool_name}\nParameters: {json.dumps(params, indent=2)}"
 
-    def _extract_result(self, response_data: dict[str, Any]) -> Any:
+    def _extract_result_from_task(self, task: Task) -> Any:
         """
-        Extract result data from A2A response following canonical format.
+        Extract result data from A2A Task following canonical format.
 
         Per A2A response spec:
         - Responses MUST include at least one DataPart (kind: "data")
@@ -207,68 +318,55 @@ class A2AAdapter(ProtocolAdapter):
         - When multiple artifacts exist, use the last one (most recent in streaming)
         - DataParts contain structured AdCP payload
         """
-        artifacts = response_data.get("artifacts", [])
-
-        if not artifacts:
-            logger.warning("A2A response missing required artifacts array")
-            return response_data
+        if not task.artifacts:
+            logger.warning("A2A Task missing required artifacts array")
+            return {}
 
         # Use last artifact (most recent in streaming scenarios)
-        # A2A spec doesn't define artifact.status, so we simply take the last one
-        target_artifact = artifacts[-1]
+        target_artifact = task.artifacts[-1]
 
-        parts = target_artifact.get("parts", [])
-
-        if not parts:
-            logger.warning("A2A response artifact has no parts")
-            return response_data
+        if not target_artifact.parts:
+            logger.warning("A2A Task artifact has no parts")
+            return {}
 
         # Find all DataParts (kind: "data")
-        data_parts = [p for p in parts if p.get("kind") == "data"]
+        # Note: Parts are wrapped in a Part union type, access via .root
+        from a2a.types import DataPart
+
+        data_parts = [p.root for p in target_artifact.parts if isinstance(p.root, DataPart)]
 
         if not data_parts:
-            logger.warning("A2A response missing required DataPart (kind: 'data')")
-            return response_data
+            logger.warning("A2A Task missing required DataPart (kind: 'data')")
+            return {}
 
         # Use last DataPart as authoritative (handles streaming scenarios within an artifact)
         last_data_part = data_parts[-1]
-        data = last_data_part.get("data", {})
+        data = last_data_part.data
 
         # Some A2A implementations (e.g., ADK) wrap the response in {"response": {...}}
         # Unwrap it to get the actual AdCP payload if present
-        # ADK is inconsistent - some DataParts have the wrapper, others don't
         if isinstance(data, dict) and "response" in data:
             # If response is the only key, unwrap completely
             if len(data) == 1:
                 return data["response"]
             # If there are other keys alongside response, prefer the wrapped content
-            # but keep it flexible for edge cases
             return data["response"]
 
         return data
 
-    def _extract_text_part(self, response_data: dict[str, Any]) -> str | None:
-        """
-        Extract human-readable message from TextPart if present.
-
-        Uses last artifact (same logic as _extract_result).
-        """
-        artifacts = response_data.get("artifacts", [])
-
-        if not artifacts:
+    def _extract_text_from_task(self, task: Task) -> str | None:
+        """Extract human-readable message from TextPart if present."""
+        if not task.artifacts:
             return None
 
         # Use last artifact (most recent in streaming scenarios)
-        # A2A spec doesn't define artifact.status, so we simply take the last one
-        target_artifact = artifacts[-1]
-
-        parts = target_artifact.get("parts", [])
+        target_artifact = task.artifacts[-1]
 
         # Find TextPart (kind: "text")
-        for part in parts:
-            if part.get("kind") == "text":
-                text = part.get("text")
-                return str(text) if text is not None else None
+        # Note: Parts are wrapped in a Part union type, access via .root
+        for part in target_artifact.parts:
+            if isinstance(part.root, TextPart):
+                return part.root.text
 
         return None
 
@@ -332,36 +430,17 @@ class A2AAdapter(ProtocolAdapter):
         """
         List available tools from A2A agent.
 
-        Note: A2A doesn't have a standard tools/list endpoint. Agents expose
-        their capabilities through the agent card. For AdCP, we rely on the
-        standard AdCP tool set.
+        Uses A2A client which already fetched the agent card during initialization.
         """
-        client = await self._get_client()
+        # Get the A2A client (which already fetched the agent card)
+        a2a_client = await self._get_a2a_client()
 
-        headers = {"Content-Type": "application/json"}
-
-        if self.agent_config.auth_token:
-            # Support custom auth headers and types
-            if self.agent_config.auth_type == "bearer":
-                headers[self.agent_config.auth_header] = f"Bearer {self.agent_config.auth_token}"
-            else:
-                headers[self.agent_config.auth_header] = self.agent_config.auth_token
-
-        # Try to fetch agent card from standard A2A location
-        # A2A spec uses /.well-known/agent.json for agent card
-        url = f"{self.agent_config.agent_uri}/.well-known/agent.json"
-
-        logger.debug(f"Fetching A2A agent card for {self.agent_config.id} from {url}")
-
+        # Fetch the agent card using the official method
         try:
-            response = await client.get(url, headers=headers, timeout=self.agent_config.timeout)
-            response.raise_for_status()
-
-            data = response.json()
+            agent_card = await a2a_client.get_card()
 
             # Extract skills from agent card
-            skills = data.get("skills", [])
-            tool_names = [skill.get("name", "") for skill in skills if skill.get("name")]
+            tool_names = [skill.name for skill in agent_card.skills if skill.name]
 
             logger.info(f"Found {len(tool_names)} tools from A2A agent {self.agent_config.id}")
             return tool_names
@@ -402,7 +481,7 @@ class A2AAdapter(ProtocolAdapter):
         """
         Get agent information including AdCP extension metadata from A2A agent card.
 
-        Fetches the agent card from /.well-known/agent.json and extracts:
+        Uses A2A client's get_card() method to fetch the agent card and extracts:
         - Basic agent info (name, description, version)
         - AdCP extension (extensions.adcp.adcp_version, extensions.adcp.protocols_supported)
         - Available skills/tools
@@ -410,47 +489,33 @@ class A2AAdapter(ProtocolAdapter):
         Returns:
             Dictionary with agent metadata
         """
-        client = await self._get_client()
+        # Get the A2A client (which already fetched the agent card)
+        a2a_client = await self._get_a2a_client()
 
-        headers = {"Content-Type": "application/json"}
-
-        if self.agent_config.auth_token:
-            if self.agent_config.auth_type == "bearer":
-                headers[self.agent_config.auth_header] = f"Bearer {self.agent_config.auth_token}"
-            else:
-                headers[self.agent_config.auth_header] = self.agent_config.auth_token
-
-        url = f"{self.agent_config.agent_uri}/.well-known/agent.json"
-
-        logger.debug(f"Fetching A2A agent info for {self.agent_config.id} from {url}")
+        logger.debug(f"Fetching A2A agent info for {self.agent_config.id}")
 
         try:
-            response = await client.get(url, headers=headers, timeout=self.agent_config.timeout)
-            response.raise_for_status()
-
-            agent_card = response.json()
+            agent_card = await a2a_client.get_card()
 
             # Extract basic info
             info: dict[str, Any] = {
-                "name": agent_card.get("name"),
-                "description": agent_card.get("description"),
-                "version": agent_card.get("version"),
+                "name": agent_card.name,
+                "description": agent_card.description,
+                "version": agent_card.version,
                 "protocol": "a2a",
             }
 
             # Extract skills/tools
-            skills = agent_card.get("skills", [])
-            tool_names = [skill.get("name") for skill in skills if skill.get("name")]
+            tool_names = [skill.name for skill in agent_card.skills if skill.name]
             if tool_names:
                 info["tools"] = tool_names
 
             # Extract AdCP extension metadata
-            extensions = agent_card.get("extensions", {})
-            adcp_ext = extensions.get("adcp", {})
-
-            if adcp_ext:
-                info["adcp_version"] = adcp_ext.get("adcp_version")
-                info["protocols_supported"] = adcp_ext.get("protocols_supported")
+            if agent_card.extensions:
+                adcp_ext = agent_card.extensions.get("adcp")
+                if adcp_ext:
+                    info["adcp_version"] = adcp_ext.get("adcp_version")
+                    info["protocols_supported"] = adcp_ext.get("protocols_supported")
 
             logger.info(f"Retrieved agent info for {self.agent_config.id}")
             return info
