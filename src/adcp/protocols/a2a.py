@@ -9,14 +9,7 @@ from uuid import uuid4
 
 import httpx
 from a2a.client import A2ACardResolver, A2AClient
-from a2a.types import (
-    Message,
-    SendMessageRequest,
-    SendMessageSuccessResponse,
-    Task,
-    TaskState,
-    TextPart,
-)
+from a2a.types import Message, MessageSendParams, Part, Role, SendMessageRequest, Task, TextPart
 
 from adcp.exceptions import (
     ADCPAuthenticationError,
@@ -128,24 +121,29 @@ class A2AAdapter(ProtocolAdapter):
         a2a_client = await self._get_a2a_client()
 
         # Build A2A message
+        message_id = str(uuid4())
+        text_part = TextPart(text=self._format_tool_request(tool_name, params))
         message = Message(
-            messageId=str(uuid4()),
-            role="user",
-            parts=[TextPart(text=self._format_tool_request(tool_name, params))],
+            message_id=message_id,
+            role=Role.user,
+            parts=[Part(root=text_part)],
         )
+
+        # Build request params
+        params_obj = MessageSendParams(message=message)
 
         # Build request
         request = SendMessageRequest(
             id=str(uuid4()),
-            params={"message": message},
+            params=params_obj,
         )
 
         debug_info = None
-        debug_request = None
+        debug_request: dict[str, Any] = {}
         if self.agent_config.debug:
             debug_request = {
                 "method": "send_message",
-                "message_id": message.messageId,
+                "message_id": message_id,
                 "tool": tool_name,
                 "params": params,
             }
@@ -188,7 +186,8 @@ class A2AAdapter(ProtocolAdapter):
                     return self._process_task_response(result, debug_info)
                 else:
                     # Message response (shouldn't happen for send_message, but handle it)
-                    logger.warning(f"Received Message instead of Task from A2A agent {self.agent_config.id}")
+                    agent_id = self.agent_config.id
+                    logger.warning(f"Received Message instead of Task from A2A agent {agent_id}")
                     return TaskResult[Any](
                         status=TaskStatus.COMPLETED,
                         data=None,
@@ -511,8 +510,11 @@ class A2AAdapter(ProtocolAdapter):
                 info["tools"] = tool_names
 
             # Extract AdCP extension metadata
-            if agent_card.extensions:
-                adcp_ext = agent_card.extensions.get("adcp")
+            # Note: AgentCard type doesn't include extensions in the SDK,
+            # but it may be present at runtime
+            extensions = getattr(agent_card, "extensions", None)
+            if extensions:
+                adcp_ext = extensions.get("adcp")
                 if adcp_ext:
                     info["adcp_version"] = adcp_ext.get("adcp_version")
                     info["protocols_supported"] = adcp_ext.get("protocols_supported")
