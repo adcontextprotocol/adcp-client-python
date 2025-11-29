@@ -85,13 +85,14 @@ class MCPAdapter(ProtocolAdapter):
                     return
 
                 # Handle ExceptionGroup/BaseExceptionGroup from task group failures (Python 3.11+)
-                # BaseExceptionGroup is used for BaseException subclasses like CancelledError
+                # ExceptionGroup: for Exception subclasses (e.g., HTTPStatusError)
+                # BaseExceptionGroup: for BaseException subclasses (e.g., CancelledError)
+                # We need both because CancelledError is a BaseException, not an Exception
                 is_exception_group = (
-                    (_ExceptionGroup is not None and isinstance(cleanup_error, _ExceptionGroup))
-                    or (
-                        _BaseExceptionGroup is not None
-                        and isinstance(cleanup_error, _BaseExceptionGroup)
-                    )
+                    _ExceptionGroup is not None and isinstance(cleanup_error, _ExceptionGroup)
+                ) or (
+                    _BaseExceptionGroup is not None
+                    and isinstance(cleanup_error, _BaseExceptionGroup)
                 )
 
                 if is_exception_group:
@@ -105,13 +106,22 @@ class MCPAdapter(ProtocolAdapter):
                         logger.debug(f"MCP session cleanup cancelled {context}")
                         return
 
-                    # Otherwise, log each exception individually
+                    # Mixed group: skip CancelledErrors and log real errors
+                    cancelled_count = sum(
+                        1
+                        for exc in cleanup_error.exceptions  # type: ignore[attr-defined]
+                        if isinstance(exc, asyncio.CancelledError)
+                    )
+                    if cancelled_count > 0:
+                        logger.debug(
+                            f"Skipping {cancelled_count} CancelledError(s) "
+                            f"in mixed exception group {context}"
+                        )
+
+                    # Log each non-cancelled exception individually
                     for exc in cleanup_error.exceptions:  # type: ignore[attr-defined]
-                        # Skip CancelledErrors when mixed with other exceptions
-                        if isinstance(exc, asyncio.CancelledError):
-                            logger.debug(f"MCP session cleanup cancelled {context}")
-                            continue
-                        self._log_cleanup_error(exc, context)
+                        if not isinstance(exc, asyncio.CancelledError):
+                            self._log_cleanup_error(exc, context)
                 else:
                     self._log_cleanup_error(cleanup_error, context)
 
