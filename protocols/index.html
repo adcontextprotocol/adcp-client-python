@@ -894,12 +894,44 @@ el.replaceWith(d);
                     logger.debug(f&#34;MCP session cleanup cancelled {context}&#34;)
                     return
 
-                # Handle ExceptionGroup from task group failures (Python 3.11+)
-                if _ExceptionGroup is not None and isinstance(
-                    cleanup_error, _ExceptionGroup
-                ):
-                    for exc in cleanup_error.exceptions:  # type: ignore[attr-defined]
-                        self._log_cleanup_error(exc, context)
+                # Handle ExceptionGroup/BaseExceptionGroup from task group failures (Python 3.11+)
+                # ExceptionGroup: for Exception subclasses (e.g., HTTPStatusError)
+                # BaseExceptionGroup: for BaseException subclasses (e.g., CancelledError)
+                # We need both because CancelledError is a BaseException, not an Exception
+                is_exception_group = (
+                    _ExceptionGroup is not None and isinstance(cleanup_error, _ExceptionGroup)
+                ) or (
+                    _BaseExceptionGroup is not None
+                    and isinstance(cleanup_error, _BaseExceptionGroup)
+                )
+
+                if is_exception_group:
+                    # Check if all exceptions in the group are CancelledError
+                    # If so, treat the entire group as a cancellation
+                    all_cancelled = all(
+                        isinstance(exc, asyncio.CancelledError)
+                        for exc in cleanup_error.exceptions  # type: ignore[attr-defined]
+                    )
+                    if all_cancelled:
+                        logger.debug(f&#34;MCP session cleanup cancelled {context}&#34;)
+                        return
+
+                    # Mixed group: skip CancelledErrors and log real errors
+                    exceptions = cleanup_error.exceptions  # type: ignore[attr-defined]
+                    cancelled_errors = [
+                        exc for exc in exceptions if isinstance(exc, asyncio.CancelledError)
+                    ]
+                    cancelled_count = len(cancelled_errors)
+                    if cancelled_count &gt; 0:
+                        logger.debug(
+                            f&#34;Skipping {cancelled_count} CancelledError(s) &#34;
+                            f&#34;in mixed exception group {context}&#34;
+                        )
+
+                    # Log each non-cancelled exception individually
+                    for exc in exceptions:
+                        if not isinstance(exc, asyncio.CancelledError):
+                            self._log_cleanup_error(exc, context)
                 else:
                     self._log_cleanup_error(cleanup_error, context)
 
@@ -914,7 +946,9 @@ el.replaceWith(d);
             and (&#34;cancel scope&#34; in exc_str or &#34;async context&#34; in exc_str)
         ) or (
             # HTTP errors during cleanup (if httpx is available)
-            HTTPX_AVAILABLE and HTTPStatusError is not None and isinstance(exc, HTTPStatusError)
+            HTTPX_AVAILABLE
+            and HTTPStatusError is not None
+            and isinstance(exc, HTTPStatusError)
         )
 
         if is_known_cleanup_error:
