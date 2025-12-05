@@ -282,3 +282,53 @@ def test_public_api_has_version():
     assert hasattr(adcp, "__version__"), "adcp package should export __version__"
     assert isinstance(adcp.__version__, str), "__version__ should be a string"
     assert len(adcp.__version__) > 0, "__version__ should not be empty"
+
+
+def test_list_creative_formats_request_has_filter_params():
+    """ListCreativeFormatsRequest type has filter parameters per AdCP spec.
+
+    The SDK supports is_responsive and name_search parameters for filtering
+    creative formats. These parameters are part of the AdCP specification.
+    """
+    from adcp import ListCreativeFormatsRequest
+
+    model_fields = ListCreativeFormatsRequest.model_fields
+
+    # Core filter parameters from AdCP spec
+    expected_fields = [
+        "is_responsive",  # Filter for responsive formats
+        "name_search",  # Search formats by name (case-insensitive partial match)
+        "asset_types",  # Filter by asset types (image, video, etc.)
+        "type",  # Filter by format category (display, video, etc.)
+        "format_ids",  # Return only specific format IDs
+        "min_width",  # Minimum width filter
+        "max_width",  # Maximum width filter
+        "min_height",  # Minimum height filter
+        "max_height",  # Maximum height filter
+        "context",  # Context object for request
+        "ext",  # Extension object
+    ]
+
+    for field_name in expected_fields:
+        assert field_name in model_fields, (
+            f"ListCreativeFormatsRequest missing field: {field_name}"
+        )
+
+
+def test_list_creative_formats_request_filter_params_types():
+    """ListCreativeFormatsRequest filter parameters have correct types."""
+    from adcp import ListCreativeFormatsRequest
+
+    # Create request with filter parameters - should not raise
+    request = ListCreativeFormatsRequest(
+        is_responsive=True,
+        name_search="mobile",
+    )
+
+    assert request.is_responsive is True
+    assert request.name_search == "mobile"
+
+    # Verify serialization includes the filter parameters
+    data = request.model_dump(exclude_none=True)
+    assert data["is_responsive"] is True
+    assert data["name_search"] == "mobile"

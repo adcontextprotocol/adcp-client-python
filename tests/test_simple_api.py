@@ -98,6 +98,44 @@ async def test_list_creative_formats_simple_api():
         assert result.formats[0].format_id["id"] == "banner_300x250"
 
 
+@pytest.mark.asyncio
+async def test_list_creative_formats_with_filter_params():
+    """Test client.simple.list_creative_formats with filter parameters.
+
+    The SDK supports is_responsive and name_search parameters per the AdCP spec.
+    """
+    from adcp.types import ListCreativeFormatsRequest
+    from adcp.types._generated import Format
+
+    # Create mock response
+    mock_format = Format.model_construct(
+        format_id={"id": "responsive_banner"},
+        name="Mobile Responsive Banner",
+        description="Responsive banner for mobile",
+    )
+    mock_response = ListCreativeFormatsResponse.model_construct(formats=[mock_format])
+    mock_result = TaskResult[ListCreativeFormatsResponse](
+        status=TaskStatus.COMPLETED, data=mock_response, success=True
+    )
+
+    with patch.object(test_agent, "list_creative_formats", new=AsyncMock(return_value=mock_result)):
+        # Call with filter parameters
+        result = await test_agent.simple.list_creative_formats(
+            is_responsive=True,
+            name_search="mobile",
+        )
+
+        # Verify it returns unwrapped data
+        assert isinstance(result, ListCreativeFormatsResponse)
+
+        # Verify the underlying call included the filter parameters
+        test_agent.list_creative_formats.assert_called_once()
+        call_args = test_agent.list_creative_formats.call_args[0][0]
+        assert isinstance(call_args, ListCreativeFormatsRequest)
+        assert call_args.is_responsive is True
+        assert call_args.name_search == "mobile"
+
+
 def test_simple_api_exists_on_client():
     """Test that all clients have a .simple accessor."""
     from adcp.testing import creative_agent, test_agent_a2a
