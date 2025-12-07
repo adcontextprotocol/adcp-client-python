@@ -71,7 +71,21 @@ el.replaceWith(d);
     def model_dump_json(self, **kwargs: Any) -&gt; str:
         if &#34;exclude_none&#34; not in kwargs:
             kwargs[&#34;exclude_none&#34;] = True
-        return super().model_dump_json(**kwargs)</code></pre>
+        return super().model_dump_json(**kwargs)
+
+    def summary(self) -&gt; str:
+        &#34;&#34;&#34;Human-readable summary for protocol responses.
+
+        Returns a standardized human-readable message suitable for MCP tool
+        results, A2A task communications, and REST API responses.
+
+        For types without a registered formatter, returns a generic message
+        with the class name.
+        &#34;&#34;&#34;
+        formatter = _RESPONSE_MESSAGE_REGISTRY.get(self.__class__.__name__)
+        if formatter:
+            return formatter(self)
+        return f&#34;{self.__class__.__name__} response&#34;</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -399,6 +413,34 @@ a [<code>PydanticSerializationError</code>][pydantic_core.PydanticSerializationE
 <h2 id="returns">Returns</h2>
 <p>A JSON string representation of the model.</p></div>
 </dd>
+<dt id="adcp.types.base.AdCPBaseModel.summary"><code class="name flex">
+<span>def <span class="ident">summary</span></span>(<span>self) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def summary(self) -&gt; str:
+    &#34;&#34;&#34;Human-readable summary for protocol responses.
+
+    Returns a standardized human-readable message suitable for MCP tool
+    results, A2A task communications, and REST API responses.
+
+    For types without a registered formatter, returns a generic message
+    with the class name.
+    &#34;&#34;&#34;
+    formatter = _RESPONSE_MESSAGE_REGISTRY.get(self.__class__.__name__)
+    if formatter:
+        return formatter(self)
+    return f&#34;{self.__class__.__name__} response&#34;</code></pre>
+</details>
+<div class="desc"><p>Human-readable summary for protocol responses.</p>
+<p>Returns a standardized human-readable message suitable for MCP tool
+results, A2A task communications, and REST API responses.</p>
+<p>For types without a registered formatter, returns a generic message
+with the class name.</p></div>
+</dd>
 </dl>
 </dd>
 </dl>
@@ -422,6 +464,7 @@ a [<code>PydanticSerializationError</code>][pydantic_core.PydanticSerializationE
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_config" href="#adcp.types.base.AdCPBaseModel.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
 </ul>
 </li>
 </ul>
