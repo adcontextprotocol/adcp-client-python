@@ -36,7 +36,7 @@ def _get_products_message(self: Any) -> str:
     if products is None:
         return "No products found."
     count = len(products)
-    return f"Found {count} {_pluralize(count, 'product')} that match your requirements."
+    return f"Found {count} {_pluralize(count, 'product')} matching your requirements."
 
 
 @_register_response_message("ListCreativeFormatsResponse")
@@ -164,7 +164,7 @@ def _get_media_buy_delivery_message(self: Any) -> str:
     if deliveries is None:
         return "No delivery data available."
     count = len(deliveries)
-    return f"Retrieved delivery data for {count} media {_pluralize(count, 'buy')}."
+    return f"Retrieved delivery data for {count} media {_pluralize(count, 'buy', 'buys')}."
 
 
 @_register_response_message("ProvidePerformanceFeedbackResponse1")

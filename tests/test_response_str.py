@@ -6,8 +6,6 @@ suitable for MCP tool results, A2A task communications, and REST API responses.
 
 from __future__ import annotations
 
-import pytest
-
 from adcp.types._generated import (
     ActivateSignalResponse1,
     ActivateSignalResponse2,
@@ -40,7 +38,7 @@ class TestGetProductsResponseStr:
         response = GetProductsResponse.model_construct(
             products=[{"product_id": "p1", "name": "Test"}]
         )
-        assert str(response) == "Found 1 product that match your requirements."
+        assert str(response) == "Found 1 product matching your requirements."
 
     def test_multiple_products(self):
         """Multiple products uses plural form."""
@@ -51,12 +49,12 @@ class TestGetProductsResponseStr:
                 {"product_id": "p3", "name": "Test 3"},
             ]
         )
-        assert str(response) == "Found 3 products that match your requirements."
+        assert str(response) == "Found 3 products matching your requirements."
 
     def test_zero_products(self):
         """Zero products uses plural form."""
         response = GetProductsResponse.model_construct(products=[])
-        assert str(response) == "Found 0 products that match your requirements."
+        assert str(response) == "Found 0 products matching your requirements."
 
 
 class TestListCreativeFormatsResponseStr:
