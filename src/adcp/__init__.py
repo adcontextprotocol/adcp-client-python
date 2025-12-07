@@ -179,7 +179,7 @@ from adcp.validation import (
     validate_publisher_properties_item,
 )
 
-__version__ = "2.12.2"
+__version__ = "2.13.0"
 
 
 def get_adcp_version() -> str:

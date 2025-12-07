@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.13.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.12.2...v2.13.0) (2025-12-07)
+
+
+### Features
+
+* add __str__ methods and filter params tests ([#92](https://github.com/adcontextprotocol/adcp-client-python/issues/92)) ([6358542](https://github.com/adcontextprotocol/adcp-client-python/commit/6358542df3db2bf465b7bb342c2c49be6d455a15))
+
 ## [2.12.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.12.1...v2.12.2) (2025-11-29)
 
 
