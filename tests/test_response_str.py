@@ -52,9 +52,9 @@ class TestGetProductsResponseStr:
         assert str(response) == "Found 3 products matching your requirements."
 
     def test_zero_products(self):
-        """Zero products uses plural form."""
+        """Zero products uses conversational message."""
         response = GetProductsResponse.model_construct(products=[])
-        assert str(response) == "Found 0 products matching your requirements."
+        assert str(response) == "No products matched your requirements."
 
 
 class TestListCreativeFormatsResponseStr:

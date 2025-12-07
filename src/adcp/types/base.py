@@ -37,8 +37,8 @@ def _register_response_message(cls_name: str) -> Callable[[MessageFormatter], Me
 @_register_response_message("GetProductsResponse")
 def _get_products_message(self: Any) -> str:
     products = getattr(self, "products", None)
-    if products is None:
-        return "No products found."
+    if products is None or len(products) == 0:
+        return "No products matched your requirements."
     count = len(products)
     return f"Found {count} {_pluralize(count, 'product')} matching your requirements."
 
