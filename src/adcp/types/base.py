@@ -204,18 +204,16 @@ class AdCPBaseModel(BaseModel):
             kwargs["exclude_none"] = True
         return super().model_dump_json(**kwargs)
 
-    def __str__(self) -> str:
-        """Generate human-readable message for protocol responses.
+    def summary(self) -> str:
+        """Human-readable summary for protocol responses.
 
-        For response types with registered formatters, returns a standardized
-        human-readable message suitable for MCP tool results, A2A task
-        communications, and REST API responses.
+        Returns a standardized human-readable message suitable for MCP tool
+        results, A2A task communications, and REST API responses.
 
-        For types without a registered formatter, falls back to Pydantic's
-        default string representation.
+        For types without a registered formatter, returns a generic message
+        with the class name.
         """
-        cls_name = self.__class__.__name__
-        formatter = _RESPONSE_MESSAGE_REGISTRY.get(cls_name)
+        formatter = _RESPONSE_MESSAGE_REGISTRY.get(self.__class__.__name__)
         if formatter:
             return formatter(self)
-        return super().__str__()
+        return f"{self.__class__.__name__} response"
