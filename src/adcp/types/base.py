@@ -2,9 +2,13 @@ from __future__ import annotations
 
 """Base model for AdCP types with spec-compliant serialization."""
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from pydantic import BaseModel
+
+# Type alias to shorten long type annotations
+MessageFormatter = Callable[[Any], str]
 
 
 def _pluralize(count: int, singular: str, plural: str | None = None) -> str:
@@ -16,13 +20,13 @@ def _pluralize(count: int, singular: str, plural: str | None = None) -> str:
 
 # Registry of human-readable message formatters for response types.
 # Key is the class name, value is a callable that takes the instance and returns a message.
-_RESPONSE_MESSAGE_REGISTRY: dict[str, Callable[[Any], str]] = {}
+_RESPONSE_MESSAGE_REGISTRY: dict[str, MessageFormatter] = {}
 
 
-def _register_response_message(cls_name: str) -> Callable[[Callable[[Any], str]], Callable[[Any], str]]:
+def _register_response_message(cls_name: str) -> Callable[[MessageFormatter], MessageFormatter]:
     """Decorator to register a message formatter for a response type."""
 
-    def decorator(func: Callable[[Any], str]) -> Callable[[Any], str]:
+    def decorator(func: MessageFormatter) -> MessageFormatter:
         _RESPONSE_MESSAGE_REGISTRY[cls_name] = func
         return func
 
