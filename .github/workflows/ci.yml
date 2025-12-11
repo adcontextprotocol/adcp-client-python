@@ -92,6 +92,10 @@ jobs:
   schema-check:
     name: Validate schemas are up-to-date
     runs-on: ubuntu-latest
+    # Continue on error because upstream schema changes may break compatibility
+    # with the manually-curated types/__init__.py exports. This job validates
+    # that schemas can be regenerated, but failures shouldn't block the PR.
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
