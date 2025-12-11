@@ -892,18 +892,26 @@ class ADCPClient:
         }
         task_status = status_map.get(webhook.status, TaskStatus.FAILED)
 
+        # Extract error message from result if present (error responses have 'errors' field)
+        error_message: str | None = None
+        if webhook.result is not None and hasattr(webhook.result, "errors"):
+            errors = getattr(webhook.result, "errors", None)
+            if errors and len(errors) > 0:
+                first_error = errors[0]
+                if hasattr(first_error, "message"):
+                    error_message = first_error.message
+
         return TaskResult[Any](
             status=task_status,
             data=webhook.result,
             success=webhook.status == GeneratedTaskStatus.completed,
-            error=webhook.error if isinstance(webhook.error, str) else None,
+            error=error_message,
             metadata={
                 "task_id": webhook.task_id,
                 "operation_id": webhook.operation_id,
                 "timestamp": webhook.timestamp,
                 "message": webhook.message,
                 "context_id": webhook.context_id,
-                "progress": webhook.progress,
             },
         )
 
