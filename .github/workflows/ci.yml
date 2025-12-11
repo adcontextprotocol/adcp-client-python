@@ -124,9 +124,18 @@ jobs:
       - name: Validate generated code imports
         run: |
           echo "Validating generated code can be imported..."
-          # Import _generated directly to avoid triggering full package imports
-          # which may fail due to types/__init__.py expecting types that don't exist after regeneration
-          python -c "from adcp.types._generated import *; print('✓ Generated types import successfully')"
+          # Use importlib to import _generated without triggering adcp/__init__.py
+          # This avoids failures when types/__init__.py expects types that don't exist after regeneration
+          python -c "
+          import importlib.util
+          import sys
+          # Load _generated module directly from file
+          spec = importlib.util.spec_from_file_location('_generated', 'src/adcp/types/_generated.py')
+          module = importlib.util.module_from_spec(spec)
+          sys.modules['_generated'] = module
+          spec.loader.exec_module(module)
+          print('✓ Generated types import successfully')
+          "
 
       - name: Run code generation tests
         run: |
