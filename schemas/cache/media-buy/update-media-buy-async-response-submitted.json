@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Payload acknowledging update_media_buy task is queued for processing.",
+  "properties": {
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    }
+  },
+  "title": "Update Media Buy - Submitted",
+  "type": "object"
+}

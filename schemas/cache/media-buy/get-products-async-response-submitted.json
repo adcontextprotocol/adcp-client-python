@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Payload acknowledging the search is queued. Usually for custom/bespoke product curation.",
+  "properties": {
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "estimated_completion": {
+      "description": "Estimated completion time for the search",
+      "format": "date-time",
+      "type": "string"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    }
+  },
+  "title": "Get Products - Submitted",
+  "type": "object"
+}

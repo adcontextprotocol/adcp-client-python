@@ -91,7 +91,7 @@
   },
   "baseUrl": "/schemas/2.5.0",
   "description": "Registry of asset types used in AdCP creative manifests. Each asset type defines the structure of actual content payloads (what you send), not requirements or constraints (which belong in format specifications).",
-  "lastUpdated": "2025-11-22",
+  "lastUpdated": "2025-12-10",
   "title": "AdCP Asset Type Registry",
   "usage_notes": {
     "creative_manifests": "Creative manifests provide actual asset content, keyed by asset_id from the format. Asset type is determined by the format specification, not declared in the payload.",

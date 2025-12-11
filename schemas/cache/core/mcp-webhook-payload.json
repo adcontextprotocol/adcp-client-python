@@ -1,0 +1,151 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Standard envelope for HTTP-based push notifications (MCP). This defines the wire format sent to the URL configured in `pushNotificationConfig`. NOTE: This envelope is NOT used in A2A integration, which uses native Task/TaskStatusUpdateEvent messages with the AdCP payload nested in `status.message.parts[].data`.",
+  "examples": [
+    {
+      "data": {
+        "context_id": "ctx_abc123",
+        "domain": "media-buy",
+        "message": "Campaign budget $150K requires VP approval to proceed",
+        "operation_id": "op_456",
+        "result": {
+          "errors": [
+            {
+              "code": "APPROVAL_REQUIRED",
+              "field": "total_budget",
+              "message": "Budget exceeds auto-approval threshold"
+            }
+          ],
+          "reason": "BUDGET_EXCEEDS_LIMIT"
+        },
+        "status": "input-required",
+        "task_id": "task_456",
+        "task_type": "create_media_buy",
+        "timestamp": "2025-01-22T10:15:00Z"
+      },
+      "description": "Webhook for input-required status (human approval needed)"
+    },
+    {
+      "data": {
+        "domain": "media-buy",
+        "message": "Media buy created successfully with 2 packages ready for creative assignment",
+        "operation_id": "op_456",
+        "result": {
+          "buyer_ref": "nike_q1_campaign_2024",
+          "creative_deadline": "2024-01-30T23:59:59Z",
+          "media_buy_id": "mb_12345",
+          "packages": [
+            {
+              "budget": 60000,
+              "buyer_ref": "nike_ctv_package",
+              "creative_assignments": [],
+              "format_ids_to_provide": [
+                {
+                  "agent_url": "https://creative.adcontextprotocol.org",
+                  "id": "video_standard_30s"
+                }
+              ],
+              "pacing": "even",
+              "package_id": "pkg_12345_001",
+              "paused": false,
+              "pricing_option_id": "cpm-fixed-sports",
+              "product_id": "ctv_sports_premium"
+            }
+          ]
+        },
+        "status": "completed",
+        "task_id": "task_456",
+        "task_type": "create_media_buy",
+        "timestamp": "2025-01-22T10:30:00Z"
+      },
+      "description": "Webhook for completed create_media_buy"
+    },
+    {
+      "data": {
+        "domain": "media-buy",
+        "message": "Validating inventory availability...",
+        "operation_id": "op_456",
+        "result": {
+          "current_step": "inventory_validation",
+          "percentage": 50,
+          "step_number": 2,
+          "total_steps": 4
+        },
+        "status": "working",
+        "task_id": "task_456",
+        "task_type": "create_media_buy",
+        "timestamp": "2025-01-22T10:20:00Z"
+      },
+      "description": "Webhook for working status with progress"
+    },
+    {
+      "data": {
+        "domain": "media-buy",
+        "message": "Creative sync failed due to invalid asset URLs",
+        "operation_id": "op_789",
+        "result": {
+          "errors": [
+            {
+              "code": "INVALID_ASSET_URL",
+              "field": "creatives[0].asset_url",
+              "message": "One or more creative assets could not be accessed"
+            }
+          ]
+        },
+        "status": "failed",
+        "task_id": "task_789",
+        "task_type": "sync_creatives",
+        "timestamp": "2025-01-22T10:46:00Z"
+      },
+      "description": "Webhook for failed sync_creatives"
+    }
+  ],
+  "properties": {
+    "context_id": {
+      "description": "Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters.",
+      "type": "string"
+    },
+    "domain": {
+      "$ref": "../enums/adcp-domain.json",
+      "description": "AdCP domain this task belongs to. Helps classify the operation type at a high level."
+    },
+    "message": {
+      "description": "Human-readable summary of the current task state. Provides context about what happened and what action may be needed.",
+      "type": "string"
+    },
+    "operation_id": {
+      "description": "Publisher-defined operation identifier correlating a sequence of task updates across webhooks.",
+      "type": "string"
+    },
+    "result": {
+      "$ref": "async-response-data.json",
+      "description": "Task-specific payload matching the status. For completed/failed, contains the full task response. For working/input-required/submitted, contains status-specific data. This is the data layer that AdCP specs - same structure used in A2A status.message.parts[].data."
+    },
+    "status": {
+      "$ref": "../enums/task-status.json",
+      "description": "Current task status. Webhooks are triggered for status changes after initial submission."
+    },
+    "task_id": {
+      "description": "Unique identifier for this task. Use this to correlate webhook notifications with the original task submission.",
+      "type": "string"
+    },
+    "task_type": {
+      "$ref": "../enums/task-type.json",
+      "description": "Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic."
+    },
+    "timestamp": {
+      "description": "ISO 8601 timestamp when this webhook was generated.",
+      "format": "date-time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "task_id",
+    "task_type",
+    "status",
+    "timestamp"
+  ],
+  "title": "MCP Webhook Payload",
+  "type": "object"
+}

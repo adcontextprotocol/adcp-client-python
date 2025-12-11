@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Progress payload for active sync_creatives task.",
+  "properties": {
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "creatives_processed": {
+      "description": "Number of creatives processed so far",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "creatives_total": {
+      "description": "Total number of creatives to process",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "current_step": {
+      "description": "Current step or phase of the operation",
+      "type": "string"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "percentage": {
+      "description": "Completion percentage (0-100)",
+      "maximum": 100,
+      "minimum": 0,
+      "type": "number"
+    },
+    "step_number": {
+      "description": "Current step number",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "total_steps": {
+      "description": "Total number of steps in the operation",
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "title": "Sync Creatives - Working",
+  "type": "object"
+}

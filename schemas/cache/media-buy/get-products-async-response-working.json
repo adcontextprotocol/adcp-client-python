@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Progress payload for active get_products task.",
+  "properties": {
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "current_step": {
+      "description": "Current step in the search process (e.g., 'searching_inventory', 'validating_availability')",
+      "type": "string"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "percentage": {
+      "description": "Progress percentage of the search operation",
+      "maximum": 100,
+      "minimum": 0,
+      "type": "number"
+    },
+    "step_number": {
+      "description": "Current step number (1-indexed)",
+      "type": "integer"
+    },
+    "total_steps": {
+      "description": "Total number of steps in the search process",
+      "type": "integer"
+    }
+  },
+  "title": "Get Products - Working",
+  "type": "object"
+}

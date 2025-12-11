@@ -1,4 +1,6 @@
-# Manual extension for pricing options with adapter support fields
+# Pricing option base class with support fields
+# These fields are not in upstream schemas but are used by adapters
+# to indicate whether a pricing option is supported
 
 from __future__ import annotations
 
@@ -9,15 +11,17 @@ from pydantic import Field
 
 
 class PricingOptionBase(AdCPBaseModel):
-    """Base class for pricing options with adapter support fields.
+    """Base class for pricing options with support indicator fields.
 
-    Sales agents can use these fields to indicate whether a pricing option
-    is supported by the current adapter.
+    These fields allow adapters to indicate whether a particular pricing
+    option is supported by the underlying ad platform.
     """
 
     supported: Annotated[
         bool | None,
-        Field(description="Whether this pricing option is supported by the current adapter"),
+        Field(
+            description="Whether this pricing option is supported by the current adapter"
+        ),
     ] = None
     unsupported_reason: Annotated[
         str | None,

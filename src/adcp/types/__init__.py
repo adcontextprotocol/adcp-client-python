@@ -140,7 +140,6 @@ from adcp.types._generated import (
     ProductCardDetailed,
     ProductCatalog,
     ProductFilters,
-    Progress,
     PromotedOfferings,
     PromotedProducts,
     Property,
@@ -194,8 +193,8 @@ from adcp.types._generated import (
     VideoAsset,
     ViewThreshold,
     WebhookAsset,
-    WebhookPayload,
     WebhookResponseType,
+    McpWebhookPayload,
 )
 from adcp.types._generated import (
     TaskStatus as GeneratedTaskStatus,
@@ -277,8 +276,12 @@ from adcp.types.aliases import (
 # Users should import TaskStatus from adcp.types.core directly if they need the core enum
 from adcp.types.core import AgentConfig, Protocol, TaskResult, WebhookMetadata
 
+# PricingOptionBase is a custom base class with adapter support fields
+from adcp.types.generated_poc.pricing_options import PricingOptionBase
+
 # Backward compatibility aliases
 AssetType = AssetContentType  # Use AssetContentType instead
+WebhookPayload = McpWebhookPayload  # Renamed in upstream schemas
 
 # Schema renames from filter ref split (v1.0.0)
 Action = CreativeAction
@@ -325,7 +328,6 @@ __all__ = [
     "MediaBuyDelivery",
     "PreviewCreativeRequest",
     "PreviewCreativeResponse",
-    "Progress",
     "ProtocolEnvelope",
     "ProtocolResponse",
     "ProvidePerformanceFeedbackRequest",
@@ -417,6 +419,7 @@ __all__ = [
     "PriceGuidance",
     "VcpmAuctionPricingOption",
     "VcpmFixedRatePricingOption",
+    "PricingOptionBase",
     # Status enums & simple types
     "SignalCatalogType",
     "Country",
@@ -484,7 +487,7 @@ __all__ = [
     "UrlAsset",
     "VideoAsset",
     "WebhookAsset",
-    "WebhookPayload",
+    "McpWebhookPayload",
     # Core types
     "AgentConfig",
     "Protocol",

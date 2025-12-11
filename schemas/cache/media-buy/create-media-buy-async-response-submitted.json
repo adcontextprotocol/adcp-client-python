@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Payload acknowledging the task is queued. Usually empty or just context.",
+  "properties": {
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    }
+  },
+  "title": "Create Media Buy - Submitted",
+  "type": "object"
+}

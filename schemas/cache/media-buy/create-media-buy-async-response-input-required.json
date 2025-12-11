@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Payload when task is paused waiting for user input or approval.",
+  "properties": {
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "errors": {
+      "description": "Optional validation errors or warnings for debugging purposes. Helps explain why input is required.",
+      "items": {
+        "$ref": "../core/error.json"
+      },
+      "type": "array"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "reason": {
+      "description": "Reason code indicating why input is needed",
+      "enum": [
+        "APPROVAL_REQUIRED",
+        "BUDGET_EXCEEDS_LIMIT"
+      ],
+      "type": "string"
+    }
+  },
+  "title": "Create Media Buy - Input Required",
+  "type": "object"
+}

@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Payload when search is paused waiting for user clarification.",
+  "properties": {
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "partial_results": {
+      "description": "Partial product results that may help inform the clarification",
+      "items": {
+        "$ref": "../core/product.json"
+      },
+      "type": "array"
+    },
+    "reason": {
+      "description": "Reason code indicating why input is needed",
+      "enum": [
+        "CLARIFICATION_NEEDED",
+        "BUDGET_REQUIRED"
+      ],
+      "type": "string"
+    },
+    "suggestions": {
+      "description": "Suggested values or options for the required input",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "title": "Get Products - Input Required",
+  "type": "object"
+}
