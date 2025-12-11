@@ -166,6 +166,64 @@ def fix_preview_creative_request_discriminator():
     print("  preview_creative_request.py discriminator added")
 
 
+def fix_mcp_webhook_payload_references():
+    """Fix response type references in mcp_webhook_payload.py.
+
+    The async-response-data.json schema references response types like
+    CreateMediaBuyResponse, but the code generator creates CreateMediaBuyResponse1
+    and CreateMediaBuyResponse2 (for success/error variants in oneOf schemas).
+
+    This fix updates the type annotations to use the correct union of both variants.
+    """
+    webhook_file = OUTPUT_DIR / "core" / "mcp_webhook_payload.py"
+
+    if not webhook_file.exists():
+        print("  mcp_webhook_payload.py not found (skipping)")
+        return
+
+    with open(webhook_file) as f:
+        content = f.read()
+
+    # Check if already fixed
+    if "CreateMediaBuyResponse1 | create_media_buy_response.CreateMediaBuyResponse2" in content:
+        print("  mcp_webhook_payload.py already fixed")
+        return
+
+    # Map of incorrect references to their correct union types
+    # Each response schema has oneOf with success (1) and error (2) variants
+    replacements = [
+        (
+            "create_media_buy_response.CreateMediaBuyResponse",
+            "create_media_buy_response.CreateMediaBuyResponse1 | create_media_buy_response.CreateMediaBuyResponse2",
+        ),
+        (
+            "update_media_buy_response.UpdateMediaBuyResponse",
+            "update_media_buy_response.UpdateMediaBuyResponse1 | update_media_buy_response.UpdateMediaBuyResponse2",
+        ),
+        (
+            "sync_creatives_response.SyncCreativesResponse",
+            "sync_creatives_response.SyncCreativesResponse1 | sync_creatives_response.SyncCreativesResponse2",
+        ),
+        (
+            "get_products_response.GetProductsResponse",
+            "get_products_response.GetProductsResponse",  # This one doesn't have oneOf, keep as is
+        ),
+    ]
+
+    original_content = content
+    for old, new in replacements:
+        # Only replace if the new value is different
+        if old != new:
+            content = content.replace(old, new)
+
+    if content != original_content:
+        with open(webhook_file, "w") as f:
+            f.write(content)
+        print("  mcp_webhook_payload.py response type references fixed")
+    else:
+        print("  mcp_webhook_payload.py no changes needed")
+
+
 def main():
     """Apply all post-generation fixes."""
     print("Applying post-generation fixes...")
@@ -175,6 +233,7 @@ def main():
     fix_brand_manifest_references()
     fix_enum_defaults()
     fix_preview_creative_request_discriminator()
+    fix_mcp_webhook_payload_references()
 
     print("\n✓ Post-generation fixes complete\n")
 
