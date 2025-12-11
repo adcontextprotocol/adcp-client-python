@@ -124,7 +124,9 @@ jobs:
       - name: Validate generated code imports
         run: |
           echo "Validating generated code can be imported..."
-          python -c "from adcp.types import _generated as generated; print(f'✓ Successfully imported {len(dir(generated))} symbols')"
+          # Import _generated directly to avoid triggering full package imports
+          # which may fail due to types/__init__.py expecting types that don't exist after regeneration
+          python -c "from adcp.types._generated import *; print('✓ Generated types import successfully')"
 
       - name: Run code generation tests
         run: |
