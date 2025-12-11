@@ -178,17 +178,44 @@ def generate_consolidated_exports() -> str:
     if "AdvertisingChannels" in all_exports:
         aliases["Channels"] = "AdvertisingChannels"
 
+    # Add union type aliases for response types with success/error variants
+    # These schemas use oneOf with two variants, which generates Response1 and Response2
+    union_aliases = []
+    response_unions = [
+        ("CreateMediaBuyResponse", "CreateMediaBuyResponse1", "CreateMediaBuyResponse2"),
+        ("UpdateMediaBuyResponse", "UpdateMediaBuyResponse1", "UpdateMediaBuyResponse2"),
+        ("SyncCreativesResponse", "SyncCreativesResponse1", "SyncCreativesResponse2"),
+    ]
+    for union_name, variant1, variant2 in response_unions:
+        if variant1 in all_exports and variant2 in all_exports:
+            union_aliases.append(f"{union_name} = {variant1} | {variant2}")
+            aliases[union_name] = f"{variant1} | {variant2}"  # For __all__ tracking
+
     all_exports_with_aliases = all_exports | set(aliases.keys())
 
     alias_lines = []
-    if aliases:
+
+    # Add union type aliases first (for response types with success/error variants)
+    if union_aliases:
+        alias_lines.extend(
+            [
+                "",
+                "# Union type aliases for response types with success/error variants",
+                "# These schemas use oneOf with two variants, generating Response1 and Response2",
+            ]
+        )
+        alias_lines.extend(union_aliases)
+
+    # Add backward compatibility aliases for renamed types
+    simple_aliases = {k: v for k, v in aliases.items() if "|" not in v}
+    if simple_aliases:
         alias_lines.extend(
             [
                 "",
                 "# Backward compatibility aliases for renamed types",
             ]
         )
-        for alias, target in aliases.items():
+        for alias, target in simple_aliases.items():
             alias_lines.append(f"{alias} = {target}")
 
     lines.extend(alias_lines)
