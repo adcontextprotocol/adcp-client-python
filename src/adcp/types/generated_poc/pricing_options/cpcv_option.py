@@ -6,11 +6,11 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from adcp.types.base import AdCPBaseModel
+from adcp.types.generated_poc.pricing_options.pricing_option_base import PricingOptionBase
 from pydantic import ConfigDict, Field
 
 
-class CpcvPricingOption(AdCPBaseModel):
+class CpcvPricingOption(PricingOptionBase):
     model_config = ConfigDict(
         extra='forbid',
     )

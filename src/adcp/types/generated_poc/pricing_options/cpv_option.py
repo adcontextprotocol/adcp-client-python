@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
+from adcp.types.generated_poc.pricing_options.pricing_option_base import PricingOptionBase
 from pydantic import ConfigDict, Field, RootModel
 
 
@@ -41,7 +42,7 @@ class Parameters(AdCPBaseModel):
     view_threshold: ViewThreshold | ViewThreshold1
 
 
-class CpvPricingOption(AdCPBaseModel):
+class CpvPricingOption(PricingOptionBase):
     model_config = ConfigDict(
         extra='forbid',
     )
