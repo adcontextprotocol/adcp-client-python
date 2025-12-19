@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.14.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.13.0...v2.14.0) (2025-12-19)
+
+
+### Features
+
+* add IPR agreement workflow using centralized AdCP signatures ([#101](https://github.com/adcontextprotocol/adcp-client-python/issues/101)) ([a33c5d6](https://github.com/adcontextprotocol/adcp-client-python/commit/a33c5d6d235546bef8b3858ceb6cd90148377228))
+* update schemas ([436f754](https://github.com/adcontextprotocol/adcp-client-python/commit/436f75414e954476f3cf69a0106a3e8f54458a64))
+* update webhook handling ([874d170](https://github.com/adcontextprotocol/adcp-client-python/commit/874d170145cea29a88d93bec320dccdef35ba748))
+
+
+### Bug Fixes
+
+* apply PR suggestion ([cecc2dc](https://github.com/adcontextprotocol/adcp-client-python/commit/cecc2dcc0ff926d1d9d978ed9ffce578f85186dc))
+* drop --collapse-root-models option from type gen. Regenerate types ([6cba9ef](https://github.com/adcontextprotocol/adcp-client-python/commit/6cba9efc3b9cdb54835a0c2c35c6eed28efb0bb0))
+* format ([aabb322](https://github.com/adcontextprotocol/adcp-client-python/commit/aabb322f98c5565d8d29f1e1a104f16b02656bda))
+* format ([1dca6f1](https://github.com/adcontextprotocol/adcp-client-python/commit/1dca6f1bd26ee5046eb7594a5995da600b6d9394))
+* format ([83da78d](https://github.com/adcontextprotocol/adcp-client-python/commit/83da78d752efeb27c163a52c383fc6039827bfec))
+* handle all authorization types in get_properties_by_agent ([#100](https://github.com/adcontextprotocol/adcp-client-python/issues/100)) ([934f437](https://github.com/adcontextprotocol/adcp-client-python/commit/934f437c9ed260fbd748a2c74a3b4cd0c3bb0bc9))
+* regenerate schemas ([4ab4f53](https://github.com/adcontextprotocol/adcp-client-python/commit/4ab4f53be009faf2c7e3e07312d97e0ceebfa7d9))
+* tests ([e1664aa](https://github.com/adcontextprotocol/adcp-client-python/commit/e1664aa825b667aa7d0f0f9b3a6daae2a32ffd0e))
+* update MCP SDK to &gt;=1.23.2 for streaming stability ([#94](https://github.com/adcontextprotocol/adcp-client-python/issues/94)) ([3c25822](https://github.com/adcontextprotocol/adcp-client-python/commit/3c258225e4e609e018b14dd9c32f9f1d6fcb7b68))
+* update verify signature function to work with timestamp ([aaa7c8b](https://github.com/adcontextprotocol/adcp-client-python/commit/aaa7c8be915f890de3129268851ec32e3ec42e63))
+* utility functions ([bc47233](https://github.com/adcontextprotocol/adcp-client-python/commit/bc47233e6465f9d23fd6a6c93f5c3af31b7b4173))
+
 ## [2.13.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.12.2...v2.13.0) (2025-12-07)
 
 
