@@ -490,12 +490,19 @@ to enable connection pooling</li>
 <pre><code class="python">def get_properties_by_agent(adagents_data: dict[str, Any], agent_url: str) -&gt; list[dict[str, Any]]:
     &#34;&#34;&#34;Get all properties authorized for a specific agent.
 
+    Handles all authorization types per the AdCP specification:
+    - inline_properties: Properties defined directly in the agent&#39;s properties array
+    - property_ids: Filter top-level properties by property_id
+    - property_tags: Filter top-level properties by tags
+    - publisher_properties: References properties from other publisher domains
+      (returns the selector objects, not resolved properties)
+
     Args:
         adagents_data: Parsed adagents.json data
         agent_url: URL of the agent to filter by
 
     Returns:
-        List of properties for the specified agent (empty if agent not found or no properties)
+        List of properties for the specified agent (empty if agent not found)
 
     Raises:
         AdagentsValidationError: If adagents_data is malformed
@@ -506,6 +513,11 @@ to enable connection pooling</li>
     authorized_agents = adagents_data.get(&#34;authorized_agents&#34;)
     if not isinstance(authorized_agents, list):
         raise AdagentsValidationError(&#34;adagents.json must have &#39;authorized_agents&#39; array&#34;)
+
+    # Get top-level properties for reference-based authorization types
+    top_level_properties = adagents_data.get(&#34;properties&#34;, [])
+    if not isinstance(top_level_properties, list):
+        top_level_properties = []
 
     # Normalize the agent URL for comparison
     normalized_agent_url = normalize_url(agent_url)
@@ -522,16 +534,54 @@ to enable connection pooling</li>
         if normalize_url(agent_url_from_json) != normalized_agent_url:
             continue
 
-        # Found the agent - return their properties
-        properties = agent.get(&#34;properties&#34;, [])
-        if not isinstance(properties, list):
-            return []
+        # Found the agent - determine authorization type
+        authorization_type = agent.get(&#34;authorization_type&#34;, &#34;&#34;)
 
-        return [p for p in properties if isinstance(p, dict)]
+        # Handle inline_properties (properties array directly on agent)
+        if authorization_type == &#34;inline_properties&#34; or &#34;properties&#34; in agent:
+            properties = agent.get(&#34;properties&#34;, [])
+            if not isinstance(properties, list):
+                return []
+            return [p for p in properties if isinstance(p, dict)]
+
+        # Handle property_ids (filter top-level properties by property_id)
+        if authorization_type == &#34;property_ids&#34;:
+            authorized_ids = set(agent.get(&#34;property_ids&#34;, []))
+            return [
+                p
+                for p in top_level_properties
+                if isinstance(p, dict) and p.get(&#34;property_id&#34;) in authorized_ids
+            ]
+
+        # Handle property_tags (filter top-level properties by tags)
+        if authorization_type == &#34;property_tags&#34;:
+            authorized_tags = set(agent.get(&#34;property_tags&#34;, []))
+            return [
+                p
+                for p in top_level_properties
+                if isinstance(p, dict) and set(p.get(&#34;tags&#34;, [])) &amp; authorized_tags
+            ]
+
+        # Handle publisher_properties (cross-domain references)
+        # Returns the selector objects; caller must resolve against other domains
+        if authorization_type == &#34;publisher_properties&#34;:
+            publisher_props = agent.get(&#34;publisher_properties&#34;, [])
+            if not isinstance(publisher_props, list):
+                return []
+            return [p for p in publisher_props if isinstance(p, dict)]
+
+        # No recognized authorization type - return empty
+        return []
 
     return []</code></pre>
 </details>
 <div class="desc"><p>Get all properties authorized for a specific agent.</p>
+<p>Handles all authorization types per the AdCP specification:
+- inline_properties: Properties defined directly in the agent's properties array
+- property_ids: Filter top-level properties by property_id
+- property_tags: Filter top-level properties by tags
+- publisher_properties: References properties from other publisher domains
+(returns the selector objects, not resolved properties)</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>adagents_data</code></strong></dt>
@@ -540,7 +590,7 @@ to enable connection pooling</li>
 <dd>URL of the agent to filter by</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>List of properties for the specified agent (empty if agent not found or no properties)</p>
+<p>List of properties for the specified agent (empty if agent not found)</p>
 <h2 id="raises">Raises</h2>
 <dl>
 <dt><code>AdagentsValidationError</code></dt>
@@ -873,8 +923,8 @@ for ANY property on this domain</li>
             if not isinstance(prop, dict):
                 continue
 
-            # Extract property ID
-            prop_id = prop.get(&#34;id&#34;)
+            # Extract property ID (per AdCP v2 schema, the field is &#34;property_id&#34;)
+            prop_id = prop.get(&#34;property_id&#34;)
             if prop_id and isinstance(prop_id, str):
                 self.property_ids.append(prop_id)
 
