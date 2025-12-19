@@ -163,17 +163,7 @@ validated to form a valid model.</p>
         ),
     ] = None
     pricing_options: Annotated[
-        list[
-            cpm_fixed_option.CpmFixedRatePricingOption
-            | cpm_auction_option.CpmAuctionPricingOption
-            | vcpm_fixed_option.VcpmFixedRatePricingOption
-            | vcpm_auction_option.VcpmAuctionPricingOption
-            | cpc_option.CpcPricingOption
-            | cpcv_option.CpcvPricingOption
-            | cpv_option.CpvPricingOption
-            | cpp_option.CppPricingOption
-            | flat_rate_option.FlatRatePricingOption
-        ],
+        list[pricing_option.PricingOption],
         Field(description=&#39;Available pricing models for this product&#39;, min_length=1),
     ]
     product_card: Annotated[
@@ -190,11 +180,7 @@ validated to form a valid model.</p>
     ] = None
     product_id: Annotated[str, Field(description=&#39;Unique identifier for the product&#39;)]
     publisher_properties: Annotated[
-        list[
-            publisher_property_selector.PublisherPropertySelector1
-            | publisher_property_selector.PublisherPropertySelector2
-            | publisher_property_selector.PublisherPropertySelector3
-        ],
+        list[publisher_property_selector.PublisherPropertySelector],
         Field(
             description=&#34;Publisher properties covered by this product. Buyers fetch actual property definitions from each publisher&#39;s adagents.json and validate agent authorization. Selection patterns mirror the authorization patterns in adagents.json for consistency.&#34;,
             min_length=1,
@@ -273,7 +259,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product.Product.pricing_options"><code class="name">var <span class="ident">pricing_options</span> : list[<a title="adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption" href="../pricing_options/cpm_fixed_option.html#adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption">CpmFixedRatePricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.cpm_auction_option.CpmAuctionPricingOption" href="../pricing_options/cpm_auction_option.html#adcp.types.generated_poc.pricing_options.cpm_auction_option.CpmAuctionPricingOption">CpmAuctionPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.vcpm_fixed_option.VcpmFixedRatePricingOption" href="../pricing_options/vcpm_fixed_option.html#adcp.types.generated_poc.pricing_options.vcpm_fixed_option.VcpmFixedRatePricingOption">VcpmFixedRatePricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.vcpm_auction_option.VcpmAuctionPricingOption" href="../pricing_options/vcpm_auction_option.html#adcp.types.generated_poc.pricing_options.vcpm_auction_option.VcpmAuctionPricingOption">VcpmAuctionPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.cpc_option.CpcPricingOption" href="../pricing_options/cpc_option.html#adcp.types.generated_poc.pricing_options.cpc_option.CpcPricingOption">CpcPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption" href="../pricing_options/cpcv_option.html#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption">CpcvPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption" href="../pricing_options/cpv_option.html#adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption">CpvPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.cpp_option.CppPricingOption" href="../pricing_options/cpp_option.html#adcp.types.generated_poc.pricing_options.cpp_option.CppPricingOption">CppPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.flat_rate_option.FlatRatePricingOption" href="../pricing_options/flat_rate_option.html#adcp.types.generated_poc.pricing_options.flat_rate_option.FlatRatePricingOption">FlatRatePricingOption</a>]</code></dt>
+<dt id="adcp.types.generated_poc.core.product.Product.pricing_options"><code class="name">var <span class="ident">pricing_options</span> : list[<a title="adcp.types.generated_poc.core.pricing_option.PricingOption" href="pricing_option.html#adcp.types.generated_poc.core.pricing_option.PricingOption">PricingOption</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -289,7 +275,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product.Product.publisher_properties"><code class="name">var <span class="ident">publisher_properties</span> : list[<a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector1" href="publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector1">PublisherPropertySelector1</a> | <a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector2" href="publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector2">PublisherPropertySelector2</a> | <a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector3" href="publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector3">PublisherPropertySelector3</a>]</code></dt>
+<dt id="adcp.types.generated_poc.core.product.Product.publisher_properties"><code class="name">var <span class="ident">publisher_properties</span> : list[<a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector" href="publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector">PublisherPropertySelector</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>

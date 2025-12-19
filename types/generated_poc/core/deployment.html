@@ -46,6 +46,63 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.types.generated_poc.core.deployment.Deployment"><code class="flex name class">
+<span>class <span class="ident">Deployment</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Deployment(RootModel[Deployment1 | Deployment2]):
+    root: Annotated[
+        Deployment1 | Deployment2,
+        Field(
+            description=&#39;A signal deployment to a specific deployment target with activation status and key&#39;,
+            title=&#39;Deployment&#39;,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[Union[Deployment1, Deployment2]]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.deployment.Deployment.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.deployment.Deployment.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.core.deployment.Deployment1" href="#adcp.types.generated_poc.core.deployment.Deployment1">Deployment1</a> | <a title="adcp.types.generated_poc.core.deployment.Deployment2" href="#adcp.types.generated_poc.core.deployment.Deployment2">Deployment2</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.generated_poc.core.deployment.Deployment1"><code class="flex name class">
 <span>class <span class="ident">Deployment1</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -61,10 +118,9 @@ el.replaceWith(d);
     )
     account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
     activation_key: Annotated[
-        activation_key_1.ActivationKey1 | activation_key_1.ActivationKey2 | None,
+        activation_key_1.ActivationKey | None,
         Field(
-            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;,
-            title=&#39;Activation Key&#39;,
+            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;
         ),
     ] = None
     deployed_at: Annotated[
@@ -106,7 +162,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.deployment.Deployment1.activation_key"><code class="name">var <span class="ident">activation_key</span> : <a title="adcp.types.generated_poc.core.activation_key.ActivationKey1" href="activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey1">ActivationKey1</a> | <a title="adcp.types.generated_poc.core.activation_key.ActivationKey2" href="activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey2">ActivationKey2</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.deployment.Deployment1.activation_key"><code class="name">var <span class="ident">activation_key</span> : <a title="adcp.types.generated_poc.core.activation_key.ActivationKey" href="activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey">ActivationKey</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -161,10 +217,9 @@ validated to form a valid model.</p>
     )
     account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
     activation_key: Annotated[
-        activation_key_1.ActivationKey1 | activation_key_1.ActivationKey2 | None,
+        activation_key_1.ActivationKey | None,
         Field(
-            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;,
-            title=&#39;Activation Key&#39;,
+            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;
         ),
     ] = None
     agent_url: Annotated[AnyUrl, Field(description=&#39;URL identifying the deployment agent&#39;)]
@@ -206,7 +261,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.deployment.Deployment2.activation_key"><code class="name">var <span class="ident">activation_key</span> : <a title="adcp.types.generated_poc.core.activation_key.ActivationKey1" href="activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey1">ActivationKey1</a> | <a title="adcp.types.generated_poc.core.activation_key.ActivationKey2" href="activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey2">ActivationKey2</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.deployment.Deployment2.activation_key"><code class="name">var <span class="ident">activation_key</span> : <a title="adcp.types.generated_poc.core.activation_key.ActivationKey" href="activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey">ActivationKey</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -261,6 +316,13 @@ validated to form a valid model.</p>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.deployment.Deployment" href="#adcp.types.generated_poc.core.deployment.Deployment">Deployment</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.deployment.Deployment.model_config" href="#adcp.types.generated_poc.core.deployment.Deployment.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.deployment.Deployment.root" href="#adcp.types.generated_poc.core.deployment.Deployment.root">root</a></code></li>
+</ul>
+</li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.deployment.Deployment1" href="#adcp.types.generated_poc.core.deployment.Deployment1">Deployment1</a></code></h4>
 <ul class="">

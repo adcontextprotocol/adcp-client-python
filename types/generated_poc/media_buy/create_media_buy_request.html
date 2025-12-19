@@ -60,24 +60,9 @@ el.replaceWith(d);
         extra=&#39;forbid&#39;,
     )
     brand_manifest: Annotated[
-        brand_manifest_1.BrandManifest | AnyUrl,
+        brand_manifest_ref.BrandManifestReference,
         Field(
-            description=&#39;Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests.&#39;,
-            examples=[
-                {
-                    &#39;data&#39;: {
-                        &#39;colors&#39;: {&#39;primary&#39;: &#39;#FF6B35&#39;},
-                        &#39;name&#39;: &#39;ACME Corporation&#39;,
-                        &#39;url&#39;: &#39;https://acmecorp.com&#39;,
-                    },
-                    &#39;description&#39;: &#39;Inline brand manifest&#39;,
-                },
-                {
-                    &#39;data&#39;: &#39;https://cdn.acmecorp.com/brand-manifest.json&#39;,
-                    &#39;description&#39;: &#39;URL string reference to hosted manifest&#39;,
-                },
-            ],
-            title=&#39;Brand Manifest Reference&#39;,
+            description=&#39;Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests.&#39;
         ),
     ]
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
@@ -91,12 +76,7 @@ el.replaceWith(d);
     ]
     po_number: Annotated[str | None, Field(description=&#39;Purchase order number for tracking&#39;)] = None
     reporting_webhook: ReportingWebhook | None = None
-    start_time: Annotated[
-        str | AwareDatetime,
-        Field(
-            description=&#34;Campaign start timing: &#39;asap&#39; or ISO 8601 date-time&#34;, title=&#39;Start Timing&#39;
-        ),
-    ]</code></pre>
+    start_time: start_timing.StartTiming</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -113,7 +93,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest.BrandManifest" href="../core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.BrandManifest">BrandManifest</a> | pydantic.networks.AnyUrl</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference" href="../core/brand_manifest_ref.html#adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference">BrandManifestReference</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -149,7 +129,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.start_time"><code class="name">var <span class="ident">start_time</span> : str | pydantic.types.AwareDatetime</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.start_time"><code class="name">var <span class="ident">start_time</span> : <a title="adcp.types.generated_poc.core.start_timing.StartTiming" href="../core/start_timing.html#adcp.types.generated_poc.core.start_timing.StartTiming">StartTiming</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>

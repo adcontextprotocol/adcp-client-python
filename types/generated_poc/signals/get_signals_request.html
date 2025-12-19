@@ -114,7 +114,7 @@ validated to form a valid model.</p>
         list[Country], Field(description=&#39;Countries where signals will be used (ISO codes)&#39;)
     ]
     deployments: Annotated[
-        list[destination.Destination1 | destination.Destination2],
+        list[destination.Destination],
         Field(
             description=&#39;List of deployment targets (DSPs, sales agents, etc.). If the authenticated caller matches one of these deployment targets, activation keys will be included in the response.&#39;,
             min_length=1,
@@ -140,7 +140,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.DeliverTo.deployments"><code class="name">var <span class="ident">deployments</span> : list[<a title="adcp.types.generated_poc.core.destination.Destination1" href="../core/destination.html#adcp.types.generated_poc.core.destination.Destination1">Destination1</a> | <a title="adcp.types.generated_poc.core.destination.Destination2" href="../core/destination.html#adcp.types.generated_poc.core.destination.Destination2">Destination2</a>]</code></dt>
+<dt id="adcp.types.generated_poc.signals.get_signals_request.DeliverTo.deployments"><code class="name">var <span class="ident">deployments</span> : list[<a title="adcp.types.generated_poc.core.destination.Destination" href="../core/destination.html#adcp.types.generated_poc.core.destination.Destination">Destination</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>

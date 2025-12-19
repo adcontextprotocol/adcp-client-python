@@ -244,11 +244,7 @@ validated to form a valid model.</p>
     ]
     preview_id: Annotated[str, Field(description=&#39;Unique identifier for this preview variant&#39;)]
     renders: Annotated[
-        list[
-            preview_render.PreviewRender1
-            | preview_render.PreviewRender2
-            | preview_render.PreviewRender3
-        ],
+        list[preview_render.PreviewRender],
         Field(
             description=&#39;Array of rendered pieces for this preview variant. Most formats render as a single piece. Companion ad formats (video + banner), multi-placement formats, and adaptive formats render as multiple pieces.&#39;,
             min_length=1,
@@ -282,7 +278,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview.renders"><code class="name">var <span class="ident">renders</span> : list[<a title="adcp.types.generated_poc.creative.preview_render.PreviewRender1" href="preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender1">PreviewRender1</a> | <a title="adcp.types.generated_poc.creative.preview_render.PreviewRender2" href="preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender2">PreviewRender2</a> | <a title="adcp.types.generated_poc.creative.preview_render.PreviewRender3" href="preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender3">PreviewRender3</a>]</code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview.renders"><code class="name">var <span class="ident">renders</span> : list[<a title="adcp.types.generated_poc.creative.preview_render.PreviewRender" href="preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender">PreviewRender</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -310,14 +306,7 @@ validated to form a valid model.</p>
 <pre><code class="python">class Preview1(AdCPBaseModel):
     input: Input4
     preview_id: str
-    renders: Annotated[
-        list[
-            preview_render.PreviewRender1
-            | preview_render.PreviewRender2
-            | preview_render.PreviewRender3
-        ],
-        Field(min_length=1),
-    ]</code></pre>
+    renders: Annotated[list[preview_render.PreviewRender], Field(min_length=1)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -346,7 +335,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview1.renders"><code class="name">var <span class="ident">renders</span> : list[<a title="adcp.types.generated_poc.creative.preview_render.PreviewRender1" href="preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender1">PreviewRender1</a> | <a title="adcp.types.generated_poc.creative.preview_render.PreviewRender2" href="preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender2">PreviewRender2</a> | <a title="adcp.types.generated_poc.creative.preview_render.PreviewRender3" href="preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender3">PreviewRender3</a>]</code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview1.renders"><code class="name">var <span class="ident">renders</span> : list[<a title="adcp.types.generated_poc.creative.preview_render.PreviewRender" href="preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender">PreviewRender</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -364,14 +353,7 @@ validated to form a valid model.</p>
 <pre><code class="python">class Preview1(AdCPBaseModel):
     input: Input4
     preview_id: str
-    renders: Annotated[
-        list[
-            preview_render.PreviewRender1
-            | preview_render.PreviewRender2
-            | preview_render.PreviewRender3
-        ],
-        Field(min_length=1),
-    ]</code></pre>
+    renders: Annotated[list[preview_render.PreviewRender], Field(min_length=1)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -400,7 +382,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview1.renders"><code class="name">var <span class="ident">renders</span> : list[<a title="adcp.types.generated_poc.creative.preview_render.PreviewRender1" href="preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender1">PreviewRender1</a> | <a title="adcp.types.generated_poc.creative.preview_render.PreviewRender2" href="preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender2">PreviewRender2</a> | <a title="adcp.types.generated_poc.creative.preview_render.PreviewRender3" href="preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender3">PreviewRender3</a>]</code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview1.renders"><code class="name">var <span class="ident">renders</span> : list[<a title="adcp.types.generated_poc.creative.preview_render.PreviewRender" href="preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender">PreviewRender</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>

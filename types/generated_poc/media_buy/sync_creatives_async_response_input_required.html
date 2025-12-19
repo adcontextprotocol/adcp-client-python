@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.core.dimensions API documentation</title>
+<title>adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.core.dimensions</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,8 +46,77 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.core.dimensions.Dimensions"><code class="flex name class">
-<span>class <span class="ident">Dimensions</span></span>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.Reason"><code class="flex name class">
+<span>class <span class="ident">Reason</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Reason(Enum):
+    APPROVAL_REQUIRED = &#39;APPROVAL_REQUIRED&#39;
+    ASSET_CONFIRMATION = &#39;ASSET_CONFIRMATION&#39;
+    FORMAT_CLARIFICATION = &#39;FORMAT_CLARIFICATION&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.Reason.APPROVAL_REQUIRED"><code class="name">var <span class="ident">APPROVAL_REQUIRED</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.Reason.ASSET_CONFIRMATION"><code class="name">var <span class="ident">ASSET_CONFIRMATION</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.Reason.FORMAT_CLARIFICATION"><code class="name">var <span class="ident">FORMAT_CLARIFICATION</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.SyncCreativesInputRequired"><code class="flex name class">
+<span>class <span class="ident">SyncCreativesInputRequired</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -55,12 +124,15 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Dimensions(AdCPBaseModel):
+<pre><code class="python">class SyncCreativesInputRequired(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    height: Annotated[int, Field(description=&#39;Height in pixels&#39;, ge=1)]
-    width: Annotated[int, Field(description=&#39;Width in pixels&#39;, ge=1)]</code></pre>
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+    reason: Annotated[
+        Reason | None, Field(description=&#39;Reason code indicating why buyer input is needed&#39;)
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -75,22 +147,21 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
-<h3>Subclasses</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset" href="assets/image_asset.html#adcp.types.generated_poc.core.assets.image_asset.ImageAsset">ImageAsset</a></li>
-<li><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset" href="assets/video_asset.html#adcp.types.generated_poc.core.assets.video_asset.VideoAsset">VideoAsset</a></li>
-</ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.dimensions.Dimensions.height"><code class="name">var <span class="ident">height</span> : int</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.SyncCreativesInputRequired.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.dimensions.Dimensions.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.SyncCreativesInputRequired.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.dimensions.Dimensions.width"><code class="name">var <span class="ident">width</span> : int</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.SyncCreativesInputRequired.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.SyncCreativesInputRequired.reason"><code class="name">var <span class="ident">reason</span> : <a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.Reason" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.Reason">Reason</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -116,17 +187,26 @@ validated to form a valid model.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.core" href="index.html">adcp.types.generated_poc.core</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy" href="index.html">adcp.types.generated_poc.media_buy</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.dimensions.Dimensions" href="#adcp.types.generated_poc.core.dimensions.Dimensions">Dimensions</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.Reason" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.Reason">Reason</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.dimensions.Dimensions.height" href="#adcp.types.generated_poc.core.dimensions.Dimensions.height">height</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.dimensions.Dimensions.model_config" href="#adcp.types.generated_poc.core.dimensions.Dimensions.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.dimensions.Dimensions.width" href="#adcp.types.generated_poc.core.dimensions.Dimensions.width">width</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.Reason.APPROVAL_REQUIRED" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.Reason.APPROVAL_REQUIRED">APPROVAL_REQUIRED</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.Reason.ASSET_CONFIRMATION" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.Reason.ASSET_CONFIRMATION">ASSET_CONFIRMATION</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.Reason.FORMAT_CLARIFICATION" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.Reason.FORMAT_CLARIFICATION">FORMAT_CLARIFICATION</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.SyncCreativesInputRequired" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.SyncCreativesInputRequired">SyncCreativesInputRequired</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.SyncCreativesInputRequired.context" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.SyncCreativesInputRequired.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.SyncCreativesInputRequired.ext" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.SyncCreativesInputRequired.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.SyncCreativesInputRequired.model_config" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.SyncCreativesInputRequired.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.SyncCreativesInputRequired.reason" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required.SyncCreativesInputRequired.reason">reason</a></code></li>
 </ul>
 </li>
 </ul>

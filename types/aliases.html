@@ -151,7 +151,7 @@ immediately rather than at runtime when users try to use the aliases.</p>
     )
     context: context_1.ContextObject | None = None
     deployments: Annotated[
-        list[deployment.Deployment1 | deployment.Deployment2],
+        list[deployment.Deployment],
         Field(description=&#39;Array of deployment results for each deployment target&#39;),
     ]
     ext: ext_1.ExtensionObject | None = None</code></pre>
@@ -175,7 +175,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.ActivateSignalResponse1.deployments"><code class="name">var <span class="ident">deployments</span> : list[<a title="adcp.types.generated_poc.core.deployment.Deployment1" href="generated_poc/core/deployment.html#adcp.types.generated_poc.core.deployment.Deployment1">Deployment1</a> | <a title="adcp.types.generated_poc.core.deployment.Deployment2" href="generated_poc/core/deployment.html#adcp.types.generated_poc.core.deployment.Deployment2">Deployment2</a>]</code></dt>
+<dt id="adcp.types.aliases.ActivateSignalResponse1.deployments"><code class="name">var <span class="ident">deployments</span> : list[<a title="adcp.types.generated_poc.core.deployment.Deployment" href="generated_poc/core/deployment.html#adcp.types.generated_poc.core.deployment.Deployment">Deployment</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -654,11 +654,7 @@ validated to form a valid model.</p>
         ),
     ]
     publisher_properties: Annotated[
-        list[
-            publisher_property_selector.PublisherPropertySelector1
-            | publisher_property_selector.PublisherPropertySelector2
-            | publisher_property_selector.PublisherPropertySelector3
-        ],
+        list[publisher_property_selector.PublisherPropertySelector],
         Field(
             description=&#39;Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell&#39;,
             min_length=1,
@@ -693,7 +689,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.AuthorizedAgents3.publisher_properties"><code class="name">var <span class="ident">publisher_properties</span> : list[<a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector1" href="generated_poc/core/publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector1">PublisherPropertySelector1</a> | <a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector2" href="generated_poc/core/publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector2">PublisherPropertySelector2</a> | <a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector3" href="generated_poc/core/publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector3">PublisherPropertySelector3</a>]</code></dt>
+<dt id="adcp.types.aliases.AuthorizedAgents3.publisher_properties"><code class="name">var <span class="ident">publisher_properties</span> : list[<a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector" href="generated_poc/core/publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector">PublisherPropertySelector</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -986,6 +982,133 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.aliases.Creative"><code class="flex name class">
+<span>class <span class="ident">SyncCreativeResult</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Creative(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    action: Annotated[
+        creative_action.CreativeAction, Field(description=&#39;Action taken for this creative&#39;)
+    ]
+    assigned_to: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Package IDs this creative was successfully assigned to (only present when assignments were requested)&#39;
+        ),
+    ] = None
+    assignment_errors: Annotated[
+        dict[str, str] | None,
+        Field(
+            description=&#39;Assignment errors by package ID (only present when assignment failures occurred)&#39;
+        ),
+    ] = None
+    changes: Annotated[
+        list[str] | None,
+        Field(description=&#34;Field names that were modified (only present when action=&#39;updated&#39;)&#34;),
+    ] = None
+    creative_id: Annotated[str, Field(description=&#39;Creative ID from the request&#39;)]
+    errors: Annotated[
+        list[str] | None,
+        Field(description=&#34;Validation or processing errors (only present when action=&#39;failed&#39;)&#34;),
+    ] = None
+    expires_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;ISO 8601 timestamp when preview link expires (only present when preview_url exists)&#39;
+        ),
+    ] = None
+    platform_id: Annotated[
+        str | None, Field(description=&#39;Platform-specific ID assigned to the creative&#39;)
+    ] = None
+    preview_url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#39;Preview URL for generative creatives (only present for generative formats)&#39;
+        ),
+    ] = None
+    warnings: Annotated[
+        list[str] | None, Field(description=&#39;Non-fatal warnings about this creative&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.Creative.action"><code class="name">var <span class="ident">action</span> : <a title="adcp.types.generated_poc.enums.creative_action.CreativeAction" href="generated_poc/enums/creative_action.html#adcp.types.generated_poc.enums.creative_action.CreativeAction">CreativeAction</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Creative.assigned_to"><code class="name">var <span class="ident">assigned_to</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Creative.assignment_errors"><code class="name">var <span class="ident">assignment_errors</span> : dict[str, str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Creative.changes"><code class="name">var <span class="ident">changes</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Creative.creative_id"><code class="name">var <span class="ident">creative_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Creative.errors"><code class="name">var <span class="ident">errors</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Creative.expires_at"><code class="name">var <span class="ident">expires_at</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Creative.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Creative.platform_id"><code class="name">var <span class="ident">platform_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Creative.preview_url"><code class="name">var <span class="ident">preview_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Creative.warnings"><code class="name">var <span class="ident">warnings</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.aliases.DaastAsset1"><code class="flex name class">
 <span>class <span class="ident">UrlDaastAsset</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -1175,10 +1298,9 @@ validated to form a valid model.</p>
     )
     account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
     activation_key: Annotated[
-        activation_key_1.ActivationKey1 | activation_key_1.ActivationKey2 | None,
+        activation_key_1.ActivationKey | None,
         Field(
-            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;,
-            title=&#39;Activation Key&#39;,
+            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;
         ),
     ] = None
     deployed_at: Annotated[
@@ -1220,7 +1342,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.Deployment1.activation_key"><code class="name">var <span class="ident">activation_key</span> : <a title="adcp.types.generated_poc.core.activation_key.ActivationKey1" href="generated_poc/core/activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey1">ActivationKey1</a> | <a title="adcp.types.generated_poc.core.activation_key.ActivationKey2" href="generated_poc/core/activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey2">ActivationKey2</a> | None</code></dt>
+<dt id="adcp.types.aliases.Deployment1.activation_key"><code class="name">var <span class="ident">activation_key</span> : <a title="adcp.types.generated_poc.core.activation_key.ActivationKey" href="generated_poc/core/activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey">ActivationKey</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1275,10 +1397,9 @@ validated to form a valid model.</p>
     )
     account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
     activation_key: Annotated[
-        activation_key_1.ActivationKey1 | activation_key_1.ActivationKey2 | None,
+        activation_key_1.ActivationKey | None,
         Field(
-            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;,
-            title=&#39;Activation Key&#39;,
+            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;
         ),
     ] = None
     agent_url: Annotated[AnyUrl, Field(description=&#39;URL identifying the deployment agent&#39;)]
@@ -1320,7 +1441,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.Deployment2.activation_key"><code class="name">var <span class="ident">activation_key</span> : <a title="adcp.types.generated_poc.core.activation_key.ActivationKey1" href="generated_poc/core/activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey1">ActivationKey1</a> | <a title="adcp.types.generated_poc.core.activation_key.ActivationKey2" href="generated_poc/core/activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey2">ActivationKey2</a> | None</code></dt>
+<dt id="adcp.types.aliases.Deployment2.activation_key"><code class="name">var <span class="ident">activation_key</span> : <a title="adcp.types.generated_poc.core.activation_key.ActivationKey" href="generated_poc/core/activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey">ActivationKey</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3077,12 +3198,7 @@ validated to form a valid model.</p>
             description=&#39;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time.&#39;
         ),
     ] = None
-    start_time: Annotated[
-        str | AwareDatetime | None,
-        Field(
-            description=&#34;Campaign start timing: &#39;asap&#39; or ISO 8601 date-time&#34;, title=&#39;Start Timing&#39;
-        ),
-    ] = None</code></pre>
+    start_time: start_timing.StartTiming | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -3135,7 +3251,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.UpdateMediaBuyRequest1.start_time"><code class="name">var <span class="ident">start_time</span> : str | pydantic.types.AwareDatetime | None</code></dt>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest1.start_time"><code class="name">var <span class="ident">start_time</span> : <a title="adcp.types.generated_poc.core.start_timing.StartTiming" href="generated_poc/core/start_timing.html#adcp.types.generated_poc.core.start_timing.StartTiming">StartTiming</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3186,12 +3302,7 @@ validated to form a valid model.</p>
             description=&#39;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time.&#39;
         ),
     ] = None
-    start_time: Annotated[
-        str | AwareDatetime | None,
-        Field(
-            description=&#34;Campaign start timing: &#39;asap&#39; or ISO 8601 date-time&#34;, title=&#39;Start Timing&#39;
-        ),
-    ] = None</code></pre>
+    start_time: start_timing.StartTiming | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -3244,7 +3355,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.UpdateMediaBuyRequest2.start_time"><code class="name">var <span class="ident">start_time</span> : str | pydantic.types.AwareDatetime | None</code></dt>
+<dt id="adcp.types.aliases.UpdateMediaBuyRequest2.start_time"><code class="name">var <span class="ident">start_time</span> : <a title="adcp.types.generated_poc.core.start_timing.StartTiming" href="generated_poc/core/start_timing.html#adcp.types.generated_poc.core.start_timing.StartTiming">StartTiming</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3715,6 +3826,22 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse2.errors" href="#adcp.types.aliases.CreateMediaBuyResponse2.errors">errors</a></code></li>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse2.ext" href="#adcp.types.aliases.CreateMediaBuyResponse2.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse2.model_config" href="#adcp.types.aliases.CreateMediaBuyResponse2.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.Creative" href="#adcp.types.aliases.Creative">Creative</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.aliases.Creative.action" href="#adcp.types.aliases.Creative.action">action</a></code></li>
+<li><code><a title="adcp.types.aliases.Creative.assigned_to" href="#adcp.types.aliases.Creative.assigned_to">assigned_to</a></code></li>
+<li><code><a title="adcp.types.aliases.Creative.assignment_errors" href="#adcp.types.aliases.Creative.assignment_errors">assignment_errors</a></code></li>
+<li><code><a title="adcp.types.aliases.Creative.changes" href="#adcp.types.aliases.Creative.changes">changes</a></code></li>
+<li><code><a title="adcp.types.aliases.Creative.creative_id" href="#adcp.types.aliases.Creative.creative_id">creative_id</a></code></li>
+<li><code><a title="adcp.types.aliases.Creative.errors" href="#adcp.types.aliases.Creative.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.Creative.expires_at" href="#adcp.types.aliases.Creative.expires_at">expires_at</a></code></li>
+<li><code><a title="adcp.types.aliases.Creative.model_config" href="#adcp.types.aliases.Creative.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.Creative.platform_id" href="#adcp.types.aliases.Creative.platform_id">platform_id</a></code></li>
+<li><code><a title="adcp.types.aliases.Creative.preview_url" href="#adcp.types.aliases.Creative.preview_url">preview_url</a></code></li>
+<li><code><a title="adcp.types.aliases.Creative.warnings" href="#adcp.types.aliases.Creative.warnings">warnings</a></code></li>
 </ul>
 </li>
 <li>

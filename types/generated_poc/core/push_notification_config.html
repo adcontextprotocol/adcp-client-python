@@ -124,9 +124,6 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PushNotificationConfig(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
-    )
     authentication: Annotated[
         Authentication,
         Field(description=&#39;Authentication configuration for webhook delivery (A2A-compatible)&#39;),

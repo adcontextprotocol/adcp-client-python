@@ -331,13 +331,15 @@ el.replaceWith(d);
                 first_render = preview.renders[0] if preview.renders else None
 
                 if first_render:
-                    has_url = hasattr(first_render, &#34;preview_url&#34;)
-                    preview_url = str(first_render.preview_url) if has_url else None
+                    # PreviewRender is a RootModel, access attributes via .root
+                    render = first_render.root
+                    has_url = hasattr(render, &#34;preview_url&#34;)
+                    preview_url = str(render.preview_url) if has_url else None
                     preview_data = {
                         &#34;preview_id&#34;: preview.preview_id,
                         &#34;preview_url&#34;: preview_url,
-                        &#34;preview_html&#34;: getattr(first_render, &#34;preview_html&#34;, None),
-                        &#34;render_id&#34;: first_render.render_id,
+                        &#34;preview_html&#34;: getattr(render, &#34;preview_html&#34;, None),
+                        &#34;render_id&#34;: render.render_id,
                         &#34;input&#34;: preview.input.model_dump(),
                         &#34;expires_at&#34;: str(result.data.expires_at),
                     }
@@ -627,13 +629,15 @@ el.replaceWith(d);
             first_render = preview.renders[0] if preview.renders else None
 
             if first_render:
-                has_url = hasattr(first_render, &#34;preview_url&#34;)
-                preview_url = str(first_render.preview_url) if has_url else None
+                # PreviewRender is a RootModel, access attributes via .root
+                render = first_render.root
+                has_url = hasattr(render, &#34;preview_url&#34;)
+                preview_url = str(render.preview_url) if has_url else None
                 preview_data = {
                     &#34;preview_id&#34;: preview.preview_id,
                     &#34;preview_url&#34;: preview_url,
-                    &#34;preview_html&#34;: getattr(first_render, &#34;preview_html&#34;, None),
-                    &#34;render_id&#34;: first_render.render_id,
+                    &#34;preview_html&#34;: getattr(render, &#34;preview_html&#34;, None),
+                    &#34;render_id&#34;: render.render_id,
                     &#34;input&#34;: preview.input.model_dump(),
                     &#34;expires_at&#34;: str(result.data.expires_at),
                 }

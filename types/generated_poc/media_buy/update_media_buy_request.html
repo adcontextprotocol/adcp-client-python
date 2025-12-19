@@ -622,12 +622,7 @@ validated to form a valid model.</p>
             description=&#39;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time.&#39;
         ),
     ] = None
-    start_time: Annotated[
-        str | AwareDatetime | None,
-        Field(
-            description=&#34;Campaign start timing: &#39;asap&#39; or ISO 8601 date-time&#34;, title=&#39;Start Timing&#39;
-        ),
-    ] = None</code></pre>
+    start_time: start_timing.StartTiming | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -680,7 +675,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest1.start_time"><code class="name">var <span class="ident">start_time</span> : str | pydantic.types.AwareDatetime | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest1.start_time"><code class="name">var <span class="ident">start_time</span> : <a title="adcp.types.generated_poc.core.start_timing.StartTiming" href="../core/start_timing.html#adcp.types.generated_poc.core.start_timing.StartTiming">StartTiming</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -731,12 +726,7 @@ validated to form a valid model.</p>
             description=&#39;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time.&#39;
         ),
     ] = None
-    start_time: Annotated[
-        str | AwareDatetime | None,
-        Field(
-            description=&#34;Campaign start timing: &#39;asap&#39; or ISO 8601 date-time&#34;, title=&#39;Start Timing&#39;
-        ),
-    ] = None</code></pre>
+    start_time: start_timing.StartTiming | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -789,7 +779,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest2.start_time"><code class="name">var <span class="ident">start_time</span> : str | pydantic.types.AwareDatetime | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest2.start_time"><code class="name">var <span class="ident">start_time</span> : <a title="adcp.types.generated_poc.core.start_timing.StartTiming" href="../core/start_timing.html#adcp.types.generated_poc.core.start_timing.StartTiming">StartTiming</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>

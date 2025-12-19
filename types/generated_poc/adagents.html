@@ -317,11 +317,7 @@ validated to form a valid model.</p>
         ),
     ]
     publisher_properties: Annotated[
-        list[
-            publisher_property_selector.PublisherPropertySelector1
-            | publisher_property_selector.PublisherPropertySelector2
-            | publisher_property_selector.PublisherPropertySelector3
-        ],
+        list[publisher_property_selector.PublisherPropertySelector],
         Field(
             description=&#39;Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell&#39;,
             min_length=1,
@@ -356,7 +352,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.adagents.AuthorizedAgents3.publisher_properties"><code class="name">var <span class="ident">publisher_properties</span> : list[<a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector1" href="core/publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector1">PublisherPropertySelector1</a> | <a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector2" href="core/publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector2">PublisherPropertySelector2</a> | <a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector3" href="core/publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector3">PublisherPropertySelector3</a>]</code></dt>
+<dt id="adcp.types.generated_poc.adagents.AuthorizedAgents3.publisher_properties"><code class="name">var <span class="ident">publisher_properties</span> : list[<a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector" href="core/publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector">PublisherPropertySelector</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -392,12 +388,12 @@ validated to form a valid model.</p>
             description=&#39;Declaration of authorized sales agents for advertising inventory. Hosted at /.well-known/adagents.json on publisher domains. Can either contain the full structure inline or reference an authoritative URL.&#39;,
             examples=[
                 {
-                    &#39;$schema&#39;: &#39;https://adcontextprotocol.org/schemas/adagents.json&#39;,
+                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
                     &#39;authoritative_location&#39;: &#39;https://cdn.example.com/adagents/v2/adagents.json&#39;,
                     &#39;last_updated&#39;: &#39;2025-01-15T10:00:00Z&#39;,
                 },
                 {
-                    &#39;$schema&#39;: &#39;https://adcontextprotocol.org/schemas/adagents.json&#39;,
+                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
                     &#39;authorized_agents&#39;: [
                         {
                             &#39;authorization_type&#39;: &#39;property_tags&#39;,
@@ -423,7 +419,7 @@ validated to form a valid model.</p>
                     },
                 },
                 {
-                    &#39;$schema&#39;: &#39;https://adcontextprotocol.org/schemas/adagents.json&#39;,
+                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
                     &#39;authorized_agents&#39;: [
                         {
                             &#39;authorization_type&#39;: &#39;property_tags&#39;,
@@ -488,7 +484,7 @@ validated to form a valid model.</p>
                     },
                 },
                 {
-                    &#39;$schema&#39;: &#39;https://adcontextprotocol.org/schemas/adagents.json&#39;,
+                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
                     &#39;authorized_agents&#39;: [
                         {
                             &#39;authorization_type&#39;: &#39;property_tags&#39;,
@@ -516,7 +512,7 @@ validated to form a valid model.</p>
                     },
                 },
                 {
-                    &#39;$schema&#39;: &#39;https://adcontextprotocol.org/schemas/adagents.json&#39;,
+                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
                     &#39;authorized_agents&#39;: [
                         {
                             &#39;authorization_type&#39;: &#39;publisher_properties&#39;,
@@ -615,7 +611,7 @@ validated to form a valid model.</p>
     field_schema: Annotated[
         str | None,
         Field(alias=&#39;$schema&#39;, description=&#39;JSON Schema identifier for this adagents.json file&#39;),
-    ] = &#39;https://adcontextprotocol.org/schemas/adagents.json&#39;
+    ] = None
     authoritative_location: Annotated[
         AnyUrl,
         Field(
@@ -686,7 +682,7 @@ validated to form a valid model.</p>
     field_schema: Annotated[
         str | None,
         Field(alias=&#39;$schema&#39;, description=&#39;JSON Schema identifier for this adagents.json file&#39;),
-    ] = &#39;https://adcontextprotocol.org/schemas/adagents.json&#39;
+    ] = None
     authorized_agents: Annotated[
         list[AuthorizedAgents | AuthorizedAgents1 | AuthorizedAgents2 | AuthorizedAgents3],
         Field(

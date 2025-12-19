@@ -180,17 +180,9 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PreviewRender(
-    RootModel[
-        PreviewRender1
-        | PreviewRender2
-        | PreviewRender3
-    ]
-):
+<pre><code class="python">class PreviewRender(RootModel[PreviewRender1 | PreviewRender2 | PreviewRender3]):
     root: Annotated[
-        PreviewRender1
-        | PreviewRender2
-        | PreviewRender3,
+        PreviewRender1 | PreviewRender2 | PreviewRender3,
         Field(
             description=&#39;A single rendered piece of a creative preview with discriminated output format&#39;,
             title=&#39;Preview Render&#39;,

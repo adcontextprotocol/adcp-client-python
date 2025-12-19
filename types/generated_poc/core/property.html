@@ -127,12 +127,9 @@ validated to form a valid model.</p>
     ]
     name: Annotated[str, Field(description=&#39;Human-readable property name&#39;)]
     property_id: Annotated[
-        str | None,
+        property_id_1.PropertyId | None,
         Field(
-            description=&#39;Unique identifier for this property (optional). Enables referencing properties by ID instead of repeating full objects.&#39;,
-            examples=[&#39;cnn_ctv_app&#39;, &#39;homepage&#39;, &#39;mobile_ios&#39;, &#39;instagram&#39;],
-            pattern=&#39;^[a-z0-9_]+$&#39;,
-            title=&#39;Property ID&#39;,
+            description=&#39;Unique identifier for this property (optional). Enables referencing properties by ID instead of repeating full objects.&#39;
         ),
     ] = None
     property_type: Annotated[
@@ -178,7 +175,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.property.Property.property_id"><code class="name">var <span class="ident">property_id</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.core.property.Property.property_id"><code class="name">var <span class="ident">property_id</span> : <a title="adcp.types.generated_poc.core.property_id.PropertyId" href="property_id.html#adcp.types.generated_poc.core.property_id.PropertyId">PropertyId</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>

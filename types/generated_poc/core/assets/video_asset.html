@@ -55,7 +55,10 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class VideoAsset(Dimensions):
+<pre><code class="python">class VideoAsset(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
     bitrate_kbps: Annotated[
         int | None, Field(description=&#39;Video bitrate in kilobits per second&#39;, ge=1)
     ] = None
@@ -65,7 +68,9 @@ el.replaceWith(d);
     format: Annotated[str | None, Field(description=&#39;Video file format (mp4, webm, mov, etc.)&#39;)] = (
         None
     )
-    url: Annotated[AnyUrl, Field(description=&#39;URL to the video asset&#39;)]</code></pre>
+    height: Annotated[int, Field(description=&#39;Height in pixels&#39;, ge=1)]
+    url: Annotated[AnyUrl, Field(description=&#39;URL to the video asset&#39;)]
+    width: Annotated[int, Field(description=&#39;Width in pixels&#39;, ge=1)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -77,7 +82,6 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.dimensions.Dimensions" href="../dimensions.html#adcp.types.generated_poc.core.dimensions.Dimensions">Dimensions</a></li>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
@@ -95,6 +99,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.height"><code class="name">var <span class="ident">height</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -103,14 +111,18 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.width"><code class="name">var <span class="ident">width</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.core.dimensions.Dimensions" href="../dimensions.html#adcp.types.generated_poc.core.dimensions.Dimensions">Dimensions</a></b></code>:
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
 <ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.core.dimensions.Dimensions.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.dimensions.Dimensions.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.dimensions.Dimensions.summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -132,12 +144,14 @@ validated to form a valid model.</p>
 <ul>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset">VideoAsset</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.bitrate_kbps" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.bitrate_kbps">bitrate_kbps</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.duration_ms" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.duration_ms">duration_ms</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.format" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.format">format</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.height" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.height">height</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.model_config" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.url" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.url">url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.width" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.width">width</a></code></li>
 </ul>
 </li>
 </ul>

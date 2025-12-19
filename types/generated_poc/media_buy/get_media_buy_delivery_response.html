@@ -172,7 +172,8 @@ validated to form a valid model.</p>
             description=&#39;The pricing rate for this package in the specified currency. For fixed-rate pricing, this is the agreed rate (e.g., CPM rate of 12.50 means $12.50 per 1,000 impressions). For auction-based pricing, this represents the effective rate based on actual delivery.&#39;,
             ge=0.0,
         ),
-    ]</code></pre>
+    ]
+    spend: Any</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -223,6 +224,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.rate"><code class="name">var <span class="ident">rate</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.spend"><code class="name">var <span class="ident">spend</span> : Any</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -874,7 +879,8 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#34;Effective rate paid per unit based on pricing_model (e.g., actual CPM for &#39;cpm&#39;, actual cost per completed view for &#39;cpcv&#39;, actual cost per point for &#39;cpp&#39;)&#34;,
             ge=0.0,
         ),
-    ] = None</code></pre>
+    ] = None
+    spend: Any</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -897,6 +903,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Totals.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Totals.spend"><code class="name">var <span class="ident">spend</span> : Any</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -950,6 +960,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.paused" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.paused">paused</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.pricing_model" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.pricing_model">pricing_model</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.rate" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.rate">rate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.spend" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.spend">spend</a></code></li>
 </ul>
 </li>
 <li>
@@ -1037,6 +1048,7 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Totals.effective_rate" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Totals.effective_rate">effective_rate</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Totals.model_config" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Totals.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Totals.spend" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Totals.spend">spend</a></code></li>
 </ul>
 </li>
 </ul>

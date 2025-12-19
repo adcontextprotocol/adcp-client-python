@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.signals.activate_signal_request API documentation</title>
+<title>adcp.types.generated_poc.core.brand_manifest_ref API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.signals.activate_signal_request</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.core.brand_manifest_ref</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,78 +46,76 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest"><code class="flex name class">
-<span>class <span class="ident">ActivateSignalRequest</span></span>
-<span>(</span><span>**data: Any)</span>
+<dt id="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference"><code class="flex name class">
+<span>class <span class="ident">BrandManifestReference</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class ActivateSignalRequest(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
-    )
-    context: context_1.ContextObject | None = None
-    deployments: Annotated[
-        list[destination.Destination],
+<pre><code class="python">class BrandManifestReference(RootModel[brand_manifest.BrandManifest | AnyUrl]):
+    root: Annotated[
+        brand_manifest.BrandManifest | AnyUrl,
         Field(
-            description=&#39;Target deployment(s) for activation. If the authenticated caller matches one of these deployment targets, activation keys will be included in the response.&#39;,
-            min_length=1,
+            description=&#39;Brand manifest provided either as an inline object or a URL string pointing to a hosted manifest&#39;,
+            examples=[
+                {
+                    &#39;data&#39;: {
+                        &#39;colors&#39;: {&#39;primary&#39;: &#39;#FF6B35&#39;},
+                        &#39;name&#39;: &#39;ACME Corporation&#39;,
+                        &#39;url&#39;: &#39;https://acmecorp.com&#39;,
+                    },
+                    &#39;description&#39;: &#39;Inline brand manifest&#39;,
+                },
+                {
+                    &#39;data&#39;: &#39;https://cdn.acmecorp.com/brand-manifest.json&#39;,
+                    &#39;description&#39;: &#39;URL string reference to hosted manifest&#39;,
+                },
+            ],
+            title=&#39;Brand Manifest Reference&#39;,
         ),
-    ]
-    ext: ext_1.ExtensionObject | None = None
-    signal_agent_segment_id: Annotated[
-        str, Field(description=&#39;The universal identifier for the signal to activate&#39;)
     ]</code></pre>
 </details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
 <p>Create a new model by parsing and validating input data from keyword arguments.</p>
 <p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
 validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.root_model.RootModel[Union[BrandManifest, AnyUrl]]</li>
+<li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.deployments"><code class="name">var <span class="ident">deployments</span> : list[<a title="adcp.types.generated_poc.core.destination.Destination" href="../core/destination.html#adcp.types.generated_poc.core.destination.Destination">Destination</a>]</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.signal_agent_segment_id"><code class="name">var <span class="ident">signal_agent_segment_id</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.core.brand_manifest.BrandManifest" href="brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.BrandManifest">BrandManifest</a> | pydantic.networks.AnyUrl</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
-</ul>
-</li>
-</ul>
 </dd>
 </dl>
 </section>
@@ -129,19 +127,16 @@ validated to form a valid model.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.signals" href="index.html">adcp.types.generated_poc.signals</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core" href="index.html">adcp.types.generated_poc.core</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest" href="#adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest">ActivateSignalRequest</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference" href="#adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference">BrandManifestReference</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.context" href="#adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.deployments" href="#adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.deployments">deployments</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.ext" href="#adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.model_config" href="#adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.signal_agent_segment_id" href="#adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.signal_agent_segment_id">signal_agent_segment_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference.model_config" href="#adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference.root" href="#adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference.root">root</a></code></li>
 </ul>
 </li>
 </ul>

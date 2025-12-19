@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.core.creative_manifest API documentation</title>
+<title>adcp.types.generated_poc.media_buy.sync_creatives_async_response_submitted API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.core.creative_manifest</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.media_buy.sync_creatives_async_response_submitted</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,8 +46,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.core.creative_manifest.CreativeManifest"><code class="flex name class">
-<span>class <span class="ident">CreativeManifest</span></span>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_submitted.SyncCreativesSubmitted"><code class="flex name class">
+<span>class <span class="ident">SyncCreativesSubmitted</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -55,43 +55,12 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class CreativeManifest(AdCPBaseModel):
+<pre><code class="python">class SyncCreativesSubmitted(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    assets: Annotated[
-        dict[
-            str,
-            image_asset.ImageAsset
-            | video_asset.VideoAsset
-            | audio_asset.AudioAsset
-            | vast_asset.VastAsset
-            | text_asset.TextAsset
-            | url_asset.UrlAsset
-            | html_asset.HtmlAsset
-            | javascript_asset.JavascriptAsset
-            | webhook_asset.WebhookAsset
-            | css_asset.CssAsset
-            | daast_asset.DaastAsset
-            | promoted_offerings.PromotedOfferings,
-        ],
-        Field(
-            description=&#34;Map of asset IDs to actual asset content. Each key MUST match an asset_id from the format&#39;s assets_required array (e.g., &#39;banner_image&#39;, &#39;clickthrough_url&#39;, &#39;video_file&#39;, &#39;vast_tag&#39;). The asset_id is the technical identifier used to match assets to format requirements.\n\nIMPORTANT: Creative manifest validation MUST be performed in the context of the format specification. The format defines what type each asset_id should be, which eliminates any validation ambiguity.&#34;
-        ),
-    ]
-    ext: ext_1.ExtensionObject | None = None
-    format_id: Annotated[
-        format_id_1.FormatId,
-        Field(
-            description=&#34;Format identifier this manifest is for. Can be a template format (id only) or a deterministic format (id + dimensions/duration). For dimension-specific creatives, include width/height/unit in the format_id to create a unique identifier (e.g., {id: &#39;display_static&#39;, width: 300, height: 250, unit: &#39;px&#39;}).&#34;
-        ),
-    ]
-    promoted_offering: Annotated[
-        str | None,
-        Field(
-            description=&#39;Product name or offering being advertised. Maps to promoted_offerings in create_media_buy request to associate creative with the product being promoted.&#39;
-        ),
-    ] = None</code></pre>
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -108,23 +77,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.creative_manifest.CreativeManifest.assets"><code class="name">var <span class="ident">assets</span> : dict[str, <a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset" href="assets/image_asset.html#adcp.types.generated_poc.core.assets.image_asset.ImageAsset">ImageAsset</a> | <a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset" href="assets/video_asset.html#adcp.types.generated_poc.core.assets.video_asset.VideoAsset">VideoAsset</a> | <a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset" href="assets/audio_asset.html#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset">AudioAsset</a> | <a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset" href="assets/vast_asset.html#adcp.types.generated_poc.core.assets.vast_asset.VastAsset">VastAsset</a> | <a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset" href="assets/text_asset.html#adcp.types.generated_poc.core.assets.text_asset.TextAsset">TextAsset</a> | <a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset" href="assets/url_asset.html#adcp.types.generated_poc.core.assets.url_asset.UrlAsset">UrlAsset</a> | <a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset" href="assets/html_asset.html#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset">HtmlAsset</a> | <a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset" href="assets/javascript_asset.html#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset">JavascriptAsset</a> | <a title="adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset" href="assets/webhook_asset.html#adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset">WebhookAsset</a> | <a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset" href="assets/css_asset.html#adcp.types.generated_poc.core.assets.css_asset.CssAsset">CssAsset</a> | <a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset" href="assets/daast_asset.html#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset">DaastAsset</a> | <a title="adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings" href="promoted_offerings.html#adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings">PromotedOfferings</a>]</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_submitted.SyncCreativesSubmitted.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.creative_manifest.CreativeManifest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_submitted.SyncCreativesSubmitted.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.creative_manifest.CreativeManifest.format_id"><code class="name">var <span class="ident">format_id</span> : <a title="adcp.types.generated_poc.core.format_id.FormatId" href="format_id.html#adcp.types.generated_poc.core.format_id.FormatId">FormatId</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.creative_manifest.CreativeManifest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.creative_manifest.CreativeManifest.promoted_offering"><code class="name">var <span class="ident">promoted_offering</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_submitted.SyncCreativesSubmitted.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -150,19 +111,17 @@ validated to form a valid model.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.core" href="index.html">adcp.types.generated_poc.core</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy" href="index.html">adcp.types.generated_poc.media_buy</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.creative_manifest.CreativeManifest" href="#adcp.types.generated_poc.core.creative_manifest.CreativeManifest">CreativeManifest</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_submitted.SyncCreativesSubmitted" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_submitted.SyncCreativesSubmitted">SyncCreativesSubmitted</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.creative_manifest.CreativeManifest.assets" href="#adcp.types.generated_poc.core.creative_manifest.CreativeManifest.assets">assets</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.creative_manifest.CreativeManifest.ext" href="#adcp.types.generated_poc.core.creative_manifest.CreativeManifest.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.creative_manifest.CreativeManifest.format_id" href="#adcp.types.generated_poc.core.creative_manifest.CreativeManifest.format_id">format_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.creative_manifest.CreativeManifest.model_config" href="#adcp.types.generated_poc.core.creative_manifest.CreativeManifest.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.creative_manifest.CreativeManifest.promoted_offering" href="#adcp.types.generated_poc.core.creative_manifest.CreativeManifest.promoted_offering">promoted_offering</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_submitted.SyncCreativesSubmitted.context" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_submitted.SyncCreativesSubmitted.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_submitted.SyncCreativesSubmitted.ext" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_submitted.SyncCreativesSubmitted.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_submitted.SyncCreativesSubmitted.model_config" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_submitted.SyncCreativesSubmitted.model_config">model_config</a></code></li>
 </ul>
 </li>
 </ul>

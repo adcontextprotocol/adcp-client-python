@@ -376,7 +376,7 @@ validated to form a valid model.</p>
 </dl>
 </dd>
 <dt id="adcp.types.generated_poc.core.format.Dimensions"><code class="flex name class">
-<span>class <span class="ident">Dimensions2</span></span>
+<span>class <span class="ident">Dimensions1</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -858,7 +858,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Renders1(AdCPBaseModel):
     dimensions: Annotated[
-        Dimensions2 | None, Field(description=&#39;Dimensions for this rendered piece (in pixels)&#39;)
+        Dimensions1 | None, Field(description=&#39;Dimensions for this rendered piece (in pixels)&#39;)
     ] = None
     parameters_from_format_id: Annotated[
         Literal[True],

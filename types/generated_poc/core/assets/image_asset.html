@@ -55,12 +55,17 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class ImageAsset(Dimensions):
+<pre><code class="python">class ImageAsset(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
     alt_text: Annotated[str | None, Field(description=&#39;Alternative text for accessibility&#39;)] = None
     format: Annotated[
         str | None, Field(description=&#39;Image file format (jpg, png, gif, webp, etc.)&#39;)
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#39;URL to the image asset&#39;)]</code></pre>
+    height: Annotated[int, Field(description=&#39;Height in pixels&#39;, ge=1)]
+    url: Annotated[AnyUrl, Field(description=&#39;URL to the image asset&#39;)]
+    width: Annotated[int, Field(description=&#39;Width in pixels&#39;, ge=1)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -72,7 +77,6 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.dimensions.Dimensions" href="../dimensions.html#adcp.types.generated_poc.core.dimensions.Dimensions">Dimensions</a></li>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
@@ -86,6 +90,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.assets.image_asset.ImageAsset.height"><code class="name">var <span class="ident">height</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.assets.image_asset.ImageAsset.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -94,14 +102,18 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.assets.image_asset.ImageAsset.width"><code class="name">var <span class="ident">width</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.core.dimensions.Dimensions" href="../dimensions.html#adcp.types.generated_poc.core.dimensions.Dimensions">Dimensions</a></b></code>:
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
 <ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.core.dimensions.Dimensions.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.dimensions.Dimensions.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.dimensions.Dimensions.summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -123,11 +135,13 @@ validated to form a valid model.</p>
 <ul>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset" href="#adcp.types.generated_poc.core.assets.image_asset.ImageAsset">ImageAsset</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset.alt_text" href="#adcp.types.generated_poc.core.assets.image_asset.ImageAsset.alt_text">alt_text</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset.format" href="#adcp.types.generated_poc.core.assets.image_asset.ImageAsset.format">format</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset.height" href="#adcp.types.generated_poc.core.assets.image_asset.ImageAsset.height">height</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset.model_config" href="#adcp.types.generated_poc.core.assets.image_asset.ImageAsset.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset.url" href="#adcp.types.generated_poc.core.assets.image_asset.ImageAsset.url">url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset.width" href="#adcp.types.generated_poc.core.assets.image_asset.ImageAsset.width">width</a></code></li>
 </ul>
 </li>
 </ul>

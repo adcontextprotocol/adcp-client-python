@@ -46,6 +46,66 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector"><code class="flex name class">
+<span>class <span class="ident">PublisherPropertySelector</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PublisherPropertySelector(
+    RootModel[PublisherPropertySelector1 | PublisherPropertySelector2 | PublisherPropertySelector3]
+):
+    root: Annotated[
+        PublisherPropertySelector1 | PublisherPropertySelector2 | PublisherPropertySelector3,
+        Field(
+            description=&#34;Selects properties from a publisher&#39;s adagents.json. Used for both product definitions and agent authorization. Supports three selection patterns: all properties, specific IDs, or by tags.&#34;,
+            discriminator=&#39;selection_type&#39;,
+            title=&#39;Publisher Property Selector&#39;,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[Union[PublisherPropertySelector1, PublisherPropertySelector2, PublisherPropertySelector3]]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector1" href="#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector1">PublisherPropertySelector1</a> | <a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector2" href="#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector2">PublisherPropertySelector2</a> | <a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector3" href="#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector3">PublisherPropertySelector3</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector1"><code class="flex name class">
 <span>class <span class="ident">PublisherPropertySelector1</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -273,6 +333,13 @@ validated to form a valid model.</p>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector" href="#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector">PublisherPropertySelector</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector.model_config" href="#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector.root" href="#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector.root">root</a></code></li>
+</ul>
+</li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector1" href="#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector1">PublisherPropertySelector1</a></code></h4>
 <ul class="">

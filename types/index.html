@@ -86,7 +86,7 @@ from adcp import Product, CreativeFilters</p>
     )
     context: context_1.ContextObject | None = None
     deployments: Annotated[
-        list[destination.Destination1 | destination.Destination2],
+        list[destination.Destination],
         Field(
             description=&#39;Target deployment(s) for activation. If the authenticated caller matches one of these deployment targets, activation keys will be included in the response.&#39;,
             min_length=1,
@@ -116,7 +116,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.ActivateSignalRequest.deployments"><code class="name">var <span class="ident">deployments</span> : list[<a title="adcp.types.generated_poc.core.destination.Destination1" href="generated_poc/core/destination.html#adcp.types.generated_poc.core.destination.Destination1">Destination1</a> | <a title="adcp.types.generated_poc.core.destination.Destination2" href="generated_poc/core/destination.html#adcp.types.generated_poc.core.destination.Destination2">Destination2</a>]</code></dt>
+<dt id="adcp.types.ActivateSignalRequest.deployments"><code class="name">var <span class="ident">deployments</span> : list[<a title="adcp.types.generated_poc.core.destination.Destination" href="generated_poc/core/destination.html#adcp.types.generated_poc.core.destination.Destination">Destination</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -216,7 +216,7 @@ validated to form a valid model.</p>
     )
     context: context_1.ContextObject | None = None
     deployments: Annotated[
-        list[deployment.Deployment1 | deployment.Deployment2],
+        list[deployment.Deployment],
         Field(description=&#39;Array of deployment results for each deployment target&#39;),
     ]
     ext: ext_1.ExtensionObject | None = None</code></pre>
@@ -240,7 +240,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.ActivateSignalResponse1.deployments"><code class="name">var <span class="ident">deployments</span> : list[<a title="adcp.types.generated_poc.core.deployment.Deployment1" href="generated_poc/core/deployment.html#adcp.types.generated_poc.core.deployment.Deployment1">Deployment1</a> | <a title="adcp.types.generated_poc.core.deployment.Deployment2" href="generated_poc/core/deployment.html#adcp.types.generated_poc.core.deployment.Deployment2">Deployment2</a>]</code></dt>
+<dt id="adcp.types.ActivateSignalResponse1.deployments"><code class="name">var <span class="ident">deployments</span> : list[<a title="adcp.types.generated_poc.core.deployment.Deployment" href="generated_poc/core/deployment.html#adcp.types.generated_poc.core.deployment.Deployment">Deployment</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1942,11 +1942,7 @@ validated to form a valid model.</p>
         ),
     ]
     publisher_properties: Annotated[
-        list[
-            publisher_property_selector.PublisherPropertySelector1
-            | publisher_property_selector.PublisherPropertySelector2
-            | publisher_property_selector.PublisherPropertySelector3
-        ],
+        list[publisher_property_selector.PublisherPropertySelector],
         Field(
             description=&#39;Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell&#39;,
             min_length=1,
@@ -1981,7 +1977,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.AuthorizedAgents3.publisher_properties"><code class="name">var <span class="ident">publisher_properties</span> : list[<a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector1" href="generated_poc/core/publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector1">PublisherPropertySelector1</a> | <a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector2" href="generated_poc/core/publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector2">PublisherPropertySelector2</a> | <a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector3" href="generated_poc/core/publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector3">PublisherPropertySelector3</a>]</code></dt>
+<dt id="adcp.types.AuthorizedAgents3.publisher_properties"><code class="name">var <span class="ident">publisher_properties</span> : list[<a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector" href="generated_poc/core/publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector">PublisherPropertySelector</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2017,12 +2013,12 @@ validated to form a valid model.</p>
             description=&#39;Declaration of authorized sales agents for advertising inventory. Hosted at /.well-known/adagents.json on publisher domains. Can either contain the full structure inline or reference an authoritative URL.&#39;,
             examples=[
                 {
-                    &#39;$schema&#39;: &#39;https://adcontextprotocol.org/schemas/adagents.json&#39;,
+                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
                     &#39;authoritative_location&#39;: &#39;https://cdn.example.com/adagents/v2/adagents.json&#39;,
                     &#39;last_updated&#39;: &#39;2025-01-15T10:00:00Z&#39;,
                 },
                 {
-                    &#39;$schema&#39;: &#39;https://adcontextprotocol.org/schemas/adagents.json&#39;,
+                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
                     &#39;authorized_agents&#39;: [
                         {
                             &#39;authorization_type&#39;: &#39;property_tags&#39;,
@@ -2048,7 +2044,7 @@ validated to form a valid model.</p>
                     },
                 },
                 {
-                    &#39;$schema&#39;: &#39;https://adcontextprotocol.org/schemas/adagents.json&#39;,
+                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
                     &#39;authorized_agents&#39;: [
                         {
                             &#39;authorization_type&#39;: &#39;property_tags&#39;,
@@ -2113,7 +2109,7 @@ validated to form a valid model.</p>
                     },
                 },
                 {
-                    &#39;$schema&#39;: &#39;https://adcontextprotocol.org/schemas/adagents.json&#39;,
+                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
                     &#39;authorized_agents&#39;: [
                         {
                             &#39;authorization_type&#39;: &#39;property_tags&#39;,
@@ -2141,7 +2137,7 @@ validated to form a valid model.</p>
                     },
                 },
                 {
-                    &#39;$schema&#39;: &#39;https://adcontextprotocol.org/schemas/adagents.json&#39;,
+                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
                     &#39;authorized_agents&#39;: [
                         {
                             &#39;authorization_type&#39;: &#39;publisher_properties&#39;,
@@ -2787,7 +2783,8 @@ validated to form a valid model.</p>
             description=&#39;The pricing rate for this package in the specified currency. For fixed-rate pricing, this is the agreed rate (e.g., CPM rate of 12.50 means $12.50 per 1,000 impressions). For auction-based pricing, this represents the effective rate based on actual delivery.&#39;,
             ge=0.0,
         ),
-    ]</code></pre>
+    ]
+    spend: Any</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -2838,6 +2835,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.ByPackageItem.rate"><code class="name">var <span class="ident">rate</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ByPackageItem.spend"><code class="name">var <span class="ident">spend</span> : Any</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3834,24 +3835,9 @@ validated to form a valid model.</p>
         extra=&#39;forbid&#39;,
     )
     brand_manifest: Annotated[
-        brand_manifest_1.BrandManifest | AnyUrl,
+        brand_manifest_ref.BrandManifestReference,
         Field(
-            description=&#39;Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests.&#39;,
-            examples=[
-                {
-                    &#39;data&#39;: {
-                        &#39;colors&#39;: {&#39;primary&#39;: &#39;#FF6B35&#39;},
-                        &#39;name&#39;: &#39;ACME Corporation&#39;,
-                        &#39;url&#39;: &#39;https://acmecorp.com&#39;,
-                    },
-                    &#39;description&#39;: &#39;Inline brand manifest&#39;,
-                },
-                {
-                    &#39;data&#39;: &#39;https://cdn.acmecorp.com/brand-manifest.json&#39;,
-                    &#39;description&#39;: &#39;URL string reference to hosted manifest&#39;,
-                },
-            ],
-            title=&#39;Brand Manifest Reference&#39;,
+            description=&#39;Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests.&#39;
         ),
     ]
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
@@ -3865,12 +3851,7 @@ validated to form a valid model.</p>
     ]
     po_number: Annotated[str | None, Field(description=&#39;Purchase order number for tracking&#39;)] = None
     reporting_webhook: ReportingWebhook | None = None
-    start_time: Annotated[
-        str | AwareDatetime,
-        Field(
-            description=&#34;Campaign start timing: &#39;asap&#39; or ISO 8601 date-time&#34;, title=&#39;Start Timing&#39;
-        ),
-    ]</code></pre>
+    start_time: start_timing.StartTiming</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -3887,7 +3868,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.CreateMediaBuyRequest.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest.BrandManifest" href="generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.BrandManifest">BrandManifest</a> | pydantic.networks.AnyUrl</code></dt>
+<dt id="adcp.types.CreateMediaBuyRequest.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference" href="generated_poc/core/brand_manifest_ref.html#adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference">BrandManifestReference</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3923,7 +3904,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.CreateMediaBuyRequest.start_time"><code class="name">var <span class="ident">start_time</span> : str | pydantic.types.AwareDatetime</code></dt>
+<dt id="adcp.types.CreateMediaBuyRequest.start_time"><code class="name">var <span class="ident">start_time</span> : <a title="adcp.types.generated_poc.core.start_timing.StartTiming" href="generated_poc/core/start_timing.html#adcp.types.generated_poc.core.start_timing.StartTiming">StartTiming</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -4164,12 +4145,10 @@ validated to form a valid model.</p>
             | html_asset.HtmlAsset
             | css_asset.CssAsset
             | javascript_asset.JavascriptAsset
+            | vast_asset.VastAsset
+            | daast_asset.DaastAsset
             | promoted_offerings.PromotedOfferings
-            | url_asset.UrlAsset
-            | vast_asset.VastAsset1
-            | vast_asset.VastAsset2
-            | daast_asset.DaastAsset1
-            | daast_asset.DaastAsset2,
+            | url_asset.UrlAsset,
         ]
         | None,
         Field(description=&#39;Assets for this creative, keyed by asset_role&#39;),
@@ -4197,7 +4176,7 @@ validated to form a valid model.</p>
         creative_status.CreativeStatus, Field(description=&#39;Current approval status of the creative&#39;)
     ]
     sub_assets: Annotated[
-        list[sub_asset.SubAsset1 | sub_asset.SubAsset2] | None,
+        list[sub_asset.SubAsset] | None,
         Field(
             description=&#39;Sub-assets for multi-asset formats (included when include_sub_assets=true)&#39;
         ),
@@ -4222,7 +4201,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.Creative.assets"><code class="name">var <span class="ident">assets</span> : dict[str, <a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset" href="generated_poc/core/assets/image_asset.html#adcp.types.generated_poc.core.assets.image_asset.ImageAsset">ImageAsset</a> | <a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset" href="generated_poc/core/assets/video_asset.html#adcp.types.generated_poc.core.assets.video_asset.VideoAsset">VideoAsset</a> | <a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset" href="generated_poc/core/assets/audio_asset.html#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset">AudioAsset</a> | <a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset" href="generated_poc/core/assets/text_asset.html#adcp.types.generated_poc.core.assets.text_asset.TextAsset">TextAsset</a> | <a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset" href="generated_poc/core/assets/html_asset.html#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset">HtmlAsset</a> | <a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset" href="generated_poc/core/assets/css_asset.html#adcp.types.generated_poc.core.assets.css_asset.CssAsset">CssAsset</a> | <a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset" href="generated_poc/core/assets/javascript_asset.html#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset">JavascriptAsset</a> | <a title="adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings" href="generated_poc/core/promoted_offerings.html#adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings">PromotedOfferings</a> | <a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset" href="generated_poc/core/assets/url_asset.html#adcp.types.generated_poc.core.assets.url_asset.UrlAsset">UrlAsset</a> | <a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset1" href="generated_poc/core/assets/vast_asset.html#adcp.types.generated_poc.core.assets.vast_asset.VastAsset1">VastAsset1</a> | <a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset2" href="generated_poc/core/assets/vast_asset.html#adcp.types.generated_poc.core.assets.vast_asset.VastAsset2">VastAsset2</a> | <a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset1" href="generated_poc/core/assets/daast_asset.html#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset1">DaastAsset1</a> | <a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset2" href="generated_poc/core/assets/daast_asset.html#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset2">DaastAsset2</a>] | None</code></dt>
+<dt id="adcp.types.Creative.assets"><code class="name">var <span class="ident">assets</span> : dict[str, <a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset" href="generated_poc/core/assets/image_asset.html#adcp.types.generated_poc.core.assets.image_asset.ImageAsset">ImageAsset</a> | <a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset" href="generated_poc/core/assets/video_asset.html#adcp.types.generated_poc.core.assets.video_asset.VideoAsset">VideoAsset</a> | <a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset" href="generated_poc/core/assets/audio_asset.html#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset">AudioAsset</a> | <a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset" href="generated_poc/core/assets/text_asset.html#adcp.types.generated_poc.core.assets.text_asset.TextAsset">TextAsset</a> | <a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset" href="generated_poc/core/assets/html_asset.html#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset">HtmlAsset</a> | <a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset" href="generated_poc/core/assets/css_asset.html#adcp.types.generated_poc.core.assets.css_asset.CssAsset">CssAsset</a> | <a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset" href="generated_poc/core/assets/javascript_asset.html#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset">JavascriptAsset</a> | <a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset" href="generated_poc/core/assets/vast_asset.html#adcp.types.generated_poc.core.assets.vast_asset.VastAsset">VastAsset</a> | <a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset" href="generated_poc/core/assets/daast_asset.html#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset">DaastAsset</a> | <a title="adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings" href="generated_poc/core/promoted_offerings.html#adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings">PromotedOfferings</a> | <a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset" href="generated_poc/core/assets/url_asset.html#adcp.types.generated_poc.core.assets.url_asset.UrlAsset">UrlAsset</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -4258,7 +4237,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.Creative.sub_assets"><code class="name">var <span class="ident">sub_assets</span> : list[<a title="adcp.types.generated_poc.core.sub_asset.SubAsset1" href="generated_poc/core/sub_asset.html#adcp.types.generated_poc.core.sub_asset.SubAsset1">SubAsset1</a> | <a title="adcp.types.generated_poc.core.sub_asset.SubAsset2" href="generated_poc/core/sub_asset.html#adcp.types.generated_poc.core.sub_asset.SubAsset2">SubAsset2</a>] | None</code></dt>
+<dt id="adcp.types.Creative.sub_assets"><code class="name">var <span class="ident">sub_assets</span> : list[<a title="adcp.types.generated_poc.core.sub_asset.SubAsset" href="generated_poc/core/sub_asset.html#adcp.types.generated_poc.core.sub_asset.SubAsset">SubAsset</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -4267,6 +4246,123 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.Creative.updated_date"><code class="name">var <span class="ident">updated_date</span> : pydantic.types.AwareDatetime</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.Creative"><code class="flex name class">
+<span>class <span class="ident">SyncCreativeResult</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Creative(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    action: Annotated[
+        creative_action.CreativeAction, Field(description=&#39;Action taken for this creative&#39;)
+    ]
+    assigned_to: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Package IDs this creative was successfully assigned to (only present when assignments were requested)&#39;
+        ),
+    ] = None
+    assignment_errors: Annotated[
+        dict[str, str] | None,
+        Field(
+            description=&#39;Assignment errors by package ID (only present when assignment failures occurred)&#39;
+        ),
+    ] = None
+    changes: Annotated[
+        list[str] | None,
+        Field(description=&#34;Field names that were modified (only present when action=&#39;updated&#39;)&#34;),
+    ] = None
+    creative_id: Annotated[str, Field(description=&#39;Creative ID from the request&#39;)]
+    errors: Annotated[
+        list[str] | None,
+        Field(description=&#34;Validation or processing errors (only present when action=&#39;failed&#39;)&#34;),
+    ] = None
+    expires_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;ISO 8601 timestamp when preview link expires (only present when preview_url exists)&#39;
+        ),
+    ] = None
+    platform_id: Annotated[
+        str | None, Field(description=&#39;Platform-specific ID assigned to the creative&#39;)
+    ] = None
+    preview_url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#39;Preview URL for generative creatives (only present for generative formats)&#39;
+        ),
+    ] = None
+    warnings: Annotated[
+        list[str] | None, Field(description=&#39;Non-fatal warnings about this creative&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.Creative.action"><code class="name">var <span class="ident">action</span> : <a title="adcp.types.generated_poc.enums.creative_action.CreativeAction" href="generated_poc/enums/creative_action.html#adcp.types.generated_poc.enums.creative_action.CreativeAction">CreativeAction</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Creative.assigned_to"><code class="name">var <span class="ident">assigned_to</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Creative.assignment_errors"><code class="name">var <span class="ident">assignment_errors</span> : dict[str, str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Creative.changes"><code class="name">var <span class="ident">changes</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Creative.creative_id"><code class="name">var <span class="ident">creative_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Creative.errors"><code class="name">var <span class="ident">errors</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Creative.expires_at"><code class="name">var <span class="ident">expires_at</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Creative.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Creative.platform_id"><code class="name">var <span class="ident">platform_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Creative.preview_url"><code class="name">var <span class="ident">preview_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Creative.warnings"><code class="name">var <span class="ident">warnings</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -4684,12 +4780,10 @@ attributes &ndash; see the documentation for details.</p></div>
             | html_asset.HtmlAsset
             | css_asset.CssAsset
             | javascript_asset.JavascriptAsset
+            | vast_asset.VastAsset
+            | daast_asset.DaastAsset
             | promoted_offerings.PromotedOfferings
-            | url_asset.UrlAsset
-            | vast_asset.VastAsset1
-            | vast_asset.VastAsset2
-            | daast_asset.DaastAsset1
-            | daast_asset.DaastAsset2,
+            | url_asset.UrlAsset,
         ],
         Field(description=&#39;Assets required by the format, keyed by asset_role&#39;),
     ]
@@ -4745,7 +4839,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.CreativeAsset.assets"><code class="name">var <span class="ident">assets</span> : dict[str, <a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset" href="generated_poc/core/assets/image_asset.html#adcp.types.generated_poc.core.assets.image_asset.ImageAsset">ImageAsset</a> | <a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset" href="generated_poc/core/assets/video_asset.html#adcp.types.generated_poc.core.assets.video_asset.VideoAsset">VideoAsset</a> | <a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset" href="generated_poc/core/assets/audio_asset.html#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset">AudioAsset</a> | <a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset" href="generated_poc/core/assets/text_asset.html#adcp.types.generated_poc.core.assets.text_asset.TextAsset">TextAsset</a> | <a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset" href="generated_poc/core/assets/html_asset.html#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset">HtmlAsset</a> | <a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset" href="generated_poc/core/assets/css_asset.html#adcp.types.generated_poc.core.assets.css_asset.CssAsset">CssAsset</a> | <a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset" href="generated_poc/core/assets/javascript_asset.html#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset">JavascriptAsset</a> | <a title="adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings" href="generated_poc/core/promoted_offerings.html#adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings">PromotedOfferings</a> | <a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset" href="generated_poc/core/assets/url_asset.html#adcp.types.generated_poc.core.assets.url_asset.UrlAsset">UrlAsset</a> | <a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset1" href="generated_poc/core/assets/vast_asset.html#adcp.types.generated_poc.core.assets.vast_asset.VastAsset1">VastAsset1</a> | <a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset2" href="generated_poc/core/assets/vast_asset.html#adcp.types.generated_poc.core.assets.vast_asset.VastAsset2">VastAsset2</a> | <a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset1" href="generated_poc/core/assets/daast_asset.html#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset1">DaastAsset1</a> | <a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset2" href="generated_poc/core/assets/daast_asset.html#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset2">DaastAsset2</a>]</code></dt>
+<dt id="adcp.types.CreativeAsset.assets"><code class="name">var <span class="ident">assets</span> : dict[str, <a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset" href="generated_poc/core/assets/image_asset.html#adcp.types.generated_poc.core.assets.image_asset.ImageAsset">ImageAsset</a> | <a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset" href="generated_poc/core/assets/video_asset.html#adcp.types.generated_poc.core.assets.video_asset.VideoAsset">VideoAsset</a> | <a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset" href="generated_poc/core/assets/audio_asset.html#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset">AudioAsset</a> | <a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset" href="generated_poc/core/assets/text_asset.html#adcp.types.generated_poc.core.assets.text_asset.TextAsset">TextAsset</a> | <a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset" href="generated_poc/core/assets/html_asset.html#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset">HtmlAsset</a> | <a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset" href="generated_poc/core/assets/css_asset.html#adcp.types.generated_poc.core.assets.css_asset.CssAsset">CssAsset</a> | <a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset" href="generated_poc/core/assets/javascript_asset.html#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset">JavascriptAsset</a> | <a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset" href="generated_poc/core/assets/vast_asset.html#adcp.types.generated_poc.core.assets.vast_asset.VastAsset">VastAsset</a> | <a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset" href="generated_poc/core/assets/daast_asset.html#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset">DaastAsset</a> | <a title="adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings" href="generated_poc/core/promoted_offerings.html#adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings">PromotedOfferings</a> | <a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset" href="generated_poc/core/assets/url_asset.html#adcp.types.generated_poc.core.assets.url_asset.UrlAsset">UrlAsset</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -5065,17 +5159,15 @@ validated to form a valid model.</p>
             image_asset.ImageAsset
             | video_asset.VideoAsset
             | audio_asset.AudioAsset
+            | vast_asset.VastAsset
             | text_asset.TextAsset
             | url_asset.UrlAsset
             | html_asset.HtmlAsset
             | javascript_asset.JavascriptAsset
             | webhook_asset.WebhookAsset
             | css_asset.CssAsset
-            | promoted_offerings.PromotedOfferings
-            | vast_asset.VastAsset1
-            | vast_asset.VastAsset2
-            | daast_asset.DaastAsset1
-            | daast_asset.DaastAsset2,
+            | daast_asset.DaastAsset
+            | promoted_offerings.PromotedOfferings,
         ],
         Field(
             description=&#34;Map of asset IDs to actual asset content. Each key MUST match an asset_id from the format&#39;s assets_required array (e.g., &#39;banner_image&#39;, &#39;clickthrough_url&#39;, &#39;video_file&#39;, &#39;vast_tag&#39;). The asset_id is the technical identifier used to match assets to format requirements.\n\nIMPORTANT: Creative manifest validation MUST be performed in the context of the format specification. The format defines what type each asset_id should be, which eliminates any validation ambiguity.&#34;
@@ -5110,7 +5202,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.CreativeManifest.assets"><code class="name">var <span class="ident">assets</span> : dict[str, <a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset" href="generated_poc/core/assets/image_asset.html#adcp.types.generated_poc.core.assets.image_asset.ImageAsset">ImageAsset</a> | <a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset" href="generated_poc/core/assets/video_asset.html#adcp.types.generated_poc.core.assets.video_asset.VideoAsset">VideoAsset</a> | <a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset" href="generated_poc/core/assets/audio_asset.html#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset">AudioAsset</a> | <a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset" href="generated_poc/core/assets/text_asset.html#adcp.types.generated_poc.core.assets.text_asset.TextAsset">TextAsset</a> | <a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset" href="generated_poc/core/assets/url_asset.html#adcp.types.generated_poc.core.assets.url_asset.UrlAsset">UrlAsset</a> | <a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset" href="generated_poc/core/assets/html_asset.html#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset">HtmlAsset</a> | <a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset" href="generated_poc/core/assets/javascript_asset.html#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset">JavascriptAsset</a> | <a title="adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset" href="generated_poc/core/assets/webhook_asset.html#adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset">WebhookAsset</a> | <a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset" href="generated_poc/core/assets/css_asset.html#adcp.types.generated_poc.core.assets.css_asset.CssAsset">CssAsset</a> | <a title="adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings" href="generated_poc/core/promoted_offerings.html#adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings">PromotedOfferings</a> | <a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset1" href="generated_poc/core/assets/vast_asset.html#adcp.types.generated_poc.core.assets.vast_asset.VastAsset1">VastAsset1</a> | <a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset2" href="generated_poc/core/assets/vast_asset.html#adcp.types.generated_poc.core.assets.vast_asset.VastAsset2">VastAsset2</a> | <a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset1" href="generated_poc/core/assets/daast_asset.html#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset1">DaastAsset1</a> | <a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset2" href="generated_poc/core/assets/daast_asset.html#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset2">DaastAsset2</a>]</code></dt>
+<dt id="adcp.types.CreativeManifest.assets"><code class="name">var <span class="ident">assets</span> : dict[str, <a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset" href="generated_poc/core/assets/image_asset.html#adcp.types.generated_poc.core.assets.image_asset.ImageAsset">ImageAsset</a> | <a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset" href="generated_poc/core/assets/video_asset.html#adcp.types.generated_poc.core.assets.video_asset.VideoAsset">VideoAsset</a> | <a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset" href="generated_poc/core/assets/audio_asset.html#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset">AudioAsset</a> | <a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset" href="generated_poc/core/assets/vast_asset.html#adcp.types.generated_poc.core.assets.vast_asset.VastAsset">VastAsset</a> | <a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset" href="generated_poc/core/assets/text_asset.html#adcp.types.generated_poc.core.assets.text_asset.TextAsset">TextAsset</a> | <a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset" href="generated_poc/core/assets/url_asset.html#adcp.types.generated_poc.core.assets.url_asset.UrlAsset">UrlAsset</a> | <a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset" href="generated_poc/core/assets/html_asset.html#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset">HtmlAsset</a> | <a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset" href="generated_poc/core/assets/javascript_asset.html#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset">JavascriptAsset</a> | <a title="adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset" href="generated_poc/core/assets/webhook_asset.html#adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset">WebhookAsset</a> | <a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset" href="generated_poc/core/assets/css_asset.html#adcp.types.generated_poc.core.assets.css_asset.CssAsset">CssAsset</a> | <a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset" href="generated_poc/core/assets/daast_asset.html#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset">DaastAsset</a> | <a title="adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings" href="generated_poc/core/promoted_offerings.html#adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings">PromotedOfferings</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -5764,7 +5856,7 @@ validated to form a valid model.</p>
         list[Country], Field(description=&#39;Countries where signals will be used (ISO codes)&#39;)
     ]
     deployments: Annotated[
-        list[destination.Destination1 | destination.Destination2],
+        list[destination.Destination],
         Field(
             description=&#39;List of deployment targets (DSPs, sales agents, etc.). If the authenticated caller matches one of these deployment targets, activation keys will be included in the response.&#39;,
             min_length=1,
@@ -5790,7 +5882,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.DeliverTo.deployments"><code class="name">var <span class="ident">deployments</span> : list[<a title="adcp.types.generated_poc.core.destination.Destination1" href="generated_poc/core/destination.html#adcp.types.generated_poc.core.destination.Destination1">Destination1</a> | <a title="adcp.types.generated_poc.core.destination.Destination2" href="generated_poc/core/destination.html#adcp.types.generated_poc.core.destination.Destination2">Destination2</a>]</code></dt>
+<dt id="adcp.types.DeliverTo.deployments"><code class="name">var <span class="ident">deployments</span> : list[<a title="adcp.types.generated_poc.core.destination.Destination" href="generated_poc/core/destination.html#adcp.types.generated_poc.core.destination.Destination">Destination</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -6103,10 +6195,9 @@ attributes &ndash; see the documentation for details.</p></div>
     )
     account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
     activation_key: Annotated[
-        activation_key_1.ActivationKey1 | activation_key_1.ActivationKey2 | None,
+        activation_key_1.ActivationKey | None,
         Field(
-            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;,
-            title=&#39;Activation Key&#39;,
+            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;
         ),
     ] = None
     deployed_at: Annotated[
@@ -6148,7 +6239,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.Deployment1.activation_key"><code class="name">var <span class="ident">activation_key</span> : <a title="adcp.types.generated_poc.core.activation_key.ActivationKey1" href="generated_poc/core/activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey1">ActivationKey1</a> | <a title="adcp.types.generated_poc.core.activation_key.ActivationKey2" href="generated_poc/core/activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey2">ActivationKey2</a> | None</code></dt>
+<dt id="adcp.types.Deployment1.activation_key"><code class="name">var <span class="ident">activation_key</span> : <a title="adcp.types.generated_poc.core.activation_key.ActivationKey" href="generated_poc/core/activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey">ActivationKey</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -6203,10 +6294,9 @@ validated to form a valid model.</p>
     )
     account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
     activation_key: Annotated[
-        activation_key_1.ActivationKey1 | activation_key_1.ActivationKey2 | None,
+        activation_key_1.ActivationKey | None,
         Field(
-            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;,
-            title=&#39;Activation Key&#39;,
+            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;
         ),
     ] = None
     agent_url: Annotated[AnyUrl, Field(description=&#39;URL identifying the deployment agent&#39;)]
@@ -6248,7 +6338,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.Deployment2.activation_key"><code class="name">var <span class="ident">activation_key</span> : <a title="adcp.types.generated_poc.core.activation_key.ActivationKey1" href="generated_poc/core/activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey1">ActivationKey1</a> | <a title="adcp.types.generated_poc.core.activation_key.ActivationKey2" href="generated_poc/core/activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey2">ActivationKey2</a> | None</code></dt>
+<dt id="adcp.types.Deployment2.activation_key"><code class="name">var <span class="ident">activation_key</span> : <a title="adcp.types.generated_poc.core.activation_key.ActivationKey" href="generated_poc/core/activation_key.html#adcp.types.generated_poc.core.activation_key.ActivationKey">ActivationKey</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -8288,24 +8378,9 @@ validated to form a valid model.</p>
         extra=&#39;forbid&#39;,
     )
     brand_manifest: Annotated[
-        brand_manifest_1.BrandManifest | AnyUrl | None,
+        brand_manifest_ref.BrandManifestReference | None,
         Field(
-            description=&#39;Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest.&#39;,
-            examples=[
-                {
-                    &#39;data&#39;: {
-                        &#39;colors&#39;: {&#39;primary&#39;: &#39;#FF6B35&#39;},
-                        &#39;name&#39;: &#39;ACME Corporation&#39;,
-                        &#39;url&#39;: &#39;https://acmecorp.com&#39;,
-                    },
-                    &#39;description&#39;: &#39;Inline brand manifest&#39;,
-                },
-                {
-                    &#39;data&#39;: &#39;https://cdn.acmecorp.com/brand-manifest.json&#39;,
-                    &#39;description&#39;: &#39;URL string reference to hosted manifest&#39;,
-                },
-            ],
-            title=&#39;Brand Manifest Reference&#39;,
+            description=&#39;Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest.&#39;
         ),
     ] = None
     brief: Annotated[
@@ -8330,7 +8405,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.GetProductsRequest.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest.BrandManifest" href="generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.BrandManifest">BrandManifest</a> | pydantic.networks.AnyUrl | None</code></dt>
+<dt id="adcp.types.GetProductsRequest.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference" href="generated_poc/core/brand_manifest_ref.html#adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference">BrandManifestReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -8840,12 +8915,17 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class ImageAsset(Dimensions):
+<pre><code class="python">class ImageAsset(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
     alt_text: Annotated[str | None, Field(description=&#39;Alternative text for accessibility&#39;)] = None
     format: Annotated[
         str | None, Field(description=&#39;Image file format (jpg, png, gif, webp, etc.)&#39;)
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#39;URL to the image asset&#39;)]</code></pre>
+    height: Annotated[int, Field(description=&#39;Height in pixels&#39;, ge=1)]
+    url: Annotated[AnyUrl, Field(description=&#39;URL to the image asset&#39;)]
+    width: Annotated[int, Field(description=&#39;Width in pixels&#39;, ge=1)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -8857,7 +8937,6 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.dimensions.Dimensions" href="generated_poc/core/dimensions.html#adcp.types.generated_poc.core.dimensions.Dimensions">Dimensions</a></li>
 <li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
@@ -8871,6 +8950,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.ImageAsset.height"><code class="name">var <span class="ident">height</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.ImageAsset.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -8879,14 +8962,18 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.ImageAsset.width"><code class="name">var <span class="ident">width</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.core.dimensions.Dimensions" href="generated_poc/core/dimensions.html#adcp.types.generated_poc.core.dimensions.Dimensions">Dimensions</a></b></code>:
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
 <ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.core.dimensions.Dimensions.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.dimensions.Dimensions.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.dimensions.Dimensions.summary" href="base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -10031,6 +10118,138 @@ attributes &ndash; see the documentation for details.</p></div>
 <div class="desc"></div>
 </dd>
 </dl>
+</dd>
+<dt id="adcp.types.McpWebhookPayload"><code class="flex name class">
+<span>class <span class="ident">McpWebhookPayload</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class McpWebhookPayload(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    context_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters.&#39;
+        ),
+    ] = None
+    domain: Annotated[
+        adcp_domain.AdcpDomain | None,
+        Field(
+            description=&#39;AdCP domain this task belongs to. Helps classify the operation type at a high level.&#39;
+        ),
+    ] = None
+    message: Annotated[
+        str | None,
+        Field(
+            description=&#39;Human-readable summary of the current task state. Provides context about what happened and what action may be needed.&#39;
+        ),
+    ] = None
+    operation_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Publisher-defined operation identifier correlating a sequence of task updates across webhooks.&#39;
+        ),
+    ] = None
+    result: Annotated[
+        async_response_data.AdcpAsyncResponseData | None,
+        Field(
+            description=&#39;Task-specific payload matching the status. For completed/failed, contains the full task response. For working/input-required/submitted, contains status-specific data. This is the data layer that AdCP specs - same structure used in A2A status.message.parts[].data.&#39;
+        ),
+    ] = None
+    status: Annotated[
+        task_status.TaskStatus,
+        Field(
+            description=&#39;Current task status. Webhooks are triggered for status changes after initial submission.&#39;
+        ),
+    ]
+    task_id: Annotated[
+        str,
+        Field(
+            description=&#39;Unique identifier for this task. Use this to correlate webhook notifications with the original task submission.&#39;
+        ),
+    ]
+    task_type: Annotated[
+        task_type_1.TaskType,
+        Field(
+            description=&#39;Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic.&#39;
+        ),
+    ]
+    timestamp: Annotated[
+        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when this webhook was generated.&#39;)
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.McpWebhookPayload.context_id"><code class="name">var <span class="ident">context_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.McpWebhookPayload.domain"><code class="name">var <span class="ident">domain</span> : <a title="adcp.types.generated_poc.enums.adcp_domain.AdcpDomain" href="generated_poc/enums/adcp_domain.html#adcp.types.generated_poc.enums.adcp_domain.AdcpDomain">AdcpDomain</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.McpWebhookPayload.message"><code class="name">var <span class="ident">message</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.McpWebhookPayload.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.McpWebhookPayload.operation_id"><code class="name">var <span class="ident">operation_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.McpWebhookPayload.result"><code class="name">var <span class="ident">result</span> : <a title="adcp.types.generated_poc.core.async_response_data.AdcpAsyncResponseData" href="generated_poc/core/async_response_data.html#adcp.types.generated_poc.core.async_response_data.AdcpAsyncResponseData">AdcpAsyncResponseData</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.McpWebhookPayload.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.enums.task_status.TaskStatus" href="generated_poc/enums/task_status.html#adcp.types.generated_poc.enums.task_status.TaskStatus">TaskStatus</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.McpWebhookPayload.task_id"><code class="name">var <span class="ident">task_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.McpWebhookPayload.task_type"><code class="name">var <span class="ident">task_type</span> : <a title="adcp.types.generated_poc.enums.task_type.TaskType" href="generated_poc/enums/task_type.html#adcp.types.generated_poc.enums.task_type.TaskType">TaskType</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.McpWebhookPayload.timestamp"><code class="name">var <span class="ident">timestamp</span> : pydantic.types.AwareDatetime</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+</ul>
+</li>
+</ul>
 </dd>
 <dt id="adcp.types.Measurement"><code class="flex name class">
 <span>class <span class="ident">Measurement</span></span>
@@ -11666,11 +11885,7 @@ validated to form a valid model.</p>
     ]
     preview_id: Annotated[str, Field(description=&#39;Unique identifier for this preview variant&#39;)]
     renders: Annotated[
-        list[
-            preview_render.PreviewRender1
-            | preview_render.PreviewRender2
-            | preview_render.PreviewRender3
-        ],
+        list[preview_render.PreviewRender],
         Field(
             description=&#39;Array of rendered pieces for this preview variant. Most formats render as a single piece. Companion ad formats (video + banner), multi-placement formats, and adaptive formats render as multiple pieces.&#39;,
             min_length=1,
@@ -11704,7 +11919,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.Preview.renders"><code class="name">var <span class="ident">renders</span> : list[<a title="adcp.types.generated_poc.creative.preview_render.PreviewRender1" href="generated_poc/creative/preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender1">PreviewRender1</a> | <a title="adcp.types.generated_poc.creative.preview_render.PreviewRender2" href="generated_poc/creative/preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender2">PreviewRender2</a> | <a title="adcp.types.generated_poc.creative.preview_render.PreviewRender3" href="generated_poc/creative/preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender3">PreviewRender3</a>]</code></dt>
+<dt id="adcp.types.Preview.renders"><code class="name">var <span class="ident">renders</span> : list[<a title="adcp.types.generated_poc.creative.preview_render.PreviewRender" href="generated_poc/creative/preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender">PreviewRender</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -12329,17 +12544,9 @@ attributes &ndash; see the documentation for details.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PreviewRender(
-    RootModel[
-        PreviewRender1
-        | PreviewRender2
-        | PreviewRender3
-    ]
-):
+<pre><code class="python">class PreviewRender(RootModel[PreviewRender1 | PreviewRender2 | PreviewRender3]):
     root: Annotated[
-        PreviewRender1
-        | PreviewRender2
-        | PreviewRender3,
+        PreviewRender1 | PreviewRender2 | PreviewRender3,
         Field(
             description=&#39;A single rendered piece of a creative preview with discriminated output format&#39;,
             title=&#39;Preview Render&#39;,
@@ -13001,17 +13208,7 @@ validated to form a valid model.</p>
         ),
     ] = None
     pricing_options: Annotated[
-        list[
-            cpm_fixed_option.CpmFixedRatePricingOption
-            | cpm_auction_option.CpmAuctionPricingOption
-            | vcpm_fixed_option.VcpmFixedRatePricingOption
-            | vcpm_auction_option.VcpmAuctionPricingOption
-            | cpc_option.CpcPricingOption
-            | cpcv_option.CpcvPricingOption
-            | cpv_option.CpvPricingOption
-            | cpp_option.CppPricingOption
-            | flat_rate_option.FlatRatePricingOption
-        ],
+        list[pricing_option.PricingOption],
         Field(description=&#39;Available pricing models for this product&#39;, min_length=1),
     ]
     product_card: Annotated[
@@ -13028,11 +13225,7 @@ validated to form a valid model.</p>
     ] = None
     product_id: Annotated[str, Field(description=&#39;Unique identifier for the product&#39;)]
     publisher_properties: Annotated[
-        list[
-            publisher_property_selector.PublisherPropertySelector1
-            | publisher_property_selector.PublisherPropertySelector2
-            | publisher_property_selector.PublisherPropertySelector3
-        ],
+        list[publisher_property_selector.PublisherPropertySelector],
         Field(
             description=&#34;Publisher properties covered by this product. Buyers fetch actual property definitions from each publisher&#39;s adagents.json and validate agent authorization. Selection patterns mirror the authorization patterns in adagents.json for consistency.&#34;,
             min_length=1,
@@ -13111,7 +13304,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.Product.pricing_options"><code class="name">var <span class="ident">pricing_options</span> : list[<a title="adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption" href="generated_poc/pricing_options/cpm_fixed_option.html#adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption">CpmFixedRatePricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.cpm_auction_option.CpmAuctionPricingOption" href="generated_poc/pricing_options/cpm_auction_option.html#adcp.types.generated_poc.pricing_options.cpm_auction_option.CpmAuctionPricingOption">CpmAuctionPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.vcpm_fixed_option.VcpmFixedRatePricingOption" href="generated_poc/pricing_options/vcpm_fixed_option.html#adcp.types.generated_poc.pricing_options.vcpm_fixed_option.VcpmFixedRatePricingOption">VcpmFixedRatePricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.vcpm_auction_option.VcpmAuctionPricingOption" href="generated_poc/pricing_options/vcpm_auction_option.html#adcp.types.generated_poc.pricing_options.vcpm_auction_option.VcpmAuctionPricingOption">VcpmAuctionPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.cpc_option.CpcPricingOption" href="generated_poc/pricing_options/cpc_option.html#adcp.types.generated_poc.pricing_options.cpc_option.CpcPricingOption">CpcPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption" href="generated_poc/pricing_options/cpcv_option.html#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption">CpcvPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption" href="generated_poc/pricing_options/cpv_option.html#adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption">CpvPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.cpp_option.CppPricingOption" href="generated_poc/pricing_options/cpp_option.html#adcp.types.generated_poc.pricing_options.cpp_option.CppPricingOption">CppPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.flat_rate_option.FlatRatePricingOption" href="generated_poc/pricing_options/flat_rate_option.html#adcp.types.generated_poc.pricing_options.flat_rate_option.FlatRatePricingOption">FlatRatePricingOption</a>]</code></dt>
+<dt id="adcp.types.Product.pricing_options"><code class="name">var <span class="ident">pricing_options</span> : list[<a title="adcp.types.generated_poc.core.pricing_option.PricingOption" href="generated_poc/core/pricing_option.html#adcp.types.generated_poc.core.pricing_option.PricingOption">PricingOption</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -13127,7 +13320,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.Product.publisher_properties"><code class="name">var <span class="ident">publisher_properties</span> : list[<a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector1" href="generated_poc/core/publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector1">PublisherPropertySelector1</a> | <a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector2" href="generated_poc/core/publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector2">PublisherPropertySelector2</a> | <a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector3" href="generated_poc/core/publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector3">PublisherPropertySelector3</a>]</code></dt>
+<dt id="adcp.types.Product.publisher_properties"><code class="name">var <span class="ident">publisher_properties</span> : list[<a title="adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector" href="generated_poc/core/publisher_property_selector.html#adcp.types.generated_poc.core.publisher_property_selector.PublisherPropertySelector">PublisherPropertySelector</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -13486,77 +13679,6 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.Progress"><code class="flex name class">
-<span>class <span class="ident">Progress</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Progress(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
-    )
-    current_step: Annotated[
-        str | None, Field(description=&#39;Current step or phase of the operation&#39;)
-    ] = None
-    percentage: Annotated[
-        float | None, Field(description=&#39;Completion percentage (0-100)&#39;, ge=0.0, le=100.0)
-    ] = None
-    step_number: Annotated[int | None, Field(description=&#39;Current step number&#39;, ge=1)] = None
-    total_steps: Annotated[
-        int | None, Field(description=&#39;Total number of steps in the operation&#39;, ge=1)
-    ] = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.Progress.current_step"><code class="name">var <span class="ident">current_step</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Progress.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Progress.percentage"><code class="name">var <span class="ident">percentage</span> : float | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Progress.step_number"><code class="name">var <span class="ident">step_number</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.Progress.total_steps"><code class="name">var <span class="ident">total_steps</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
 <dt id="adcp.types.PromotedOfferings"><code class="flex name class">
 <span>class <span class="ident">PromotedOfferings</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -13575,24 +13697,9 @@ validated to form a valid model.</p>
         Field(description=&#39;Selectors to choose specific assets from the brand manifest&#39;),
     ] = None
     brand_manifest: Annotated[
-        brand_manifest_1.BrandManifest | AnyUrl,
+        brand_manifest_ref.BrandManifestReference,
         Field(
-            description=&#39;Brand information manifest containing assets, themes, and guidelines. Can be provided inline or as a URL reference to a hosted manifest.&#39;,
-            examples=[
-                {
-                    &#39;data&#39;: {
-                        &#39;colors&#39;: {&#39;primary&#39;: &#39;#FF6B35&#39;},
-                        &#39;name&#39;: &#39;ACME Corporation&#39;,
-                        &#39;url&#39;: &#39;https://acmecorp.com&#39;,
-                    },
-                    &#39;description&#39;: &#39;Inline brand manifest&#39;,
-                },
-                {
-                    &#39;data&#39;: &#39;https://cdn.acmecorp.com/brand-manifest.json&#39;,
-                    &#39;description&#39;: &#39;URL string reference to hosted manifest&#39;,
-                },
-            ],
-            title=&#39;Brand Manifest Reference&#39;,
+            description=&#39;Brand information manifest containing assets, themes, and guidelines. Can be provided inline or as a URL reference to a hosted manifest.&#39;
         ),
     ]
     offerings: Annotated[
@@ -13627,7 +13734,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.PromotedOfferings.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest.BrandManifest" href="generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.BrandManifest">BrandManifest</a> | pydantic.networks.AnyUrl</code></dt>
+<dt id="adcp.types.PromotedOfferings.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference" href="generated_poc/core/brand_manifest_ref.html#adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference">BrandManifestReference</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -13756,12 +13863,9 @@ validated to form a valid model.</p>
     ]
     name: Annotated[str, Field(description=&#39;Human-readable property name&#39;)]
     property_id: Annotated[
-        str | None,
+        property_id_1.PropertyId | None,
         Field(
-            description=&#39;Unique identifier for this property (optional). Enables referencing properties by ID instead of repeating full objects.&#39;,
-            examples=[&#39;cnn_ctv_app&#39;, &#39;homepage&#39;, &#39;mobile_ios&#39;, &#39;instagram&#39;],
-            pattern=&#39;^[a-z0-9_]+$&#39;,
-            title=&#39;Property ID&#39;,
+            description=&#39;Unique identifier for this property (optional). Enables referencing properties by ID instead of repeating full objects.&#39;
         ),
     ] = None
     property_type: Annotated[
@@ -13807,7 +13911,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.Property.property_id"><code class="name">var <span class="ident">property_id</span> : str | None</code></dt>
+<dt id="adcp.types.Property.property_id"><code class="name">var <span class="ident">property_id</span> : <a title="adcp.types.generated_poc.core.property_id.PropertyId" href="generated_poc/core/property_id.html#adcp.types.generated_poc.core.property_id.PropertyId">PropertyId</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -15009,9 +15113,6 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PushNotificationConfig(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
-    )
     authentication: Annotated[
         Authentication,
         Field(description=&#39;Authentication configuration for webhook delivery (A2A-compatible)&#39;),
@@ -16004,8 +16105,7 @@ validated to form a valid model.</p>
     ]
     data_provider: Annotated[str, Field(description=&#39;Name of the data provider&#39;)]
     deployments: Annotated[
-        list[deployment.Deployment1 | deployment.Deployment2],
-        Field(description=&#39;Array of deployment targets&#39;),
+        list[deployment.Deployment], Field(description=&#39;Array of deployment targets&#39;)
     ]
     description: Annotated[str, Field(description=&#39;Detailed signal description&#39;)]
     name: Annotated[str, Field(description=&#39;Human-readable signal name&#39;)]
@@ -16038,7 +16138,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.Signal.deployments"><code class="name">var <span class="ident">deployments</span> : list[<a title="adcp.types.generated_poc.core.deployment.Deployment1" href="generated_poc/core/deployment.html#adcp.types.generated_poc.core.deployment.Deployment1">Deployment1</a> | <a title="adcp.types.generated_poc.core.deployment.Deployment2" href="generated_poc/core/deployment.html#adcp.types.generated_poc.core.deployment.Deployment2">Deployment2</a>]</code></dt>
+<dt id="adcp.types.Signal.deployments"><code class="name">var <span class="ident">deployments</span> : list[<a title="adcp.types.generated_poc.core.deployment.Deployment" href="generated_poc/core/deployment.html#adcp.types.generated_poc.core.deployment.Deployment">Deployment</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -17506,6 +17606,7 @@ validated to form a valid model.</p>
 <h3>Subclasses</h3>
 <ul class="hlist">
 <li>adcp.types.core.TaskResult[ActivateSignalResponse]</li>
+<li>adcp.types.core.TaskResult[AdcpAsyncResponseData]</li>
 <li>adcp.types.core.TaskResult[Any]</li>
 <li>adcp.types.core.TaskResult[BuildCreativeResponse]</li>
 <li>adcp.types.core.TaskResult[CreateMediaBuyResponse]</li>
@@ -17815,7 +17916,8 @@ validated to form a valid model.</p>
             description=&#34;Effective rate paid per unit based on pricing_model (e.g., actual CPM for &#39;cpm&#39;, actual cost per completed view for &#39;cpcv&#39;, actual cost per point for &#39;cpp&#39;)&#34;,
             ge=0.0,
         ),
-    ] = None</code></pre>
+    ] = None
+    spend: Any</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -17838,6 +17940,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.Totals.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Totals.spend"><code class="name">var <span class="ident">spend</span> : Any</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -18019,12 +18125,7 @@ validated to form a valid model.</p>
             description=&#39;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time.&#39;
         ),
     ] = None
-    start_time: Annotated[
-        str | AwareDatetime | None,
-        Field(
-            description=&#34;Campaign start timing: &#39;asap&#39; or ISO 8601 date-time&#34;, title=&#39;Start Timing&#39;
-        ),
-    ] = None</code></pre>
+    start_time: start_timing.StartTiming | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -18077,7 +18178,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.UpdateMediaBuyRequest1.start_time"><code class="name">var <span class="ident">start_time</span> : str | pydantic.types.AwareDatetime | None</code></dt>
+<dt id="adcp.types.UpdateMediaBuyRequest1.start_time"><code class="name">var <span class="ident">start_time</span> : <a title="adcp.types.generated_poc.core.start_timing.StartTiming" href="generated_poc/core/start_timing.html#adcp.types.generated_poc.core.start_timing.StartTiming">StartTiming</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -18128,12 +18229,7 @@ validated to form a valid model.</p>
             description=&#39;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time.&#39;
         ),
     ] = None
-    start_time: Annotated[
-        str | AwareDatetime | None,
-        Field(
-            description=&#34;Campaign start timing: &#39;asap&#39; or ISO 8601 date-time&#34;, title=&#39;Start Timing&#39;
-        ),
-    ] = None</code></pre>
+    start_time: start_timing.StartTiming | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -18186,7 +18282,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.UpdateMediaBuyRequest2.start_time"><code class="name">var <span class="ident">start_time</span> : str | pydantic.types.AwareDatetime | None</code></dt>
+<dt id="adcp.types.UpdateMediaBuyRequest2.start_time"><code class="name">var <span class="ident">start_time</span> : <a title="adcp.types.generated_poc.core.start_timing.StartTiming" href="generated_poc/core/start_timing.html#adcp.types.generated_poc.core.start_timing.StartTiming">StartTiming</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -19484,7 +19580,10 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class VideoAsset(Dimensions):
+<pre><code class="python">class VideoAsset(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
     bitrate_kbps: Annotated[
         int | None, Field(description=&#39;Video bitrate in kilobits per second&#39;, ge=1)
     ] = None
@@ -19494,7 +19593,9 @@ validated to form a valid model.</p>
     format: Annotated[str | None, Field(description=&#39;Video file format (mp4, webm, mov, etc.)&#39;)] = (
         None
     )
-    url: Annotated[AnyUrl, Field(description=&#39;URL to the video asset&#39;)]</code></pre>
+    height: Annotated[int, Field(description=&#39;Height in pixels&#39;, ge=1)]
+    url: Annotated[AnyUrl, Field(description=&#39;URL to the video asset&#39;)]
+    width: Annotated[int, Field(description=&#39;Width in pixels&#39;, ge=1)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -19506,7 +19607,6 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.dimensions.Dimensions" href="generated_poc/core/dimensions.html#adcp.types.generated_poc.core.dimensions.Dimensions">Dimensions</a></li>
 <li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
@@ -19524,6 +19624,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.VideoAsset.height"><code class="name">var <span class="ident">height</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.VideoAsset.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -19532,14 +19636,18 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.VideoAsset.width"><code class="name">var <span class="ident">width</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.core.dimensions.Dimensions" href="generated_poc/core/dimensions.html#adcp.types.generated_poc.core.dimensions.Dimensions">Dimensions</a></b></code>:
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
 <ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.core.dimensions.Dimensions.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.dimensions.Dimensions.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.dimensions.Dimensions.summary" href="base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -19762,156 +19870,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 </dl>
-</dd>
-<dt id="adcp.types.WebhookPayload"><code class="flex name class">
-<span>class <span class="ident">WebhookPayload</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class WebhookPayload(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;allow&#39;,
-    )
-    context_id: Annotated[
-        str | None,
-        Field(
-            description=&#39;Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters.&#39;
-        ),
-    ] = None
-    domain: Annotated[
-        adcp_domain.AdcpDomain | None,
-        Field(
-            description=&#39;AdCP domain this task belongs to. Helps classify the operation type at a high level.&#39;
-        ),
-    ] = None
-    error: Annotated[
-        str | None,
-        Field(description=&#34;Error message for failed tasks. Only present when status is &#39;failed&#39;.&#34;),
-    ] = None
-    message: Annotated[
-        str | None,
-        Field(
-            description=&#39;Human-readable summary of the current task state. Provides context about what happened and what action may be needed.&#39;
-        ),
-    ] = None
-    operation_id: Annotated[
-        str | None,
-        Field(
-            description=&#39;Publisher-defined operation identifier correlating a sequence of task updates across webhooks.&#39;
-        ),
-    ] = None
-    progress: Annotated[
-        Progress | None,
-        Field(
-            description=&#34;Progress information for tasks still in &#39;working&#39; state. Rarely seen in webhooks since &#39;working&#39; tasks typically complete synchronously, but may appear if a task transitions from &#39;submitted&#39; to &#39;working&#39;.&#34;
-        ),
-    ] = None
-    result: Annotated[
-        dict[str, Any] | None,
-        Field(
-            description=&#39;Task-specific payload for this status update. Validated against the appropriate response schema based on task_type.&#39;
-        ),
-    ] = None
-    status: Annotated[
-        task_status.TaskStatus,
-        Field(
-            description=&#39;Current task status. Webhooks are only triggered for status changes after initial submission (e.g., submitted → input-required, submitted → completed, submitted → failed).&#39;
-        ),
-    ]
-    task_id: Annotated[
-        str,
-        Field(
-            description=&#39;Unique identifier for this task. Use this to correlate webhook notifications with the original task submission.&#39;
-        ),
-    ]
-    task_type: Annotated[
-        task_type_1.TaskType,
-        Field(
-            description=&#39;Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic.&#39;
-        ),
-    ]
-    timestamp: Annotated[
-        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when this webhook was generated.&#39;)
-    ]</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.WebhookPayload.context_id"><code class="name">var <span class="ident">context_id</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.WebhookPayload.domain"><code class="name">var <span class="ident">domain</span> : <a title="adcp.types.generated_poc.enums.adcp_domain.AdcpDomain" href="generated_poc/enums/adcp_domain.html#adcp.types.generated_poc.enums.adcp_domain.AdcpDomain">AdcpDomain</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.WebhookPayload.error"><code class="name">var <span class="ident">error</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.WebhookPayload.message"><code class="name">var <span class="ident">message</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.WebhookPayload.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.WebhookPayload.operation_id"><code class="name">var <span class="ident">operation_id</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.WebhookPayload.progress"><code class="name">var <span class="ident">progress</span> : <a title="adcp.types.generated_poc.core.webhook_payload.Progress" href="generated_poc/core/webhook_payload.html#adcp.types.generated_poc.core.webhook_payload.Progress">Progress</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.WebhookPayload.result"><code class="name">var <span class="ident">result</span> : dict[str, typing.Any] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.WebhookPayload.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.enums.task_status.TaskStatus" href="generated_poc/enums/task_status.html#adcp.types.generated_poc.enums.task_status.TaskStatus">TaskStatus</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.WebhookPayload.task_id"><code class="name">var <span class="ident">task_id</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.WebhookPayload.task_type"><code class="name">var <span class="ident">task_type</span> : <a title="adcp.types.generated_poc.enums.task_type.TaskType" href="generated_poc/enums/task_type.html#adcp.types.generated_poc.enums.task_type.TaskType">TaskType</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.WebhookPayload.timestamp"><code class="name">var <span class="ident">timestamp</span> : pydantic.types.AwareDatetime</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
-</ul>
-</li>
-</ul>
 </dd>
 <dt id="adcp.types.WebhookResponseType"><code class="flex name class">
 <span>class <span class="ident">WebhookResponseType</span></span>
@@ -20431,6 +20389,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.ByPackageItem.paused" href="#adcp.types.ByPackageItem.paused">paused</a></code></li>
 <li><code><a title="adcp.types.ByPackageItem.pricing_model" href="#adcp.types.ByPackageItem.pricing_model">pricing_model</a></code></li>
 <li><code><a title="adcp.types.ByPackageItem.rate" href="#adcp.types.ByPackageItem.rate">rate</a></code></li>
+<li><code><a title="adcp.types.ByPackageItem.spend" href="#adcp.types.ByPackageItem.spend">spend</a></code></li>
 </ul>
 </li>
 <li>
@@ -20610,6 +20569,22 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.Creative.sub_assets" href="#adcp.types.Creative.sub_assets">sub_assets</a></code></li>
 <li><code><a title="adcp.types.Creative.tags" href="#adcp.types.Creative.tags">tags</a></code></li>
 <li><code><a title="adcp.types.Creative.updated_date" href="#adcp.types.Creative.updated_date">updated_date</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.Creative" href="#adcp.types.Creative">Creative</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.Creative.action" href="#adcp.types.Creative.action">action</a></code></li>
+<li><code><a title="adcp.types.Creative.assigned_to" href="#adcp.types.Creative.assigned_to">assigned_to</a></code></li>
+<li><code><a title="adcp.types.Creative.assignment_errors" href="#adcp.types.Creative.assignment_errors">assignment_errors</a></code></li>
+<li><code><a title="adcp.types.Creative.changes" href="#adcp.types.Creative.changes">changes</a></code></li>
+<li><code><a title="adcp.types.Creative.creative_id" href="#adcp.types.Creative.creative_id">creative_id</a></code></li>
+<li><code><a title="adcp.types.Creative.errors" href="#adcp.types.Creative.errors">errors</a></code></li>
+<li><code><a title="adcp.types.Creative.expires_at" href="#adcp.types.Creative.expires_at">expires_at</a></code></li>
+<li><code><a title="adcp.types.Creative.model_config" href="#adcp.types.Creative.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.Creative.platform_id" href="#adcp.types.Creative.platform_id">platform_id</a></code></li>
+<li><code><a title="adcp.types.Creative.preview_url" href="#adcp.types.Creative.preview_url">preview_url</a></code></li>
+<li><code><a title="adcp.types.Creative.warnings" href="#adcp.types.Creative.warnings">warnings</a></code></li>
 </ul>
 </li>
 <li>
@@ -21198,11 +21173,13 @@ attributes &ndash; see the documentation for details.</p></div>
 </li>
 <li>
 <h4><code><a title="adcp.types.ImageAsset" href="#adcp.types.ImageAsset">ImageAsset</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.ImageAsset.alt_text" href="#adcp.types.ImageAsset.alt_text">alt_text</a></code></li>
 <li><code><a title="adcp.types.ImageAsset.format" href="#adcp.types.ImageAsset.format">format</a></code></li>
+<li><code><a title="adcp.types.ImageAsset.height" href="#adcp.types.ImageAsset.height">height</a></code></li>
 <li><code><a title="adcp.types.ImageAsset.model_config" href="#adcp.types.ImageAsset.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.ImageAsset.url" href="#adcp.types.ImageAsset.url">url</a></code></li>
+<li><code><a title="adcp.types.ImageAsset.width" href="#adcp.types.ImageAsset.width">width</a></code></li>
 </ul>
 </li>
 <li>
@@ -21349,6 +21326,21 @@ attributes &ndash; see the documentation for details.</p></div>
 <ul class="">
 <li><code><a title="adcp.types.MarkdownFlavor.commonmark" href="#adcp.types.MarkdownFlavor.commonmark">commonmark</a></code></li>
 <li><code><a title="adcp.types.MarkdownFlavor.gfm" href="#adcp.types.MarkdownFlavor.gfm">gfm</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.McpWebhookPayload" href="#adcp.types.McpWebhookPayload">McpWebhookPayload</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.McpWebhookPayload.context_id" href="#adcp.types.McpWebhookPayload.context_id">context_id</a></code></li>
+<li><code><a title="adcp.types.McpWebhookPayload.domain" href="#adcp.types.McpWebhookPayload.domain">domain</a></code></li>
+<li><code><a title="adcp.types.McpWebhookPayload.message" href="#adcp.types.McpWebhookPayload.message">message</a></code></li>
+<li><code><a title="adcp.types.McpWebhookPayload.model_config" href="#adcp.types.McpWebhookPayload.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.McpWebhookPayload.operation_id" href="#adcp.types.McpWebhookPayload.operation_id">operation_id</a></code></li>
+<li><code><a title="adcp.types.McpWebhookPayload.result" href="#adcp.types.McpWebhookPayload.result">result</a></code></li>
+<li><code><a title="adcp.types.McpWebhookPayload.status" href="#adcp.types.McpWebhookPayload.status">status</a></code></li>
+<li><code><a title="adcp.types.McpWebhookPayload.task_id" href="#adcp.types.McpWebhookPayload.task_id">task_id</a></code></li>
+<li><code><a title="adcp.types.McpWebhookPayload.task_type" href="#adcp.types.McpWebhookPayload.task_type">task_type</a></code></li>
+<li><code><a title="adcp.types.McpWebhookPayload.timestamp" href="#adcp.types.McpWebhookPayload.timestamp">timestamp</a></code></li>
 </ul>
 </li>
 <li>
@@ -21797,16 +21789,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.ProductFilters.model_config" href="#adcp.types.ProductFilters.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.ProductFilters.standard_formats_only" href="#adcp.types.ProductFilters.standard_formats_only">standard_formats_only</a></code></li>
 <li><code><a title="adcp.types.ProductFilters.start_date" href="#adcp.types.ProductFilters.start_date">start_date</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.Progress" href="#adcp.types.Progress">Progress</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.Progress.current_step" href="#adcp.types.Progress.current_step">current_step</a></code></li>
-<li><code><a title="adcp.types.Progress.model_config" href="#adcp.types.Progress.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.Progress.percentage" href="#adcp.types.Progress.percentage">percentage</a></code></li>
-<li><code><a title="adcp.types.Progress.step_number" href="#adcp.types.Progress.step_number">step_number</a></code></li>
-<li><code><a title="adcp.types.Progress.total_steps" href="#adcp.types.Progress.total_steps">total_steps</a></code></li>
 </ul>
 </li>
 <li>
@@ -22384,6 +22366,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <ul class="">
 <li><code><a title="adcp.types.Totals.effective_rate" href="#adcp.types.Totals.effective_rate">effective_rate</a></code></li>
 <li><code><a title="adcp.types.Totals.model_config" href="#adcp.types.Totals.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.Totals.spend" href="#adcp.types.Totals.spend">spend</a></code></li>
 </ul>
 </li>
 <li>
@@ -22606,12 +22589,14 @@ attributes &ndash; see the documentation for details.</p></div>
 </li>
 <li>
 <h4><code><a title="adcp.types.VideoAsset" href="#adcp.types.VideoAsset">VideoAsset</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.VideoAsset.bitrate_kbps" href="#adcp.types.VideoAsset.bitrate_kbps">bitrate_kbps</a></code></li>
 <li><code><a title="adcp.types.VideoAsset.duration_ms" href="#adcp.types.VideoAsset.duration_ms">duration_ms</a></code></li>
 <li><code><a title="adcp.types.VideoAsset.format" href="#adcp.types.VideoAsset.format">format</a></code></li>
+<li><code><a title="adcp.types.VideoAsset.height" href="#adcp.types.VideoAsset.height">height</a></code></li>
 <li><code><a title="adcp.types.VideoAsset.model_config" href="#adcp.types.VideoAsset.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.VideoAsset.url" href="#adcp.types.VideoAsset.url">url</a></code></li>
+<li><code><a title="adcp.types.VideoAsset.width" href="#adcp.types.VideoAsset.width">width</a></code></li>
 </ul>
 </li>
 <li>
@@ -22645,23 +22630,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.WebhookMetadata.status" href="#adcp.types.WebhookMetadata.status">status</a></code></li>
 <li><code><a title="adcp.types.WebhookMetadata.task_type" href="#adcp.types.WebhookMetadata.task_type">task_type</a></code></li>
 <li><code><a title="adcp.types.WebhookMetadata.timestamp" href="#adcp.types.WebhookMetadata.timestamp">timestamp</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.WebhookPayload" href="#adcp.types.WebhookPayload">WebhookPayload</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.WebhookPayload.context_id" href="#adcp.types.WebhookPayload.context_id">context_id</a></code></li>
-<li><code><a title="adcp.types.WebhookPayload.domain" href="#adcp.types.WebhookPayload.domain">domain</a></code></li>
-<li><code><a title="adcp.types.WebhookPayload.error" href="#adcp.types.WebhookPayload.error">error</a></code></li>
-<li><code><a title="adcp.types.WebhookPayload.message" href="#adcp.types.WebhookPayload.message">message</a></code></li>
-<li><code><a title="adcp.types.WebhookPayload.model_config" href="#adcp.types.WebhookPayload.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.WebhookPayload.operation_id" href="#adcp.types.WebhookPayload.operation_id">operation_id</a></code></li>
-<li><code><a title="adcp.types.WebhookPayload.progress" href="#adcp.types.WebhookPayload.progress">progress</a></code></li>
-<li><code><a title="adcp.types.WebhookPayload.result" href="#adcp.types.WebhookPayload.result">result</a></code></li>
-<li><code><a title="adcp.types.WebhookPayload.status" href="#adcp.types.WebhookPayload.status">status</a></code></li>
-<li><code><a title="adcp.types.WebhookPayload.task_id" href="#adcp.types.WebhookPayload.task_id">task_id</a></code></li>
-<li><code><a title="adcp.types.WebhookPayload.task_type" href="#adcp.types.WebhookPayload.task_type">task_type</a></code></li>
-<li><code><a title="adcp.types.WebhookPayload.timestamp" href="#adcp.types.WebhookPayload.timestamp">timestamp</a></code></li>
 </ul>
 </li>
 <li>

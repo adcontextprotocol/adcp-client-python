@@ -189,8 +189,7 @@ validated to form a valid model.</p>
     ]
     data_provider: Annotated[str, Field(description=&#39;Name of the data provider&#39;)]
     deployments: Annotated[
-        list[deployment.Deployment1 | deployment.Deployment2],
-        Field(description=&#39;Array of deployment targets&#39;),
+        list[deployment.Deployment], Field(description=&#39;Array of deployment targets&#39;)
     ]
     description: Annotated[str, Field(description=&#39;Detailed signal description&#39;)]
     name: Annotated[str, Field(description=&#39;Human-readable signal name&#39;)]
@@ -223,7 +222,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_response.Signal.deployments"><code class="name">var <span class="ident">deployments</span> : list[<a title="adcp.types.generated_poc.core.deployment.Deployment1" href="../core/deployment.html#adcp.types.generated_poc.core.deployment.Deployment1">Deployment1</a> | <a title="adcp.types.generated_poc.core.deployment.Deployment2" href="../core/deployment.html#adcp.types.generated_poc.core.deployment.Deployment2">Deployment2</a>]</code></dt>
+<dt id="adcp.types.generated_poc.signals.get_signals_response.Signal.deployments"><code class="name">var <span class="ident">deployments</span> : list[<a title="adcp.types.generated_poc.core.deployment.Deployment" href="../core/deployment.html#adcp.types.generated_poc.core.deployment.Deployment">Deployment</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>

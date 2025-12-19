@@ -1,0 +1,859 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.webhooks API documentation</title>
+<meta name="description" content="Webhook creation and signing utilities for AdCP agents.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.webhooks</code></h1>
+</header>
+<section id="section-intro">
+<p>Webhook creation and signing utilities for AdCP agents.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="adcp.webhooks.create_a2a_webhook_payload"><code class="name flex">
+<span>def <span class="ident">create_a2a_webhook_payload</span></span>(<span>task_id: str,<br>status: GeneratedTaskStatus,<br>context_id: str,<br>result: AdcpAsyncResponseData | dict[str, Any],<br>timestamp: datetime | None = None) ‑> a2a.types.Task | a2a.types.TaskStatusUpdateEvent</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create_a2a_webhook_payload(
+    task_id: str,
+    status: GeneratedTaskStatus,
+    context_id: str,
+    result: AdcpAsyncResponseData | dict[str, Any],
+    timestamp: datetime | None = None,
+) -&gt; Task | TaskStatusUpdateEvent:
+    &#34;&#34;&#34;
+    Create A2A webhook payload (Task or TaskStatusUpdateEvent).
+
+    Per A2A specification:
+    - Terminated statuses (completed, failed): Returns Task with artifacts[].parts[]
+    - Intermediate statuses (working, input-required, submitted): Returns TaskStatusUpdateEvent
+      with status.message.parts[]
+
+    This function helps agent implementations construct properly formatted A2A webhook
+    payloads for sending to clients.
+
+    Args:
+        task_id: Unique identifier for the task
+        status: Current task status
+        context_id: Session/conversation identifier (required by A2A protocol)
+        timestamp: When the webhook was generated (defaults to current UTC time)
+        result: Task-specific payload (AdCP response data)
+
+    Returns:
+        Task object for terminated statuses, TaskStatusUpdateEvent for intermediate statuses
+
+    Examples:
+        Create a completed Task webhook:
+        &gt;&gt;&gt; from adcp.webhooks import create_a2a_webhook_payload
+        &gt;&gt;&gt; from adcp.types import GeneratedTaskStatus
+        &gt;&gt;&gt;
+        &gt;&gt;&gt; task = create_a2a_webhook_payload(
+        ...     task_id=&#34;task_123&#34;,
+        ...     status=GeneratedTaskStatus.completed,
+        ...     result={&#34;products&#34;: [...]},
+        ...     message=&#34;Found 5 products&#34;
+        ... )
+        &gt;&gt;&gt; # task is a Task object with artifacts containing the result
+
+        Create a working status update:
+        &gt;&gt;&gt; event = create_a2a_webhook_payload(
+        ...     task_id=&#34;task_456&#34;,
+        ...     status=GeneratedTaskStatus.working,
+        ...     message=&#34;Processing 3 of 10 items&#34;
+        ... )
+        &gt;&gt;&gt; # event is a TaskStatusUpdateEvent with status.message
+
+        Send A2A webhook via HTTP POST:
+        &gt;&gt;&gt; import httpx
+        &gt;&gt;&gt; from a2a.types import Task
+        &gt;&gt;&gt;
+        &gt;&gt;&gt; payload = create_a2a_webhook_payload(...)
+        &gt;&gt;&gt; # Serialize to dict for JSON
+        &gt;&gt;&gt; if isinstance(payload, Task):
+        ...     payload_dict = payload.model_dump(mode=&#39;json&#39;)
+        ... else:
+        ...     payload_dict = payload.model_dump(mode=&#39;json&#39;)
+        &gt;&gt;&gt;
+        &gt;&gt;&gt; response = await httpx.post(webhook_url, json=payload_dict)
+    &#34;&#34;&#34;
+    if timestamp is None:
+        timestamp = datetime.now(timezone.utc)
+
+    # Convert datetime to ISO string for A2A protocol
+    timestamp_str = timestamp.isoformat() if isinstance(timestamp, datetime) else timestamp
+
+    # Map GeneratedTaskStatus to A2A status state string
+    status_value = status.value if hasattr(status, &#34;value&#34;) else str(status)
+
+    # Map AdCP status to A2A status state
+    # Note: A2A uses &#34;input-required&#34; (hyphenated) while AdCP uses &#34;input_required&#34; (underscore)
+    status_mapping = {
+        &#34;completed&#34;: &#34;completed&#34;,
+        &#34;failed&#34;: &#34;failed&#34;,
+        &#34;working&#34;: &#34;working&#34;,
+        &#34;submitted&#34;: &#34;submitted&#34;,
+        &#34;input_required&#34;: &#34;input-required&#34;,
+    }
+    a2a_status_state = status_mapping.get(status_value, status_value)
+
+    # Build parts for the message/artifact
+    parts: list[Part] = []
+
+    # Add DataPart
+    # Convert AdcpAsyncResponseData to dict if it&#39;s a Pydantic model
+    if hasattr(result, &#34;model_dump&#34;):
+        result_dict: dict[str, Any] = result.model_dump(mode=&#34;json&#34;)
+    else:
+        result_dict = result
+
+    data_part = DataPart(data=result_dict)
+    parts.append(Part(root=data_part))
+
+    # Determine if this is a terminated status (Task) or intermediate (TaskStatusUpdateEvent)
+    is_terminated = status in [GeneratedTaskStatus.completed, GeneratedTaskStatus.failed]
+
+    # Convert string to TaskState enum
+    task_state_enum = TaskState(a2a_status_state)
+
+    if is_terminated:
+        # Create Task object with artifacts for terminated statuses
+        task_status = TaskStatus(state=task_state_enum, timestamp=timestamp_str)
+
+        # Build artifact with parts
+        # Note: Artifact requires artifact_id, use task_id as prefix
+        if parts:
+            artifact = Artifact(
+                artifact_id=f&#34;{task_id}_result&#34;,
+                parts=parts,
+            )
+            artifacts = [artifact]
+        else:
+            artifacts = []
+
+        return Task(
+            id=task_id,
+            status=task_status,
+            artifacts=artifacts,
+            context_id=context_id,
+        )
+    else:
+        # Create TaskStatusUpdateEvent with status.message for intermediate statuses
+        # Build message with parts
+        if parts:
+            message_obj = Message(
+                message_id=f&#34;{task_id}_msg&#34;,
+                role=Role.agent,  # Agent is responding
+                parts=parts,
+            )
+        else:
+            message_obj = None
+
+        task_status = TaskStatus(
+            state=task_state_enum, timestamp=timestamp_str, message=message_obj
+        )
+
+        return TaskStatusUpdateEvent(
+            task_id=task_id,
+            status=task_status,
+            context_id=context_id,
+            final=False,  # Intermediate statuses are not final
+        )</code></pre>
+</details>
+<div class="desc"><p>Create A2A webhook payload (Task or TaskStatusUpdateEvent).</p>
+<p>Per A2A specification:
+- Terminated statuses (completed, failed): Returns Task with artifacts[].parts[]
+- Intermediate statuses (working, input-required, submitted): Returns TaskStatusUpdateEvent
+with status.message.parts[]</p>
+<p>This function helps agent implementations construct properly formatted A2A webhook
+payloads for sending to clients.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>task_id</code></strong></dt>
+<dd>Unique identifier for the task</dd>
+<dt><strong><code>status</code></strong></dt>
+<dd>Current task status</dd>
+<dt><strong><code>context_id</code></strong></dt>
+<dd>Session/conversation identifier (required by A2A protocol)</dd>
+<dt><strong><code>timestamp</code></strong></dt>
+<dd>When the webhook was generated (defaults to current UTC time)</dd>
+<dt><strong><code>result</code></strong></dt>
+<dd>Task-specific payload (AdCP response data)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Task object for terminated statuses, TaskStatusUpdateEvent for intermediate statuses</p>
+<h2 id="examples">Examples</h2>
+<p>Create a completed Task webhook:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; from adcp.webhooks import create_a2a_webhook_payload
+&gt;&gt;&gt; from adcp.types import GeneratedTaskStatus
+&gt;&gt;&gt;
+&gt;&gt;&gt; task = create_a2a_webhook_payload(
+...     task_id=&quot;task_123&quot;,
+...     status=GeneratedTaskStatus.completed,
+...     result={&quot;products&quot;: [...]},
+...     message=&quot;Found 5 products&quot;
+... )
+&gt;&gt;&gt; # task is a Task object with artifacts containing the result
+</code></pre>
+<p>Create a working status update:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; event = create_a2a_webhook_payload(
+...     task_id=&quot;task_456&quot;,
+...     status=GeneratedTaskStatus.working,
+...     message=&quot;Processing 3 of 10 items&quot;
+... )
+&gt;&gt;&gt; # event is a TaskStatusUpdateEvent with status.message
+</code></pre>
+<p>Send A2A webhook via HTTP POST:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; import httpx
+&gt;&gt;&gt; from a2a.types import Task
+&gt;&gt;&gt;
+&gt;&gt;&gt; payload = create_a2a_webhook_payload(...)
+&gt;&gt;&gt; # Serialize to dict for JSON
+&gt;&gt;&gt; if isinstance(payload, Task):
+...     payload_dict = payload.model_dump(mode='json')
+... else:
+...     payload_dict = payload.model_dump(mode='json')
+&gt;&gt;&gt;
+&gt;&gt;&gt; response = await httpx.post(webhook_url, json=payload_dict)
+</code></pre></div>
+</dd>
+<dt id="adcp.webhooks.create_mcp_webhook_payload"><code class="name flex">
+<span>def <span class="ident">create_mcp_webhook_payload</span></span>(<span>task_id: str,<br>status: GeneratedTaskStatus,<br>result: AdcpAsyncResponseData | dict[str, Any] | None = None,<br>timestamp: datetime | None = None,<br>task_type: str | None = None,<br>operation_id: str | None = None,<br>message: str | None = None,<br>context_id: str | None = None,<br>domain: str | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create_mcp_webhook_payload(
+    task_id: str,
+    status: GeneratedTaskStatus,
+    result: AdcpAsyncResponseData | dict[str, Any] | None = None,
+    timestamp: datetime | None = None,
+    task_type: str | None = None,
+    operation_id: str | None = None,
+    message: str | None = None,
+    context_id: str | None = None,
+    domain: str | None = None,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;
+    Create MCP webhook payload dictionary.
+
+    This function helps agent implementations construct properly formatted
+    webhook payloads for sending to clients.
+
+    Args:
+        task_id: Unique identifier for the task
+        status: Current task status
+        task_type: Optionally type of AdCP operation (e.g., &#34;get_products&#34;, &#34;create_media_buy&#34;)
+        timestamp: When the webhook was generated (defaults to current UTC time)
+        result: Task-specific payload (AdCP response data)
+        operation_id: Publisher-defined operation identifier (deprecated from payload,
+            should be in URL routing, but included for backward compatibility)
+        message: Human-readable summary of task state
+        context_id: Session/conversation identifier
+        domain: AdCP domain this task belongs to
+
+    Returns:
+        Dictionary matching McpWebhookPayload schema, ready to be sent as JSON
+
+    Examples:
+        Create a completed webhook with results:
+        &gt;&gt;&gt; from adcp.webhooks import create_mcp_webhook_payload
+        &gt;&gt;&gt; from adcp.types import GeneratedTaskStatus
+        &gt;&gt;&gt;
+        &gt;&gt;&gt; payload = create_mcp_webhook_payload(
+        ...     task_id=&#34;task_123&#34;,
+        ...     task_type=&#34;get_products&#34;,
+        ...     status=GeneratedTaskStatus.completed,
+        ...     result={&#34;products&#34;: [...]},
+        ...     message=&#34;Found 5 products&#34;
+        ... )
+
+        Create a failed webhook with error:
+        &gt;&gt;&gt; payload = create_mcp_webhook_payload(
+        ...     task_id=&#34;task_456&#34;,
+        ...     task_type=&#34;create_media_buy&#34;,
+        ...     status=GeneratedTaskStatus.failed,
+        ...     result={&#34;errors&#34;: [{&#34;code&#34;: &#34;INVALID_INPUT&#34;, &#34;message&#34;: &#34;...&#34;}]},
+        ...     message=&#34;Validation failed&#34;
+        ... )
+
+        Create a working status update:
+        &gt;&gt;&gt; payload = create_mcp_webhook_payload(
+        ...     task_id=&#34;task_789&#34;,
+        ...     task_type=&#34;sync_creatives&#34;,
+        ...     status=GeneratedTaskStatus.working,
+        ...     message=&#34;Processing 3 of 10 creatives&#34;
+        ... )
+    &#34;&#34;&#34;
+    if timestamp is None:
+        timestamp = datetime.now(timezone.utc)
+
+    # Convert status enum to string value
+    status_value = status.value if hasattr(status, &#34;value&#34;) else str(status)
+
+    # Build payload matching McpWebhookPayload schema
+    payload: dict[str, Any] = {
+        &#34;task_id&#34;: task_id,
+        &#34;task_type&#34;: task_type,
+        &#34;status&#34;: status_value,
+        &#34;timestamp&#34;: timestamp.isoformat() if isinstance(timestamp, datetime) else timestamp,
+    }
+
+    # Add optional fields only if provided
+    if result is not None:
+        # Convert Pydantic model to dict if needed for JSON serialization
+        if hasattr(result, &#34;model_dump&#34;):
+            payload[&#34;result&#34;] = result.model_dump(mode=&#34;json&#34;)
+        else:
+            payload[&#34;result&#34;] = result
+
+    if operation_id is not None:
+        payload[&#34;operation_id&#34;] = operation_id
+
+    if message is not None:
+        payload[&#34;message&#34;] = message
+
+    if context_id is not None:
+        payload[&#34;context_id&#34;] = context_id
+
+    if domain is not None:
+        payload[&#34;domain&#34;] = domain
+
+    return payload</code></pre>
+</details>
+<div class="desc"><p>Create MCP webhook payload dictionary.</p>
+<p>This function helps agent implementations construct properly formatted
+webhook payloads for sending to clients.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>task_id</code></strong></dt>
+<dd>Unique identifier for the task</dd>
+<dt><strong><code>status</code></strong></dt>
+<dd>Current task status</dd>
+<dt><strong><code>task_type</code></strong></dt>
+<dd>Optionally type of AdCP operation (e.g., "get_products", "create_media_buy")</dd>
+<dt><strong><code>timestamp</code></strong></dt>
+<dd>When the webhook was generated (defaults to current UTC time)</dd>
+<dt><strong><code>result</code></strong></dt>
+<dd>Task-specific payload (AdCP response data)</dd>
+<dt><strong><code>operation_id</code></strong></dt>
+<dd>Publisher-defined operation identifier (deprecated from payload,
+should be in URL routing, but included for backward compatibility)</dd>
+<dt><strong><code>message</code></strong></dt>
+<dd>Human-readable summary of task state</dd>
+<dt><strong><code>context_id</code></strong></dt>
+<dd>Session/conversation identifier</dd>
+<dt><strong><code>domain</code></strong></dt>
+<dd>AdCP domain this task belongs to</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Dictionary matching McpWebhookPayload schema, ready to be sent as JSON</p>
+<h2 id="examples">Examples</h2>
+<p>Create a completed webhook with results:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; from adcp.webhooks import create_mcp_webhook_payload
+&gt;&gt;&gt; from adcp.types import GeneratedTaskStatus
+&gt;&gt;&gt;
+&gt;&gt;&gt; payload = create_mcp_webhook_payload(
+...     task_id=&quot;task_123&quot;,
+...     task_type=&quot;get_products&quot;,
+...     status=GeneratedTaskStatus.completed,
+...     result={&quot;products&quot;: [...]},
+...     message=&quot;Found 5 products&quot;
+... )
+</code></pre>
+<p>Create a failed webhook with error:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; payload = create_mcp_webhook_payload(
+...     task_id=&quot;task_456&quot;,
+...     task_type=&quot;create_media_buy&quot;,
+...     status=GeneratedTaskStatus.failed,
+...     result={&quot;errors&quot;: [{&quot;code&quot;: &quot;INVALID_INPUT&quot;, &quot;message&quot;: &quot;...&quot;}]},
+...     message=&quot;Validation failed&quot;
+... )
+</code></pre>
+<p>Create a working status update:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; payload = create_mcp_webhook_payload(
+...     task_id=&quot;task_789&quot;,
+...     task_type=&quot;sync_creatives&quot;,
+...     status=GeneratedTaskStatus.working,
+...     message=&quot;Processing 3 of 10 creatives&quot;
+... )
+</code></pre></div>
+</dd>
+<dt id="adcp.webhooks.extract_webhook_result_data"><code class="name flex">
+<span>def <span class="ident">extract_webhook_result_data</span></span>(<span>webhook_payload: dict[str, Any]) ‑> <a title="adcp.types.generated_poc.core.async_response_data.AdcpAsyncResponseData" href="types/generated_poc/core/async_response_data.html#adcp.types.generated_poc.core.async_response_data.AdcpAsyncResponseData">AdcpAsyncResponseData</a> | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def extract_webhook_result_data(webhook_payload: dict[str, Any]) -&gt; AdcpAsyncResponseData | None:
+    &#34;&#34;&#34;
+    Extract result data from webhook payload (MCP or A2A format).
+
+    This utility function handles webhook payloads from both MCP and A2A protocols,
+    extracting the result data regardless of the webhook format. Useful for quick
+    inspection, logging, or custom webhook routing logic without requiring full
+    client initialization.
+
+    Protocol Detection:
+    - A2A Task: Has &#34;artifacts&#34; field (terminated statuses: completed, failed)
+    - A2A TaskStatusUpdateEvent: Has nested &#34;status.message&#34; structure (intermediate statuses)
+    - MCP: Has &#34;result&#34; field directly
+
+    Args:
+        webhook_payload: Raw webhook dictionary from HTTP request (JSON-deserialized)
+
+    Returns:
+        AdcpAsyncResponseData union type containing the extracted AdCP response, or None
+        if no result present. For A2A webhooks, unwraps data from artifacts/message parts
+        structure. For MCP webhooks, returns the result field directly.
+
+    Examples:
+        Extract from MCP webhook:
+        &gt;&gt;&gt; mcp_payload = {
+        ...     &#34;task_id&#34;: &#34;task_123&#34;,
+        ...     &#34;task_type&#34;: &#34;create_media_buy&#34;,
+        ...     &#34;status&#34;: &#34;completed&#34;,
+        ...     &#34;timestamp&#34;: &#34;2025-01-15T10:00:00Z&#34;,
+        ...     &#34;result&#34;: {&#34;media_buy_id&#34;: &#34;mb_123&#34;, &#34;buyer_ref&#34;: &#34;ref_123&#34;, &#34;packages&#34;: []}
+        ... }
+        &gt;&gt;&gt; result = extract_webhook_result_data(mcp_payload)
+        &gt;&gt;&gt; print(result[&#34;media_buy_id&#34;])
+        mb_123
+
+        Extract from A2A Task webhook:
+        &gt;&gt;&gt; a2a_task_payload = {
+        ...     &#34;id&#34;: &#34;task_456&#34;,
+        ...     &#34;context_id&#34;: &#34;ctx_456&#34;,
+        ...     &#34;status&#34;: {&#34;state&#34;: &#34;completed&#34;, &#34;timestamp&#34;: &#34;2025-01-15T10:00:00Z&#34;},
+        ...     &#34;artifacts&#34;: [
+        ...         {
+        ...             &#34;artifact_id&#34;: &#34;artifact_456&#34;,
+        ...             &#34;parts&#34;: [
+        ...                 {
+        ...                     &#34;data&#34;: {
+        ...                         &#34;media_buy_id&#34;: &#34;mb_456&#34;,
+        ...                         &#34;buyer_ref&#34;: &#34;ref_456&#34;,
+        ...                         &#34;packages&#34;: []
+        ...                     }
+        ...                 }
+        ...             ]
+        ...         }
+        ...     ]
+        ... }
+        &gt;&gt;&gt; result = extract_webhook_result_data(a2a_task_payload)
+        &gt;&gt;&gt; print(result[&#34;media_buy_id&#34;])
+        mb_456
+
+        Extract from A2A TaskStatusUpdateEvent webhook:
+        &gt;&gt;&gt; a2a_event_payload = {
+        ...     &#34;task_id&#34;: &#34;task_789&#34;,
+        ...     &#34;context_id&#34;: &#34;ctx_789&#34;,
+        ...     &#34;status&#34;: {
+        ...         &#34;state&#34;: &#34;working&#34;,
+        ...         &#34;timestamp&#34;: &#34;2025-01-15T10:00:00Z&#34;,
+        ...         &#34;message&#34;: {
+        ...             &#34;message_id&#34;: &#34;msg_789&#34;,
+        ...             &#34;role&#34;: &#34;agent&#34;,
+        ...             &#34;parts&#34;: [
+        ...                 {&#34;data&#34;: {&#34;current_step&#34;: &#34;processing&#34;, &#34;percentage&#34;: 50}}
+        ...             ]
+        ...         }
+        ...     },
+        ...     &#34;final&#34;: False
+        ... }
+        &gt;&gt;&gt; result = extract_webhook_result_data(a2a_event_payload)
+        &gt;&gt;&gt; print(result[&#34;percentage&#34;])
+        50
+
+        Handle webhook with no result:
+        &gt;&gt;&gt; empty_payload = {&#34;task_id&#34;: &#34;task_000&#34;, &#34;status&#34;: &#34;working&#34;, &#34;timestamp&#34;: &#34;...&#34;}
+        &gt;&gt;&gt; result = extract_webhook_result_data(empty_payload)
+        &gt;&gt;&gt; print(result)
+        None
+    &#34;&#34;&#34;
+    # Detect A2A Task format (has &#34;artifacts&#34; field)
+    if &#34;artifacts&#34; in webhook_payload:
+        # Extract from task.artifacts[].parts[]
+        artifacts = webhook_payload.get(&#34;artifacts&#34;, [])
+        if not artifacts:
+            return None
+
+        # Use last artifact (most recent)
+        target_artifact = artifacts[-1]
+        parts = target_artifact.get(&#34;parts&#34;, [])
+        if not parts:
+            return None
+
+        # Find DataPart (skip TextPart)
+        for part in parts:
+            # Check if this part has &#34;data&#34; field (DataPart)
+            if &#34;data&#34; in part:
+                data = part[&#34;data&#34;]
+                # Unwrap {&#34;response&#34;: {...}} wrapper if present (A2A convention)
+                if isinstance(data, dict) and &#34;response&#34; in data and len(data) == 1:
+                    return cast(AdcpAsyncResponseData, data[&#34;response&#34;])
+                return cast(AdcpAsyncResponseData, data)
+
+        return None
+
+    # Detect A2A TaskStatusUpdateEvent format (has nested &#34;status.message&#34;)
+    status = webhook_payload.get(&#34;status&#34;)
+    if isinstance(status, dict):
+        message = status.get(&#34;message&#34;)
+        if isinstance(message, dict):
+            # Extract from status.message.parts[]
+            parts = message.get(&#34;parts&#34;, [])
+            if not parts:
+                return None
+
+            # Find DataPart
+            for part in parts:
+                if &#34;data&#34; in part:
+                    data = part[&#34;data&#34;]
+                    # Unwrap {&#34;response&#34;: {...}} wrapper if present
+                    if isinstance(data, dict) and &#34;response&#34; in data and len(data) == 1:
+                        return cast(AdcpAsyncResponseData, data[&#34;response&#34;])
+                    return cast(AdcpAsyncResponseData, data)
+
+            return None
+
+    # MCP format: result field directly
+    return cast(AdcpAsyncResponseData | None, webhook_payload.get(&#34;result&#34;))</code></pre>
+</details>
+<div class="desc"><p>Extract result data from webhook payload (MCP or A2A format).</p>
+<p>This utility function handles webhook payloads from both MCP and A2A protocols,
+extracting the result data regardless of the webhook format. Useful for quick
+inspection, logging, or custom webhook routing logic without requiring full
+client initialization.</p>
+<p>Protocol Detection:
+- A2A Task: Has "artifacts" field (terminated statuses: completed, failed)
+- A2A TaskStatusUpdateEvent: Has nested "status.message" structure (intermediate statuses)
+- MCP: Has "result" field directly</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>webhook_payload</code></strong></dt>
+<dd>Raw webhook dictionary from HTTP request (JSON-deserialized)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>AdcpAsyncResponseData union type containing the extracted AdCP response, or None
+if no result present. For A2A webhooks, unwraps data from artifacts/message parts
+structure. For MCP webhooks, returns the result field directly.</p>
+<h2 id="examples">Examples</h2>
+<p>Extract from MCP webhook:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; mcp_payload = {
+...     &quot;task_id&quot;: &quot;task_123&quot;,
+...     &quot;task_type&quot;: &quot;create_media_buy&quot;,
+...     &quot;status&quot;: &quot;completed&quot;,
+...     &quot;timestamp&quot;: &quot;2025-01-15T10:00:00Z&quot;,
+...     &quot;result&quot;: {&quot;media_buy_id&quot;: &quot;mb_123&quot;, &quot;buyer_ref&quot;: &quot;ref_123&quot;, &quot;packages&quot;: []}
+... }
+&gt;&gt;&gt; result = extract_webhook_result_data(mcp_payload)
+&gt;&gt;&gt; print(result[&quot;media_buy_id&quot;])
+mb_123
+</code></pre>
+<p>Extract from A2A Task webhook:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; a2a_task_payload = {
+...     &quot;id&quot;: &quot;task_456&quot;,
+...     &quot;context_id&quot;: &quot;ctx_456&quot;,
+...     &quot;status&quot;: {&quot;state&quot;: &quot;completed&quot;, &quot;timestamp&quot;: &quot;2025-01-15T10:00:00Z&quot;},
+...     &quot;artifacts&quot;: [
+...         {
+...             &quot;artifact_id&quot;: &quot;artifact_456&quot;,
+...             &quot;parts&quot;: [
+...                 {
+...                     &quot;data&quot;: {
+...                         &quot;media_buy_id&quot;: &quot;mb_456&quot;,
+...                         &quot;buyer_ref&quot;: &quot;ref_456&quot;,
+...                         &quot;packages&quot;: []
+...                     }
+...                 }
+...             ]
+...         }
+...     ]
+... }
+&gt;&gt;&gt; result = extract_webhook_result_data(a2a_task_payload)
+&gt;&gt;&gt; print(result[&quot;media_buy_id&quot;])
+mb_456
+</code></pre>
+<p>Extract from A2A TaskStatusUpdateEvent webhook:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; a2a_event_payload = {
+...     &quot;task_id&quot;: &quot;task_789&quot;,
+...     &quot;context_id&quot;: &quot;ctx_789&quot;,
+...     &quot;status&quot;: {
+...         &quot;state&quot;: &quot;working&quot;,
+...         &quot;timestamp&quot;: &quot;2025-01-15T10:00:00Z&quot;,
+...         &quot;message&quot;: {
+...             &quot;message_id&quot;: &quot;msg_789&quot;,
+...             &quot;role&quot;: &quot;agent&quot;,
+...             &quot;parts&quot;: [
+...                 {&quot;data&quot;: {&quot;current_step&quot;: &quot;processing&quot;, &quot;percentage&quot;: 50}}
+...             ]
+...         }
+...     },
+...     &quot;final&quot;: False
+... }
+&gt;&gt;&gt; result = extract_webhook_result_data(a2a_event_payload)
+&gt;&gt;&gt; print(result[&quot;percentage&quot;])
+50
+</code></pre>
+<p>Handle webhook with no result:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; empty_payload = {&quot;task_id&quot;: &quot;task_000&quot;, &quot;status&quot;: &quot;working&quot;, &quot;timestamp&quot;: &quot;...&quot;}
+&gt;&gt;&gt; result = extract_webhook_result_data(empty_payload)
+&gt;&gt;&gt; print(result)
+None
+</code></pre></div>
+</dd>
+<dt id="adcp.webhooks.get_adcp_signed_headers_for_webhook"><code class="name flex">
+<span>def <span class="ident">get_adcp_signed_headers_for_webhook</span></span>(<span>headers: dict[str, Any],<br>secret: str,<br>timestamp: str,<br>payload: dict[str, Any] | AdCPBaseModel) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_adcp_signed_headers_for_webhook(
+    headers: dict[str, Any], secret: str, timestamp: str, payload: dict[str, Any] | AdCPBaseModel
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;
+    Generate AdCP-compliant signed headers for webhook delivery.
+
+    This function creates a cryptographic signature that proves the webhook
+    came from an authorized agent and protects against replay attacks by
+    including a timestamp in the signed message.
+
+    The function adds two headers to the provided headers dict:
+    - X-AdCP-Signature: HMAC-SHA256 signature in format &#34;sha256=&lt;hex_digest&gt;&#34;
+    - X-AdCP-Timestamp: ISO 8601 timestamp used in signature generation
+
+    The signing algorithm:
+    1. Constructs message as &#34;{timestamp}.{json_payload}&#34;
+    2. JSON-serializes payload with compact separators (no sorted keys for performance)
+    3. UTF-8 encodes the message
+    4. HMAC-SHA256 signs with the shared secret
+    5. Hex-encodes and prefixes with &#34;sha256=&#34;
+
+    Args:
+        headers: Existing headers dictionary to add signature headers to
+        secret: Shared secret key for HMAC signing
+        timestamp: ISO 8601 timestamp string (e.g., &#34;2025-01-15T10:00:00Z&#34;)
+        payload: Webhook payload (dict or Pydantic model - will be JSON-serialized)
+
+    Returns:
+        The modified headers dictionary with signature headers added
+
+    Examples:
+        Sign and send an MCP webhook:
+        &gt;&gt;&gt; from adcp.webhooks import create_mcp_webhook_payload get_adcp_signed_headers_for_webhook
+        &gt;&gt;&gt; from datetime import datetime, timezone
+        &gt;&gt;&gt;
+        &gt;&gt;&gt; payload = create_mcp_webhook_payload(
+        ...     task_id=&#34;task_123&#34;,
+        ...     task_type=&#34;get_products&#34;,
+        ...     status=&#34;completed&#34;,
+        ...     result={&#34;products&#34;: [...]}
+        ... )
+        &gt;&gt;&gt; headers = {&#34;Content-Type&#34;: &#34;application/json&#34;}
+        &gt;&gt;&gt; timestamp = datetime.now(timezone.utc).isoformat()
+        &gt;&gt;&gt; signed_headers = get_adcp_signed_headers_for_webhook(
+        ...     headers, secret=&#34;my-webhook-secret&#34;, timestamp=timestamp, payload=payload
+        ... )
+        &gt;&gt;&gt;
+        &gt;&gt;&gt; # Send webhook with signed headers
+        &gt;&gt;&gt; import httpx
+        &gt;&gt;&gt; response = await httpx.post(
+        ...     webhook_url,
+        ...     json=payload,
+        ...     headers=signed_headers
+        ... )
+
+        Headers will contain:
+        &gt;&gt;&gt; print(signed_headers)
+        {
+            &#34;Content-Type&#34;: &#34;application/json&#34;,
+            &#34;X-AdCP-Signature&#34;: &#34;sha256=a1b2c3...&#34;,
+            &#34;X-AdCP-Timestamp&#34;: &#34;2025-01-15T10:00:00Z&#34;
+        }
+
+        Sign with Pydantic model directly:
+        &gt;&gt;&gt; from adcp import GetMediaBuyDeliveryResponse
+        &gt;&gt;&gt; from datetime import datetime, timezone
+        &gt;&gt;&gt;
+        &gt;&gt;&gt; response: GetMediaBuyDeliveryResponse = ...  # From API call
+        &gt;&gt;&gt; headers = {&#34;Content-Type&#34;: &#34;application/json&#34;}
+        &gt;&gt;&gt; timestamp = datetime.now(timezone.utc).isoformat()
+        &gt;&gt;&gt; signed_headers = get_adcp_signed_headers_for_webhook(
+        ...     headers, secret=&#34;my-webhook-secret&#34;, timestamp=timestamp, payload=response
+        ... )
+        &gt;&gt;&gt; # Pydantic model is automatically converted to dict for signing
+    &#34;&#34;&#34;
+    # Convert Pydantic model to dict if needed
+    # All AdCP types inherit from AdCPBaseModel (Pydantic BaseModel)
+    if hasattr(payload, &#34;model_dump&#34;):
+        payload_dict = payload.model_dump(mode=&#34;json&#34;)
+    else:
+        payload_dict = payload
+
+    # Serialize payload to JSON with consistent formatting
+    # Note: sort_keys=False for performance (key order doesn&#39;t affect signature)
+    payload_bytes = json.dumps(payload_dict, separators=(&#34;,&#34;, &#34;:&#34;), sort_keys=False).encode(&#34;utf-8&#34;)
+
+    # Construct signed message: timestamp.payload
+    # Including timestamp prevents replay attacks
+    signed_message = f&#34;{timestamp}.{payload_bytes.decode(&#39;utf-8&#39;)}&#34;
+
+    # Generate HMAC-SHA256 signature over timestamp + payload
+    signature_hex = hmac.new(
+        secret.encode(&#34;utf-8&#34;), signed_message.encode(&#34;utf-8&#34;), hashlib.sha256
+    ).hexdigest()
+
+    # Add AdCP-compliant signature headers
+    headers[&#34;X-AdCP-Signature&#34;] = f&#34;sha256={signature_hex}&#34;
+    headers[&#34;X-AdCP-Timestamp&#34;] = timestamp
+
+    return headers</code></pre>
+</details>
+<div class="desc"><p>Generate AdCP-compliant signed headers for webhook delivery.</p>
+<p>This function creates a cryptographic signature that proves the webhook
+came from an authorized agent and protects against replay attacks by
+including a timestamp in the signed message.</p>
+<p>The function adds two headers to the provided headers dict:
+- X-AdCP-Signature: HMAC-SHA256 signature in format "sha256=<hex_digest>"
+- X-AdCP-Timestamp: ISO 8601 timestamp used in signature generation</p>
+<p>The signing algorithm:
+1. Constructs message as "{timestamp}.{json_payload}"
+2. JSON-serializes payload with compact separators (no sorted keys for performance)
+3. UTF-8 encodes the message
+4. HMAC-SHA256 signs with the shared secret
+5. Hex-encodes and prefixes with "sha256="</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>headers</code></strong></dt>
+<dd>Existing headers dictionary to add signature headers to</dd>
+<dt><strong><code>secret</code></strong></dt>
+<dd>Shared secret key for HMAC signing</dd>
+<dt><strong><code>timestamp</code></strong></dt>
+<dd>ISO 8601 timestamp string (e.g., "2025-01-15T10:00:00Z")</dd>
+<dt><strong><code>payload</code></strong></dt>
+<dd>Webhook payload (dict or Pydantic model - will be JSON-serialized)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The modified headers dictionary with signature headers added</p>
+<h2 id="examples">Examples</h2>
+<p>Sign and send an MCP webhook:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; from adcp.webhooks import create_mcp_webhook_payload get_adcp_signed_headers_for_webhook
+&gt;&gt;&gt; from datetime import datetime, timezone
+&gt;&gt;&gt;
+&gt;&gt;&gt; payload = create_mcp_webhook_payload(
+...     task_id=&quot;task_123&quot;,
+...     task_type=&quot;get_products&quot;,
+...     status=&quot;completed&quot;,
+...     result={&quot;products&quot;: [...]}
+... )
+&gt;&gt;&gt; headers = {&quot;Content-Type&quot;: &quot;application/json&quot;}
+&gt;&gt;&gt; timestamp = datetime.now(timezone.utc).isoformat()
+&gt;&gt;&gt; signed_headers = get_adcp_signed_headers_for_webhook(
+...     headers, secret=&quot;my-webhook-secret&quot;, timestamp=timestamp, payload=payload
+... )
+&gt;&gt;&gt;
+&gt;&gt;&gt; # Send webhook with signed headers
+&gt;&gt;&gt; import httpx
+&gt;&gt;&gt; response = await httpx.post(
+...     webhook_url,
+...     json=payload,
+...     headers=signed_headers
+... )
+</code></pre>
+<p>Headers will contain:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; print(signed_headers)
+{
+    &quot;Content-Type&quot;: &quot;application/json&quot;,
+    &quot;X-AdCP-Signature&quot;: &quot;sha256=a1b2c3...&quot;,
+    &quot;X-AdCP-Timestamp&quot;: &quot;2025-01-15T10:00:00Z&quot;
+}
+</code></pre>
+<p>Sign with Pydantic model directly:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; from adcp import GetMediaBuyDeliveryResponse
+&gt;&gt;&gt; from datetime import datetime, timezone
+&gt;&gt;&gt;
+&gt;&gt;&gt; response: GetMediaBuyDeliveryResponse = ...  # From API call
+&gt;&gt;&gt; headers = {&quot;Content-Type&quot;: &quot;application/json&quot;}
+&gt;&gt;&gt; timestamp = datetime.now(timezone.utc).isoformat()
+&gt;&gt;&gt; signed_headers = get_adcp_signed_headers_for_webhook(
+...     headers, secret=&quot;my-webhook-secret&quot;, timestamp=timestamp, payload=response
+... )
+&gt;&gt;&gt; # Pydantic model is automatically converted to dict for signing
+</code></pre></div>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp" href="index.html">adcp</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="adcp.webhooks.create_a2a_webhook_payload" href="#adcp.webhooks.create_a2a_webhook_payload">create_a2a_webhook_payload</a></code></li>
+<li><code><a title="adcp.webhooks.create_mcp_webhook_payload" href="#adcp.webhooks.create_mcp_webhook_payload">create_mcp_webhook_payload</a></code></li>
+<li><code><a title="adcp.webhooks.extract_webhook_result_data" href="#adcp.webhooks.extract_webhook_result_data">extract_webhook_result_data</a></code></li>
+<li><code><a title="adcp.webhooks.get_adcp_signed_headers_for_webhook" href="#adcp.webhooks.get_adcp_signed_headers_for_webhook">get_adcp_signed_headers_for_webhook</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

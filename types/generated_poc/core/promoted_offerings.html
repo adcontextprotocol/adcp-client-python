@@ -306,24 +306,9 @@ validated to form a valid model.</p>
         Field(description=&#39;Selectors to choose specific assets from the brand manifest&#39;),
     ] = None
     brand_manifest: Annotated[
-        brand_manifest_1.BrandManifest | AnyUrl,
+        brand_manifest_ref.BrandManifestReference,
         Field(
-            description=&#39;Brand information manifest containing assets, themes, and guidelines. Can be provided inline or as a URL reference to a hosted manifest.&#39;,
-            examples=[
-                {
-                    &#39;data&#39;: {
-                        &#39;colors&#39;: {&#39;primary&#39;: &#39;#FF6B35&#39;},
-                        &#39;name&#39;: &#39;ACME Corporation&#39;,
-                        &#39;url&#39;: &#39;https://acmecorp.com&#39;,
-                    },
-                    &#39;description&#39;: &#39;Inline brand manifest&#39;,
-                },
-                {
-                    &#39;data&#39;: &#39;https://cdn.acmecorp.com/brand-manifest.json&#39;,
-                    &#39;description&#39;: &#39;URL string reference to hosted manifest&#39;,
-                },
-            ],
-            title=&#39;Brand Manifest Reference&#39;,
+            description=&#39;Brand information manifest containing assets, themes, and guidelines. Can be provided inline or as a URL reference to a hosted manifest.&#39;
         ),
     ]
     offerings: Annotated[
@@ -358,7 +343,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest.BrandManifest" href="brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.BrandManifest">BrandManifest</a> | pydantic.networks.AnyUrl</code></dt>
+<dt id="adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference" href="brand_manifest_ref.html#adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference">BrandManifestReference</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
