@@ -576,12 +576,14 @@ class TestGetAllTags:
 class TestGetPropertiesByAgent:
     """Test getting properties for a specific agent."""
 
-    def test_get_properties_by_agent(self):
-        """Should return properties for specified agent."""
+    def test_get_properties_by_agent_inline_properties(self):
+        """Should return inline properties for agent with authorization_type=inline_properties."""
         adagents_data = {
             "authorized_agents": [
                 {
                     "url": "https://agent1.example.com",
+                    "authorization_type": "inline_properties",
+                    "authorized_for": "Test properties",
                     "properties": [
                         {
                             "property_type": "website",
@@ -595,16 +597,6 @@ class TestGetPropertiesByAgent:
                         },
                     ],
                 },
-                {
-                    "url": "https://agent2.example.com",
-                    "properties": [
-                        {
-                            "property_type": "website",
-                            "name": "Site 2",
-                            "identifiers": [{"type": "domain", "value": "site2.com"}],
-                        }
-                    ],
-                },
             ]
         }
 
@@ -613,12 +605,185 @@ class TestGetPropertiesByAgent:
         assert properties[0]["name"] == "Site 1"
         assert properties[1]["name"] == "App 1"
 
+    def test_get_properties_by_agent_legacy_properties(self):
+        """Should return properties for agent without explicit authorization_type."""
+        adagents_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "properties": [
+                        {
+                            "property_type": "website",
+                            "name": "Site 1",
+                            "identifiers": [{"type": "domain", "value": "site1.com"}],
+                        },
+                    ],
+                },
+            ]
+        }
+
+        properties = get_properties_by_agent(adagents_data, "https://agent1.example.com")
+        assert len(properties) == 1
+        assert properties[0]["name"] == "Site 1"
+
+    def test_get_properties_by_agent_property_ids(self):
+        """Should filter top-level properties by property_id for authorization_type=property_ids."""
+        adagents_data = {
+            "properties": [
+                {
+                    "property_id": "site1",
+                    "property_type": "website",
+                    "name": "Site 1",
+                    "identifiers": [{"type": "domain", "value": "site1.com"}],
+                },
+                {
+                    "property_id": "site2",
+                    "property_type": "website",
+                    "name": "Site 2",
+                    "identifiers": [{"type": "domain", "value": "site2.com"}],
+                },
+                {
+                    "property_id": "site3",
+                    "property_type": "website",
+                    "name": "Site 3",
+                    "identifiers": [{"type": "domain", "value": "site3.com"}],
+                },
+            ],
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "authorization_type": "property_ids",
+                    "authorized_for": "Selected properties",
+                    "property_ids": ["site1", "site3"],
+                },
+            ],
+        }
+
+        properties = get_properties_by_agent(adagents_data, "https://agent1.example.com")
+        assert len(properties) == 2
+        assert properties[0]["name"] == "Site 1"
+        assert properties[1]["name"] == "Site 3"
+
+    def test_get_properties_by_agent_property_tags(self):
+        """Should filter top-level properties by tags for authorization_type=property_tags."""
+        adagents_data = {
+            "properties": [
+                {
+                    "property_id": "site1",
+                    "property_type": "website",
+                    "name": "Site 1",
+                    "identifiers": [{"type": "domain", "value": "site1.com"}],
+                    "tags": ["premium", "news"],
+                },
+                {
+                    "property_id": "site2",
+                    "property_type": "website",
+                    "name": "Site 2",
+                    "identifiers": [{"type": "domain", "value": "site2.com"}],
+                    "tags": ["sports"],
+                },
+                {
+                    "property_id": "site3",
+                    "property_type": "website",
+                    "name": "Site 3",
+                    "identifiers": [{"type": "domain", "value": "site3.com"}],
+                    "tags": ["premium", "entertainment"],
+                },
+            ],
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "authorization_type": "property_tags",
+                    "authorized_for": "Premium properties",
+                    "property_tags": ["premium"],
+                },
+            ],
+        }
+
+        properties = get_properties_by_agent(adagents_data, "https://agent1.example.com")
+        assert len(properties) == 2
+        assert properties[0]["name"] == "Site 1"
+        assert properties[1]["name"] == "Site 3"
+
+    def test_get_properties_by_agent_property_tags_multiple(self):
+        """Should match properties with any of the authorized tags."""
+        adagents_data = {
+            "properties": [
+                {
+                    "property_id": "site1",
+                    "property_type": "website",
+                    "name": "Site 1",
+                    "identifiers": [{"type": "domain", "value": "site1.com"}],
+                    "tags": ["news"],
+                },
+                {
+                    "property_id": "site2",
+                    "property_type": "website",
+                    "name": "Site 2",
+                    "identifiers": [{"type": "domain", "value": "site2.com"}],
+                    "tags": ["sports"],
+                },
+                {
+                    "property_id": "site3",
+                    "property_type": "website",
+                    "name": "Site 3",
+                    "identifiers": [{"type": "domain", "value": "site3.com"}],
+                    "tags": ["entertainment"],
+                },
+            ],
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "authorization_type": "property_tags",
+                    "authorized_for": "News and sports",
+                    "property_tags": ["news", "sports"],
+                },
+            ],
+        }
+
+        properties = get_properties_by_agent(adagents_data, "https://agent1.example.com")
+        assert len(properties) == 2
+        assert properties[0]["name"] == "Site 1"
+        assert properties[1]["name"] == "Site 2"
+
+    def test_get_properties_by_agent_publisher_properties(self):
+        """Should return publisher_properties selectors for publisher_properties type."""
+        adagents_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "authorization_type": "publisher_properties",
+                    "authorized_for": "Cross-domain properties",
+                    "publisher_properties": [
+                        {
+                            "publisher_domain": "cnn.com",
+                            "selection_type": "by_tag",
+                            "property_tags": ["ctv"],
+                        },
+                        {
+                            "publisher_domain": "espn.com",
+                            "selection_type": "all",
+                        },
+                    ],
+                },
+            ],
+        }
+
+        properties = get_properties_by_agent(adagents_data, "https://agent1.example.com")
+        assert len(properties) == 2
+        assert properties[0]["publisher_domain"] == "cnn.com"
+        assert properties[0]["selection_type"] == "by_tag"
+        assert properties[1]["publisher_domain"] == "espn.com"
+        assert properties[1]["selection_type"] == "all"
+
     def test_get_properties_by_agent_protocol_agnostic(self):
         """Should match agent URL regardless of protocol."""
         adagents_data = {
             "authorized_agents": [
                 {
                     "url": "https://agent1.example.com",
+                    "authorization_type": "inline_properties",
+                    "authorized_for": "Test",
                     "properties": [
                         {
                             "property_type": "website",
@@ -640,6 +805,8 @@ class TestGetPropertiesByAgent:
             "authorized_agents": [
                 {
                     "url": "https://agent1.example.com",
+                    "authorization_type": "inline_properties",
+                    "authorized_for": "Test",
                     "properties": [
                         {
                             "property_type": "website",
@@ -654,21 +821,37 @@ class TestGetPropertiesByAgent:
         properties = get_properties_by_agent(adagents_data, "https://unknown-agent.com")
         assert len(properties) == 0
 
+    def test_get_properties_by_agent_no_top_level_properties(self):
+        """Should return empty list when using property_ids/tags but no top-level props."""
+        adagents_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "authorization_type": "property_ids",
+                    "authorized_for": "Test",
+                    "property_ids": ["site1"],
+                },
+            ],
+        }
+
+        properties = get_properties_by_agent(adagents_data, "https://agent1.example.com")
+        assert len(properties) == 0
+
 
 class TestAuthorizationContext:
     """Test AuthorizationContext class."""
 
     def test_extract_property_ids(self):
-        """Should extract property IDs from properties."""
+        """Should extract property IDs from properties using property_id field."""
         properties = [
             {
-                "id": "prop1",
+                "property_id": "prop1",
                 "property_type": "website",
                 "name": "Site 1",
                 "identifiers": [{"type": "domain", "value": "site1.com"}],
             },
             {
-                "id": "prop2",
+                "property_id": "prop2",
                 "property_type": "mobile_app",
                 "name": "App 1",
                 "identifiers": [{"type": "bundle_id", "value": "com.site1.app"}],
@@ -682,13 +865,13 @@ class TestAuthorizationContext:
         """Should extract unique tags from properties."""
         properties = [
             {
-                "id": "prop1",
+                "property_id": "prop1",
                 "property_type": "website",
                 "name": "Site 1",
                 "tags": ["premium", "news"],
             },
             {
-                "id": "prop2",
+                "property_id": "prop2",
                 "property_type": "website",
                 "name": "Site 2",
                 "tags": ["premium", "sports"],
@@ -702,11 +885,11 @@ class TestAuthorizationContext:
         """Should deduplicate tags."""
         properties = [
             {
-                "id": "prop1",
+                "property_id": "prop1",
                 "tags": ["premium", "news"],
             },
             {
-                "id": "prop2",
+                "property_id": "prop2",
                 "tags": ["premium", "sports"],
             },
         ]
@@ -716,7 +899,7 @@ class TestAuthorizationContext:
         assert ctx.property_tags.count("premium") == 1
 
     def test_handle_missing_fields(self):
-        """Should handle properties without ID or tags."""
+        """Should handle properties without property_id or tags."""
         properties = [
             {
                 "property_type": "website",
@@ -732,7 +915,7 @@ class TestAuthorizationContext:
         """Should preserve raw properties data."""
         properties = [
             {
-                "id": "prop1",
+                "property_id": "prop1",
                 "property_type": "website",
                 "name": "Site 1",
                 "custom_field": "custom_value",
@@ -747,7 +930,7 @@ class TestAuthorizationContext:
         """Should have useful string representation."""
         properties = [
             {
-                "id": "prop1",
+                "property_id": "prop1",
                 "tags": ["premium"],
             }
         ]
@@ -772,9 +955,11 @@ class TestFetchAgentAuthorizations:
             "authorized_agents": [
                 {
                     "url": "https://our-agent.com",
+                    "authorization_type": "inline_properties",
+                    "authorized_for": "Test",
                     "properties": [
                         {
-                            "id": "prop1",
+                            "property_id": "prop1",
                             "property_type": "website",
                             "name": "Site 1",
                             "identifiers": [{"type": "domain", "value": "nytimes.com"}],
@@ -807,9 +992,14 @@ class TestFetchAgentAuthorizations:
             "authorized_agents": [
                 {
                     "url": "https://our-agent.com",
+                    "authorization_type": "inline_properties",
+                    "authorized_for": "Test",
                     "properties": [
                         {
-                            "id": "nyt_prop1",
+                            "property_id": "nyt_prop1",
+                            "property_type": "website",
+                            "name": "NYT Site",
+                            "identifiers": [{"type": "domain", "value": "nytimes.com"}],
                             "tags": ["news"],
                         }
                     ],
@@ -821,9 +1011,14 @@ class TestFetchAgentAuthorizations:
             "authorized_agents": [
                 {
                     "url": "https://our-agent.com",
+                    "authorization_type": "inline_properties",
+                    "authorized_for": "Test",
                     "properties": [
                         {
-                            "id": "wsj_prop1",
+                            "property_id": "wsj_prop1",
+                            "property_type": "website",
+                            "name": "WSJ Site",
+                            "identifiers": [{"type": "domain", "value": "wsj.com"}],
                             "tags": ["business"],
                         }
                     ],
@@ -859,7 +1054,16 @@ class TestFetchAgentAuthorizations:
             "authorized_agents": [
                 {
                     "url": "https://our-agent.com",
-                    "properties": [{"id": "prop1"}],
+                    "authorization_type": "inline_properties",
+                    "authorized_for": "Test",
+                    "properties": [
+                        {
+                            "property_id": "prop1",
+                            "property_type": "website",
+                            "name": "Site 1",
+                            "identifiers": [{"type": "domain", "value": "nytimes.com"}],
+                        }
+                    ],
                 }
             ]
         }
@@ -869,7 +1073,16 @@ class TestFetchAgentAuthorizations:
             "authorized_agents": [
                 {
                     "url": "https://different-agent.com",
-                    "properties": [{"id": "prop2"}],
+                    "authorization_type": "inline_properties",
+                    "authorized_for": "Test",
+                    "properties": [
+                        {
+                            "property_id": "prop2",
+                            "property_type": "website",
+                            "name": "Site 2",
+                            "identifiers": [{"type": "domain", "value": "wsj.com"}],
+                        }
+                    ],
                 }
             ]
         }
@@ -903,7 +1116,16 @@ class TestFetchAgentAuthorizations:
             "authorized_agents": [
                 {
                     "url": "https://our-agent.com",
-                    "properties": [{"id": "prop1"}],
+                    "authorization_type": "inline_properties",
+                    "authorized_for": "Test",
+                    "properties": [
+                        {
+                            "property_id": "prop1",
+                            "property_type": "website",
+                            "name": "Site 1",
+                            "identifiers": [{"type": "domain", "value": "nytimes.com"}],
+                        }
+                    ],
                 }
             ]
         }
@@ -937,7 +1159,16 @@ class TestFetchAgentAuthorizations:
             "authorized_agents": [
                 {
                     "url": "https://our-agent.com",
-                    "properties": [{"id": "prop1"}],
+                    "authorization_type": "inline_properties",
+                    "authorized_for": "Test",
+                    "properties": [
+                        {
+                            "property_id": "prop1",
+                            "property_type": "website",
+                            "name": "Site 1",
+                            "identifiers": [{"type": "domain", "value": "nytimes.com"}],
+                        }
+                    ],
                 }
             ]
         }
@@ -970,7 +1201,16 @@ class TestFetchAgentAuthorizations:
             "authorized_agents": [
                 {
                     "url": "https://different-agent.com",
-                    "properties": [{"id": "prop1"}],
+                    "authorization_type": "inline_properties",
+                    "authorized_for": "Test",
+                    "properties": [
+                        {
+                            "property_id": "prop1",
+                            "property_type": "website",
+                            "name": "Site 1",
+                            "identifiers": [{"type": "domain", "value": "example.com"}],
+                        }
+                    ],
                 }
             ]
         }
@@ -995,7 +1235,16 @@ class TestFetchAgentAuthorizations:
             "authorized_agents": [
                 {
                     "url": "https://our-agent.com",
-                    "properties": [{"id": "prop1"}],
+                    "authorization_type": "inline_properties",
+                    "authorized_for": "Test",
+                    "properties": [
+                        {
+                            "property_id": "prop1",
+                            "property_type": "website",
+                            "name": "Site 1",
+                            "identifiers": [{"type": "domain", "value": "nytimes.com"}],
+                        }
+                    ],
                 }
             ]
         }

@@ -478,12 +478,19 @@ def get_all_tags(adagents_data: dict[str, Any]) -> set[str]:
 def get_properties_by_agent(adagents_data: dict[str, Any], agent_url: str) -> list[dict[str, Any]]:
     """Get all properties authorized for a specific agent.
 
+    Handles all authorization types per the AdCP specification:
+    - inline_properties: Properties defined directly in the agent's properties array
+    - property_ids: Filter top-level properties by property_id
+    - property_tags: Filter top-level properties by tags
+    - publisher_properties: References properties from other publisher domains
+      (returns the selector objects, not resolved properties)
+
     Args:
         adagents_data: Parsed adagents.json data
         agent_url: URL of the agent to filter by
 
     Returns:
-        List of properties for the specified agent (empty if agent not found or no properties)
+        List of properties for the specified agent (empty if agent not found)
 
     Raises:
         AdagentsValidationError: If adagents_data is malformed
@@ -494,6 +501,11 @@ def get_properties_by_agent(adagents_data: dict[str, Any], agent_url: str) -> li
     authorized_agents = adagents_data.get("authorized_agents")
     if not isinstance(authorized_agents, list):
         raise AdagentsValidationError("adagents.json must have 'authorized_agents' array")
+
+    # Get top-level properties for reference-based authorization types
+    top_level_properties = adagents_data.get("properties", [])
+    if not isinstance(top_level_properties, list):
+        top_level_properties = []
 
     # Normalize the agent URL for comparison
     normalized_agent_url = normalize_url(agent_url)
@@ -510,12 +522,44 @@ def get_properties_by_agent(adagents_data: dict[str, Any], agent_url: str) -> li
         if normalize_url(agent_url_from_json) != normalized_agent_url:
             continue
 
-        # Found the agent - return their properties
-        properties = agent.get("properties", [])
-        if not isinstance(properties, list):
-            return []
+        # Found the agent - determine authorization type
+        authorization_type = agent.get("authorization_type", "")
 
-        return [p for p in properties if isinstance(p, dict)]
+        # Handle inline_properties (properties array directly on agent)
+        if authorization_type == "inline_properties" or "properties" in agent:
+            properties = agent.get("properties", [])
+            if not isinstance(properties, list):
+                return []
+            return [p for p in properties if isinstance(p, dict)]
+
+        # Handle property_ids (filter top-level properties by property_id)
+        if authorization_type == "property_ids":
+            authorized_ids = set(agent.get("property_ids", []))
+            return [
+                p
+                for p in top_level_properties
+                if isinstance(p, dict) and p.get("property_id") in authorized_ids
+            ]
+
+        # Handle property_tags (filter top-level properties by tags)
+        if authorization_type == "property_tags":
+            authorized_tags = set(agent.get("property_tags", []))
+            return [
+                p
+                for p in top_level_properties
+                if isinstance(p, dict) and set(p.get("tags", [])) & authorized_tags
+            ]
+
+        # Handle publisher_properties (cross-domain references)
+        # Returns the selector objects; caller must resolve against other domains
+        if authorization_type == "publisher_properties":
+            publisher_props = agent.get("publisher_properties", [])
+            if not isinstance(publisher_props, list):
+                return []
+            return [p for p in publisher_props if isinstance(p, dict)]
+
+        # No recognized authorization type - return empty
+        return []
 
     return []
 
@@ -544,8 +588,8 @@ class AuthorizationContext:
             if not isinstance(prop, dict):
                 continue
 
-            # Extract property ID
-            prop_id = prop.get("id")
+            # Extract property ID (per AdCP v2 schema, the field is "property_id")
+            prop_id = prop.get("property_id")
             if prop_id and isinstance(prop_id, str):
                 self.property_ids.append(prop_id)
 
