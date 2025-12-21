@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.15.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.14.0...v2.15.0) (2025-12-21)
+
+
+### Features
+
+* improve type ergonomics for library consumers ([#103](https://github.com/adcontextprotocol/adcp-client-python/issues/103)) ([75dec68](https://github.com/adcontextprotocol/adcp-client-python/commit/75dec68ac467e9fca250acb53af8ade4e326d066))
+
 ## [2.14.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.13.0...v2.14.0) (2025-12-19)
 
 
