@@ -62,8 +62,8 @@ def coerce_to_enum(enum_class: type[T]) -> Callable[[Any], T | None]:
                 return enum_class(value)
             except ValueError:
                 # Let Pydantic handle the validation error
-                return value  # type: ignore[return-value]
-        return value  # type: ignore[return-value]
+                return value  # type: ignore
+        return value  # type: ignore
 
     return validator
 
@@ -82,7 +82,7 @@ def coerce_to_enum_list(enum_class: type[T]) -> Callable[[Any], list[T] | None]:
         if value is None:
             return None
         if not isinstance(value, (list, tuple)):
-            return value  # type: ignore[return-value]
+            return value  # type: ignore
         result: list[T] = []
         for item in value:
             if isinstance(item, enum_class):
@@ -92,9 +92,9 @@ def coerce_to_enum_list(enum_class: type[T]) -> Callable[[Any], list[T] | None]:
                     result.append(enum_class(item))
                 except ValueError:
                     # Let Pydantic handle the validation error
-                    result.append(item)  # type: ignore[arg-type]
+                    result.append(item)  # type: ignore
             else:
-                result.append(item)  # type: ignore[arg-type]
+                result.append(item)
         return result
 
     return validator
@@ -131,7 +131,7 @@ def coerce_to_model(model_class: type[M]) -> Callable[[Any], M | None]:
             return value
         if isinstance(value, dict):
             return model_class(**value)
-        return value  # type: ignore[return-value]
+        return value  # type: ignore
 
     return validator
 
@@ -170,7 +170,7 @@ def coerce_subclass_list(base_class: type[M]) -> Callable[[Any], list[M] | None]
         if value is None:
             return None
         if not isinstance(value, (list, tuple)):
-            return value  # type: ignore[return-value]
+            return value  # type: ignore
         # Return the list as-is - Pydantic will validate each item
         # is an instance of base_class (including subclasses)
         return list(value)
