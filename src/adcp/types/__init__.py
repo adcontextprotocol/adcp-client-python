@@ -6,13 +6,33 @@ Users should import from here or directly from adcp.
 Examples:
     from adcp.types import Product, CreativeFilters
     from adcp import Product, CreativeFilters
+
+Type Coercion:
+    For developer ergonomics, request types accept flexible input:
+
+    - Enum fields accept string values:
+        ListCreativeFormatsRequest(type="video")  # Works!
+        ListCreativeFormatsRequest(type=FormatCategory.video)  # Also works
+
+    - Context fields accept dicts:
+        GetProductsRequest(context={"key": "value"})  # Works!
+
+    - FieldModel lists accept strings:
+        ListCreativesRequest(fields=["creative_id", "name"])  # Works!
+
+    See adcp.types.coercion for implementation details.
 """
 
 from __future__ import annotations
 
+# Apply type coercion to generated types (must be imported before other types)
+from adcp.types import (
+    _ergonomic,  # noqa: F401
+    aliases,  # noqa: F401
+)
+
 # Also make submodules available for advanced use
 from adcp.types import _generated as generated  # noqa: F401
-from adcp.types import aliases  # noqa: F401
 
 # Import all types from generated code
 from adcp.types._generated import (
