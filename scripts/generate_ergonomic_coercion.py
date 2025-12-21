@@ -36,6 +36,15 @@ REQUEST_TYPES_TO_ANALYZE = [
     "CreateMediaBuyRequest",
 ]
 
+# Response types to analyze for coercion
+RESPONSE_TYPES_TO_ANALYZE = [
+    "GetProductsResponse",
+    "ListCreativesResponse",
+    "ListCreativeFormatsResponse",
+    "CreateMediaBuyResponse1",
+    "GetMediaBuyDeliveryResponse",
+]
+
 # Nested types that also need coercion
 NESTED_TYPES_TO_ANALYZE = [
     ("Sort", "media_buy.list_creatives_request"),
@@ -45,9 +54,18 @@ NESTED_TYPES_TO_ANALYZE = [
 
 # Types that should get subclass_list coercion (for list variance)
 SUBCLASS_LIST_TYPES = {
+    # Request list types
     "CreativeAsset",
     "CreativeAssignment",
     "PackageRequest",
+    # Response list types
+    "Product",
+    "Creative",
+    "Format",
+    "Package",
+    "MediaBuyDelivery",
+    "Error",
+    "CreativeAgent",
 }
 
 
@@ -180,14 +198,23 @@ def get_import_path(cls) -> str:
 def generate_code() -> str:
     """Generate the _ergonomic.py module content."""
     # Import all the types we need to analyze
-    from adcp.types.generated_poc.core.context import ContextObject
-    from adcp.types.generated_poc.core.creative_asset import CreativeAsset
-    from adcp.types.generated_poc.core.creative_assignment import CreativeAssignment
-    from adcp.types.generated_poc.core.ext import ExtensionObject
     from adcp.types.generated_poc.media_buy.create_media_buy_request import CreateMediaBuyRequest
+    from adcp.types.generated_poc.media_buy.create_media_buy_response import CreateMediaBuyResponse1
+    from adcp.types.generated_poc.media_buy.get_media_buy_delivery_response import (
+        GetMediaBuyDeliveryResponse,
+    )
     from adcp.types.generated_poc.media_buy.get_products_request import GetProductsRequest
-    from adcp.types.generated_poc.media_buy.list_creative_formats_request import ListCreativeFormatsRequest
+
+    # Response types
+    from adcp.types.generated_poc.media_buy.get_products_response import GetProductsResponse
+    from adcp.types.generated_poc.media_buy.list_creative_formats_request import (
+        ListCreativeFormatsRequest,
+    )
+    from adcp.types.generated_poc.media_buy.list_creative_formats_response import (
+        ListCreativeFormatsResponse,
+    )
     from adcp.types.generated_poc.media_buy.list_creatives_request import ListCreativesRequest, Sort
+    from adcp.types.generated_poc.media_buy.list_creatives_response import ListCreativesResponse
     from adcp.types.generated_poc.media_buy.package_request import PackageRequest
     from adcp.types.generated_poc.media_buy.update_media_buy_request import Packages, Packages1
 
@@ -200,6 +227,14 @@ def generate_code() -> str:
         "CreateMediaBuyRequest": CreateMediaBuyRequest,
     }
 
+    response_classes = {
+        "GetProductsResponse": GetProductsResponse,
+        "ListCreativesResponse": ListCreativesResponse,
+        "ListCreativeFormatsResponse": ListCreativeFormatsResponse,
+        "CreateMediaBuyResponse1": CreateMediaBuyResponse1,
+        "GetMediaBuyDeliveryResponse": GetMediaBuyDeliveryResponse,
+    }
+
     nested_classes = {
         "Sort": Sort,
         "Packages": Packages,
@@ -210,7 +245,7 @@ def generate_code() -> str:
     all_coercions = {}
     all_imports = set()
 
-    for name, cls in {**request_classes, **nested_classes}.items():
+    for name, cls in {**request_classes, **response_classes, **nested_classes}.items():
         coercions = analyze_model(cls)
         if coercions:
             all_coercions[name] = (cls, coercions)
@@ -238,6 +273,10 @@ def generate_code() -> str:
     core_imports.append(("ExtensionObject", "core.ext"))
     core_imports.append(("CreativeAsset", "core.creative_asset"))
     core_imports.append(("CreativeAssignment", "core.creative_assignment"))
+    core_imports.append(("Product", "core.product"))
+    core_imports.append(("Format", "core.format"))
+    core_imports.append(("Package", "core.package"))
+    core_imports.append(("Error", "core.error"))
 
     # Deduplicate
     enum_imports = sorted(set(enum_imports))
@@ -317,6 +356,26 @@ def generate_code() -> str:
     lines.append('    Packages1,')
     lines.append(')')
 
+    # Add response type imports
+    lines.append('# Response types')
+    lines.append('from adcp.types.generated_poc.media_buy.create_media_buy_response import (')
+    lines.append('    CreateMediaBuyResponse1,')
+    lines.append(')')
+    lines.append('from adcp.types.generated_poc.media_buy.get_media_buy_delivery_response import (')
+    lines.append('    GetMediaBuyDeliveryResponse,')
+    lines.append('    MediaBuyDelivery,')
+    lines.append('    NotificationType,')
+    lines.append(')')
+    lines.append('from adcp.types.generated_poc.media_buy.get_products_response import GetProductsResponse')
+    lines.append('from adcp.types.generated_poc.media_buy.list_creative_formats_response import (')
+    lines.append('    CreativeAgent,')
+    lines.append('    ListCreativeFormatsResponse,')
+    lines.append(')')
+    lines.append('from adcp.types.generated_poc.media_buy.list_creatives_response import (')
+    lines.append('    Creative,')
+    lines.append('    ListCreativesResponse,')
+    lines.append(')')
+
     lines.append('')
     lines.append('')
     lines.append('def _apply_coercion() -> None:')
@@ -329,6 +388,7 @@ def generate_code() -> str:
     # Generate coercion code for each type
     # Process in a specific order for readability
     type_order = [
+        # Request types
         "ListCreativeFormatsRequest",
         "ListCreativesRequest",
         "Sort",
@@ -337,6 +397,12 @@ def generate_code() -> str:
         "CreateMediaBuyRequest",
         "Packages",
         "Packages1",
+        # Response types
+        "GetProductsResponse",
+        "ListCreativesResponse",
+        "ListCreativeFormatsResponse",
+        "CreateMediaBuyResponse1",
+        "GetMediaBuyDeliveryResponse",
     ]
 
     for type_name in type_order:
@@ -368,47 +434,47 @@ def generate_code() -> str:
             field = c["field"]
             if c["type"] == "enum":
                 target = c["target_class"].__name__
-                lines.append(f'    _patch_field_annotation(')
+                lines.append('    _patch_field_annotation(')
                 lines.append(f'        {type_name},')
                 lines.append(f'        "{field}",')
                 lines.append(f'        Annotated[{target} | None, BeforeValidator(coerce_to_enum({target}))],')
-                lines.append(f'    )')
+                lines.append('    )')
             elif c["type"] == "enum_list":
                 target = c["target_class"].__name__
-                lines.append(f'    _patch_field_annotation(')
+                lines.append('    _patch_field_annotation(')
                 lines.append(f'        {type_name},')
                 lines.append(f'        "{field}",')
-                lines.append(f'        Annotated[')
+                lines.append('        Annotated[')
                 lines.append(f'            list[{target}] | None,')
                 lines.append(f'            BeforeValidator(coerce_to_enum_list({target})),')
-                lines.append(f'        ],')
-                lines.append(f'    )')
+                lines.append('        ],')
+                lines.append('    )')
             elif c["type"] == "context":
-                lines.append(f'    _patch_field_annotation(')
+                lines.append('    _patch_field_annotation(')
                 lines.append(f'        {type_name},')
                 lines.append(f'        "{field}",')
-                lines.append(f'        Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],')
-                lines.append(f'    )')
+                lines.append('        Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],')
+                lines.append('    )')
             elif c["type"] == "ext":
-                lines.append(f'    _patch_field_annotation(')
+                lines.append('    _patch_field_annotation(')
                 lines.append(f'        {type_name},')
                 lines.append(f'        "{field}",')
-                lines.append(f'        Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],')
-                lines.append(f'    )')
+                lines.append('        Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],')
+                lines.append('    )')
             elif c["type"] == "subclass_list":
                 target = c["target_class"].__name__
                 # Check if the field is required (no | None)
                 field_info = cls.model_fields[field]
                 is_optional = "None" in str(field_info.annotation)
                 type_str = f'list[{target}] | None' if is_optional else f'list[{target}]'
-                lines.append(f'    _patch_field_annotation(')
+                lines.append('    _patch_field_annotation(')
                 lines.append(f'        {type_name},')
                 lines.append(f'        "{field}",')
-                lines.append(f'        Annotated[')
+                lines.append('        Annotated[')
                 lines.append(f'            {type_str},')
                 lines.append(f'            BeforeValidator(coerce_subclass_list({target})),')
-                lines.append(f'        ],')
-                lines.append(f'    )')
+                lines.append('        ],')
+                lines.append('    )')
 
         lines.append(f'    {type_name}.model_rebuild(force=True)')
         lines.append('')
