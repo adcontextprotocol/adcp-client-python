@@ -42,6 +42,20 @@ Users should import from here or directly from adcp.</p>
 <h2 id="examples">Examples</h2>
 <p>from adcp.types import Product, CreativeFilters
 from adcp import Product, CreativeFilters</p>
+<p>Type Coercion:
+For developer ergonomics, request types accept flexible input:</p>
+<pre><code>- Enum fields accept string values:
+    ListCreativeFormatsRequest(type="video")  # Works!
+    ListCreativeFormatsRequest(type=FormatCategory.video)  # Also works
+
+- Context fields accept dicts:
+    GetProductsRequest(context={"key": "value"})  # Works!
+
+- FieldModel lists accept strings:
+    ListCreativesRequest(fields=["creative_id", "name"])  # Works!
+
+See adcp.types.coercion for implementation details.
+</code></pre>
 </section>
 <section>
 <h2 class="section-title" id="header-submodules">Sub-modules</h2>
@@ -53,6 +67,10 @@ from adcp import Product, CreativeFilters</p>
 <dt><code class="name"><a title="adcp.types.base" href="base.html">adcp.types.base</a></code></dt>
 <dd>
 <div class="desc"></div>
+</dd>
+<dt><code class="name"><a title="adcp.types.coercion" href="coercion.html">adcp.types.coercion</a></code></dt>
+<dd>
+<div class="desc"><p>Type coercion utilities for improved type ergonomics …</p></div>
 </dd>
 <dt><code class="name"><a title="adcp.types.core" href="core.html">adcp.types.core</a></code></dt>
 <dd>
@@ -20036,6 +20054,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <ul>
 <li><code><a title="adcp.types.aliases" href="aliases.html">adcp.types.aliases</a></code></li>
 <li><code><a title="adcp.types.base" href="base.html">adcp.types.base</a></code></li>
+<li><code><a title="adcp.types.coercion" href="coercion.html">adcp.types.coercion</a></code></li>
 <li><code><a title="adcp.types.core" href="core.html">adcp.types.core</a></code></li>
 <li><code><a title="adcp.types.generated_poc" href="generated_poc/index.html">adcp.types.generated_poc</a></code></li>
 </ul>
