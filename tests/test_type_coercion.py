@@ -405,10 +405,7 @@ class TestResponseTypeCoercion:
 
     def test_list_creative_formats_response_accepts_dict_context(self):
         """ListCreativeFormatsResponse.context accepts dict."""
-        from adcp.types import Format, FormatCategory
-        from adcp.types.generated_poc.media_buy.list_creative_formats_response import (
-            ListCreativeFormatsResponse,
-        )
+        from adcp.types import Format, FormatCategory, ListCreativeFormatsResponse
 
         format_obj = Format(
             format_id={"agent_url": "https://example.com", "id": "banner-300x250"},
@@ -427,10 +424,7 @@ class TestResponseTypeCoercion:
         """ListCreativeFormatsResponse.formats accepts Format subclass instances."""
         from pydantic import Field
 
-        from adcp.types import Format, FormatCategory
-        from adcp.types.generated_poc.media_buy.list_creative_formats_response import (
-            ListCreativeFormatsResponse,
-        )
+        from adcp.types import Format, FormatCategory, ListCreativeFormatsResponse
 
         class ExtendedFormat(Format):
             """Extended with internal tracking fields."""
@@ -446,7 +440,7 @@ class TestResponseTypeCoercion:
 
         # No cast() needed!
         response = ListCreativeFormatsResponse(
-            formats=[format_obj],  # type: ignore[list-item]
+            formats=[format_obj],  # type: ignore[list-item]  # Ignoring due to Python list covariance limitation
         )
 
         assert len(response.formats) == 1
@@ -455,13 +449,10 @@ class TestResponseTypeCoercion:
         assert response.formats[0].internal_id == "format-internal-123"  # type: ignore[attr-defined]
 
     def test_create_media_buy_response_accepts_package_subclass(self):
-        """CreateMediaBuyResponse1.packages accepts Package subclass instances."""
+        """CreateMediaBuySuccessResponse.packages accepts Package subclass instances."""
         from pydantic import Field
 
-        from adcp.types.generated_poc.core.package import Package
-        from adcp.types.generated_poc.media_buy.create_media_buy_response import (
-            CreateMediaBuyResponse1,
-        )
+        from adcp.types import CreateMediaBuySuccessResponse, Package
 
         class ExtendedPackage(Package):
             """Extended with internal tracking fields."""
@@ -474,10 +465,10 @@ class TestResponseTypeCoercion:
         )
 
         # No cast() needed!
-        response = CreateMediaBuyResponse1(
+        response = CreateMediaBuySuccessResponse(
             media_buy_id="mb1",
             buyer_ref="buyer-ref",
-            packages=[package],  # type: ignore[list-item]
+            packages=[package],  # type: ignore[list-item]  # Ignoring due to Python list covariance limitation
         )
 
         assert len(response.packages) == 1
@@ -489,10 +480,7 @@ class TestResponseTypeCoercion:
         """GetMediaBuyDeliveryResponse.context accepts dict."""
         from datetime import datetime, timezone
 
-        from adcp.types.generated_poc.media_buy.get_media_buy_delivery_response import (
-            GetMediaBuyDeliveryResponse,
-            MediaBuyDelivery,
-        )
+        from adcp.types import GetMediaBuyDeliveryResponse, MediaBuyDelivery
 
         delivery = MediaBuyDelivery(
             media_buy_id="mb1",
@@ -524,10 +512,7 @@ class TestResponseTypeCoercion:
 
     def test_response_serialization_roundtrip(self):
         """Response types with coerced values can roundtrip through JSON."""
-        from adcp.types import Format, FormatCategory
-        from adcp.types.generated_poc.media_buy.list_creative_formats_response import (
-            ListCreativeFormatsResponse,
-        )
+        from adcp.types import Format, FormatCategory, ListCreativeFormatsResponse
 
         format_obj = Format(
             format_id={"agent_url": "https://example.com", "id": "banner-300x250"},
@@ -546,3 +531,84 @@ class TestResponseTypeCoercion:
         assert len(restored.formats) == 1
         assert restored.formats[0].name == "Banner 300x250"
         assert restored.context.key == "value"
+
+    def test_get_products_response_accepts_product_subclass(self):
+        """GetProductsResponse.products accepts Product subclass instances."""
+        from pydantic import Field
+
+        from adcp.types import (
+            CpmFixedRatePricingOption,
+            DeliveryType,
+            FormatId,
+            GetProductsResponse,
+            Product,
+            PublisherPropertiesAll,
+        )
+        from adcp.types.generated_poc.core.product import DeliveryMeasurement
+
+        class ExtendedProduct(Product):
+            """Extended with internal tracking fields."""
+
+            internal_sku: str | None = Field(None, exclude=True)
+
+        product = ExtendedProduct(
+            product_id="prod-123",
+            name="Premium Display",
+            description="A premium display product",
+            delivery_type=DeliveryType.guaranteed,
+            delivery_measurement=DeliveryMeasurement(provider="Test Provider"),
+            format_ids=[FormatId(agent_url="https://example.com", id="banner-300x250")],
+            pricing_options=[
+                CpmFixedRatePricingOption(
+                    currency="USD",
+                    pricing_option_id="opt-1",
+                    rate=5.0,
+                    is_fixed=True,
+                    pricing_model="cpm",
+                )
+            ],
+            publisher_properties=[
+                PublisherPropertiesAll(
+                    publisher_domain="example.com",
+                    selection_type="all",
+                )
+            ],
+            internal_sku="SKU-12345",
+        )
+
+        # No cast() needed!
+        response = GetProductsResponse(
+            products=[product],  # type: ignore[list-item]  # Ignoring due to Python list covariance limitation
+        )
+
+        assert len(response.products) == 1
+        assert response.products[0].product_id == "prod-123"
+        # Internal field is preserved at runtime
+        assert response.products[0].internal_sku == "SKU-12345"  # type: ignore[attr-defined]
+
+    def test_response_errors_accepts_error_subclass(self):
+        """Response types with errors field accept Error subclass instances."""
+        from pydantic import Field
+
+        from adcp.types import Error, GetProductsResponse
+
+        class ExtendedError(Error):
+            """Extended with internal tracking fields."""
+
+            internal_trace_id: str | None = Field(None, exclude=True)
+
+        error = ExtendedError(
+            code="INVALID_REQUEST",
+            message="Product ID is required",
+            internal_trace_id="trace-abc-123",
+        )
+
+        response = GetProductsResponse(
+            products=[],
+            errors=[error],  # type: ignore[list-item]  # Ignoring due to Python list covariance limitation
+        )
+
+        assert len(response.errors) == 1
+        assert response.errors[0].code == "INVALID_REQUEST"
+        # Internal field is preserved at runtime
+        assert response.errors[0].internal_trace_id == "trace-abc-123"  # type: ignore[attr-defined]

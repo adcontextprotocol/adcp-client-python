@@ -17,6 +17,26 @@ FormatId = str
 PackageRequest = dict[str, Any]
 ```
 
+**Import Architecture for Generated Types**
+The type system has a strict layering to prevent brittleness:
+
+```
+generated_poc/*.py (internal, auto-generated from schemas)
+    ↓
+_generated.py (internal consolidation)
+    ↓
+stable.py + aliases.py + _ergonomic.py (public API / internal infrastructure)
+    ↓
+__init__.py (user-facing exports)
+```
+
+Only these modules may import from `generated_poc/` or `_generated.py`:
+- `stable.py`: Re-exports base types with clean names
+- `aliases.py`: Creates semantic aliases for numbered discriminated union types
+- `_ergonomic.py`: Applies BeforeValidator coercion for type ergonomics
+
+All other source code should import from `adcp.types` (the public API).
+
 **Type Checking Best Practices**
 - Use `TYPE_CHECKING` for optional dependencies to avoid runtime import errors
 - Use `cast()` for JSON deserialization to satisfy mypy's `no-any-return` checks
