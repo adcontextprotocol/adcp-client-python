@@ -337,6 +337,22 @@ def main():
         # Restore files where only timestamp changed
         restore_unchanged_files()
 
+        # Generate ergonomic coercion module (type coercion for better API ergonomics)
+        ergonomic_script = REPO_ROOT / "scripts" / "generate_ergonomic_coercion.py"
+        if ergonomic_script.exists():
+            print("\nGenerating ergonomic coercion module...")
+            result = subprocess.run(
+                [sys.executable, str(ergonomic_script)],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                print("\n✗ Ergonomic coercion generation failed:", file=sys.stderr)
+                print(result.stderr, file=sys.stderr)
+                return 1
+            if result.stdout:
+                print(result.stdout, end="")
+
         # Count generated files
         py_files = list(OUTPUT_DIR.glob("*.py"))
         print("\n✓ Successfully generated types")
