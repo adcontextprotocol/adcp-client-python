@@ -165,7 +165,8 @@ def _extract_task_data(data: dict[str, Any]) -> dict[str, Any]:
         Task-specific data suitable for schema validation.
         Returns the same dict object if no extraction is needed.
     """
-    # Check for wrapped payload fields (ProtocolResponse uses 'data', ProtocolEnvelope uses 'payload')
+    # Check for wrapped payload fields
+    # (ProtocolResponse uses 'data', ProtocolEnvelope uses 'payload')
     if "data" in data and isinstance(data["data"], dict):
         return data["data"]
     if "payload" in data and isinstance(data["payload"], dict):
