@@ -129,11 +129,65 @@ def parse_mcp_content(content: list[dict[str, Any]], response_type: type[T]) -> 
     )
 
 
+# Protocol-level fields from ProtocolResponse (core/response.json) and
+# ProtocolEnvelope (core/protocol_envelope.json). These are separated from
+# task data for schema validation, but preserved at the TaskResult level.
+# Note: 'data' and 'payload' are handled separately as wrapper fields.
+PROTOCOL_FIELDS = {
+    "message",  # Human-readable summary
+    "context_id",  # Session continuity identifier
+    "task_id",  # Async operation identifier
+    "status",  # Task execution state
+    "timestamp",  # Response timestamp
+}
+
+
+def _extract_task_data(data: dict[str, Any]) -> dict[str, Any]:
+    """
+    Extract task-specific data from a protocol response.
+
+    Servers may return responses in ProtocolResponse format:
+    {"message": "...", "context_id": "...", "data": {...}}
+
+    Or ProtocolEnvelope format:
+    {"message": "...", "status": "...", "payload": {...}}
+
+    Or task data directly with protocol fields mixed in:
+    {"message": "...", "products": [...], ...}
+
+    This function separates task-specific data for schema validation.
+    Protocol fields are preserved at the TaskResult level.
+
+    Args:
+        data: Response data dict
+
+    Returns:
+        Task-specific data suitable for schema validation.
+        Returns the same dict object if no extraction is needed.
+    """
+    # Check for wrapped payload fields (ProtocolResponse uses 'data', ProtocolEnvelope uses 'payload')
+    if "data" in data and isinstance(data["data"], dict):
+        return data["data"]
+    if "payload" in data and isinstance(data["payload"], dict):
+        return data["payload"]
+
+    # Check if any protocol fields are present
+    if not any(k in PROTOCOL_FIELDS for k in data):
+        return data  # Return same object for identity check
+
+    # Separate task data from protocol fields
+    return {k: v for k, v in data.items() if k not in PROTOCOL_FIELDS}
+
+
 def parse_json_or_text(data: Any, response_type: type[T]) -> T:
     """
     Parse data that might be JSON string, dict, or other format.
 
     Used by A2A adapter for flexible response parsing.
+
+    Handles protocol-level wrapping where servers return:
+    - {"message": "...", "data": {...task_data...}}
+    - {"message": "...", ...task_fields...}
 
     Args:
         data: Response data (string, dict, or other)
@@ -147,22 +201,42 @@ def parse_json_or_text(data: Any, response_type: type[T]) -> T:
     """
     # If already a dict, try direct validation
     if isinstance(data, dict):
+        # Try direct validation first
+        original_error: Exception | None = None
         try:
             return _validate_union_type(data, response_type)
-        except ValidationError as e:
-            # Get the type name, handling Union types
-            type_name = getattr(response_type, "__name__", str(response_type))
-            raise ValueError(f"Response doesn't match expected schema {type_name}: {e}") from e
+        except (ValidationError, ValueError) as e:
+            original_error = e
+
+        # Try extracting task data (separates protocol fields)
+        task_data = _extract_task_data(data)
+        if task_data is not data:
+            try:
+                return _validate_union_type(task_data, response_type)
+            except (ValidationError, ValueError):
+                pass  # Fall through to raise original error
+
+        # Report the original validation error
+        type_name = getattr(response_type, "__name__", str(response_type))
+        raise ValueError(
+            f"Response doesn't match expected schema {type_name}: {original_error}"
+        ) from original_error
 
     # If string, try JSON parsing
     if isinstance(data, str):
         try:
             parsed = json.loads(data)
-            return _validate_union_type(parsed, response_type)
         except json.JSONDecodeError as e:
             raise ValueError(f"Response is not valid JSON: {e}") from e
+
+        # Recursively handle dict parsing (which includes protocol field extraction)
+        if isinstance(parsed, dict):
+            return parse_json_or_text(parsed, response_type)
+
+        # Non-dict JSON (shouldn't happen for AdCP responses)
+        try:
+            return _validate_union_type(parsed, response_type)
         except ValidationError as e:
-            # Get the type name, handling Union types
             type_name = getattr(response_type, "__name__", str(response_type))
             raise ValueError(f"Response doesn't match expected schema {type_name}: {e}") from e
 

@@ -135,3 +135,151 @@ class TestParseJSONOrText:
 
         with pytest.raises(ValueError, match="doesn't match expected schema"):
             parse_json_or_text(data, SampleResponse)
+
+
+class ProductResponse(BaseModel):
+    """Response type without protocol fields for testing protocol field stripping."""
+
+    products: list[str]
+    total: int = 0
+
+
+class TestProtocolFieldExtraction:
+    """Tests for protocol field extraction from A2A responses.
+
+    A2A servers may include protocol-level fields (message, context_id, data)
+    that are not part of task-specific response schemas. These are separated
+    for task data validation, but preserved at the TaskResult level.
+
+    See: https://github.com/adcontextprotocol/adcp-client-python/issues/109
+    """
+
+    def test_response_with_message_field_separated(self):
+        """Test that protocol 'message' field is separated before validation."""
+        # A2A server returns task data with protocol message mixed in
+        data = {
+            "message": "No products matched your requirements.",
+            "products": ["product-1", "product-2"],
+            "total": 2,
+        }
+
+        result = parse_json_or_text(data, ProductResponse)
+
+        assert isinstance(result, ProductResponse)
+        assert result.products == ["product-1", "product-2"]
+        assert result.total == 2
+
+    def test_response_with_context_id_separated(self):
+        """Test that protocol 'context_id' field is separated before validation."""
+        data = {
+            "context_id": "session-123",
+            "products": ["product-1"],
+            "total": 1,
+        }
+
+        result = parse_json_or_text(data, ProductResponse)
+
+        assert isinstance(result, ProductResponse)
+        assert result.products == ["product-1"]
+
+    def test_response_with_multiple_protocol_fields_separated(self):
+        """Test that multiple protocol fields are separated."""
+        data = {
+            "message": "Found products",
+            "context_id": "session-456",
+            "products": ["a", "b", "c"],
+            "total": 3,
+        }
+
+        result = parse_json_or_text(data, ProductResponse)
+
+        assert isinstance(result, ProductResponse)
+        assert result.products == ["a", "b", "c"]
+        assert result.total == 3
+
+    def test_response_with_data_wrapper_extracted(self):
+        """Test that ProtocolResponse 'data' wrapper is extracted."""
+        # Full ProtocolResponse format: {"message": "...", "data": {...task_data...}}
+        data = {
+            "message": "Operation completed",
+            "context_id": "ctx-789",
+            "data": {
+                "products": ["wrapped-product"],
+                "total": 1,
+            },
+        }
+
+        result = parse_json_or_text(data, ProductResponse)
+
+        assert isinstance(result, ProductResponse)
+        assert result.products == ["wrapped-product"]
+        assert result.total == 1
+
+    def test_response_with_payload_wrapper_extracted(self):
+        """Test that ProtocolEnvelope 'payload' wrapper is extracted."""
+        # Full ProtocolEnvelope format
+        data = {
+            "message": "Operation completed",
+            "status": "completed",
+            "task_id": "task-123",
+            "timestamp": "2025-01-01T00:00:00Z",
+            "payload": {
+                "products": ["envelope-product"],
+                "total": 1,
+            },
+        }
+
+        result = parse_json_or_text(data, ProductResponse)
+
+        assert isinstance(result, ProductResponse)
+        assert result.products == ["envelope-product"]
+        assert result.total == 1
+
+    def test_exact_match_still_works(self):
+        """Test that responses exactly matching schema still work."""
+        data = {
+            "products": ["exact-match"],
+            "total": 1,
+        }
+
+        result = parse_json_or_text(data, ProductResponse)
+
+        assert result.products == ["exact-match"]
+        assert result.total == 1
+
+    def test_json_string_with_protocol_fields(self):
+        """Test JSON string with protocol fields is parsed correctly."""
+        data = json.dumps(
+            {
+                "message": "Success",
+                "products": ["from-json-string"],
+                "total": 1,
+            }
+        )
+
+        result = parse_json_or_text(data, ProductResponse)
+
+        assert result.products == ["from-json-string"]
+
+    def test_invalid_data_after_separation_raises_error(self):
+        """Test that invalid data still raises error after separation."""
+        data = {
+            "message": "Some message",
+            "wrong_field": "value",
+        }
+
+        with pytest.raises(ValueError, match="doesn't match expected schema"):
+            parse_json_or_text(data, ProductResponse)
+
+    def test_model_with_message_field_validates_directly(self):
+        """Test that models containing 'message' field validate without separation."""
+        # SampleResponse has a 'message' field, so it should validate directly
+        data = {
+            "message": "Hello",
+            "count": 42,
+        }
+
+        result = parse_json_or_text(data, SampleResponse)
+
+        assert result.message == "Hello"
+        assert result.count == 42
