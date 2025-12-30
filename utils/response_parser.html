@@ -58,6 +58,10 @@ el.replaceWith(d);
 
     Used by A2A adapter for flexible response parsing.
 
+    Handles protocol-level wrapping where servers return:
+    - {&#34;message&#34;: &#34;...&#34;, &#34;data&#34;: {...task_data...}}
+    - {&#34;message&#34;: &#34;...&#34;, ...task_fields...}
+
     Args:
         data: Response data (string, dict, or other)
         response_type: Expected Pydantic model type
@@ -70,22 +74,42 @@ el.replaceWith(d);
     &#34;&#34;&#34;
     # If already a dict, try direct validation
     if isinstance(data, dict):
+        # Try direct validation first
+        original_error: Exception | None = None
         try:
             return _validate_union_type(data, response_type)
-        except ValidationError as e:
-            # Get the type name, handling Union types
-            type_name = getattr(response_type, &#34;__name__&#34;, str(response_type))
-            raise ValueError(f&#34;Response doesn&#39;t match expected schema {type_name}: {e}&#34;) from e
+        except (ValidationError, ValueError) as e:
+            original_error = e
+
+        # Try extracting task data (separates protocol fields)
+        task_data = _extract_task_data(data)
+        if task_data is not data:
+            try:
+                return _validate_union_type(task_data, response_type)
+            except (ValidationError, ValueError):
+                pass  # Fall through to raise original error
+
+        # Report the original validation error
+        type_name = getattr(response_type, &#34;__name__&#34;, str(response_type))
+        raise ValueError(
+            f&#34;Response doesn&#39;t match expected schema {type_name}: {original_error}&#34;
+        ) from original_error
 
     # If string, try JSON parsing
     if isinstance(data, str):
         try:
             parsed = json.loads(data)
-            return _validate_union_type(parsed, response_type)
         except json.JSONDecodeError as e:
             raise ValueError(f&#34;Response is not valid JSON: {e}&#34;) from e
+
+        # Recursively handle dict parsing (which includes protocol field extraction)
+        if isinstance(parsed, dict):
+            return parse_json_or_text(parsed, response_type)
+
+        # Non-dict JSON (shouldn&#39;t happen for AdCP responses)
+        try:
+            return _validate_union_type(parsed, response_type)
         except ValidationError as e:
-            # Get the type name, handling Union types
             type_name = getattr(response_type, &#34;__name__&#34;, str(response_type))
             raise ValueError(f&#34;Response doesn&#39;t match expected schema {type_name}: {e}&#34;) from e
 
@@ -95,6 +119,9 @@ el.replaceWith(d);
 </details>
 <div class="desc"><p>Parse data that might be JSON string, dict, or other format.</p>
 <p>Used by A2A adapter for flexible response parsing.</p>
+<p>Handles protocol-level wrapping where servers return:
+- {"message": "&hellip;", "data": {&hellip;task_data&hellip;}}
+- {"message": "&hellip;", &hellip;task_fields&hellip;}</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>data</code></strong></dt>
