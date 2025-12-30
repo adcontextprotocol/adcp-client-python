@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.17.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.16.0...v2.17.0) (2025-12-30)
+
+
+### Features
+
+* add protocol field extraction for A2A responses ([#110](https://github.com/adcontextprotocol/adcp-client-python/issues/110)) ([ae71b65](https://github.com/adcontextprotocol/adcp-client-python/commit/ae71b65bec03f7f1634d1d4eb6a45c58a657a0b2))
+
 ## [2.16.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.15.0...v2.16.0) (2025-12-21)
 
 
