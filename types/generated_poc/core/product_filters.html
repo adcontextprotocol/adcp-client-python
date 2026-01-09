@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class BudgetRange(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     currency: Annotated[
         str,
@@ -122,7 +122,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BudgetRange1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     currency: Annotated[
         str,
@@ -238,7 +238,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ProductFilters(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     budget_range: Annotated[
         BudgetRange | BudgetRange1 | None,

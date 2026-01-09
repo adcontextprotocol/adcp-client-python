@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class SignalFilters(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     catalog_types: Annotated[
         list[signal_catalog_type.SignalCatalogType] | None,

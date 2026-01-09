@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class AssignedPackage(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     assigned_date: Annotated[AwareDatetime, Field(description=&#39;When this assignment was created&#39;)]
     package_id: Annotated[str, Field(description=&#39;Package identifier&#39;)]
@@ -122,7 +122,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Assignments(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     assigned_packages: Annotated[
         list[AssignedPackage] | None,
@@ -182,7 +182,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Creative(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     assets: Annotated[
         dict[
@@ -321,7 +321,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ListCreativesResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     creatives: Annotated[
@@ -411,7 +411,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Pagination(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     current_page: Annotated[
         int | None, Field(description=&#39;Current page number (1-based)&#39;, ge=1)
@@ -485,7 +485,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Performance(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     clicks: Annotated[
         int | None, Field(description=&#39;Total clicks across all assignments&#39;, ge=0)
@@ -572,7 +572,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class QuerySummary(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     filters_applied: Annotated[
         list[str] | None, Field(description=&#39;List of filters that were applied to the query&#39;)
@@ -767,7 +767,7 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class StatusSummary(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     approved: Annotated[int | None, Field(description=&#39;Number of approved creatives&#39;, ge=0)] = None
     archived: Annotated[int | None, Field(description=&#39;Number of archived creatives&#39;, ge=0)] = None

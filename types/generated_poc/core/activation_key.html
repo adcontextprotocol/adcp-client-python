@@ -114,7 +114,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ActivationKey1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     segment_id: Annotated[
         str,
@@ -172,7 +172,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ActivationKey2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     key: Annotated[str, Field(description=&#39;The targeting parameter key&#39;)]
     type: Annotated[Literal[&#39;key_value&#39;], Field(description=&#39;Key-value pair based targeting&#39;)]

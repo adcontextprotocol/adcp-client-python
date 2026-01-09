@@ -57,12 +57,12 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Error(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     code: Annotated[str, Field(description=&#39;Error code for programmatic handling&#39;)]
-    details: Annotated[Any | None, Field(description=&#39;Additional task-specific error details&#39;)] = (
-        None
-    )
+    details: Annotated[
+        dict[str, Any] | None, Field(description=&#39;Additional task-specific error details&#39;)
+    ] = None
     field: Annotated[
         str | None,
         Field(description=&#34;Field path associated with the error (e.g., &#39;packages[0].targeting&#39;)&#34;),
@@ -92,7 +92,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.error.Error.details"><code class="name">var <span class="ident">details</span> : typing.Any | None</code></dt>
+<dt id="adcp.types.generated_poc.core.error.Error.details"><code class="name">var <span class="ident">details</span> : dict[str, typing.Any] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>

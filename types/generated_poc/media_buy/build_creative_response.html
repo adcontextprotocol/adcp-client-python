@@ -114,7 +114,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BuildCreativeResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     creative_manifest: Annotated[
@@ -177,7 +177,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BuildCreativeResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[

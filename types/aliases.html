@@ -147,7 +147,7 @@ immediately rather than at runtime when users try to use the aliases.</p>
 </summary>
 <pre><code class="python">class ActivateSignalResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     deployments: Annotated[
@@ -210,7 +210,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ActivateSignalResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
@@ -276,7 +276,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ActivationKey1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     segment_id: Annotated[
         str,
@@ -334,7 +334,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ActivationKey2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     key: Annotated[str, Field(description=&#39;The targeting parameter key&#39;)]
     type: Annotated[Literal[&#39;key_value&#39;], Field(description=&#39;Key-value pair based targeting&#39;)]
@@ -394,7 +394,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizedAgents(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     authorization_type: Annotated[
         Literal[&#39;property_ids&#39;],
@@ -475,7 +475,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizedAgents1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     authorization_type: Annotated[
         Literal[&#39;property_tags&#39;],
@@ -556,7 +556,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizedAgents2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     authorization_type: Annotated[
         Literal[&#39;inline_properties&#39;],
@@ -637,7 +637,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizedAgents3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     authorization_type: Annotated[
         Literal[&#39;publisher_properties&#39;],
@@ -720,7 +720,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BuildCreativeResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     creative_manifest: Annotated[
@@ -783,7 +783,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BuildCreativeResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
@@ -848,7 +848,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreateMediaBuyResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
     context: context_1.ContextObject | None = None
@@ -930,7 +930,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreateMediaBuyResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
@@ -993,7 +993,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Creative(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     action: Annotated[
         creative_action.CreativeAction, Field(description=&#39;Action taken for this creative&#39;)
@@ -1120,7 +1120,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class DaastAsset1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     companion_ads: Annotated[
         bool | None, Field(description=&#39;Whether companion display ads are included&#39;)
@@ -1207,7 +1207,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class DaastAsset2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     companion_ads: Annotated[
         bool | None, Field(description=&#39;Whether companion display ads are included&#39;)
@@ -1294,7 +1294,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Deployment1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
     activation_key: Annotated[
@@ -1393,7 +1393,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Deployment2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
     activation_key: Annotated[
@@ -1492,7 +1492,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Destination1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     account: Annotated[
         str | None, Field(description=&#39;Optional account identifier on the platform&#39;)
@@ -1560,7 +1560,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Destination2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     account: Annotated[
         str | None, Field(description=&#39;Optional account identifier on the agent&#39;)
@@ -1627,7 +1627,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Package(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     bid_price: Annotated[
         float | None,
@@ -1771,7 +1771,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewCreativeRequest1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     creative_manifest: Annotated[
@@ -1878,7 +1878,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewCreativeRequest2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
@@ -1963,7 +1963,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewCreativeResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     expires_at: Annotated[
@@ -2054,7 +2054,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewCreativeResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
@@ -2128,7 +2128,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewRender1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     dimensions: Annotated[
         Dimensions | None, Field(description=&#39;Dimensions for this rendered piece&#39;)
@@ -2222,7 +2222,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewRender2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     dimensions: Annotated[
         Dimensions | None, Field(description=&#39;Dimensions for this rendered piece&#39;)
@@ -2315,7 +2315,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewRender3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     dimensions: Annotated[
         Dimensions | None, Field(description=&#39;Dimensions for this rendered piece&#39;)
@@ -2540,7 +2540,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ProvidePerformanceFeedbackResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
@@ -2603,7 +2603,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ProvidePerformanceFeedbackResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
@@ -2669,7 +2669,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PublisherPropertySelector1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     publisher_domain: Annotated[
         str,
@@ -2735,7 +2735,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PublisherPropertySelector2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     property_ids: Annotated[
         list[property_id.PropertyId],
@@ -2807,7 +2807,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PublisherPropertySelector3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     property_tags: Annotated[
         list[property_tag.PropertyTag],
@@ -2881,7 +2881,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SubAsset1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     asset_id: Annotated[
         str, Field(description=&#39;Unique identifier for the asset within the creative&#39;)
@@ -2956,7 +2956,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SubAsset2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     asset_id: Annotated[
         str, Field(description=&#39;Unique identifier for the asset within the creative&#39;)
@@ -3036,7 +3036,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SyncCreativesResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     creatives: Annotated[
@@ -3108,7 +3108,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SyncCreativesResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
@@ -3174,7 +3174,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class UpdateMediaBuyRequest1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     buyer_ref: Annotated[
         str | None, Field(description=&#34;Buyer&#39;s reference for the media buy to update&#34;)
@@ -3278,7 +3278,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class UpdateMediaBuyRequest2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference for the media buy to update&#34;)]
     context: context_1.ContextObject | None = None
@@ -3382,7 +3382,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class UpdateMediaBuyResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     affected_packages: Annotated[
         list[package.Package] | None,
@@ -3463,7 +3463,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class UpdateMediaBuyResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
@@ -3526,7 +3526,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class VastAsset1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     delivery_type: Annotated[
         Literal[&#39;url&#39;],
@@ -3614,7 +3614,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class VastAsset2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     content: Annotated[str, Field(description=&#39;Inline VAST XML content&#39;)]
     delivery_type: Annotated[

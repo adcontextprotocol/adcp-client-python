@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class AuthorizedAgents(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     authorization_type: Annotated[
         Literal[&#39;property_ids&#39;],
@@ -138,7 +138,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizedAgents1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     authorization_type: Annotated[
         Literal[&#39;property_tags&#39;],
@@ -219,7 +219,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizedAgents2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     authorization_type: Annotated[
         Literal[&#39;inline_properties&#39;],
@@ -300,7 +300,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizedAgents3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     authorization_type: Annotated[
         Literal[&#39;publisher_properties&#39;],
@@ -388,12 +388,12 @@ validated to form a valid model.</p>
             description=&#39;Declaration of authorized sales agents for advertising inventory. Hosted at /.well-known/adagents.json on publisher domains. Can either contain the full structure inline or reference an authoritative URL.&#39;,
             examples=[
                 {
-                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
+                    &#39;$schema&#39;: &#39;/schemas/2.6.0/adagents.json&#39;,
                     &#39;authoritative_location&#39;: &#39;https://cdn.example.com/adagents/v2/adagents.json&#39;,
                     &#39;last_updated&#39;: &#39;2025-01-15T10:00:00Z&#39;,
                 },
                 {
-                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
+                    &#39;$schema&#39;: &#39;/schemas/2.6.0/adagents.json&#39;,
                     &#39;authorized_agents&#39;: [
                         {
                             &#39;authorization_type&#39;: &#39;property_tags&#39;,
@@ -419,7 +419,7 @@ validated to form a valid model.</p>
                     },
                 },
                 {
-                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
+                    &#39;$schema&#39;: &#39;/schemas/2.6.0/adagents.json&#39;,
                     &#39;authorized_agents&#39;: [
                         {
                             &#39;authorization_type&#39;: &#39;property_tags&#39;,
@@ -484,7 +484,7 @@ validated to form a valid model.</p>
                     },
                 },
                 {
-                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
+                    &#39;$schema&#39;: &#39;/schemas/2.6.0/adagents.json&#39;,
                     &#39;authorized_agents&#39;: [
                         {
                             &#39;authorization_type&#39;: &#39;property_tags&#39;,
@@ -512,7 +512,7 @@ validated to form a valid model.</p>
                     },
                 },
                 {
-                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
+                    &#39;$schema&#39;: &#39;/schemas/2.6.0/adagents.json&#39;,
                     &#39;authorized_agents&#39;: [
                         {
                             &#39;authorization_type&#39;: &#39;publisher_properties&#39;,
@@ -606,7 +606,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizedSalesAgents1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     field_schema: Annotated[
         str | None,
@@ -677,7 +677,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizedSalesAgents2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     field_schema: Annotated[
         str | None,
@@ -780,7 +780,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Contact(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     domain: Annotated[
         str | None,
@@ -884,7 +884,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Tags(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     description: Annotated[str, Field(description=&#39;Description of what this tag represents&#39;)]
     name: Annotated[str, Field(description=&#39;Human-readable name for this tag&#39;)]</code></pre>

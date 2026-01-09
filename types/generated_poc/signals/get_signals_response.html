@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class GetSignalsResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
@@ -127,7 +127,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Pricing(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     cpm: Annotated[float, Field(description=&#39;Cost per thousand impressions&#39;, ge=0.0)]
     currency: Annotated[str, Field(description=&#39;Currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]</code></pre>
@@ -182,7 +182,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Signal(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     coverage_percentage: Annotated[
         float, Field(description=&#39;Percentage of audience coverage&#39;, ge=0.0, le=100.0)

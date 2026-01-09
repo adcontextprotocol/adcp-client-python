@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Asset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     asset_id: Annotated[str, Field(description=&#39;Unique identifier for this asset&#39;)]
     asset_type: Annotated[
@@ -178,7 +178,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BrandManifest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     assets: Annotated[
         list[Asset] | None,
@@ -777,7 +777,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ProductCatalog(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     categories: Annotated[
         list[str] | None,

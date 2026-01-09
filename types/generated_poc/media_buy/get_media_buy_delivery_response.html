@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class AggregatedTotals(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     clicks: Annotated[
         float | None,
@@ -254,7 +254,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class DailyBreakdownItem(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     date: Annotated[str, Field(description=&#39;Date (YYYY-MM-DD)&#39;, pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;)]
     impressions: Annotated[float, Field(description=&#39;Daily impressions&#39;, ge=0.0)]
@@ -393,7 +393,7 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class GetMediaBuyDeliveryResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     aggregated_totals: Annotated[
         AggregatedTotals | None,
@@ -543,7 +543,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class MediaBuyDelivery(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     buyer_ref: Annotated[
         str | None, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)
@@ -729,7 +729,7 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class ReportingPeriod(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     end: Annotated[
         AwareDatetime,

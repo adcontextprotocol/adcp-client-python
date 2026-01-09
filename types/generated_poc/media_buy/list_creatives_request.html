@@ -161,7 +161,7 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class ListCreativesRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
@@ -261,7 +261,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Pagination(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     limit: Annotated[
         int | None, Field(description=&#39;Maximum number of creatives to return&#39;, ge=1, le=100)
@@ -318,7 +318,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Sort(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     direction: Annotated[
         sort_direction.SortDirection | None, Field(description=&#39;Sort direction&#39;)

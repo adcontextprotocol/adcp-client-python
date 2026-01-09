@@ -114,7 +114,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class VastAsset1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     delivery_type: Annotated[
         Literal[&#39;url&#39;],
@@ -202,7 +202,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class VastAsset2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     content: Annotated[str, Field(description=&#39;Inline VAST XML content&#39;)]
     delivery_type: Annotated[

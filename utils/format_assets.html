@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.utils API documentation</title>
-<meta name="description" content="">
+<title>adcp.utils.format_assets API documentation</title>
+<meta name="description" content="Format Asset Utilities …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -33,58 +33,37 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.utils</code></h1>
+<h1 class="title">Module <code>adcp.utils.format_assets</code></h1>
 </header>
 <section id="section-intro">
+<p>Format Asset Utilities.</p>
+<p>Provides backward-compatible access to format assets.
+The v2.6 <code>assets</code> field replaces the deprecated <code>assets_required</code> field.</p>
+<p>These utilities help users work with format assets regardless of which field
+the agent uses, providing a smooth migration path.</p>
+<h2 id="example">Example</h2>
+<pre><code class="language-python">from adcp import Format
+from adcp.utils.format_assets import get_format_assets, get_required_assets
+
+# Get all assets from a format (handles both new and deprecated fields)
+all_assets = get_format_assets(format)
+
+# Get only required assets
+required = get_required_assets(format)
+
+# Check if using deprecated field
+if uses_deprecated_assets_field(format):
+    print(&quot;Agent should migrate to 'assets' field&quot;)
+</code></pre>
 </section>
 <section>
-<h2 class="section-title" id="header-submodules">Sub-modules</h2>
-<dl>
-<dt><code class="name"><a title="adcp.utils.format_assets" href="format_assets.html">adcp.utils.format_assets</a></code></dt>
-<dd>
-<div class="desc"><p>Format Asset Utilities …</p></div>
-</dd>
-<dt><code class="name"><a title="adcp.utils.operation_id" href="operation_id.html">adcp.utils.operation_id</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt><code class="name"><a title="adcp.utils.preview_cache" href="preview_cache.html">adcp.utils.preview_cache</a></code></dt>
-<dd>
-<div class="desc"><p>Helper utilities for generating creative preview URLs for grid rendering.</p></div>
-</dd>
-<dt><code class="name"><a title="adcp.utils.response_parser" href="response_parser.html">adcp.utils.response_parser</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
 </section>
 <section>
 </section>
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="adcp.utils.create_operation_id"><code class="name flex">
-<span>def <span class="ident">create_operation_id</span></span>(<span>) ‑> str</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def create_operation_id() -&gt; str:
-    &#34;&#34;&#34;
-    Generate a unique operation ID.
-
-    Returns:
-        A unique operation ID in the format &#39;op_{hex}&#39;
-    &#34;&#34;&#34;
-    return f&#34;op_{uuid4().hex[:12]}&#34;</code></pre>
-</details>
-<div class="desc"><p>Generate a unique operation ID.</p>
-<h2 id="returns">Returns</h2>
-<p>A unique operation ID in the format 'op_{hex}'</p></div>
-</dd>
-<dt id="adcp.utils.get_asset_count"><code class="name flex">
+<dt id="adcp.utils.format_assets.get_asset_count"><code class="name flex">
 <span>def <span class="ident">get_asset_count</span></span>(<span>format: Format) ‑> int</span>
 </code></dt>
 <dd>
@@ -112,7 +91,7 @@ el.replaceWith(d);
 <h2 id="returns">Returns</h2>
 <p>Number of assets, or 0 if none defined</p></div>
 </dd>
-<dt id="adcp.utils.get_format_assets"><code class="name flex">
+<dt id="adcp.utils.format_assets.get_format_assets"><code class="name flex">
 <span>def <span class="ident">get_format_assets</span></span>(<span>format: Format) ‑> list[FormatAsset]</span>
 </code></dt>
 <dd>
@@ -171,7 +150,7 @@ for format in formats.formats:
     print(f&quot;{format.name} has {len(assets)} assets&quot;)
 </code></pre></div>
 </dd>
-<dt id="adcp.utils.get_individual_assets"><code class="name flex">
+<dt id="adcp.utils.format_assets.get_individual_assets"><code class="name flex">
 <span>def <span class="ident">get_individual_assets</span></span>(<span>format: Format) ‑> list[FormatAsset]</span>
 </code></dt>
 <dd>
@@ -199,7 +178,7 @@ for format in formats.formats:
 <h2 id="returns">Returns</h2>
 <p>List of individual assets (item_type='individual')</p></div>
 </dd>
-<dt id="adcp.utils.get_optional_assets"><code class="name flex">
+<dt id="adcp.utils.format_assets.get_optional_assets"><code class="name flex">
 <span>def <span class="ident">get_optional_assets</span></span>(<span>format: Format) ‑> list[FormatAsset]</span>
 </code></dt>
 <dd>
@@ -242,7 +221,7 @@ since assets_required only contained required assets.</p>
 print(f&quot;Can optionally provide {len(optional_assets)} additional assets&quot;)
 </code></pre></div>
 </dd>
-<dt id="adcp.utils.get_repeatable_groups"><code class="name flex">
+<dt id="adcp.utils.format_assets.get_repeatable_groups"><code class="name flex">
 <span>def <span class="ident">get_repeatable_groups</span></span>(<span>format: Format) ‑> list[FormatAsset]</span>
 </code></dt>
 <dd>
@@ -272,7 +251,7 @@ print(f&quot;Can optionally provide {len(optional_assets)} additional assets&quo
 <h2 id="returns">Returns</h2>
 <p>List of repeatable asset groups (item_type='repeatable_group')</p></div>
 </dd>
-<dt id="adcp.utils.get_required_assets"><code class="name flex">
+<dt id="adcp.utils.format_assets.get_required_assets"><code class="name flex">
 <span>def <span class="ident">get_required_assets</span></span>(<span>format: Format) ‑> list[FormatAsset]</span>
 </code></dt>
 <dd>
@@ -310,7 +289,7 @@ print(f&quot;Can optionally provide {len(optional_assets)} additional assets&quo
 print(f&quot;Must provide {len(required_assets)} assets&quot;)
 </code></pre></div>
 </dd>
-<dt id="adcp.utils.has_assets"><code class="name flex">
+<dt id="adcp.utils.format_assets.has_assets"><code class="name flex">
 <span>def <span class="ident">has_assets</span></span>(<span>format: Format) ‑> bool</span>
 </code></dt>
 <dd>
@@ -338,7 +317,7 @@ print(f&quot;Must provide {len(required_assets)} assets&quot;)
 <h2 id="returns">Returns</h2>
 <p>True if format has assets, False otherwise</p></div>
 </dd>
-<dt id="adcp.utils.normalize_assets_required"><code class="name flex">
+<dt id="adcp.utils.format_assets.normalize_assets_required"><code class="name flex">
 <span>def <span class="ident">normalize_assets_required</span></span>(<span>assets_required: list[Any]) ‑> list[FormatAsset]</span>
 </code></dt>
 <dd>
@@ -389,7 +368,7 @@ both required AND optional assets.</p>
 <h2 id="returns">Returns</h2>
 <p>Normalized assets as Pydantic models with explicit required=True</p></div>
 </dd>
-<dt id="adcp.utils.uses_deprecated_assets_field"><code class="name flex">
+<dt id="adcp.utils.format_assets.uses_deprecated_assets_field"><code class="name flex">
 <span>def <span class="ident">uses_deprecated_assets_field</span></span>(<span>format: Format) ‑> bool</span>
 </code></dt>
 <dd>
@@ -441,29 +420,20 @@ both required AND optional assets.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp" href="../index.html">adcp</a></code></li>
-</ul>
-</li>
-<li><h3><a href="#header-submodules">Sub-modules</a></h3>
-<ul>
-<li><code><a title="adcp.utils.format_assets" href="format_assets.html">adcp.utils.format_assets</a></code></li>
-<li><code><a title="adcp.utils.operation_id" href="operation_id.html">adcp.utils.operation_id</a></code></li>
-<li><code><a title="adcp.utils.preview_cache" href="preview_cache.html">adcp.utils.preview_cache</a></code></li>
-<li><code><a title="adcp.utils.response_parser" href="response_parser.html">adcp.utils.response_parser</a></code></li>
+<li><code><a title="adcp.utils" href="index.html">adcp.utils</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="adcp.utils.create_operation_id" href="#adcp.utils.create_operation_id">create_operation_id</a></code></li>
-<li><code><a title="adcp.utils.get_asset_count" href="#adcp.utils.get_asset_count">get_asset_count</a></code></li>
-<li><code><a title="adcp.utils.get_format_assets" href="#adcp.utils.get_format_assets">get_format_assets</a></code></li>
-<li><code><a title="adcp.utils.get_individual_assets" href="#adcp.utils.get_individual_assets">get_individual_assets</a></code></li>
-<li><code><a title="adcp.utils.get_optional_assets" href="#adcp.utils.get_optional_assets">get_optional_assets</a></code></li>
-<li><code><a title="adcp.utils.get_repeatable_groups" href="#adcp.utils.get_repeatable_groups">get_repeatable_groups</a></code></li>
-<li><code><a title="adcp.utils.get_required_assets" href="#adcp.utils.get_required_assets">get_required_assets</a></code></li>
-<li><code><a title="adcp.utils.has_assets" href="#adcp.utils.has_assets">has_assets</a></code></li>
-<li><code><a title="adcp.utils.normalize_assets_required" href="#adcp.utils.normalize_assets_required">normalize_assets_required</a></code></li>
-<li><code><a title="adcp.utils.uses_deprecated_assets_field" href="#adcp.utils.uses_deprecated_assets_field">uses_deprecated_assets_field</a></code></li>
+<li><code><a title="adcp.utils.format_assets.get_asset_count" href="#adcp.utils.format_assets.get_asset_count">get_asset_count</a></code></li>
+<li><code><a title="adcp.utils.format_assets.get_format_assets" href="#adcp.utils.format_assets.get_format_assets">get_format_assets</a></code></li>
+<li><code><a title="adcp.utils.format_assets.get_individual_assets" href="#adcp.utils.format_assets.get_individual_assets">get_individual_assets</a></code></li>
+<li><code><a title="adcp.utils.format_assets.get_optional_assets" href="#adcp.utils.format_assets.get_optional_assets">get_optional_assets</a></code></li>
+<li><code><a title="adcp.utils.format_assets.get_repeatable_groups" href="#adcp.utils.format_assets.get_repeatable_groups">get_repeatable_groups</a></code></li>
+<li><code><a title="adcp.utils.format_assets.get_required_assets" href="#adcp.utils.format_assets.get_required_assets">get_required_assets</a></code></li>
+<li><code><a title="adcp.utils.format_assets.has_assets" href="#adcp.utils.format_assets.has_assets">has_assets</a></code></li>
+<li><code><a title="adcp.utils.format_assets.normalize_assets_required" href="#adcp.utils.format_assets.normalize_assets_required">normalize_assets_required</a></code></li>
+<li><code><a title="adcp.utils.format_assets.uses_deprecated_assets_field" href="#adcp.utils.format_assets.uses_deprecated_assets_field">uses_deprecated_assets_field</a></code></li>
 </ul>
 </li>
 </ul>

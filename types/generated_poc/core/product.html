@@ -119,7 +119,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Product(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     brief_relevance: Annotated[
         str | None,
@@ -306,7 +306,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ProductCard(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     format_id: Annotated[
         format_id_1.FormatId,
@@ -369,7 +369,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ProductCardDetailed(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     format_id: Annotated[
         format_id_1.FormatId,

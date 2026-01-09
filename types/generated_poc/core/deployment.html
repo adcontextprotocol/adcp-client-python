@@ -114,7 +114,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Deployment1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
     activation_key: Annotated[
@@ -213,7 +213,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Deployment2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
     activation_key: Annotated[

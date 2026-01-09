@@ -60,13 +60,14 @@ el.replaceWith(d);
     asset_role: Annotated[
         str | None,
         Field(
-            description=&#34;Optional descriptive label for this asset&#39;s purpose (e.g., &#39;hero_image&#39;, &#39;logo&#39;). Not used for referencing assets in manifests—use asset_id instead. This field is for human-readable documentation and UI display only.&#34;
+            description=&#34;Optional descriptive label for this asset&#39;s purpose. Not used for referencing assets in manifests—use asset_id instead. This field is for human-readable documentation and UI display only.&#34;
         ),
     ] = None
     asset_type: Annotated[asset_content_type.AssetContentType, Field(description=&#39;Type of asset&#39;)]
     required: Annotated[
-        bool | None, Field(description=&#39;Whether this asset is required in each repetition&#39;)
-    ] = None
+        bool,
+        Field(description=&#39;Whether this asset is required within each repetition of the group&#39;),
+    ]
     requirements: Annotated[
         dict[str, Any] | None,
         Field(
@@ -105,11 +106,273 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Asset.required"><code class="name">var <span class="ident">required</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Asset.required"><code class="name">var <span class="ident">required</span> : bool</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.format.Asset.requirements"><code class="name">var <span class="ident">requirements</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Asset2"><code class="flex name class">
+<span>class <span class="ident">Asset2</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Asset2(AdCPBaseModel):
+    asset_id: Annotated[str, Field(description=&#39;Identifier for this asset within the group&#39;)]
+    asset_role: Annotated[
+        str | None,
+        Field(
+            description=&#34;Optional descriptive label for this asset&#39;s purpose (e.g., &#39;hero_image&#39;, &#39;logo&#39;). Not used for referencing assets in manifests—use asset_id instead. This field is for human-readable documentation and UI display only.&#34;
+        ),
+    ] = None
+    asset_type: Annotated[asset_content_type.AssetContentType, Field(description=&#39;Type of asset&#39;)]
+    required: Annotated[
+        bool | None, Field(description=&#39;Whether this asset is required in each repetition&#39;)
+    ] = None
+    requirements: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Technical requirements for this asset. For template formats, use parameters_from_format_id: true to indicate asset parameters must match the format_id parameters (width/height/unit and/or duration_ms).&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.format.Asset2.asset_id"><code class="name">var <span class="ident">asset_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Asset2.asset_role"><code class="name">var <span class="ident">asset_role</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Asset2.asset_type"><code class="name">var <span class="ident">asset_type</span> : <a title="adcp.types.generated_poc.enums.asset_content_type.AssetContentType" href="../enums/asset_content_type.html#adcp.types.generated_poc.enums.asset_content_type.AssetContentType">AssetContentType</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Asset2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Asset2.required"><code class="name">var <span class="ident">required</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Asset2.requirements"><code class="name">var <span class="ident">requirements</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Assets"><code class="flex name class">
+<span>class <span class="ident">Assets</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Assets(AdCPBaseModel):
+    asset_id: Annotated[
+        str,
+        Field(
+            description=&#39;Unique identifier for this asset. Creative manifests MUST use this exact value as the key in the assets object.&#39;
+        ),
+    ]
+    asset_role: Annotated[
+        str | None,
+        Field(
+            description=&#34;Optional descriptive label for this asset&#39;s purpose (e.g., &#39;hero_image&#39;, &#39;logo&#39;, &#39;third_party_tracking&#39;). Not used for referencing assets in manifests—use asset_id instead. This field is for human-readable documentation and UI display only.&#34;
+        ),
+    ] = None
+    asset_type: Annotated[asset_content_type.AssetContentType, Field(description=&#39;Type of asset&#39;)]
+    item_type: Annotated[
+        Literal[&#39;individual&#39;],
+        Field(description=&#39;Discriminator indicating this is an individual asset&#39;),
+    ]
+    required: Annotated[
+        bool,
+        Field(
+            description=&#39;Whether this asset is required (true) or optional (false). Required assets must be provided for a valid creative. Optional assets enhance the creative but are not mandatory.&#39;
+        ),
+    ]
+    requirements: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Technical requirements for this asset (dimensions, file size, duration, etc.). For template formats, use parameters_from_format_id: true to indicate asset parameters must match the format_id parameters (width/height/unit and/or duration_ms).&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.format.Assets.asset_id"><code class="name">var <span class="ident">asset_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Assets.asset_role"><code class="name">var <span class="ident">asset_role</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Assets.asset_type"><code class="name">var <span class="ident">asset_type</span> : <a title="adcp.types.generated_poc.enums.asset_content_type.AssetContentType" href="../enums/asset_content_type.html#adcp.types.generated_poc.enums.asset_content_type.AssetContentType">AssetContentType</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Assets.item_type"><code class="name">var <span class="ident">item_type</span> : Literal['individual']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Assets.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Assets.required"><code class="name">var <span class="ident">required</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Assets.requirements"><code class="name">var <span class="ident">requirements</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Assets1"><code class="flex name class">
+<span>class <span class="ident">Assets1</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Assets1(AdCPBaseModel):
+    asset_group_id: Annotated[
+        str, Field(description=&#34;Identifier for this asset group (e.g., &#39;product&#39;, &#39;slide&#39;, &#39;card&#39;)&#34;)
+    ]
+    assets: Annotated[list[Asset], Field(description=&#39;Assets within each repetition of this group&#39;)]
+    item_type: Annotated[
+        Literal[&#39;repeatable_group&#39;],
+        Field(description=&#39;Discriminator indicating this is a repeatable asset group&#39;),
+    ]
+    max_count: Annotated[int, Field(description=&#39;Maximum number of repetitions allowed&#39;, ge=1)]
+    min_count: Annotated[
+        int,
+        Field(
+            description=&#39;Minimum number of repetitions required (if group is required) or allowed (if optional)&#39;,
+            ge=0,
+        ),
+    ]
+    required: Annotated[
+        bool,
+        Field(
+            description=&#39;Whether this asset group is required. If true, at least min_count repetitions must be provided.&#39;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.format.Assets1.asset_group_id"><code class="name">var <span class="ident">asset_group_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Assets1.assets"><code class="name">var <span class="ident">assets</span> : list[<a title="adcp.types.generated_poc.core.format.Asset" href="#adcp.types.generated_poc.core.format.Asset">Asset</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Assets1.item_type"><code class="name">var <span class="ident">item_type</span> : Literal['repeatable_group']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Assets1.max_count"><code class="name">var <span class="ident">max_count</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Assets1.min_count"><code class="name">var <span class="ident">min_count</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Assets1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Assets1.required"><code class="name">var <span class="ident">required</span> : bool</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -228,7 +491,9 @@ validated to form a valid model.</p>
     asset_group_id: Annotated[
         str, Field(description=&#34;Identifier for this asset group (e.g., &#39;product&#39;, &#39;slide&#39;, &#39;card&#39;)&#34;)
     ]
-    assets: Annotated[list[Asset], Field(description=&#39;Assets within each repetition of this group&#39;)]
+    assets: Annotated[
+        list[Asset2], Field(description=&#39;Assets within each repetition of this group&#39;)
+    ]
     item_type: Annotated[
         Literal[&#39;repeatable_group&#39;],
         Field(description=&#39;Discriminator indicating this is a repeatable asset group&#39;),
@@ -255,7 +520,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.AssetsRequired1.assets"><code class="name">var <span class="ident">assets</span> : list[<a title="adcp.types.generated_poc.core.format.Asset" href="#adcp.types.generated_poc.core.format.Asset">Asset</a>]</code></dt>
+<dt id="adcp.types.generated_poc.core.format.AssetsRequired1.assets"><code class="name">var <span class="ident">assets</span> : list[<a title="adcp.types.generated_poc.core.format.Asset2" href="#adcp.types.generated_poc.core.format.Asset2">Asset2</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -484,7 +749,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Format(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     accepts_parameters: Annotated[
         list[format_id_parameter.FormatIdParameter] | None,
@@ -492,10 +757,17 @@ validated to form a valid model.</p>
             description=&#39;List of parameters this format accepts in format_id. Template formats define which parameters (dimensions, duration, etc.) can be specified when instantiating the format. Empty or omitted means this is a concrete format with fixed parameters.&#39;
         ),
     ] = None
+    assets: Annotated[
+        list[Assets | Assets1] | None,
+        Field(
+            description=&#34;Array of all assets supported for this format. Each asset is identified by its asset_id, which must be used as the key in creative manifests. Use the &#39;required&#39; boolean on each asset to indicate whether it&#39;s mandatory. This field replaces the deprecated &#39;assets_required&#39; and enables full asset discovery for buyers and AI agents.&#34;
+        ),
+    ] = None
     assets_required: Annotated[
         list[AssetsRequired | AssetsRequired1] | None,
         Field(
-            description=&#39;Array of required assets or asset groups for this format. Each asset is identified by its asset_id, which must be used as the key in creative manifests. Can contain individual assets or repeatable asset sequences (e.g., carousel products, slideshow frames).&#39;
+            deprecated=True,
+            description=&#34;DEPRECATED: Use &#39;assets&#39; instead. Array of required assets or asset groups for this format. Each asset is identified by its asset_id, which must be used as the key in creative manifests. Can contain individual assets or repeatable asset sequences (e.g., carousel products, slideshow frames). This field is maintained for backward compatibility; new implementations should use &#39;assets&#39; with the &#39;required&#39; boolean on each asset.&#34;
         ),
     ] = None
     delivery: Annotated[
@@ -582,7 +854,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Format.assets_required"><code class="name">var <span class="ident">assets_required</span> : list[<a title="adcp.types.generated_poc.core.format.AssetsRequired" href="#adcp.types.generated_poc.core.format.AssetsRequired">AssetsRequired</a> | <a title="adcp.types.generated_poc.core.format.AssetsRequired1" href="#adcp.types.generated_poc.core.format.AssetsRequired1">AssetsRequired1</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Format.assets"><code class="name">var <span class="ident">assets</span> : list[<a title="adcp.types.generated_poc.core.format.Assets" href="#adcp.types.generated_poc.core.format.Assets">Assets</a> | <a title="adcp.types.generated_poc.core.format.Assets1" href="#adcp.types.generated_poc.core.format.Assets1">Assets1</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -639,6 +911,38 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 </dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.format.Format.assets_required"><code class="name">var <span class="ident">assets_required</span> : list[<a title="adcp.types.generated_poc.core.format.AssetsRequired" href="#adcp.types.generated_poc.core.format.AssetsRequired">AssetsRequired</a> | <a title="adcp.types.generated_poc.core.format.AssetsRequired1" href="#adcp.types.generated_poc.core.format.AssetsRequired1">AssetsRequired1</a>] | None</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def __get__(self, obj: BaseModel | None, obj_type: type[BaseModel] | None = None) -&gt; Any:
+    if obj is None:
+        if self.wrapped_property is not None:
+            return self.wrapped_property.__get__(None, obj_type)
+        raise AttributeError(self.field_name)
+
+    warnings.warn(self.msg, DeprecationWarning, stacklevel=2)
+
+    if self.wrapped_property is not None:
+        return self.wrapped_property.__get__(obj, obj_type)
+    return obj.__dict__[self.field_name]</code></pre>
+</details>
+<div class="desc"><p>Read-only data descriptor used to emit a runtime deprecation warning before accessing a deprecated field.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>msg</code></strong></dt>
+<dd>The deprecation message to be emitted.</dd>
+<dt><strong><code>wrapped_property</code></strong></dt>
+<dd>The property instance if the deprecated field is a computed field, or <code>None</code>.</dd>
+<dt><strong><code>field_name</code></strong></dt>
+<dd>The name of the field being deprecated.</dd>
+</dl></div>
+</dd>
+</dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
 <li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
@@ -661,7 +965,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class FormatCard(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     format_id: Annotated[
         format_id_1.FormatId,
@@ -724,7 +1028,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class FormatCardDetailed(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     format_id: Annotated[
         format_id_1.FormatId,
@@ -995,6 +1299,41 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.generated_poc.core.format.Asset2" href="#adcp.types.generated_poc.core.format.Asset2">Asset2</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.format.Asset2.asset_id" href="#adcp.types.generated_poc.core.format.Asset2.asset_id">asset_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Asset2.asset_role" href="#adcp.types.generated_poc.core.format.Asset2.asset_role">asset_role</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Asset2.asset_type" href="#adcp.types.generated_poc.core.format.Asset2.asset_type">asset_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Asset2.model_config" href="#adcp.types.generated_poc.core.format.Asset2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Asset2.required" href="#adcp.types.generated_poc.core.format.Asset2.required">required</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Asset2.requirements" href="#adcp.types.generated_poc.core.format.Asset2.requirements">requirements</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.format.Assets" href="#adcp.types.generated_poc.core.format.Assets">Assets</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.format.Assets.asset_id" href="#adcp.types.generated_poc.core.format.Assets.asset_id">asset_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets.asset_role" href="#adcp.types.generated_poc.core.format.Assets.asset_role">asset_role</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets.asset_type" href="#adcp.types.generated_poc.core.format.Assets.asset_type">asset_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets.item_type" href="#adcp.types.generated_poc.core.format.Assets.item_type">item_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets.model_config" href="#adcp.types.generated_poc.core.format.Assets.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets.required" href="#adcp.types.generated_poc.core.format.Assets.required">required</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets.requirements" href="#adcp.types.generated_poc.core.format.Assets.requirements">requirements</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.format.Assets1" href="#adcp.types.generated_poc.core.format.Assets1">Assets1</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.format.Assets1.asset_group_id" href="#adcp.types.generated_poc.core.format.Assets1.asset_group_id">asset_group_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets1.assets" href="#adcp.types.generated_poc.core.format.Assets1.assets">assets</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets1.item_type" href="#adcp.types.generated_poc.core.format.Assets1.item_type">item_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets1.max_count" href="#adcp.types.generated_poc.core.format.Assets1.max_count">max_count</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets1.min_count" href="#adcp.types.generated_poc.core.format.Assets1.min_count">min_count</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets1.model_config" href="#adcp.types.generated_poc.core.format.Assets1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets1.required" href="#adcp.types.generated_poc.core.format.Assets1.required">required</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.core.format.AssetsRequired" href="#adcp.types.generated_poc.core.format.AssetsRequired">AssetsRequired</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.format.AssetsRequired.asset_id" href="#adcp.types.generated_poc.core.format.AssetsRequired.asset_id">asset_id</a></code></li>
@@ -1049,6 +1388,7 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.core.format.Format" href="#adcp.types.generated_poc.core.format.Format">Format</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.format.Format.accepts_parameters" href="#adcp.types.generated_poc.core.format.Format.accepts_parameters">accepts_parameters</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Format.assets" href="#adcp.types.generated_poc.core.format.Format.assets">assets</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.format.Format.assets_required" href="#adcp.types.generated_poc.core.format.Format.assets_required">assets_required</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.format.Format.delivery" href="#adcp.types.generated_poc.core.format.Format.delivery">delivery</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.format.Format.description" href="#adcp.types.generated_poc.core.format.Format.description">description</a></code></li>

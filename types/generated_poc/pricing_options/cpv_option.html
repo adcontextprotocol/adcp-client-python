@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class CpvPricingOption(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     currency: Annotated[
         str,
@@ -160,7 +160,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Parameters(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     view_threshold: ViewThreshold | ViewThreshold1</code></pre>
 </details>
@@ -268,7 +268,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ViewThreshold1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
     duration_seconds: Annotated[
         int,
