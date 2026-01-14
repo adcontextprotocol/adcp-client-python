@@ -57,19 +57,19 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Package(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     bid_price: Annotated[
         float | None,
         Field(
-            description=&#39;Bid price for auction-based CPM pricing (present if using cpm-auction-option)&#39;,
+            description=&#34;Bid price for auction-based CPM pricing (present if using cpm-auction-option)&#34;,
             ge=0.0,
         ),
     ] = None
     budget: Annotated[
         float | None,
         Field(
-            description=&#39;Budget allocation for this package in the currency specified by the pricing option&#39;,
+            description=&#34;Budget allocation for this package in the currency specified by the pricing option&#34;,
             ge=0.0,
         ),
     ] = None
@@ -78,22 +78,22 @@ el.replaceWith(d);
     ] = None
     creative_assignments: Annotated[
         list[creative_assignment.CreativeAssignment] | None,
-        Field(description=&#39;Creative assets assigned to this package&#39;),
+        Field(description=&#34;Creative assets assigned to this package&#34;),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     format_ids_to_provide: Annotated[
         list[format_id.FormatId] | None,
-        Field(description=&#39;Format IDs that creative assets will be provided for this package&#39;),
+        Field(description=&#34;Format IDs that creative assets will be provided for this package&#34;),
     ] = None
     impressions: Annotated[
-        float | None, Field(description=&#39;Impression goal for this package&#39;, ge=0.0)
+        float | None, Field(description=&#34;Impression goal for this package&#34;, ge=0.0)
     ] = None
     pacing: pacing_1.Pacing | None = None
     package_id: Annotated[str, Field(description=&#34;Publisher&#39;s unique identifier for the package&#34;)]
     paused: Annotated[
         bool | None,
         Field(
-            description=&#39;Whether this package is paused by the buyer. Paused packages do not deliver impressions. Defaults to false.&#39;
+            description=&#34;Whether this package is paused by the buyer. Paused packages do not deliver impressions. Defaults to false.&#34;
         ),
     ] = False
     pricing_option_id: Annotated[
@@ -103,7 +103,7 @@ el.replaceWith(d);
         ),
     ] = None
     product_id: Annotated[
-        str | None, Field(description=&#39;ID of the product this package is based on&#39;)
+        str | None, Field(description=&#34;ID of the product this package is based on&#34;)
     ] = None
     targeting_overlay: targeting.TargetingOverlay | None = None</code></pre>
 </details>

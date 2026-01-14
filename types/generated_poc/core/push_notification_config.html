@@ -57,12 +57,12 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Authentication(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     credentials: Annotated[
         str,
         Field(
-            description=&#39;Credentials for authentication. For Bearer: token sent in Authorization header. For HMAC-SHA256: shared secret used to generate signature. Minimum 32 characters. Exchanged out-of-band during onboarding.&#39;,
+            description=&#34;Credentials for authentication. For Bearer: token sent in Authorization header. For HMAC-SHA256: shared secret used to generate signature. Minimum 32 characters. Exchanged out-of-band during onboarding.&#34;,
             min_length=32,
         ),
     ]
@@ -126,16 +126,16 @@ validated to form a valid model.</p>
 <pre><code class="python">class PushNotificationConfig(AdCPBaseModel):
     authentication: Annotated[
         Authentication,
-        Field(description=&#39;Authentication configuration for webhook delivery (A2A-compatible)&#39;),
+        Field(description=&#34;Authentication configuration for webhook delivery (A2A-compatible)&#34;),
     ]
     token: Annotated[
         str | None,
         Field(
-            description=&#39;Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.&#39;,
+            description=&#34;Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.&#34;,
             min_length=16,
         ),
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#39;Webhook endpoint URL for task status notifications&#39;)]</code></pre>
+    url: Annotated[AnyUrl, Field(description=&#34;Webhook endpoint URL for task status notifications&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null

@@ -59,8 +59,8 @@ el.replaceWith(d);
     root: Annotated[
         Deployment1 | Deployment2,
         Field(
-            description=&#39;A signal deployment to a specific deployment target with activation status and key&#39;,
-            title=&#39;Deployment&#39;,
+            description=&#34;A signal deployment to a specific deployment target with activation status and key&#34;,
+            title=&#34;Deployment&#34;,
         ),
     ]</code></pre>
 </details>
@@ -114,33 +114,33 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Deployment1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
+    account: Annotated[str | None, Field(description=&#34;Account identifier if applicable&#34;)] = None
     activation_key: Annotated[
         activation_key_1.ActivationKey | None,
         Field(
-            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;
+            description=&#34;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#34;
         ),
     ] = None
     deployed_at: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;Timestamp when activation completed (if is_live=true)&#39;),
+        Field(description=&#34;Timestamp when activation completed (if is_live=true)&#34;),
     ] = None
     estimated_activation_duration_minutes: Annotated[
         float | None,
         Field(
-            description=&#39;Estimated time to activate if not live, or to complete activation if in progress&#39;,
+            description=&#34;Estimated time to activate if not live, or to complete activation if in progress&#34;,
             ge=0.0,
         ),
     ] = None
     is_live: Annotated[
-        bool, Field(description=&#39;Whether signal is currently active on this deployment&#39;)
+        bool, Field(description=&#34;Whether signal is currently active on this deployment&#34;)
     ]
-    platform: Annotated[str, Field(description=&#39;Platform identifier for DSPs&#39;)]
+    platform: Annotated[str, Field(description=&#34;Platform identifier for DSPs&#34;)]
     type: Annotated[
-        Literal[&#39;platform&#39;],
-        Field(description=&#39;Discriminator indicating this is a platform-based deployment&#39;),
+        Literal[&#34;platform&#34;],
+        Field(description=&#34;Discriminator indicating this is a platform-based deployment&#34;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -213,33 +213,33 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Deployment2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
+    account: Annotated[str | None, Field(description=&#34;Account identifier if applicable&#34;)] = None
     activation_key: Annotated[
         activation_key_1.ActivationKey | None,
         Field(
-            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;
+            description=&#34;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#34;
         ),
     ] = None
-    agent_url: Annotated[AnyUrl, Field(description=&#39;URL identifying the deployment agent&#39;)]
+    agent_url: Annotated[AnyUrl, Field(description=&#34;URL identifying the deployment agent&#34;)]
     deployed_at: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;Timestamp when activation completed (if is_live=true)&#39;),
+        Field(description=&#34;Timestamp when activation completed (if is_live=true)&#34;),
     ] = None
     estimated_activation_duration_minutes: Annotated[
         float | None,
         Field(
-            description=&#39;Estimated time to activate if not live, or to complete activation if in progress&#39;,
+            description=&#34;Estimated time to activate if not live, or to complete activation if in progress&#34;,
             ge=0.0,
         ),
     ] = None
     is_live: Annotated[
-        bool, Field(description=&#39;Whether signal is currently active on this deployment&#39;)
+        bool, Field(description=&#34;Whether signal is currently active on this deployment&#34;)
     ]
     type: Annotated[
-        Literal[&#39;agent&#39;],
-        Field(description=&#39;Discriminator indicating this is an agent URL-based deployment&#39;),
+        Literal[&#34;agent&#34;],
+        Field(description=&#34;Discriminator indicating this is an agent URL-based deployment&#34;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

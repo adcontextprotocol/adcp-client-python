@@ -57,16 +57,16 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class BudgetRange(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     currency: Annotated[
         str,
         Field(
-            description=&#34;ISO 4217 currency code (e.g., &#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;)&#34;, pattern=&#39;^[A-Z]{3}$&#39;
+            description=&#34;ISO 4217 currency code (e.g., &#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;)&#34;, pattern=&#34;^[A-Z]{3}$&#34;
         ),
     ]
-    max: Annotated[float | None, Field(description=&#39;Maximum budget amount&#39;, ge=0.0)] = None
-    min: Annotated[float, Field(description=&#39;Minimum budget amount&#39;, ge=0.0)]</code></pre>
+    max: Annotated[float | None, Field(description=&#34;Maximum budget amount&#34;, ge=0.0)] = None
+    min: Annotated[float, Field(description=&#34;Minimum budget amount&#34;, ge=0.0)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -122,16 +122,16 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BudgetRange1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     currency: Annotated[
         str,
         Field(
-            description=&#34;ISO 4217 currency code (e.g., &#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;)&#34;, pattern=&#39;^[A-Z]{3}$&#39;
+            description=&#34;ISO 4217 currency code (e.g., &#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;)&#34;, pattern=&#34;^[A-Z]{3}$&#34;
         ),
     ]
-    max: Annotated[float, Field(description=&#39;Maximum budget amount&#39;, ge=0.0)]
-    min: Annotated[float | None, Field(description=&#39;Minimum budget amount&#39;, ge=0.0)] = None</code></pre>
+    max: Annotated[float, Field(description=&#34;Maximum budget amount&#34;, ge=0.0)]
+    min: Annotated[float | None, Field(description=&#34;Minimum budget amount&#34;, ge=0.0)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -186,7 +186,7 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Country(RootModel[str]):
-    root: Annotated[str, Field(pattern=&#39;^[A-Z]{2}$&#39;)]</code></pre>
+    root: Annotated[str, Field(pattern=&#34;^[A-Z]{2}$&#34;)]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -238,11 +238,11 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ProductFilters(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     budget_range: Annotated[
         BudgetRange | BudgetRange1 | None,
-        Field(description=&#39;Budget range to filter appropriate products&#39;),
+        Field(description=&#34;Budget range to filter appropriate products&#34;),
     ] = None
     channels: Annotated[
         list[channels_1.AdvertisingChannels] | None,
@@ -258,29 +258,29 @@ validated to form a valid model.</p>
     end_date: Annotated[
         date | None,
         Field(
-            description=&#39;Campaign end date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#39;
+            description=&#34;Campaign end date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#34;
         ),
     ] = None
     format_ids: Annotated[
-        list[format_id.FormatId] | None, Field(description=&#39;Filter by specific format IDs&#39;)
+        list[format_id.FormatId] | None, Field(description=&#34;Filter by specific format IDs&#34;)
     ] = None
     format_types: Annotated[
-        list[format_category.FormatCategory] | None, Field(description=&#39;Filter by format types&#39;)
+        list[format_category.FormatCategory] | None, Field(description=&#34;Filter by format types&#34;)
     ] = None
     is_fixed_price: Annotated[
-        bool | None, Field(description=&#39;Filter for fixed price vs auction products&#39;)
+        bool | None, Field(description=&#34;Filter for fixed price vs auction products&#34;)
     ] = None
     min_exposures: Annotated[
         int | None,
-        Field(description=&#39;Minimum exposures/impressions needed for measurement validity&#39;, ge=1),
+        Field(description=&#34;Minimum exposures/impressions needed for measurement validity&#34;, ge=1),
     ] = None
     standard_formats_only: Annotated[
-        bool | None, Field(description=&#39;Only return products accepting IAB standard formats&#39;)
+        bool | None, Field(description=&#34;Only return products accepting IAB standard formats&#34;)
     ] = None
     start_date: Annotated[
         date | None,
         Field(
-            description=&#39;Campaign start date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#39;
+            description=&#34;Campaign start date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#34;
         ),
     ] = None</code></pre>
 </details>

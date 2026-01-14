@@ -119,66 +119,66 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Product(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     brief_relevance: Annotated[
         str | None,
         Field(
-            description=&#39;Explanation of why this product matches the brief (only included when brief is provided)&#39;
+            description=&#34;Explanation of why this product matches the brief (only included when brief is provided)&#34;
         ),
     ] = None
     creative_policy: creative_policy_1.CreativePolicy | None = None
     delivery_measurement: Annotated[
         DeliveryMeasurement,
         Field(
-            description=&#39;Measurement provider and methodology for delivery metrics. The buyer accepts the declared provider as the source of truth for the buy. REQUIRED for all products.&#39;
+            description=&#34;Measurement provider and methodology for delivery metrics. The buyer accepts the declared provider as the source of truth for the buy. REQUIRED for all products.&#34;
         ),
     ]
     delivery_type: delivery_type_1.DeliveryType
     description: Annotated[
-        str, Field(description=&#39;Detailed description of the product and its inventory&#39;)
+        str, Field(description=&#34;Detailed description of the product and its inventory&#34;)
     ]
     estimated_exposures: Annotated[
         int | None,
-        Field(description=&#39;Estimated exposures/impressions for guaranteed products&#39;, ge=0),
+        Field(description=&#34;Estimated exposures/impressions for guaranteed products&#34;, ge=0),
     ] = None
     expires_at: Annotated[
-        AwareDatetime | None, Field(description=&#39;Expiration timestamp for custom products&#39;)
+        AwareDatetime | None, Field(description=&#34;Expiration timestamp for custom products&#34;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
     format_ids: Annotated[
         list[format_id_1.FormatId],
         Field(
-            description=&#39;Array of supported creative format IDs - structured format_id objects with agent_url and id&#39;
+            description=&#34;Array of supported creative format IDs - structured format_id objects with agent_url and id&#34;
         ),
     ]
-    is_custom: Annotated[bool | None, Field(description=&#39;Whether this is a custom product&#39;)] = None
+    is_custom: Annotated[bool | None, Field(description=&#34;Whether this is a custom product&#34;)] = None
     measurement: measurement_1.Measurement | None = None
-    name: Annotated[str, Field(description=&#39;Human-readable product name&#39;)]
+    name: Annotated[str, Field(description=&#34;Human-readable product name&#34;)]
     placements: Annotated[
         list[placement.Placement] | None,
         Field(
-            description=&#39;Optional array of specific placements within this product. When provided, buyers can target specific placements when assigning creatives.&#39;,
+            description=&#34;Optional array of specific placements within this product. When provided, buyers can target specific placements when assigning creatives.&#34;,
             min_length=1,
         ),
     ] = None
     pricing_options: Annotated[
         list[pricing_option.PricingOption],
-        Field(description=&#39;Available pricing models for this product&#39;, min_length=1),
+        Field(description=&#34;Available pricing models for this product&#34;, min_length=1),
     ]
     product_card: Annotated[
         ProductCard | None,
         Field(
-            description=&#39;Optional standard visual card (300x400px) for displaying this product in user interfaces. Can be rendered via preview_creative or pre-generated.&#39;
+            description=&#34;Optional standard visual card (300x400px) for displaying this product in user interfaces. Can be rendered via preview_creative or pre-generated.&#34;
         ),
     ] = None
     product_card_detailed: Annotated[
         ProductCardDetailed | None,
         Field(
-            description=&#39;Optional detailed card with carousel and full specifications. Provides rich product presentation similar to media kit pages.&#39;
+            description=&#34;Optional detailed card with carousel and full specifications. Provides rich product presentation similar to media kit pages.&#34;
         ),
     ] = None
-    product_id: Annotated[str, Field(description=&#39;Unique identifier for the product&#39;)]
+    product_id: Annotated[str, Field(description=&#34;Unique identifier for the product&#34;)]
     publisher_properties: Annotated[
         list[publisher_property_selector.PublisherPropertySelector],
         Field(
@@ -306,17 +306,17 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ProductCard(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     format_id: Annotated[
         format_id_1.FormatId,
         Field(
-            description=&#39;Creative format defining the card layout (typically product_card_standard)&#39;
+            description=&#34;Creative format defining the card layout (typically product_card_standard)&#34;
         ),
     ]
     manifest: Annotated[
         dict[str, Any],
-        Field(description=&#39;Asset manifest for rendering the card, structure defined by the format&#39;),
+        Field(description=&#34;Asset manifest for rendering the card, structure defined by the format&#34;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -369,18 +369,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ProductCardDetailed(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     format_id: Annotated[
         format_id_1.FormatId,
         Field(
-            description=&#39;Creative format defining the detailed card layout (typically product_card_detailed)&#39;
+            description=&#34;Creative format defining the detailed card layout (typically product_card_detailed)&#34;
         ),
     ]
     manifest: Annotated[
         dict[str, Any],
         Field(
-            description=&#39;Asset manifest for rendering the detailed card, structure defined by the format&#39;
+            description=&#34;Asset manifest for rendering the detailed card, structure defined by the format&#34;
         ),
     ]</code></pre>
 </details>

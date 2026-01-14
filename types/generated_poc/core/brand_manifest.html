@@ -57,36 +57,36 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Asset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    asset_id: Annotated[str, Field(description=&#39;Unique identifier for this asset&#39;)]
+    asset_id: Annotated[str, Field(description=&#34;Unique identifier for this asset&#34;)]
     asset_type: Annotated[
         asset_content_type.AssetContentType,
         Field(
-            description=&#39;Type of asset. Note: Brand manifests typically contain basic media assets (image, video, audio, text). Code assets (html, javascript, css) and ad markup (vast, daast) are usually not part of brand asset libraries.&#39;
+            description=&#34;Type of asset. Note: Brand manifests typically contain basic media assets (image, video, audio, text). Code assets (html, javascript, css) and ad markup (vast, daast) are usually not part of brand asset libraries.&#34;
         ),
     ]
-    description: Annotated[str | None, Field(description=&#39;Asset description or usage notes&#39;)] = None
+    description: Annotated[str | None, Field(description=&#34;Asset description or usage notes&#34;)] = None
     duration_seconds: Annotated[
-        float | None, Field(description=&#39;Video/audio duration in seconds&#39;)
+        float | None, Field(description=&#34;Video/audio duration in seconds&#34;)
     ] = None
-    file_size_bytes: Annotated[int | None, Field(description=&#39;File size in bytes&#39;)] = None
+    file_size_bytes: Annotated[int | None, Field(description=&#34;File size in bytes&#34;)] = None
     format: Annotated[str | None, Field(description=&#34;File format (e.g., &#39;jpg&#39;, &#39;mp4&#39;, &#39;mp3&#39;)&#34;)] = (
         None
     )
-    height: Annotated[int | None, Field(description=&#39;Image/video height in pixels&#39;)] = None
+    height: Annotated[int | None, Field(description=&#34;Image/video height in pixels&#34;)] = None
     metadata: Annotated[
-        dict[str, Any] | None, Field(description=&#39;Additional asset-specific metadata&#39;)
+        dict[str, Any] | None, Field(description=&#34;Additional asset-specific metadata&#34;)
     ] = None
-    name: Annotated[str | None, Field(description=&#39;Human-readable asset name&#39;)] = None
+    name: Annotated[str | None, Field(description=&#34;Human-readable asset name&#34;)] = None
     tags: Annotated[
         list[str] | None,
         Field(
             description=&#34;Tags for asset discovery (e.g., &#39;holiday&#39;, &#39;lifestyle&#39;, &#39;product_shot&#39;)&#34;
         ),
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#39;URL to CDN-hosted asset file&#39;)]
-    width: Annotated[int | None, Field(description=&#39;Image/video width in pixels&#39;)] = None</code></pre>
+    url: Annotated[AnyUrl, Field(description=&#34;URL to CDN-hosted asset file&#34;)]
+    width: Annotated[int | None, Field(description=&#34;Image/video width in pixels&#34;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -178,21 +178,21 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BrandManifest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     assets: Annotated[
         list[Asset] | None,
         Field(
-            description=&#39;Brand asset library with explicit assets and tags. Assets are referenced inline with URLs pointing to CDN-hosted files.&#39;
+            description=&#34;Brand asset library with explicit assets and tags. Assets are referenced inline with URLs pointing to CDN-hosted files.&#34;
         ),
     ] = None
-    colors: Annotated[Colors | None, Field(description=&#39;Brand color palette&#39;)] = None
-    contact: Annotated[Contact | None, Field(description=&#39;Brand contact information&#39;)] = None
+    colors: Annotated[Colors | None, Field(description=&#34;Brand color palette&#34;)] = None
+    contact: Annotated[Contact | None, Field(description=&#34;Brand contact information&#34;)] = None
     disclaimers: Annotated[
         list[Disclaimer] | None,
-        Field(description=&#39;Legal disclaimers or required text that must appear in creatives&#39;),
+        Field(description=&#34;Legal disclaimers or required text that must appear in creatives&#34;),
     ] = None
-    fonts: Annotated[Fonts | None, Field(description=&#39;Brand typography guidelines&#39;)] = None
+    fonts: Annotated[Fonts | None, Field(description=&#34;Brand typography guidelines&#34;)] = None
     industry: Annotated[
         str | None,
         Field(
@@ -201,19 +201,19 @@ validated to form a valid model.</p>
     ] = None
     logos: Annotated[
         list[Logo] | None,
-        Field(description=&#39;Brand logo assets with semantic tags for different use cases&#39;),
+        Field(description=&#34;Brand logo assets with semantic tags for different use cases&#34;),
     ] = None
-    metadata: Annotated[Metadata | None, Field(description=&#39;Additional brand metadata&#39;)] = None
-    name: Annotated[str, Field(description=&#39;Brand or business name&#39;)]
+    metadata: Annotated[Metadata | None, Field(description=&#34;Additional brand metadata&#34;)] = None
+    name: Annotated[str, Field(description=&#34;Brand or business name&#34;)]
     product_catalog: Annotated[
         ProductCatalog | None,
         Field(
-            description=&#39;Product catalog information for e-commerce advertisers. Enables SKU-level creative generation and product selection.&#39;
+            description=&#34;Product catalog information for e-commerce advertisers. Enables SKU-level creative generation and product selection.&#34;
         ),
     ] = None
-    tagline: Annotated[str | None, Field(description=&#39;Brand tagline or slogan&#39;)] = None
+    tagline: Annotated[str | None, Field(description=&#34;Brand tagline or slogan&#34;)] = None
     target_audience: Annotated[
-        str | None, Field(description=&#39;Primary target audience description&#39;)
+        str | None, Field(description=&#34;Primary target audience description&#34;)
     ] = None
     tone: Annotated[
         str | None,
@@ -224,7 +224,7 @@ validated to form a valid model.</p>
     url: Annotated[
         AnyUrl | None,
         Field(
-            description=&#39;Primary brand URL for context and asset discovery. Creative agents can infer brand information from this URL.&#39;
+            description=&#34;Primary brand URL for context and asset discovery. Creative agents can infer brand information from this URL.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -326,21 +326,21 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Colors(AdCPBaseModel):
     accent: Annotated[
-        str | None, Field(description=&#39;Accent color (hex format)&#39;, pattern=&#39;^#[0-9A-Fa-f]{6}$&#39;)
+        str | None, Field(description=&#34;Accent color (hex format)&#34;, pattern=&#34;^#[0-9A-Fa-f]{6}$&#34;)
     ] = None
     background: Annotated[
-        str | None, Field(description=&#39;Background color (hex format)&#39;, pattern=&#39;^#[0-9A-Fa-f]{6}$&#39;)
+        str | None, Field(description=&#34;Background color (hex format)&#34;, pattern=&#34;^#[0-9A-Fa-f]{6}$&#34;)
     ] = None
     primary: Annotated[
         str | None,
-        Field(description=&#39;Primary brand color (hex format)&#39;, pattern=&#39;^#[0-9A-Fa-f]{6}$&#39;),
+        Field(description=&#34;Primary brand color (hex format)&#34;, pattern=&#34;^#[0-9A-Fa-f]{6}$&#34;),
     ] = None
     secondary: Annotated[
         str | None,
-        Field(description=&#39;Secondary brand color (hex format)&#39;, pattern=&#39;^#[0-9A-Fa-f]{6}$&#39;),
+        Field(description=&#34;Secondary brand color (hex format)&#34;, pattern=&#34;^#[0-9A-Fa-f]{6}$&#34;),
     ] = None
     text: Annotated[
-        str | None, Field(description=&#39;Text color (hex format)&#39;, pattern=&#39;^#[0-9A-Fa-f]{6}$&#39;)
+        str | None, Field(description=&#34;Text color (hex format)&#34;, pattern=&#34;^#[0-9A-Fa-f]{6}$&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -404,8 +404,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Contact(AdCPBaseModel):
-    email: Annotated[EmailStr | None, Field(description=&#39;Contact email&#39;)] = None
-    phone: Annotated[str | None, Field(description=&#39;Contact phone number&#39;)] = None</code></pre>
+    email: Annotated[EmailStr | None, Field(description=&#34;Contact email&#34;)] = None
+    phone: Annotated[str | None, Field(description=&#34;Contact phone number&#34;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -462,10 +462,10 @@ validated to form a valid model.</p>
             description=&#34;When this disclaimer applies (e.g., &#39;financial_products&#39;, &#39;health_claims&#39;, &#39;all&#39;)&#34;
         ),
     ] = None
-    required: Annotated[bool | None, Field(description=&#39;Whether this disclaimer must appear&#39;)] = (
+    required: Annotated[bool | None, Field(description=&#34;Whether this disclaimer must appear&#34;)] = (
         True
     )
-    text: Annotated[str, Field(description=&#39;Disclaimer text&#39;)]</code></pre>
+    text: Annotated[str, Field(description=&#34;Disclaimer text&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -520,9 +520,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class FeedFormat(Enum):
-    google_merchant_center = &#39;google_merchant_center&#39;
-    facebook_catalog = &#39;facebook_catalog&#39;
-    custom = &#39;custom&#39;</code></pre>
+    google_merchant_center = &#34;google_merchant_center&#34;
+    facebook_catalog = &#34;facebook_catalog&#34;
+    custom = &#34;custom&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -590,10 +590,10 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Fonts(AdCPBaseModel):
     font_urls: Annotated[
-        list[AnyUrl] | None, Field(description=&#39;URLs to web font files if using custom fonts&#39;)
+        list[AnyUrl] | None, Field(description=&#34;URLs to web font files if using custom fonts&#34;)
     ] = None
-    primary: Annotated[str | None, Field(description=&#39;Primary font family name&#39;)] = None
-    secondary: Annotated[str | None, Field(description=&#39;Secondary font family name&#39;)] = None</code></pre>
+    primary: Annotated[str | None, Field(description=&#34;Primary font family name&#34;)] = None
+    secondary: Annotated[str | None, Field(description=&#34;Secondary font family name&#34;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -648,15 +648,15 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Logo(AdCPBaseModel):
-    height: Annotated[int | None, Field(description=&#39;Logo height in pixels&#39;)] = None
+    height: Annotated[int | None, Field(description=&#34;Logo height in pixels&#34;)] = None
     tags: Annotated[
         list[str] | None,
         Field(
             description=&#34;Semantic tags describing the logo variant (e.g., &#39;dark&#39;, &#39;light&#39;, &#39;square&#39;, &#39;horizontal&#39;, &#39;icon&#39;)&#34;
         ),
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#39;URL to the logo asset&#39;)]
-    width: Annotated[int | None, Field(description=&#39;Logo width in pixels&#39;)] = None</code></pre>
+    url: Annotated[AnyUrl, Field(description=&#34;URL to the logo asset&#34;)]
+    width: Annotated[int | None, Field(description=&#34;Logo width in pixels&#34;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -716,12 +716,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Metadata(AdCPBaseModel):
     created_date: Annotated[
-        AwareDatetime | None, Field(description=&#39;When this brand manifest was created&#39;)
+        AwareDatetime | None, Field(description=&#34;When this brand manifest was created&#34;)
     ] = None
     updated_date: Annotated[
-        AwareDatetime | None, Field(description=&#39;When this brand manifest was last updated&#39;)
+        AwareDatetime | None, Field(description=&#34;When this brand manifest was last updated&#34;)
     ] = None
-    version: Annotated[str | None, Field(description=&#39;Brand card version number&#39;)] = None</code></pre>
+    version: Annotated[str | None, Field(description=&#34;Brand card version number&#34;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -777,21 +777,21 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ProductCatalog(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     categories: Annotated[
         list[str] | None,
-        Field(description=&#39;Product categories available in the catalog (for filtering)&#39;),
+        Field(description=&#34;Product categories available in the catalog (for filtering)&#34;),
     ] = None
-    feed_format: Annotated[FeedFormat | None, Field(description=&#39;Format of the product feed&#39;)] = (
+    feed_format: Annotated[FeedFormat | None, Field(description=&#34;Format of the product feed&#34;)] = (
         FeedFormat.google_merchant_center
     )
-    feed_url: Annotated[AnyUrl, Field(description=&#39;URL to product catalog feed&#39;)]
+    feed_url: Annotated[AnyUrl, Field(description=&#34;URL to product catalog feed&#34;)]
     last_updated: Annotated[
-        AwareDatetime | None, Field(description=&#39;When the product catalog was last updated&#39;)
+        AwareDatetime | None, Field(description=&#34;When the product catalog was last updated&#34;)
     ] = None
     update_frequency: Annotated[
-        UpdateFrequency | None, Field(description=&#39;How frequently the product catalog is updated&#39;)
+        UpdateFrequency | None, Field(description=&#34;How frequently the product catalog is updated&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -855,10 +855,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class UpdateFrequency(Enum):
-    realtime = &#39;realtime&#39;
-    hourly = &#39;hourly&#39;
-    daily = &#39;daily&#39;
-    weekly = &#39;weekly&#39;</code></pre>
+    realtime = &#34;realtime&#34;
+    hourly = &#34;hourly&#34;
+    daily = &#34;daily&#34;
+    weekly = &#34;weekly&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>

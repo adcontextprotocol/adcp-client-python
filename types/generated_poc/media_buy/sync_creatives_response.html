@@ -57,28 +57,28 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Creative(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     action: Annotated[
-        creative_action.CreativeAction, Field(description=&#39;Action taken for this creative&#39;)
+        creative_action.CreativeAction, Field(description=&#34;Action taken for this creative&#34;)
     ]
     assigned_to: Annotated[
         list[str] | None,
         Field(
-            description=&#39;Package IDs this creative was successfully assigned to (only present when assignments were requested)&#39;
+            description=&#34;Package IDs this creative was successfully assigned to (only present when assignments were requested)&#34;
         ),
     ] = None
     assignment_errors: Annotated[
         dict[str, str] | None,
         Field(
-            description=&#39;Assignment errors by package ID (only present when assignment failures occurred)&#39;
+            description=&#34;Assignment errors by package ID (only present when assignment failures occurred)&#34;
         ),
     ] = None
     changes: Annotated[
         list[str] | None,
         Field(description=&#34;Field names that were modified (only present when action=&#39;updated&#39;)&#34;),
     ] = None
-    creative_id: Annotated[str, Field(description=&#39;Creative ID from the request&#39;)]
+    creative_id: Annotated[str, Field(description=&#34;Creative ID from the request&#34;)]
     errors: Annotated[
         list[str] | None,
         Field(description=&#34;Validation or processing errors (only present when action=&#39;failed&#39;)&#34;),
@@ -86,20 +86,20 @@ el.replaceWith(d);
     expires_at: Annotated[
         AwareDatetime | None,
         Field(
-            description=&#39;ISO 8601 timestamp when preview link expires (only present when preview_url exists)&#39;
+            description=&#34;ISO 8601 timestamp when preview link expires (only present when preview_url exists)&#34;
         ),
     ] = None
     platform_id: Annotated[
-        str | None, Field(description=&#39;Platform-specific ID assigned to the creative&#39;)
+        str | None, Field(description=&#34;Platform-specific ID assigned to the creative&#34;)
     ] = None
     preview_url: Annotated[
         AnyUrl | None,
         Field(
-            description=&#39;Preview URL for generative creatives (only present for generative formats)&#39;
+            description=&#34;Preview URL for generative creatives (only present for generative formats)&#34;
         ),
     ] = None
     warnings: Annotated[
-        list[str] | None, Field(description=&#39;Non-fatal warnings about this creative&#39;)
+        list[str] | None, Field(description=&#34;Non-fatal warnings about this creative&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -186,8 +186,8 @@ validated to form a valid model.</p>
     root: Annotated[
         SyncCreativesResponse1 | SyncCreativesResponse2,
         Field(
-            description=&#39;Response from creative sync operation. Returns either per-creative results (best-effort processing) OR operation-level errors (complete failure). This enforces atomic semantics at the operation level while allowing per-item failures within successful operations.&#39;,
-            title=&#39;Sync Creatives Response&#39;,
+            description=&#34;Response from creative sync operation. Returns either per-creative results (best-effort processing) OR operation-level errors (complete failure). This enforces atomic semantics at the operation level while allowing per-item failures within successful operations.&#34;,
+            title=&#34;Sync Creatives Response&#34;,
         ),
     ]</code></pre>
 </details>
@@ -241,7 +241,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SyncCreativesResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     creatives: Annotated[
@@ -251,7 +251,7 @@ validated to form a valid model.</p>
         ),
     ]
     dry_run: Annotated[
-        bool | None, Field(description=&#39;Whether this was a dry run (no actual changes made)&#39;)
+        bool | None, Field(description=&#34;Whether this was a dry run (no actual changes made)&#34;)
     ] = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
@@ -313,13 +313,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SyncCreativesResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
-            description=&#39;Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)&#39;,
+            description=&#34;Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)&#34;,
             min_length=1,
         ),
     ]

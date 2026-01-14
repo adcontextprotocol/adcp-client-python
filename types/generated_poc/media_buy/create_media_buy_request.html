@@ -57,12 +57,12 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Authentication(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     credentials: Annotated[
         str,
         Field(
-            description=&#39;Credentials for authentication. For Bearer: token sent in Authorization header. For HMAC-SHA256: shared secret used to generate signature. Minimum 32 characters. Exchanged out-of-band during onboarding.&#39;,
+            description=&#34;Credentials for authentication. For Bearer: token sent in Authorization header. For HMAC-SHA256: shared secret used to generate signature. Minimum 32 characters. Exchanged out-of-band during onboarding.&#34;,
             min_length=32,
         ),
     ]
@@ -125,28 +125,28 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreateMediaBuyRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     brand_manifest: Annotated[
         brand_manifest_ref.BrandManifestReference,
         Field(
-            description=&#39;Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests.&#39;
+            description=&#34;Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests.&#34;
         ),
     ]
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
     context: context_1.ContextObject | None = None
     end_time: Annotated[
-        AwareDatetime, Field(description=&#39;Campaign end date/time in ISO 8601 format&#39;)
+        AwareDatetime, Field(description=&#34;Campaign end date/time in ISO 8601 format&#34;)
     ]
     ext: ext_1.ExtensionObject | None = None
     packages: Annotated[
-        list[package_request.PackageRequest], Field(description=&#39;Array of package configurations&#39;)
+        list[package_request.PackageRequest], Field(description=&#34;Array of package configurations&#34;)
     ]
-    po_number: Annotated[str | None, Field(description=&#39;Purchase order number for tracking&#39;)] = None
+    po_number: Annotated[str | None, Field(description=&#34;Purchase order number for tracking&#34;)] = None
     reporting_webhook: Annotated[
         ReportingWebhook | None,
         Field(
-            description=&#39;Optional webhook configuration for automated reporting delivery. Combines push_notification_config structure with reporting-specific fields.&#39;
+            description=&#34;Optional webhook configuration for automated reporting delivery. Combines push_notification_config structure with reporting-specific fields.&#34;
         ),
     ] = None
     start_time: start_timing.StartTiming</code></pre>
@@ -228,9 +228,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ReportingFrequency(Enum):
-    hourly = &#39;hourly&#39;
-    daily = &#39;daily&#39;
-    monthly = &#39;monthly&#39;</code></pre>
+    hourly = &#34;hourly&#34;
+    daily = &#34;daily&#34;
+    monthly = &#34;monthly&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -298,16 +298,16 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class ReportingWebhook(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     authentication: Annotated[
         Authentication,
-        Field(description=&#39;Authentication configuration for webhook delivery (A2A-compatible)&#39;),
+        Field(description=&#34;Authentication configuration for webhook delivery (A2A-compatible)&#34;),
     ]
     reporting_frequency: Annotated[
         ReportingFrequency,
         Field(
-            description=&#39;Frequency for automated reporting delivery. Must be supported by all products in the media buy.&#39;
+            description=&#34;Frequency for automated reporting delivery. Must be supported by all products in the media buy.&#34;
         ),
     ]
     requested_metrics: Annotated[
@@ -319,11 +319,11 @@ attributes &ndash; see the documentation for details.</p></div>
     token: Annotated[
         str | None,
         Field(
-            description=&#39;Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.&#39;,
+            description=&#34;Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.&#34;,
             min_length=16,
         ),
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#39;Webhook endpoint URL for reporting notifications&#39;)]</code></pre>
+    url: Annotated[AnyUrl, Field(description=&#34;Webhook endpoint URL for reporting notifications&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -386,15 +386,15 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class RequestedMetric(Enum):
-    impressions = &#39;impressions&#39;
-    spend = &#39;spend&#39;
-    clicks = &#39;clicks&#39;
-    ctr = &#39;ctr&#39;
-    video_completions = &#39;video_completions&#39;
-    completion_rate = &#39;completion_rate&#39;
-    conversions = &#39;conversions&#39;
-    viewability = &#39;viewability&#39;
-    engagement_rate = &#39;engagement_rate&#39;</code></pre>
+    impressions = &#34;impressions&#34;
+    spend = &#34;spend&#34;
+    clicks = &#34;clicks&#34;
+    ctr = &#34;ctr&#34;
+    video_completions = &#34;video_completions&#34;
+    completion_rate = &#34;completion_rate&#34;
+    conversions = &#34;conversions&#34;
+    viewability = &#34;viewability&#34;
+    engagement_rate = &#34;engagement_rate&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>

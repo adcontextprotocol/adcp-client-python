@@ -57,12 +57,12 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class PackageRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     bid_price: Annotated[
         float | None,
         Field(
-            description=&#39;Bid price for auction-based CPM pricing (required if using cpm-auction-option)&#39;,
+            description=&#34;Bid price for auction-based CPM pricing (required if using cpm-auction-option)&#34;,
             ge=0.0,
         ),
     ] = None
@@ -74,13 +74,13 @@ el.replaceWith(d);
     creative_ids: Annotated[
         list[str] | None,
         Field(
-            description=&#39;Creative IDs to assign to this package at creation time (references existing library creatives)&#39;
+            description=&#34;Creative IDs to assign to this package at creation time (references existing library creatives)&#34;
         ),
     ] = None
     creatives: Annotated[
         list[creative_asset.CreativeAsset] | None,
         Field(
-            description=&#39;Full creative objects to upload and assign to this package at creation time (alternative to creative_ids - creatives will be added to library). Supports both static and generative creatives.&#39;,
+            description=&#34;Full creative objects to upload and assign to this package at creation time (alternative to creative_ids - creatives will be added to library). Supports both static and generative creatives.&#34;,
             max_length=100,
         ),
     ] = None
@@ -88,18 +88,27 @@ el.replaceWith(d);
     format_ids: Annotated[
         list[format_id.FormatId] | None,
         Field(
-            description=&#39;Array of format IDs that will be used for this package - must be supported by the product. If omitted, defaults to all formats supported by the product.&#39;,
+            description=&#34;Array of format IDs that will be used for this package - must be supported by the product. If omitted, defaults to all formats supported by the product.&#34;,
             min_length=1,
         ),
     ] = None
+    impressions: Annotated[
+        float | None, Field(description=&#34;Impression goal for this package&#34;, ge=0.0)
+    ] = None
     pacing: pacing_1.Pacing | None = None
+    paused: Annotated[
+        bool | None,
+        Field(
+            description=&#34;Whether this package should be created in a paused state. Paused packages do not deliver impressions. Defaults to false.&#34;
+        ),
+    ] = False
     pricing_option_id: Annotated[
         str,
         Field(
             description=&#34;ID of the selected pricing option from the product&#39;s pricing_options array&#34;
         ),
     ]
-    product_id: Annotated[str, Field(description=&#39;Product ID for this package&#39;)]
+    product_id: Annotated[str, Field(description=&#34;Product ID for this package&#34;)]
     targeting_overlay: targeting.TargetingOverlay | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -145,11 +154,19 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.package_request.PackageRequest.impressions"><code class="name">var <span class="ident">impressions</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.package_request.PackageRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.package_request.PackageRequest.pacing"><code class="name">var <span class="ident">pacing</span> : <a title="adcp.types.generated_poc.enums.pacing.Pacing" href="../enums/pacing.html#adcp.types.generated_poc.enums.pacing.Pacing">Pacing</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.package_request.PackageRequest.paused"><code class="name">var <span class="ident">paused</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -202,8 +219,10 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.creatives" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.creatives">creatives</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.ext" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.format_ids" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.format_ids">format_ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.impressions" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.impressions">impressions</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.model_config" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.pacing" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.pacing">pacing</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.paused" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.paused">paused</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.pricing_option_id" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.pricing_option_id">pricing_option_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.product_id" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.product_id">product_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.targeting_overlay" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.targeting_overlay">targeting_overlay</a></code></li>

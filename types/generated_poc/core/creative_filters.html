@@ -57,75 +57,75 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class CreativeFilters(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     assigned_to_package: Annotated[
-        str | None, Field(description=&#39;Filter creatives assigned to this specific package&#39;)
+        str | None, Field(description=&#34;Filter creatives assigned to this specific package&#34;)
     ] = None
     assigned_to_packages: Annotated[
-        list[str] | None, Field(description=&#39;Filter creatives assigned to any of these packages&#39;)
+        list[str] | None, Field(description=&#34;Filter creatives assigned to any of these packages&#34;)
     ] = None
     buyer_refs: Annotated[
         list[str] | None,
         Field(
-            description=&#39;Filter creatives assigned to media buys with any of these buyer references&#39;
+            description=&#34;Filter creatives assigned to media buys with any of these buyer references&#34;
         ),
     ] = None
     created_after: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;Filter creatives created after this date (ISO 8601)&#39;),
+        Field(description=&#34;Filter creatives created after this date (ISO 8601)&#34;),
     ] = None
     created_before: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;Filter creatives created before this date (ISO 8601)&#39;),
+        Field(description=&#34;Filter creatives created before this date (ISO 8601)&#34;),
     ] = None
     creative_ids: Annotated[
-        list[str] | None, Field(description=&#39;Filter by specific creative IDs&#39;, max_length=100)
+        list[str] | None, Field(description=&#34;Filter by specific creative IDs&#34;, max_length=100)
     ] = None
     format: Annotated[
         str | None,
-        Field(description=&#39;Filter by creative format type (e.g., video, audio, display)&#39;),
+        Field(description=&#34;Filter by creative format type (e.g., video, audio, display)&#34;),
     ] = None
     formats: Annotated[
-        list[str] | None, Field(description=&#39;Filter by multiple creative format types&#39;)
+        list[str] | None, Field(description=&#34;Filter by multiple creative format types&#34;)
     ] = None
     has_performance_data: Annotated[
-        bool | None, Field(description=&#39;Filter creatives that have performance data when true&#39;)
+        bool | None, Field(description=&#34;Filter creatives that have performance data when true&#34;)
     ] = None
     media_buy_ids: Annotated[
-        list[str] | None, Field(description=&#39;Filter creatives assigned to any of these media buys&#39;)
+        list[str] | None, Field(description=&#34;Filter creatives assigned to any of these media buys&#34;)
     ] = None
     name_contains: Annotated[
         str | None,
-        Field(description=&#39;Filter by creative names containing this text (case-insensitive)&#39;),
+        Field(description=&#34;Filter by creative names containing this text (case-insensitive)&#34;),
     ] = None
     status: Annotated[
         creative_status.CreativeStatus | None,
-        Field(description=&#39;Filter by creative approval status&#39;),
+        Field(description=&#34;Filter by creative approval status&#34;),
     ] = None
     statuses: Annotated[
         list[creative_status.CreativeStatus] | None,
-        Field(description=&#39;Filter by multiple creative statuses&#39;),
+        Field(description=&#34;Filter by multiple creative statuses&#34;),
     ] = None
     tags: Annotated[
-        list[str] | None, Field(description=&#39;Filter by creative tags (all tags must match)&#39;)
+        list[str] | None, Field(description=&#34;Filter by creative tags (all tags must match)&#34;)
     ] = None
     tags_any: Annotated[
-        list[str] | None, Field(description=&#39;Filter by creative tags (any tag must match)&#39;)
+        list[str] | None, Field(description=&#34;Filter by creative tags (any tag must match)&#34;)
     ] = None
     unassigned: Annotated[
         bool | None,
         Field(
-            description=&#39;Filter for unassigned creatives when true, assigned creatives when false&#39;
+            description=&#34;Filter for unassigned creatives when true, assigned creatives when false&#34;
         ),
     ] = None
     updated_after: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;Filter creatives last updated after this date (ISO 8601)&#39;),
+        Field(description=&#34;Filter creatives last updated after this date (ISO 8601)&#34;),
     ] = None
     updated_before: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;Filter creatives last updated before this date (ISO 8601)&#39;),
+        Field(description=&#34;Filter creatives last updated before this date (ISO 8601)&#34;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

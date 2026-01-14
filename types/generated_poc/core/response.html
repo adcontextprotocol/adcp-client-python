@@ -57,16 +57,16 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class ProtocolResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    context_id: Annotated[str | None, Field(description=&#39;Session continuity identifier&#39;)] = None
+    context_id: Annotated[str | None, Field(description=&#34;Session continuity identifier&#34;)] = None
     data: Annotated[
         Any | None,
         Field(
-            description=&#39;AdCP task-specific response data (see individual task response schemas)&#39;
+            description=&#34;AdCP task-specific response data (see individual task response schemas)&#34;
         ),
     ] = None
-    message: Annotated[str, Field(description=&#39;Human-readable summary&#39;)]</code></pre>
+    message: Annotated[str, Field(description=&#34;Human-readable summary&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null

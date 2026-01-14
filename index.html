@@ -5345,19 +5345,19 @@ def agent_ids(self) -&gt; list[str]:
 </summary>
 <pre><code class="python">class ActivateSignalRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     deployments: Annotated[
         list[destination.Destination],
         Field(
-            description=&#39;Target deployment(s) for activation. If the authenticated caller matches one of these deployment targets, activation keys will be included in the response.&#39;,
+            description=&#34;Target deployment(s) for activation. If the authenticated caller matches one of these deployment targets, activation keys will be included in the response.&#34;,
             min_length=1,
         ),
     ]
     ext: ext_1.ExtensionObject | None = None
     signal_agent_segment_id: Annotated[
-        str, Field(description=&#39;The universal identifier for the signal to activate&#39;)
+        str, Field(description=&#34;The universal identifier for the signal to activate&#34;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -5420,8 +5420,8 @@ validated to form a valid model.</p>
     root: Annotated[
         ActivateSignalResponse1 | ActivateSignalResponse2,
         Field(
-            description=&#39;Response payload for activate_signal task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - the signal is either fully activated or not activated at all.&#39;,
-            title=&#39;Activate Signal Response&#39;,
+            description=&#34;Response payload for activate_signal task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - the signal is either fully activated or not activated at all.&#34;,
+            title=&#34;Activate Signal Response&#34;,
         ),
     ]</code></pre>
 </details>
@@ -5475,12 +5475,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ActivateSignalResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     deployments: Annotated[
         list[deployment.Deployment],
-        Field(description=&#39;Array of deployment results for each deployment target&#39;),
+        Field(description=&#34;Array of deployment results for each deployment target&#34;),
     ]
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
@@ -5538,13 +5538,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ActivateSignalResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
-            description=&#39;Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)&#39;,
+            description=&#34;Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)&#34;,
             min_length=1,
         ),
     ]
@@ -5604,13 +5604,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ActivationKey1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     segment_id: Annotated[
         str,
-        Field(description=&#39;The platform-specific segment identifier to use in campaign targeting&#39;),
+        Field(description=&#34;The platform-specific segment identifier to use in campaign targeting&#34;),
     ]
-    type: Annotated[Literal[&#39;segment_id&#39;], Field(description=&#39;Segment ID based targeting&#39;)]</code></pre>
+    type: Annotated[Literal[&#34;segment_id&#34;], Field(description=&#34;Segment ID based targeting&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -5662,11 +5662,11 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ActivationKey2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    key: Annotated[str, Field(description=&#39;The targeting parameter key&#39;)]
-    type: Annotated[Literal[&#39;key_value&#39;], Field(description=&#39;Key-value pair based targeting&#39;)]
-    value: Annotated[str, Field(description=&#39;The targeting parameter value&#39;)]</code></pre>
+    key: Annotated[str, Field(description=&#34;The targeting parameter key&#34;)]
+    type: Annotated[Literal[&#34;key_value&#34;], Field(description=&#34;Key-value pair based targeting&#34;)]
+    value: Annotated[str, Field(description=&#34;The targeting parameter value&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -5973,19 +5973,19 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class AssetContentType(Enum):
-    image = &#39;image&#39;
-    video = &#39;video&#39;
-    audio = &#39;audio&#39;
-    text = &#39;text&#39;
-    markdown = &#39;markdown&#39;
-    html = &#39;html&#39;
-    css = &#39;css&#39;
-    javascript = &#39;javascript&#39;
-    vast = &#39;vast&#39;
-    daast = &#39;daast&#39;
-    promoted_offerings = &#39;promoted_offerings&#39;
-    url = &#39;url&#39;
-    webhook = &#39;webhook&#39;</code></pre>
+    image = &#34;image&#34;
+    video = &#34;video&#34;
+    audio = &#34;audio&#34;
+    text = &#34;text&#34;
+    markdown = &#34;markdown&#34;
+    html = &#34;html&#34;
+    css = &#34;css&#34;
+    javascript = &#34;javascript&#34;
+    vast = &#34;vast&#34;
+    daast = &#34;daast&#34;
+    promoted_offerings = &#34;promoted_offerings&#34;
+    url = &#34;url&#34;
+    webhook = &#34;webhook&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -6162,21 +6162,21 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class BrandManifest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     assets: Annotated[
         list[Asset] | None,
         Field(
-            description=&#39;Brand asset library with explicit assets and tags. Assets are referenced inline with URLs pointing to CDN-hosted files.&#39;
+            description=&#34;Brand asset library with explicit assets and tags. Assets are referenced inline with URLs pointing to CDN-hosted files.&#34;
         ),
     ] = None
-    colors: Annotated[Colors | None, Field(description=&#39;Brand color palette&#39;)] = None
-    contact: Annotated[Contact | None, Field(description=&#39;Brand contact information&#39;)] = None
+    colors: Annotated[Colors | None, Field(description=&#34;Brand color palette&#34;)] = None
+    contact: Annotated[Contact | None, Field(description=&#34;Brand contact information&#34;)] = None
     disclaimers: Annotated[
         list[Disclaimer] | None,
-        Field(description=&#39;Legal disclaimers or required text that must appear in creatives&#39;),
+        Field(description=&#34;Legal disclaimers or required text that must appear in creatives&#34;),
     ] = None
-    fonts: Annotated[Fonts | None, Field(description=&#39;Brand typography guidelines&#39;)] = None
+    fonts: Annotated[Fonts | None, Field(description=&#34;Brand typography guidelines&#34;)] = None
     industry: Annotated[
         str | None,
         Field(
@@ -6185,19 +6185,19 @@ attributes &ndash; see the documentation for details.</p></div>
     ] = None
     logos: Annotated[
         list[Logo] | None,
-        Field(description=&#39;Brand logo assets with semantic tags for different use cases&#39;),
+        Field(description=&#34;Brand logo assets with semantic tags for different use cases&#34;),
     ] = None
-    metadata: Annotated[Metadata | None, Field(description=&#39;Additional brand metadata&#39;)] = None
-    name: Annotated[str, Field(description=&#39;Brand or business name&#39;)]
+    metadata: Annotated[Metadata | None, Field(description=&#34;Additional brand metadata&#34;)] = None
+    name: Annotated[str, Field(description=&#34;Brand or business name&#34;)]
     product_catalog: Annotated[
         ProductCatalog | None,
         Field(
-            description=&#39;Product catalog information for e-commerce advertisers. Enables SKU-level creative generation and product selection.&#39;
+            description=&#34;Product catalog information for e-commerce advertisers. Enables SKU-level creative generation and product selection.&#34;
         ),
     ] = None
-    tagline: Annotated[str | None, Field(description=&#39;Brand tagline or slogan&#39;)] = None
+    tagline: Annotated[str | None, Field(description=&#34;Brand tagline or slogan&#34;)] = None
     target_audience: Annotated[
-        str | None, Field(description=&#39;Primary target audience description&#39;)
+        str | None, Field(description=&#34;Primary target audience description&#34;)
     ] = None
     tone: Annotated[
         str | None,
@@ -6208,7 +6208,7 @@ attributes &ndash; see the documentation for details.</p></div>
     url: Annotated[
         AnyUrl | None,
         Field(
-            description=&#39;Primary brand URL for context and asset discovery. Creative agents can infer brand information from this URL.&#39;
+            description=&#34;Primary brand URL for context and asset discovery. Creative agents can infer brand information from this URL.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -6310,26 +6310,26 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BuildCreativeRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest | None,
         Field(
-            description=&#39;Creative manifest to transform or generate from. For pure generation, this should include the target format_id and any required input assets (e.g., promoted_offerings for generative formats). For transformation (e.g., resizing, reformatting), this is the complete creative to adapt.&#39;
+            description=&#34;Creative manifest to transform or generate from. For pure generation, this should include the target format_id and any required input assets (e.g., promoted_offerings for generative formats). For transformation (e.g., resizing, reformatting), this is the complete creative to adapt.&#34;
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     message: Annotated[
         str | None,
         Field(
-            description=&#39;Natural language instructions for the transformation or generation. For pure generation, this is the creative brief. For transformation, this provides guidance on how to adapt the creative.&#39;
+            description=&#34;Natural language instructions for the transformation or generation. For pure generation, this is the creative brief. For transformation, this provides guidance on how to adapt the creative.&#34;
         ),
     ] = None
     target_format_id: Annotated[
         format_id.FormatId,
         Field(
-            description=&#39;Format ID to generate. The format definition specifies required input assets and output structure.&#39;
+            description=&#34;Format ID to generate. The format definition specifies required input assets and output structure.&#34;
         ),
     ]</code></pre>
 </details>
@@ -6397,8 +6397,8 @@ validated to form a valid model.</p>
     root: Annotated[
         BuildCreativeResponse1 | BuildCreativeResponse2,
         Field(
-            description=&#39;Response containing the transformed or generated creative manifest, ready for use with preview_creative or sync_creatives. Returns either the complete creative manifest OR error information, never both.&#39;,
-            title=&#39;Build Creative Response&#39;,
+            description=&#34;Response containing the transformed or generated creative manifest, ready for use with preview_creative or sync_creatives. Returns either the complete creative manifest OR error information, never both.&#34;,
+            title=&#34;Build Creative Response&#34;,
         ),
     ]</code></pre>
 </details>
@@ -6452,12 +6452,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BuildCreativeResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest,
-        Field(description=&#39;The generated or transformed creative manifest&#39;),
+        Field(description=&#34;The generated or transformed creative manifest&#34;),
     ]
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
@@ -6515,13 +6515,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BuildCreativeResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
-            description=&#39;Array of errors explaining why creative generation failed&#39;, min_length=1
+            description=&#34;Array of errors explaining why creative generation failed&#34;, min_length=1
         ),
     ]
     ext: ext_1.ExtensionObject | None = None</code></pre>
@@ -6580,35 +6580,35 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CpcPricingOption(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     currency: Annotated[
         str,
         Field(
-            description=&#39;ISO 4217 currency code&#39;,
-            examples=[&#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;, &#39;JPY&#39;],
-            pattern=&#39;^[A-Z]{3}$&#39;,
+            description=&#34;ISO 4217 currency code&#34;,
+            examples=[&#34;USD&#34;, &#34;EUR&#34;, &#34;GBP&#34;, &#34;JPY&#34;],
+            pattern=&#34;^[A-Z]{3}$&#34;,
         ),
     ]
     is_fixed: Annotated[
         Literal[True],
-        Field(description=&#39;Whether this is a fixed rate (true) or auction-based (false)&#39;),
+        Field(description=&#34;Whether this is a fixed rate (true) or auction-based (false)&#34;),
     ]
     min_spend_per_package: Annotated[
         float | None,
         Field(
-            description=&#39;Minimum spend requirement per package using this pricing option, in the specified currency&#39;,
+            description=&#34;Minimum spend requirement per package using this pricing option, in the specified currency&#34;,
             ge=0.0,
         ),
     ] = None
-    pricing_model: Annotated[Literal[&#39;cpc&#39;], Field(description=&#39;Cost per click&#39;)]
+    pricing_model: Annotated[Literal[&#34;cpc&#34;], Field(description=&#34;Cost per click&#34;)]
     pricing_option_id: Annotated[
         str,
         Field(
             description=&#34;Unique identifier for this pricing option within the product (e.g., &#39;cpc_usd_fixed&#39;)&#34;
         ),
     ]
-    rate: Annotated[float, Field(description=&#39;Fixed CPC rate (cost per click)&#39;, ge=0.0)]</code></pre>
+    rate: Annotated[float, Field(description=&#34;Fixed CPC rate (cost per click)&#34;, ge=0.0)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -6676,29 +6676,29 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CpcvPricingOption(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     currency: Annotated[
         str,
         Field(
-            description=&#39;ISO 4217 currency code&#39;,
-            examples=[&#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;, &#39;JPY&#39;],
-            pattern=&#39;^[A-Z]{3}$&#39;,
+            description=&#34;ISO 4217 currency code&#34;,
+            examples=[&#34;USD&#34;, &#34;EUR&#34;, &#34;GBP&#34;, &#34;JPY&#34;],
+            pattern=&#34;^[A-Z]{3}$&#34;,
         ),
     ]
     is_fixed: Annotated[
         Literal[True],
-        Field(description=&#39;Whether this is a fixed rate (true) or auction-based (false)&#39;),
+        Field(description=&#34;Whether this is a fixed rate (true) or auction-based (false)&#34;),
     ]
     min_spend_per_package: Annotated[
         float | None,
         Field(
-            description=&#39;Minimum spend requirement per package using this pricing option, in the specified currency&#39;,
+            description=&#34;Minimum spend requirement per package using this pricing option, in the specified currency&#34;,
             ge=0.0,
         ),
     ] = None
     pricing_model: Annotated[
-        Literal[&#39;cpcv&#39;], Field(description=&#39;Cost per completed view (100% completion)&#39;)
+        Literal[&#34;cpcv&#34;], Field(description=&#34;Cost per completed view (100% completion)&#34;)
     ]
     pricing_option_id: Annotated[
         str,
@@ -6706,7 +6706,7 @@ validated to form a valid model.</p>
             description=&#34;Unique identifier for this pricing option within the product (e.g., &#39;cpcv_usd_guaranteed&#39;)&#34;
         ),
     ]
-    rate: Annotated[float, Field(description=&#39;Fixed CPCV rate (cost per 100% completion)&#39;, ge=0.0)]</code></pre>
+    rate: Annotated[float, Field(description=&#34;Fixed CPCV rate (cost per 100% completion)&#34;, ge=0.0)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -6774,31 +6774,31 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CpmAuctionPricingOption(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     currency: Annotated[
         str,
         Field(
-            description=&#39;ISO 4217 currency code&#39;,
-            examples=[&#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;, &#39;JPY&#39;],
-            pattern=&#39;^[A-Z]{3}$&#39;,
+            description=&#34;ISO 4217 currency code&#34;,
+            examples=[&#34;USD&#34;, &#34;EUR&#34;, &#34;GBP&#34;, &#34;JPY&#34;],
+            pattern=&#34;^[A-Z]{3}$&#34;,
         ),
     ]
     is_fixed: Annotated[
         Literal[False],
-        Field(description=&#39;Whether this is a fixed rate (true) or auction-based (false)&#39;),
+        Field(description=&#34;Whether this is a fixed rate (true) or auction-based (false)&#34;),
     ]
     min_spend_per_package: Annotated[
         float | None,
         Field(
-            description=&#39;Minimum spend requirement per package using this pricing option, in the specified currency&#39;,
+            description=&#34;Minimum spend requirement per package using this pricing option, in the specified currency&#34;,
             ge=0.0,
         ),
     ] = None
     price_guidance: Annotated[
-        PriceGuidance, Field(description=&#39;Pricing guidance for auction-based CPM bidding&#39;)
+        PriceGuidance, Field(description=&#34;Pricing guidance for auction-based CPM bidding&#34;)
     ]
-    pricing_model: Annotated[Literal[&#39;cpm&#39;], Field(description=&#39;Cost per 1,000 impressions&#39;)]
+    pricing_model: Annotated[Literal[&#34;cpm&#34;], Field(description=&#34;Cost per 1,000 impressions&#34;)]
     pricing_option_id: Annotated[
         str,
         Field(
@@ -6872,35 +6872,35 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CpmFixedRatePricingOption(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     currency: Annotated[
         str,
         Field(
-            description=&#39;ISO 4217 currency code&#39;,
-            examples=[&#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;, &#39;JPY&#39;],
-            pattern=&#39;^[A-Z]{3}$&#39;,
+            description=&#34;ISO 4217 currency code&#34;,
+            examples=[&#34;USD&#34;, &#34;EUR&#34;, &#34;GBP&#34;, &#34;JPY&#34;],
+            pattern=&#34;^[A-Z]{3}$&#34;,
         ),
     ]
     is_fixed: Annotated[
         Literal[True],
-        Field(description=&#39;Whether this is a fixed rate (true) or auction-based (false)&#39;),
+        Field(description=&#34;Whether this is a fixed rate (true) or auction-based (false)&#34;),
     ]
     min_spend_per_package: Annotated[
         float | None,
         Field(
-            description=&#39;Minimum spend requirement per package using this pricing option, in the specified currency&#39;,
+            description=&#34;Minimum spend requirement per package using this pricing option, in the specified currency&#34;,
             ge=0.0,
         ),
     ] = None
-    pricing_model: Annotated[Literal[&#39;cpm&#39;], Field(description=&#39;Cost per 1,000 impressions&#39;)]
+    pricing_model: Annotated[Literal[&#34;cpm&#34;], Field(description=&#34;Cost per 1,000 impressions&#34;)]
     pricing_option_id: Annotated[
         str,
         Field(
             description=&#34;Unique identifier for this pricing option within the product (e.g., &#39;cpm_usd_guaranteed&#39;)&#34;
         ),
     ]
-    rate: Annotated[float, Field(description=&#39;Fixed CPM rate (cost per 1,000 impressions)&#39;, ge=0.0)]</code></pre>
+    rate: Annotated[float, Field(description=&#34;Fixed CPM rate (cost per 1,000 impressions)&#34;, ge=0.0)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -6968,39 +6968,39 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CppPricingOption(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     currency: Annotated[
         str,
         Field(
-            description=&#39;ISO 4217 currency code&#39;,
-            examples=[&#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;, &#39;JPY&#39;],
-            pattern=&#39;^[A-Z]{3}$&#39;,
+            description=&#34;ISO 4217 currency code&#34;,
+            examples=[&#34;USD&#34;, &#34;EUR&#34;, &#34;GBP&#34;, &#34;JPY&#34;],
+            pattern=&#34;^[A-Z]{3}$&#34;,
         ),
     ]
     is_fixed: Annotated[
         Literal[True],
-        Field(description=&#39;Whether this is a fixed rate (true) or auction-based (false)&#39;),
+        Field(description=&#34;Whether this is a fixed rate (true) or auction-based (false)&#34;),
     ]
     min_spend_per_package: Annotated[
         float | None,
         Field(
-            description=&#39;Minimum spend requirement per package using this pricing option, in the specified currency&#39;,
+            description=&#34;Minimum spend requirement per package using this pricing option, in the specified currency&#34;,
             ge=0.0,
         ),
     ] = None
     parameters: Annotated[
         Parameters,
-        Field(description=&#39;CPP-specific parameters for demographic targeting and GRP requirements&#39;),
+        Field(description=&#34;CPP-specific parameters for demographic targeting and GRP requirements&#34;),
     ]
-    pricing_model: Annotated[Literal[&#39;cpp&#39;], Field(description=&#39;Cost per Gross Rating Point&#39;)]
+    pricing_model: Annotated[Literal[&#34;cpp&#34;], Field(description=&#34;Cost per Gross Rating Point&#34;)]
     pricing_option_id: Annotated[
         str,
         Field(
             description=&#34;Unique identifier for this pricing option within the product (e.g., &#39;cpp_usd_p18-49&#39;)&#34;
         ),
     ]
-    rate: Annotated[float, Field(description=&#39;Fixed CPP rate (cost per rating point)&#39;, ge=0.0)]</code></pre>
+    rate: Annotated[float, Field(description=&#34;Fixed CPP rate (cost per rating point)&#34;, ge=0.0)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -7072,38 +7072,38 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CpvPricingOption(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     currency: Annotated[
         str,
         Field(
-            description=&#39;ISO 4217 currency code&#39;,
-            examples=[&#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;, &#39;JPY&#39;],
-            pattern=&#39;^[A-Z]{3}$&#39;,
+            description=&#34;ISO 4217 currency code&#34;,
+            examples=[&#34;USD&#34;, &#34;EUR&#34;, &#34;GBP&#34;, &#34;JPY&#34;],
+            pattern=&#34;^[A-Z]{3}$&#34;,
         ),
     ]
     is_fixed: Annotated[
         Literal[True],
-        Field(description=&#39;Whether this is a fixed rate (true) or auction-based (false)&#39;),
+        Field(description=&#34;Whether this is a fixed rate (true) or auction-based (false)&#34;),
     ]
     min_spend_per_package: Annotated[
         float | None,
         Field(
-            description=&#39;Minimum spend requirement per package using this pricing option, in the specified currency&#39;,
+            description=&#34;Minimum spend requirement per package using this pricing option, in the specified currency&#34;,
             ge=0.0,
         ),
     ] = None
     parameters: Annotated[
-        Parameters, Field(description=&#39;CPV-specific parameters defining the view threshold&#39;)
+        Parameters, Field(description=&#34;CPV-specific parameters defining the view threshold&#34;)
     ]
-    pricing_model: Annotated[Literal[&#39;cpv&#39;], Field(description=&#39;Cost per view at threshold&#39;)]
+    pricing_model: Annotated[Literal[&#34;cpv&#34;], Field(description=&#34;Cost per view at threshold&#34;)]
     pricing_option_id: Annotated[
         str,
         Field(
             description=&#34;Unique identifier for this pricing option within the product (e.g., &#39;cpv_usd_50pct&#39;)&#34;
         ),
     ]
-    rate: Annotated[float, Field(description=&#39;Fixed CPV rate (cost per view)&#39;, ge=0.0)]</code></pre>
+    rate: Annotated[float, Field(description=&#34;Fixed CPV rate (cost per view)&#34;, ge=0.0)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -7175,28 +7175,28 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreateMediaBuyRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     brand_manifest: Annotated[
         brand_manifest_ref.BrandManifestReference,
         Field(
-            description=&#39;Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests.&#39;
+            description=&#34;Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests.&#34;
         ),
     ]
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
     context: context_1.ContextObject | None = None
     end_time: Annotated[
-        AwareDatetime, Field(description=&#39;Campaign end date/time in ISO 8601 format&#39;)
+        AwareDatetime, Field(description=&#34;Campaign end date/time in ISO 8601 format&#34;)
     ]
     ext: ext_1.ExtensionObject | None = None
     packages: Annotated[
-        list[package_request.PackageRequest], Field(description=&#39;Array of package configurations&#39;)
+        list[package_request.PackageRequest], Field(description=&#34;Array of package configurations&#34;)
     ]
-    po_number: Annotated[str | None, Field(description=&#39;Purchase order number for tracking&#39;)] = None
+    po_number: Annotated[str | None, Field(description=&#34;Purchase order number for tracking&#34;)] = None
     reporting_webhook: Annotated[
         ReportingWebhook | None,
         Field(
-            description=&#39;Optional webhook configuration for automated reporting delivery. Combines push_notification_config structure with reporting-specific fields.&#39;
+            description=&#34;Optional webhook configuration for automated reporting delivery. Combines push_notification_config structure with reporting-specific fields.&#34;
         ),
     ] = None
     start_time: start_timing.StartTiming</code></pre>
@@ -7281,8 +7281,8 @@ validated to form a valid model.</p>
     root: Annotated[
         CreateMediaBuyResponse1 | CreateMediaBuyResponse2,
         Field(
-            description=&#39;Response payload for create_media_buy task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - the media buy is either fully created or not created at all.&#39;,
-            title=&#39;Create Media Buy Response&#39;,
+            description=&#34;Response payload for create_media_buy task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - the media buy is either fully created or not created at all.&#34;,
+            title=&#34;Create Media Buy Response&#34;,
         ),
     ]</code></pre>
 </details>
@@ -7336,12 +7336,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreateMediaBuyResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
     context: context_1.ContextObject | None = None
     creative_deadline: Annotated[
-        AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
+        AwareDatetime | None, Field(description=&#34;ISO 8601 timestamp for creative upload deadline&#34;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
     media_buy_id: Annotated[
@@ -7349,7 +7349,7 @@ validated to form a valid model.</p>
     ]
     packages: Annotated[
         list[package.Package],
-        Field(description=&#39;Array of created packages with complete state information&#39;),
+        Field(description=&#34;Array of created packages with complete state information&#34;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -7418,12 +7418,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreateMediaBuyResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
-        Field(description=&#39;Array of errors explaining why the operation failed&#39;, min_length=1),
+        Field(description=&#34;Array of errors explaining why the operation failed&#34;, min_length=1),
     ]
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
@@ -7481,7 +7481,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Creative(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     assets: Annotated[
         dict[
@@ -7499,40 +7499,40 @@ validated to form a valid model.</p>
             | url_asset.UrlAsset,
         ]
         | None,
-        Field(description=&#39;Assets for this creative, keyed by asset_role&#39;),
+        Field(description=&#34;Assets for this creative, keyed by asset_role&#34;),
     ] = None
     assignments: Annotated[
         Assignments | None,
-        Field(description=&#39;Current package assignments (included when include_assignments=true)&#39;),
+        Field(description=&#34;Current package assignments (included when include_assignments=true)&#34;),
     ] = None
     created_date: Annotated[
-        AwareDatetime, Field(description=&#39;When the creative was uploaded to the library&#39;)
+        AwareDatetime, Field(description=&#34;When the creative was uploaded to the library&#34;)
     ]
-    creative_id: Annotated[str, Field(description=&#39;Unique identifier for the creative&#39;)]
+    creative_id: Annotated[str, Field(description=&#34;Unique identifier for the creative&#34;)]
     format_id: Annotated[
         format_id_1.FormatId,
-        Field(description=&#39;Format identifier specifying which format this creative conforms to&#39;),
+        Field(description=&#34;Format identifier specifying which format this creative conforms to&#34;),
     ]
-    name: Annotated[str, Field(description=&#39;Human-readable creative name&#39;)]
+    name: Annotated[str, Field(description=&#34;Human-readable creative name&#34;)]
     performance: Annotated[
         Performance | None,
         Field(
-            description=&#39;Aggregated performance metrics (included when include_performance=true)&#39;
+            description=&#34;Aggregated performance metrics (included when include_performance=true)&#34;
         ),
     ] = None
     status: Annotated[
-        creative_status.CreativeStatus, Field(description=&#39;Current approval status of the creative&#39;)
+        creative_status.CreativeStatus, Field(description=&#34;Current approval status of the creative&#34;)
     ]
     sub_assets: Annotated[
         list[sub_asset.SubAsset] | None,
         Field(
-            description=&#39;Sub-assets for multi-asset formats (included when include_sub_assets=true)&#39;
+            description=&#34;Sub-assets for multi-asset formats (included when include_sub_assets=true)&#34;
         ),
     ] = None
     tags: Annotated[
-        list[str] | None, Field(description=&#39;User-defined tags for organization and searchability&#39;)
+        list[str] | None, Field(description=&#34;User-defined tags for organization and searchability&#34;)
     ] = None
-    updated_date: Annotated[AwareDatetime, Field(description=&#39;When the creative was last modified&#39;)]</code></pre>
+    updated_date: Annotated[AwareDatetime, Field(description=&#34;When the creative was last modified&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -7620,75 +7620,75 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreativeFilters(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     assigned_to_package: Annotated[
-        str | None, Field(description=&#39;Filter creatives assigned to this specific package&#39;)
+        str | None, Field(description=&#34;Filter creatives assigned to this specific package&#34;)
     ] = None
     assigned_to_packages: Annotated[
-        list[str] | None, Field(description=&#39;Filter creatives assigned to any of these packages&#39;)
+        list[str] | None, Field(description=&#34;Filter creatives assigned to any of these packages&#34;)
     ] = None
     buyer_refs: Annotated[
         list[str] | None,
         Field(
-            description=&#39;Filter creatives assigned to media buys with any of these buyer references&#39;
+            description=&#34;Filter creatives assigned to media buys with any of these buyer references&#34;
         ),
     ] = None
     created_after: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;Filter creatives created after this date (ISO 8601)&#39;),
+        Field(description=&#34;Filter creatives created after this date (ISO 8601)&#34;),
     ] = None
     created_before: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;Filter creatives created before this date (ISO 8601)&#39;),
+        Field(description=&#34;Filter creatives created before this date (ISO 8601)&#34;),
     ] = None
     creative_ids: Annotated[
-        list[str] | None, Field(description=&#39;Filter by specific creative IDs&#39;, max_length=100)
+        list[str] | None, Field(description=&#34;Filter by specific creative IDs&#34;, max_length=100)
     ] = None
     format: Annotated[
         str | None,
-        Field(description=&#39;Filter by creative format type (e.g., video, audio, display)&#39;),
+        Field(description=&#34;Filter by creative format type (e.g., video, audio, display)&#34;),
     ] = None
     formats: Annotated[
-        list[str] | None, Field(description=&#39;Filter by multiple creative format types&#39;)
+        list[str] | None, Field(description=&#34;Filter by multiple creative format types&#34;)
     ] = None
     has_performance_data: Annotated[
-        bool | None, Field(description=&#39;Filter creatives that have performance data when true&#39;)
+        bool | None, Field(description=&#34;Filter creatives that have performance data when true&#34;)
     ] = None
     media_buy_ids: Annotated[
-        list[str] | None, Field(description=&#39;Filter creatives assigned to any of these media buys&#39;)
+        list[str] | None, Field(description=&#34;Filter creatives assigned to any of these media buys&#34;)
     ] = None
     name_contains: Annotated[
         str | None,
-        Field(description=&#39;Filter by creative names containing this text (case-insensitive)&#39;),
+        Field(description=&#34;Filter by creative names containing this text (case-insensitive)&#34;),
     ] = None
     status: Annotated[
         creative_status.CreativeStatus | None,
-        Field(description=&#39;Filter by creative approval status&#39;),
+        Field(description=&#34;Filter by creative approval status&#34;),
     ] = None
     statuses: Annotated[
         list[creative_status.CreativeStatus] | None,
-        Field(description=&#39;Filter by multiple creative statuses&#39;),
+        Field(description=&#34;Filter by multiple creative statuses&#34;),
     ] = None
     tags: Annotated[
-        list[str] | None, Field(description=&#39;Filter by creative tags (all tags must match)&#39;)
+        list[str] | None, Field(description=&#34;Filter by creative tags (all tags must match)&#34;)
     ] = None
     tags_any: Annotated[
-        list[str] | None, Field(description=&#39;Filter by creative tags (any tag must match)&#39;)
+        list[str] | None, Field(description=&#34;Filter by creative tags (any tag must match)&#34;)
     ] = None
     unassigned: Annotated[
         bool | None,
         Field(
-            description=&#39;Filter for unassigned creatives when true, assigned creatives when false&#39;
+            description=&#34;Filter for unassigned creatives when true, assigned creatives when false&#34;
         ),
     ] = None
     updated_after: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;Filter creatives last updated after this date (ISO 8601)&#39;),
+        Field(description=&#34;Filter creatives last updated after this date (ISO 8601)&#34;),
     ] = None
     updated_before: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;Filter creatives last updated before this date (ISO 8601)&#39;),
+        Field(description=&#34;Filter creatives last updated before this date (ISO 8601)&#34;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -7805,7 +7805,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreativeManifest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     assets: Annotated[
         dict[
@@ -7837,7 +7837,7 @@ validated to form a valid model.</p>
     promoted_offering: Annotated[
         str | None,
         Field(
-            description=&#39;Product name or offering being advertised. Maps to promoted_offerings in create_media_buy request to associate creative with the product being promoted.&#39;
+            description=&#34;Product name or offering being advertised. Maps to promoted_offerings in create_media_buy request to associate creative with the product being promoted.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -7898,10 +7898,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class CreativeStatus(Enum):
-    processing = &#39;processing&#39;
-    approved = &#39;approved&#39;
-    rejected = &#39;rejected&#39;
-    pending_review = &#39;pending_review&#39;</code></pre>
+    processing = &#34;processing&#34;
+    approved = &#34;approved&#34;
+    rejected = &#34;rejected&#34;
+    pending_review = &#34;pending_review&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -7973,26 +7973,26 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class DaastAsset1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     companion_ads: Annotated[
-        bool | None, Field(description=&#39;Whether companion display ads are included&#39;)
+        bool | None, Field(description=&#34;Whether companion display ads are included&#34;)
     ] = None
     daast_version: Annotated[
-        daast_version_1.DaastVersion | None, Field(description=&#39;DAAST specification version&#39;)
+        daast_version_1.DaastVersion | None, Field(description=&#34;DAAST specification version&#34;)
     ] = None
     delivery_type: Annotated[
-        Literal[&#39;url&#39;],
-        Field(description=&#39;Discriminator indicating DAAST is delivered via URL endpoint&#39;),
+        Literal[&#34;url&#34;],
+        Field(description=&#34;Discriminator indicating DAAST is delivered via URL endpoint&#34;),
     ]
     duration_ms: Annotated[
-        int | None, Field(description=&#39;Expected audio duration in milliseconds (if known)&#39;, ge=0)
+        int | None, Field(description=&#34;Expected audio duration in milliseconds (if known)&#34;, ge=0)
     ] = None
     tracking_events: Annotated[
         list[daast_tracking_event.DaastTrackingEvent] | None,
-        Field(description=&#39;Tracking events supported by this DAAST tag&#39;),
+        Field(description=&#34;Tracking events supported by this DAAST tag&#34;),
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#39;URL endpoint that returns DAAST XML&#39;)]</code></pre>
+    url: Annotated[AnyUrl, Field(description=&#34;URL endpoint that returns DAAST XML&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -8060,25 +8060,25 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class DaastAsset2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     companion_ads: Annotated[
-        bool | None, Field(description=&#39;Whether companion display ads are included&#39;)
+        bool | None, Field(description=&#34;Whether companion display ads are included&#34;)
     ] = None
-    content: Annotated[str, Field(description=&#39;Inline DAAST XML content&#39;)]
+    content: Annotated[str, Field(description=&#34;Inline DAAST XML content&#34;)]
     daast_version: Annotated[
-        daast_version_1.DaastVersion | None, Field(description=&#39;DAAST specification version&#39;)
+        daast_version_1.DaastVersion | None, Field(description=&#34;DAAST specification version&#34;)
     ] = None
     delivery_type: Annotated[
-        Literal[&#39;inline&#39;],
-        Field(description=&#39;Discriminator indicating DAAST is delivered as inline XML content&#39;),
+        Literal[&#34;inline&#34;],
+        Field(description=&#34;Discriminator indicating DAAST is delivered as inline XML content&#34;),
     ]
     duration_ms: Annotated[
-        int | None, Field(description=&#39;Expected audio duration in milliseconds (if known)&#39;, ge=0)
+        int | None, Field(description=&#34;Expected audio duration in milliseconds (if known)&#34;, ge=0)
     ] = None
     tracking_events: Annotated[
         list[daast_tracking_event.DaastTrackingEvent] | None,
-        Field(description=&#39;Tracking events supported by this DAAST tag&#39;),
+        Field(description=&#34;Tracking events supported by this DAAST tag&#34;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -8147,33 +8147,33 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Deployment1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
+    account: Annotated[str | None, Field(description=&#34;Account identifier if applicable&#34;)] = None
     activation_key: Annotated[
         activation_key_1.ActivationKey | None,
         Field(
-            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;
+            description=&#34;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#34;
         ),
     ] = None
     deployed_at: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;Timestamp when activation completed (if is_live=true)&#39;),
+        Field(description=&#34;Timestamp when activation completed (if is_live=true)&#34;),
     ] = None
     estimated_activation_duration_minutes: Annotated[
         float | None,
         Field(
-            description=&#39;Estimated time to activate if not live, or to complete activation if in progress&#39;,
+            description=&#34;Estimated time to activate if not live, or to complete activation if in progress&#34;,
             ge=0.0,
         ),
     ] = None
     is_live: Annotated[
-        bool, Field(description=&#39;Whether signal is currently active on this deployment&#39;)
+        bool, Field(description=&#34;Whether signal is currently active on this deployment&#34;)
     ]
-    platform: Annotated[str, Field(description=&#39;Platform identifier for DSPs&#39;)]
+    platform: Annotated[str, Field(description=&#34;Platform identifier for DSPs&#34;)]
     type: Annotated[
-        Literal[&#39;platform&#39;],
-        Field(description=&#39;Discriminator indicating this is a platform-based deployment&#39;),
+        Literal[&#34;platform&#34;],
+        Field(description=&#34;Discriminator indicating this is a platform-based deployment&#34;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -8246,33 +8246,33 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Deployment2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
+    account: Annotated[str | None, Field(description=&#34;Account identifier if applicable&#34;)] = None
     activation_key: Annotated[
         activation_key_1.ActivationKey | None,
         Field(
-            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;
+            description=&#34;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#34;
         ),
     ] = None
-    agent_url: Annotated[AnyUrl, Field(description=&#39;URL identifying the deployment agent&#39;)]
+    agent_url: Annotated[AnyUrl, Field(description=&#34;URL identifying the deployment agent&#34;)]
     deployed_at: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;Timestamp when activation completed (if is_live=true)&#39;),
+        Field(description=&#34;Timestamp when activation completed (if is_live=true)&#34;),
     ] = None
     estimated_activation_duration_minutes: Annotated[
         float | None,
         Field(
-            description=&#39;Estimated time to activate if not live, or to complete activation if in progress&#39;,
+            description=&#34;Estimated time to activate if not live, or to complete activation if in progress&#34;,
             ge=0.0,
         ),
     ] = None
     is_live: Annotated[
-        bool, Field(description=&#39;Whether signal is currently active on this deployment&#39;)
+        bool, Field(description=&#34;Whether signal is currently active on this deployment&#34;)
     ]
     type: Annotated[
-        Literal[&#39;agent&#39;],
-        Field(description=&#39;Discriminator indicating this is an agent URL-based deployment&#39;),
+        Literal[&#34;agent&#34;],
+        Field(description=&#34;Discriminator indicating this is an agent URL-based deployment&#34;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -8345,18 +8345,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Destination1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     account: Annotated[
-        str | None, Field(description=&#39;Optional account identifier on the platform&#39;)
+        str | None, Field(description=&#34;Optional account identifier on the platform&#34;)
     ] = None
     platform: Annotated[
         str,
         Field(description=&#34;Platform identifier for DSPs (e.g., &#39;the-trade-desk&#39;, &#39;amazon-dsp&#39;)&#34;),
     ]
     type: Annotated[
-        Literal[&#39;platform&#39;],
-        Field(description=&#39;Discriminator indicating this is a platform-based deployment&#39;),
+        Literal[&#34;platform&#34;],
+        Field(description=&#34;Discriminator indicating this is a platform-based deployment&#34;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -8413,17 +8413,17 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Destination2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     account: Annotated[
-        str | None, Field(description=&#39;Optional account identifier on the agent&#39;)
+        str | None, Field(description=&#34;Optional account identifier on the agent&#34;)
     ] = None
     agent_url: Annotated[
-        AnyUrl, Field(description=&#39;URL identifying the deployment agent (for sales agents, etc.)&#39;)
+        AnyUrl, Field(description=&#34;URL identifying the deployment agent (for sales agents, etc.)&#34;)
     ]
     type: Annotated[
-        Literal[&#39;agent&#39;],
-        Field(description=&#39;Discriminator indicating this is an agent URL-based deployment&#39;),
+        Literal[&#34;agent&#34;],
+        Field(description=&#34;Discriminator indicating this is an agent URL-based deployment&#34;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -8480,21 +8480,21 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Error(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    code: Annotated[str, Field(description=&#39;Error code for programmatic handling&#39;)]
+    code: Annotated[str, Field(description=&#34;Error code for programmatic handling&#34;)]
     details: Annotated[
-        dict[str, Any] | None, Field(description=&#39;Additional task-specific error details&#39;)
+        dict[str, Any] | None, Field(description=&#34;Additional task-specific error details&#34;)
     ] = None
     field: Annotated[
         str | None,
         Field(description=&#34;Field path associated with the error (e.g., &#39;packages[0].targeting&#39;)&#34;),
     ] = None
-    message: Annotated[str, Field(description=&#39;Human-readable error message&#39;)]
+    message: Annotated[str, Field(description=&#34;Human-readable error message&#34;)]
     retry_after: Annotated[
-        float | None, Field(description=&#39;Seconds to wait before retrying the operation&#39;, ge=0.0)
+        float | None, Field(description=&#34;Seconds to wait before retrying the operation&#34;, ge=0.0)
     ] = None
-    suggestion: Annotated[str | None, Field(description=&#39;Suggested fix for the error&#39;)] = None</code></pre>
+    suggestion: Annotated[str | None, Field(description=&#34;Suggested fix for the error&#34;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -8562,33 +8562,33 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class FlatRatePricingOption(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     currency: Annotated[
         str,
         Field(
-            description=&#39;ISO 4217 currency code&#39;,
-            examples=[&#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;, &#39;JPY&#39;],
-            pattern=&#39;^[A-Z]{3}$&#39;,
+            description=&#34;ISO 4217 currency code&#34;,
+            examples=[&#34;USD&#34;, &#34;EUR&#34;, &#34;GBP&#34;, &#34;JPY&#34;],
+            pattern=&#34;^[A-Z]{3}$&#34;,
         ),
     ]
     is_fixed: Annotated[
         Literal[True],
-        Field(description=&#39;Whether this is a fixed rate (true) or auction-based (false)&#39;),
+        Field(description=&#34;Whether this is a fixed rate (true) or auction-based (false)&#34;),
     ]
     min_spend_per_package: Annotated[
         float | None,
         Field(
-            description=&#39;Minimum spend requirement per package using this pricing option, in the specified currency&#39;,
+            description=&#34;Minimum spend requirement per package using this pricing option, in the specified currency&#34;,
             ge=0.0,
         ),
     ] = None
     parameters: Annotated[
         Parameters | None,
-        Field(description=&#39;Flat rate parameters for DOOH and time-based campaigns&#39;),
+        Field(description=&#34;Flat rate parameters for DOOH and time-based campaigns&#34;),
     ] = None
     pricing_model: Annotated[
-        Literal[&#39;flat_rate&#39;], Field(description=&#39;Fixed cost regardless of delivery volume&#39;)
+        Literal[&#34;flat_rate&#34;], Field(description=&#34;Fixed cost regardless of delivery volume&#34;)
     ]
     pricing_option_id: Annotated[
         str,
@@ -8596,7 +8596,7 @@ validated to form a valid model.</p>
             description=&#34;Unique identifier for this pricing option within the product (e.g., &#39;flat_rate_usd_24h_takeover&#39;)&#34;
         ),
     ]
-    rate: Annotated[float, Field(description=&#39;Flat rate cost&#39;, ge=0.0)]</code></pre>
+    rate: Annotated[float, Field(description=&#34;Flat rate cost&#34;, ge=0.0)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -8668,12 +8668,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Format(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     accepts_parameters: Annotated[
         list[format_id_parameter.FormatIdParameter] | None,
         Field(
-            description=&#39;List of parameters this format accepts in format_id. Template formats define which parameters (dimensions, duration, etc.) can be specified when instantiating the format. Empty or omitted means this is a concrete format with fixed parameters.&#39;
+            description=&#34;List of parameters this format accepts in format_id. Template formats define which parameters (dimensions, duration, etc.) can be specified when instantiating the format. Empty or omitted means this is a concrete format with fixed parameters.&#34;
         ),
     ] = None
     assets: Annotated[
@@ -8686,71 +8686,71 @@ validated to form a valid model.</p>
         list[AssetsRequired | AssetsRequired1] | None,
         Field(
             deprecated=True,
-            description=&#34;DEPRECATED: Use &#39;assets&#39; instead. Array of required assets or asset groups for this format. Each asset is identified by its asset_id, which must be used as the key in creative manifests. Can contain individual assets or repeatable asset sequences (e.g., carousel products, slideshow frames). This field is maintained for backward compatibility; new implementations should use &#39;assets&#39; with the &#39;required&#39; boolean on each asset.&#34;
+            description=&#34;DEPRECATED: Use &#39;assets&#39; instead. Array of required assets or asset groups for this format. Each asset is identified by its asset_id, which must be used as the key in creative manifests. Can contain individual assets or repeatable asset sequences (e.g., carousel products, slideshow frames). This field is maintained for backward compatibility; new implementations should use &#39;assets&#39; with the &#39;required&#39; boolean on each asset.&#34;,
         ),
     ] = None
     delivery: Annotated[
         dict[str, Any] | None,
-        Field(description=&#39;Delivery method specifications (e.g., hosted, VAST, third-party tags)&#39;),
+        Field(description=&#34;Delivery method specifications (e.g., hosted, VAST, third-party tags)&#34;),
     ] = None
     description: Annotated[
         str | None,
         Field(
-            description=&#39;Plain text explanation of what this format does and what assets it requires&#39;
+            description=&#34;Plain text explanation of what this format does and what assets it requires&#34;
         ),
     ] = None
     example_url: Annotated[
         AnyUrl | None,
         Field(
-            description=&#39;Optional URL to showcase page with examples and interactive demos of this format&#39;
+            description=&#34;Optional URL to showcase page with examples and interactive demos of this format&#34;
         ),
     ] = None
     format_card: Annotated[
         FormatCard | None,
         Field(
-            description=&#39;Optional standard visual card (300x400px) for displaying this format in user interfaces. Can be rendered via preview_creative or pre-generated.&#39;
+            description=&#34;Optional standard visual card (300x400px) for displaying this format in user interfaces. Can be rendered via preview_creative or pre-generated.&#34;
         ),
     ] = None
     format_card_detailed: Annotated[
         FormatCardDetailed | None,
         Field(
-            description=&#39;Optional detailed card with carousel and full specifications. Provides rich format documentation similar to ad spec pages.&#39;
+            description=&#34;Optional detailed card with carousel and full specifications. Provides rich format documentation similar to ad spec pages.&#34;
         ),
     ] = None
     format_id: Annotated[
         format_id_1.FormatId,
-        Field(description=&#39;Structured format identifier with agent URL and format name&#39;),
+        Field(description=&#34;Structured format identifier with agent URL and format name&#34;),
     ]
-    name: Annotated[str, Field(description=&#39;Human-readable format name&#39;)]
+    name: Annotated[str, Field(description=&#34;Human-readable format name&#34;)]
     output_format_ids: Annotated[
         list[format_id_1.FormatId] | None,
         Field(
-            description=&#39;For generative formats: array of format IDs that this format can generate. When a format accepts inputs like brand_manifest and message, this specifies what concrete output formats can be produced (e.g., a generative banner format might output standard image banner formats).&#39;
+            description=&#34;For generative formats: array of format IDs that this format can generate. When a format accepts inputs like brand_manifest and message, this specifies what concrete output formats can be produced (e.g., a generative banner format might output standard image banner formats).&#34;
         ),
     ] = None
     preview_image: Annotated[
         AnyUrl | None,
         Field(
-            description=&#39;DEPRECATED: Use format_card instead. Optional preview image URL for format browsing/discovery UI. Should be 400x300px (4:3 aspect ratio) PNG or JPG. Used as thumbnail/card image in format browsers. This field is maintained for backward compatibility but format_card provides a more flexible, structured approach.&#39;
+            description=&#34;DEPRECATED: Use format_card instead. Optional preview image URL for format browsing/discovery UI. Should be 400x300px (4:3 aspect ratio) PNG or JPG. Used as thumbnail/card image in format browsers. This field is maintained for backward compatibility but format_card provides a more flexible, structured approach.&#34;
         ),
     ] = None
     renders: Annotated[
         list[Renders | Renders1] | None,
         Field(
-            description=&#39;Specification of rendered pieces for this format. Most formats produce a single render. Companion ad formats (video + banner), adaptive formats, and multi-placement formats produce multiple renders. Each render specifies its role and dimensions.&#39;,
+            description=&#34;Specification of rendered pieces for this format. Most formats produce a single render. Companion ad formats (video + banner), adaptive formats, and multi-placement formats produce multiple renders. Each render specifies its role and dimensions.&#34;,
             min_length=1,
         ),
     ] = None
     supported_macros: Annotated[
         list[str] | None,
         Field(
-            description=&#39;List of universal macros supported by this format (e.g., MEDIA_BUY_ID, CACHEBUSTER, DEVICE_ID). Used for validation and developer tooling.&#39;
+            description=&#34;List of universal macros supported by this format (e.g., MEDIA_BUY_ID, CACHEBUSTER, DEVICE_ID). Used for validation and developer tooling.&#34;
         ),
     ] = None
     type: Annotated[
         format_category.FormatCategory,
         Field(
-            description=&#39;Media type of this format - determines rendering method and asset requirements&#39;
+            description=&#34;Media type of this format - determines rendering method and asset requirements&#34;
         ),
     ]</code></pre>
 </details>
@@ -8883,13 +8883,13 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class FormatCategory(Enum):
-    audio = &#39;audio&#39;
-    video = &#39;video&#39;
-    display = &#39;display&#39;
-    native = &#39;native&#39;
-    dooh = &#39;dooh&#39;
-    rich_media = &#39;rich_media&#39;
-    universal = &#39;universal&#39;</code></pre>
+    audio = &#34;audio&#34;
+    video = &#34;video&#34;
+    display = &#34;display&#34;
+    native = &#34;native&#34;
+    dooh = &#34;dooh&#34;
+    rich_media = &#34;rich_media&#34;
+    universal = &#34;universal&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -8973,7 +8973,7 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class FormatId(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     agent_url: Annotated[
         AnyUrl,
@@ -8984,14 +8984,14 @@ attributes &ndash; see the documentation for details.</p></div>
     duration_ms: Annotated[
         float | None,
         Field(
-            description=&#39;Duration in milliseconds for time-based formats (video, audio). When specified, creates a parameterized format ID. Omit to reference a template format without parameters.&#39;,
+            description=&#34;Duration in milliseconds for time-based formats (video, audio). When specified, creates a parameterized format ID. Omit to reference a template format without parameters.&#34;,
             ge=1.0,
         ),
     ] = None
     height: Annotated[
         int | None,
         Field(
-            description=&#39;Height in pixels for visual formats. When specified, width must also be specified. Both fields together create a parameterized format ID for dimension-specific variants.&#39;,
+            description=&#34;Height in pixels for visual formats. When specified, width must also be specified. Both fields together create a parameterized format ID for dimension-specific variants.&#34;,
             ge=1,
         ),
     ] = None
@@ -8999,13 +8999,13 @@ attributes &ndash; see the documentation for details.</p></div>
         str,
         Field(
             description=&#34;Format identifier within the agent&#39;s namespace (e.g., &#39;display_static&#39;, &#39;video_hosted&#39;, &#39;audio_standard&#39;). When used alone, references a template format. When combined with dimension/duration fields, creates a parameterized format ID for a specific variant.&#34;,
-            pattern=&#39;^[a-zA-Z0-9_-]+$&#39;,
+            pattern=&#34;^[a-zA-Z0-9_-]+$&#34;,
         ),
     ]
     width: Annotated[
         int | None,
         Field(
-            description=&#39;Width in pixels for visual formats. When specified, height must also be specified. Both fields together create a parameterized format ID for dimension-specific variants.&#39;,
+            description=&#34;Width in pixels for visual formats. When specified, height must also be specified. Both fields together create a parameterized format ID for dimension-specific variants.&#34;,
             ge=1,
         ),
     ] = None</code></pre>
@@ -9072,34 +9072,34 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetMediaBuyDeliveryRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     buyer_refs: Annotated[
-        list[str] | None, Field(description=&#39;Array of buyer reference IDs to get delivery data for&#39;)
+        list[str] | None, Field(description=&#34;Array of buyer reference IDs to get delivery data for&#34;)
     ] = None
     context: context_1.ContextObject | None = None
     end_date: Annotated[
         str | None,
         Field(
-            description=&#39;End date for reporting period (YYYY-MM-DD)&#39;,
-            pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;,
+            description=&#34;End date for reporting period (YYYY-MM-DD)&#34;,
+            pattern=&#34;^\\d{4}-\\d{2}-\\d{2}$&#34;,
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     media_buy_ids: Annotated[
         list[str] | None,
-        Field(description=&#39;Array of publisher media buy IDs to get delivery data for&#39;),
+        Field(description=&#34;Array of publisher media buy IDs to get delivery data for&#34;),
     ] = None
     start_date: Annotated[
         str | None,
         Field(
-            description=&#39;Start date for reporting period (YYYY-MM-DD)&#39;,
-            pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;,
+            description=&#34;Start date for reporting period (YYYY-MM-DD)&#34;,
+            pattern=&#34;^\\d{4}-\\d{2}-\\d{2}$&#34;,
         ),
     ] = None
     status_filter: Annotated[
         media_buy_status.MediaBuyStatus | list[media_buy_status.MediaBuyStatus] | None,
-        Field(description=&#39;Filter by status. Can be a single status or array of statuses&#39;),
+        Field(description=&#34;Filter by status. Can be a single status or array of statuses&#34;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -9172,27 +9172,27 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetMediaBuyDeliveryResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     aggregated_totals: Annotated[
         AggregatedTotals | None,
         Field(
-            description=&#39;Combined metrics across all returned media buys. Only included in API responses (get_media_buy_delivery), not in webhook notifications.&#39;
+            description=&#34;Combined metrics across all returned media buys. Only included in API responses (get_media_buy_delivery), not in webhook notifications.&#34;
         ),
     ] = None
     context: context_1.ContextObject | None = None
-    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
+    currency: Annotated[str, Field(description=&#34;ISO 4217 currency code&#34;, pattern=&#34;^[A-Z]{3}$&#34;)]
     errors: Annotated[
         list[error.Error] | None,
         Field(
-            description=&#39;Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)&#39;
+            description=&#34;Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)&#34;
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     media_buy_deliveries: Annotated[
         list[MediaBuyDelivery],
         Field(
-            description=&#39;Array of delivery data for media buys. When used in webhook notifications, may contain multiple media buys aggregated by publisher. When used in get_media_buy_delivery API responses, typically contains requested media buys.&#39;
+            description=&#34;Array of delivery data for media buys. When used in webhook notifications, may contain multiple media buys aggregated by publisher. When used in get_media_buy_delivery API responses, typically contains requested media buys.&#34;
         ),
     ]
     next_expected_at: Annotated[
@@ -9204,30 +9204,30 @@ validated to form a valid model.</p>
     notification_type: Annotated[
         NotificationType | None,
         Field(
-            description=&#39;Type of webhook notification (only present in webhook deliveries): scheduled = regular periodic update, final = campaign completed, delayed = data not yet available, adjusted = resending period with updated data&#39;
+            description=&#34;Type of webhook notification (only present in webhook deliveries): scheduled = regular periodic update, final = campaign completed, delayed = data not yet available, adjusted = resending period with updated data&#34;
         ),
     ] = None
     partial_data: Annotated[
         bool | None,
         Field(
-            description=&#39;Indicates if any media buys in this webhook have missing/delayed data (only present in webhook deliveries)&#39;
+            description=&#34;Indicates if any media buys in this webhook have missing/delayed data (only present in webhook deliveries)&#34;
         ),
     ] = None
     reporting_period: Annotated[
         ReportingPeriod,
-        Field(description=&#39;Date range for the report. All periods use UTC timezone.&#39;),
+        Field(description=&#34;Date range for the report. All periods use UTC timezone.&#34;),
     ]
     sequence_number: Annotated[
         int | None,
         Field(
-            description=&#39;Sequential notification number (only present in webhook deliveries, starts at 1)&#39;,
+            description=&#34;Sequential notification number (only present in webhook deliveries, starts at 1)&#34;,
             ge=1,
         ),
     ] = None
     unavailable_count: Annotated[
         int | None,
         Field(
-            description=&#39;Number of media buys with reporting_delayed or failed status (only present in webhook deliveries when partial_data is true)&#39;,
+            description=&#34;Number of media buys with reporting_delayed or failed status (only present in webhook deliveries when partial_data is true)&#34;,
             ge=0,
         ),
     ] = None</code></pre>
@@ -9322,20 +9322,26 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetProductsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     brand_manifest: Annotated[
         brand_manifest_ref.BrandManifestReference | None,
         Field(
-            description=&#39;Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest.&#39;
+            description=&#34;Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest.&#34;
         ),
     ] = None
     brief: Annotated[
-        str | None, Field(description=&#39;Natural language description of campaign requirements&#39;)
+        str | None, Field(description=&#34;Natural language description of campaign requirements&#34;)
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
-    filters: product_filters.ProductFilters | None = None</code></pre>
+    filters: product_filters.ProductFilters | None = None
+    property_list: Annotated[
+        property_list_ref.PropertyListReference | None,
+        Field(
+            description=&#34;[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list.&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -9376,6 +9382,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.GetProductsRequest.property_list"><code class="name">var <span class="ident">property_list</span> : <a title="adcp.types.generated_poc.core.property_list_ref.PropertyListReference" href="types/generated_poc/core/property_list_ref.html#adcp.types.generated_poc.core.property_list_ref.PropertyListReference">PropertyListReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
@@ -9399,15 +9409,21 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetProductsResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error] | None,
-        Field(description=&#39;Task-specific errors and warnings (e.g., product filtering issues)&#39;),
+        Field(description=&#34;Task-specific errors and warnings (e.g., product filtering issues)&#34;),
     ] = None
     ext: ext_1.ExtensionObject | None = None
-    products: Annotated[list[product.Product], Field(description=&#39;Array of matching products&#39;)]</code></pre>
+    products: Annotated[list[product.Product], Field(description=&#34;Array of matching products&#34;)]
+    property_list_applied: Annotated[
+        bool | None,
+        Field(
+            description=&#34;[AdCP 3.0] Indicates whether property_list filtering was applied. True if the agent filtered products based on the provided property_list. Absent or false if property_list was not provided or not supported by this agent.&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -9444,6 +9460,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.GetProductsResponse.property_list_applied"><code class="name">var <span class="ident">property_list_applied</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
@@ -9467,19 +9487,19 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetSignalsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     deliver_to: Annotated[
-        DeliverTo, Field(description=&#39;Deployment targets where signals need to be activated&#39;)
+        DeliverTo, Field(description=&#34;Deployment targets where signals need to be activated&#34;)
     ]
     ext: ext_1.ExtensionObject | None = None
     filters: signal_filters.SignalFilters | None = None
     max_results: Annotated[
-        int | None, Field(description=&#39;Maximum number of results to return&#39;, ge=1)
+        int | None, Field(description=&#34;Maximum number of results to return&#34;, ge=1)
     ] = None
     signal_spec: Annotated[
-        str, Field(description=&#39;Natural language description of the desired signals&#39;)
+        str, Field(description=&#34;Natural language description of the desired signals&#34;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -9548,17 +9568,17 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetSignalsResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error] | None,
         Field(
-            description=&#39;Task-specific errors and warnings (e.g., signal discovery or pricing issues)&#39;
+            description=&#34;Task-specific errors and warnings (e.g., signal discovery or pricing issues)&#34;
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
-    signals: Annotated[list[Signal], Field(description=&#39;Array of matching signals&#39;)]</code></pre>
+    signals: Annotated[list[Signal], Field(description=&#34;Array of matching signals&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -9618,14 +9638,14 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ListAuthorizedPropertiesRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     publisher_domains: Annotated[
         list[PublisherDomain] | None,
         Field(
-            description=&#39;Filter to specific publisher domains (optional). If omitted, returns all publishers this agent represents.&#39;,
+            description=&#34;Filter to specific publisher domains (optional). If omitted, returns all publishers this agent represents.&#34;,
             min_length=1,
         ),
     ] = None</code></pre>
@@ -9684,7 +9704,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ListAuthorizedPropertiesResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     advertising_policies: Annotated[
         str | None,
@@ -9697,7 +9717,7 @@ validated to form a valid model.</p>
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error] | None,
-        Field(description=&#39;Task-specific errors and warnings (e.g., property availability issues)&#39;),
+        Field(description=&#34;Task-specific errors and warnings (e.g., property availability issues)&#34;),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     last_updated: Annotated[
@@ -9709,7 +9729,7 @@ validated to form a valid model.</p>
     portfolio_description: Annotated[
         str | None,
         Field(
-            description=&#39;Markdown-formatted description of the property portfolio, including inventory types, audience characteristics, and special features.&#39;,
+            description=&#34;Markdown-formatted description of the property portfolio, including inventory types, audience characteristics, and special features.&#34;,
             max_length=5000,
             min_length=1,
         ),
@@ -9717,14 +9737,14 @@ validated to form a valid model.</p>
     primary_channels: Annotated[
         list[channels.AdvertisingChannels] | None,
         Field(
-            description=&#39;Primary advertising channels represented in this property portfolio. Helps buying agents quickly filter relevance.&#39;,
+            description=&#34;Primary advertising channels represented in this property portfolio. Helps buying agents quickly filter relevance.&#34;,
             min_length=1,
         ),
     ] = None
     primary_countries: Annotated[
         list[PrimaryCountry] | None,
         Field(
-            description=&#39;Primary countries (ISO 3166-1 alpha-2 codes) where properties are concentrated. Helps buying agents quickly filter relevance.&#39;,
+            description=&#34;Primary countries (ISO 3166-1 alpha-2 codes) where properties are concentrated. Helps buying agents quickly filter relevance.&#34;,
             min_length=1,
         ),
     ] = None
@@ -9814,7 +9834,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ListCreativeFormatsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     asset_types: Annotated[
         list[asset_content_type.AssetContentType] | None,
@@ -9827,46 +9847,46 @@ validated to form a valid model.</p>
     format_ids: Annotated[
         list[format_id.FormatId] | None,
         Field(
-            description=&#39;Return only these specific format IDs (e.g., from get_products response)&#39;
+            description=&#34;Return only these specific format IDs (e.g., from get_products response)&#34;
         ),
     ] = None
     is_responsive: Annotated[
         bool | None,
         Field(
-            description=&#39;Filter for responsive formats that adapt to container size. When true, returns formats without fixed dimensions.&#39;
+            description=&#34;Filter for responsive formats that adapt to container size. When true, returns formats without fixed dimensions.&#34;
         ),
     ] = None
     max_height: Annotated[
         int | None,
         Field(
-            description=&#39;Maximum height in pixels (inclusive). Returns formats where ANY render has height &lt;= this value. For multi-render formats, matches if at least one render fits.&#39;
+            description=&#34;Maximum height in pixels (inclusive). Returns formats where ANY render has height &lt;= this value. For multi-render formats, matches if at least one render fits.&#34;
         ),
     ] = None
     max_width: Annotated[
         int | None,
         Field(
-            description=&#39;Maximum width in pixels (inclusive). Returns formats where ANY render has width &lt;= this value. For multi-render formats, matches if at least one render fits.&#39;
+            description=&#34;Maximum width in pixels (inclusive). Returns formats where ANY render has width &lt;= this value. For multi-render formats, matches if at least one render fits.&#34;
         ),
     ] = None
     min_height: Annotated[
         int | None,
         Field(
-            description=&#39;Minimum height in pixels (inclusive). Returns formats where ANY render has height &gt;= this value.&#39;
+            description=&#34;Minimum height in pixels (inclusive). Returns formats where ANY render has height &gt;= this value.&#34;
         ),
     ] = None
     min_width: Annotated[
         int | None,
         Field(
-            description=&#39;Minimum width in pixels (inclusive). Returns formats where ANY render has width &gt;= this value.&#39;
+            description=&#34;Minimum width in pixels (inclusive). Returns formats where ANY render has width &gt;= this value.&#34;
         ),
     ] = None
     name_search: Annotated[
-        str | None, Field(description=&#39;Search for formats by name (case-insensitive partial match)&#39;)
+        str | None, Field(description=&#34;Search for formats by name (case-insensitive partial match)&#34;)
     ] = None
     type: Annotated[
         format_category.FormatCategory | None,
         Field(
-            description=&#39;Filter by format type (technical categories with distinct requirements)&#39;
+            description=&#34;Filter by format type (technical categories with distinct requirements)&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -9956,18 +9976,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ListCreativeFormatsResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     creative_agents: Annotated[
         list[CreativeAgent] | None,
         Field(
-            description=&#39;Optional: Creative agents that provide additional formats. Buyers can recursively query these agents to discover more formats. No authentication required for list_creative_formats.&#39;
+            description=&#34;Optional: Creative agents that provide additional formats. Buyers can recursively query these agents to discover more formats. No authentication required for list_creative_formats.&#34;
         ),
     ] = None
     errors: Annotated[
         list[error.Error] | None,
-        Field(description=&#39;Task-specific errors and warnings (e.g., format availability issues)&#39;),
+        Field(description=&#34;Task-specific errors and warnings (e.g., format availability issues)&#34;),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     formats: Annotated[
@@ -10039,27 +10059,27 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ListCreativesRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     fields: Annotated[
         list[FieldModel] | None,
-        Field(description=&#39;Specific fields to include in response (omit for all fields)&#39;),
+        Field(description=&#34;Specific fields to include in response (omit for all fields)&#34;),
     ] = None
     filters: creative_filters.CreativeFilters | None = None
     include_assignments: Annotated[
-        bool | None, Field(description=&#39;Include package assignment information in response&#39;)
+        bool | None, Field(description=&#34;Include package assignment information in response&#34;)
     ] = True
     include_performance: Annotated[
-        bool | None, Field(description=&#39;Include aggregated performance metrics in response&#39;)
+        bool | None, Field(description=&#34;Include aggregated performance metrics in response&#34;)
     ] = False
     include_sub_assets: Annotated[
         bool | None,
-        Field(description=&#39;Include sub-assets (for carousel/native formats) in response&#39;),
+        Field(description=&#34;Include sub-assets (for carousel/native formats) in response&#34;),
     ] = False
-    pagination: Annotated[Pagination | None, Field(description=&#39;Pagination parameters&#39;)] = None
-    sort: Annotated[Sort | None, Field(description=&#39;Sorting parameters&#39;)] = None</code></pre>
+    pagination: Annotated[Pagination | None, Field(description=&#34;Pagination parameters&#34;)] = None
+    sort: Annotated[Sort | None, Field(description=&#34;Sorting parameters&#34;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -10139,24 +10159,24 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ListCreativesResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     creatives: Annotated[
-        list[Creative], Field(description=&#39;Array of creative assets matching the query&#39;)
+        list[Creative], Field(description=&#34;Array of creative assets matching the query&#34;)
     ]
     ext: ext_1.ExtensionObject | None = None
     format_summary: Annotated[
-        dict[str, int] | None, Field(description=&#39;Breakdown of creatives by format type&#39;)
+        dict[str, int] | None, Field(description=&#34;Breakdown of creatives by format type&#34;)
     ] = None
     pagination: Annotated[
-        Pagination, Field(description=&#39;Pagination information for navigating results&#39;)
+        Pagination, Field(description=&#34;Pagination information for navigating results&#34;)
     ]
     query_summary: Annotated[
-        QuerySummary, Field(description=&#39;Summary of the query that was executed&#39;)
+        QuerySummary, Field(description=&#34;Summary of the query that was executed&#34;)
     ]
     status_summary: Annotated[
-        StatusSummary | None, Field(description=&#39;Breakdown of creatives by status&#39;)
+        StatusSummary | None, Field(description=&#34;Breakdown of creatives by status&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -10229,58 +10249,58 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class McpWebhookPayload(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context_id: Annotated[
         str | None,
         Field(
-            description=&#39;Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters.&#39;
+            description=&#34;Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters.&#34;
         ),
     ] = None
     domain: Annotated[
         adcp_domain.AdcpDomain | None,
         Field(
-            description=&#39;AdCP domain this task belongs to. Helps classify the operation type at a high level.&#39;
+            description=&#34;AdCP domain this task belongs to. Helps classify the operation type at a high level.&#34;
         ),
     ] = None
     message: Annotated[
         str | None,
         Field(
-            description=&#39;Human-readable summary of the current task state. Provides context about what happened and what action may be needed.&#39;
+            description=&#34;Human-readable summary of the current task state. Provides context about what happened and what action may be needed.&#34;
         ),
     ] = None
     operation_id: Annotated[
         str | None,
         Field(
-            description=&#39;Publisher-defined operation identifier correlating a sequence of task updates across webhooks.&#39;
+            description=&#34;Publisher-defined operation identifier correlating a sequence of task updates across webhooks.&#34;
         ),
     ] = None
     result: Annotated[
         async_response_data.AdcpAsyncResponseData | None,
         Field(
-            description=&#39;Task-specific payload matching the status. For completed/failed, contains the full task response. For working/input-required/submitted, contains status-specific data. This is the data layer that AdCP specs - same structure used in A2A status.message.parts[].data.&#39;
+            description=&#34;Task-specific payload matching the status. For completed/failed, contains the full task response. For working/input-required/submitted, contains status-specific data. This is the data layer that AdCP specs - same structure used in A2A status.message.parts[].data.&#34;
         ),
     ] = None
     status: Annotated[
         task_status.TaskStatus,
         Field(
-            description=&#39;Current task status. Webhooks are triggered for status changes after initial submission.&#39;
+            description=&#34;Current task status. Webhooks are triggered for status changes after initial submission.&#34;
         ),
     ]
     task_id: Annotated[
         str,
         Field(
-            description=&#39;Unique identifier for this task. Use this to correlate webhook notifications with the original task submission.&#39;
+            description=&#34;Unique identifier for this task. Use this to correlate webhook notifications with the original task submission.&#34;
         ),
     ]
     task_type: Annotated[
         task_type_1.TaskType,
         Field(
-            description=&#39;Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic.&#39;
+            description=&#34;Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic.&#34;
         ),
     ]
     timestamp: Annotated[
-        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when this webhook was generated.&#39;)
+        AwareDatetime, Field(description=&#34;ISO 8601 timestamp when this webhook was generated.&#34;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -10361,28 +10381,28 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class MediaBuy(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     buyer_ref: Annotated[
         str | None, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)
     ] = None
-    created_at: Annotated[AwareDatetime | None, Field(description=&#39;Creation timestamp&#39;)] = None
+    created_at: Annotated[AwareDatetime | None, Field(description=&#34;Creation timestamp&#34;)] = None
     creative_deadline: Annotated[
-        AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
+        AwareDatetime | None, Field(description=&#34;ISO 8601 timestamp for creative upload deadline&#34;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
     media_buy_id: Annotated[
         str, Field(description=&#34;Publisher&#39;s unique identifier for the media buy&#34;)
     ]
     packages: Annotated[
-        list[package.Package], Field(description=&#39;Array of packages within this media buy&#39;)
+        list[package.Package], Field(description=&#34;Array of packages within this media buy&#34;)
     ]
     promoted_offering: Annotated[
-        str, Field(description=&#39;Description of advertiser and what is being promoted&#39;)
+        str, Field(description=&#34;Description of advertiser and what is being promoted&#34;)
     ]
     status: media_buy_status.MediaBuyStatus
-    total_budget: Annotated[float, Field(description=&#39;Total budget amount&#39;, ge=0.0)]
-    updated_at: Annotated[AwareDatetime | None, Field(description=&#39;Last update timestamp&#39;)] = None</code></pre>
+    total_budget: Annotated[float, Field(description=&#34;Total budget amount&#34;, ge=0.0)]
+    updated_at: Annotated[AwareDatetime | None, Field(description=&#34;Last update timestamp&#34;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -10465,10 +10485,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class MediaBuyStatus(Enum):
-    pending_activation = &#39;pending_activation&#39;
-    active = &#39;active&#39;
-    paused = &#39;paused&#39;
-    completed = &#39;completed&#39;</code></pre>
+    pending_activation = &#34;pending_activation&#34;
+    active = &#34;active&#34;
+    paused = &#34;paused&#34;
+    completed = &#34;completed&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -10540,19 +10560,19 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Package(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     bid_price: Annotated[
         float | None,
         Field(
-            description=&#39;Bid price for auction-based CPM pricing (present if using cpm-auction-option)&#39;,
+            description=&#34;Bid price for auction-based CPM pricing (present if using cpm-auction-option)&#34;,
             ge=0.0,
         ),
     ] = None
     budget: Annotated[
         float | None,
         Field(
-            description=&#39;Budget allocation for this package in the currency specified by the pricing option&#39;,
+            description=&#34;Budget allocation for this package in the currency specified by the pricing option&#34;,
             ge=0.0,
         ),
     ] = None
@@ -10561,22 +10581,22 @@ attributes &ndash; see the documentation for details.</p></div>
     ] = None
     creative_assignments: Annotated[
         list[creative_assignment.CreativeAssignment] | None,
-        Field(description=&#39;Creative assets assigned to this package&#39;),
+        Field(description=&#34;Creative assets assigned to this package&#34;),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     format_ids_to_provide: Annotated[
         list[format_id.FormatId] | None,
-        Field(description=&#39;Format IDs that creative assets will be provided for this package&#39;),
+        Field(description=&#34;Format IDs that creative assets will be provided for this package&#34;),
     ] = None
     impressions: Annotated[
-        float | None, Field(description=&#39;Impression goal for this package&#39;, ge=0.0)
+        float | None, Field(description=&#34;Impression goal for this package&#34;, ge=0.0)
     ] = None
     pacing: pacing_1.Pacing | None = None
     package_id: Annotated[str, Field(description=&#34;Publisher&#39;s unique identifier for the package&#34;)]
     paused: Annotated[
         bool | None,
         Field(
-            description=&#39;Whether this package is paused by the buyer. Paused packages do not deliver impressions. Defaults to false.&#39;
+            description=&#34;Whether this package is paused by the buyer. Paused packages do not deliver impressions. Defaults to false.&#34;
         ),
     ] = False
     pricing_option_id: Annotated[
@@ -10586,7 +10606,7 @@ attributes &ndash; see the documentation for details.</p></div>
         ),
     ] = None
     product_id: Annotated[
-        str | None, Field(description=&#39;ID of the product this package is based on&#39;)
+        str | None, Field(description=&#34;ID of the product this package is based on&#34;)
     ] = None
     targeting_overlay: targeting.TargetingOverlay | None = None</code></pre>
 </details>
@@ -10684,12 +10704,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PackageRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     bid_price: Annotated[
         float | None,
         Field(
-            description=&#39;Bid price for auction-based CPM pricing (required if using cpm-auction-option)&#39;,
+            description=&#34;Bid price for auction-based CPM pricing (required if using cpm-auction-option)&#34;,
             ge=0.0,
         ),
     ] = None
@@ -10701,13 +10721,13 @@ validated to form a valid model.</p>
     creative_ids: Annotated[
         list[str] | None,
         Field(
-            description=&#39;Creative IDs to assign to this package at creation time (references existing library creatives)&#39;
+            description=&#34;Creative IDs to assign to this package at creation time (references existing library creatives)&#34;
         ),
     ] = None
     creatives: Annotated[
         list[creative_asset.CreativeAsset] | None,
         Field(
-            description=&#39;Full creative objects to upload and assign to this package at creation time (alternative to creative_ids - creatives will be added to library). Supports both static and generative creatives.&#39;,
+            description=&#34;Full creative objects to upload and assign to this package at creation time (alternative to creative_ids - creatives will be added to library). Supports both static and generative creatives.&#34;,
             max_length=100,
         ),
     ] = None
@@ -10715,18 +10735,27 @@ validated to form a valid model.</p>
     format_ids: Annotated[
         list[format_id.FormatId] | None,
         Field(
-            description=&#39;Array of format IDs that will be used for this package - must be supported by the product. If omitted, defaults to all formats supported by the product.&#39;,
+            description=&#34;Array of format IDs that will be used for this package - must be supported by the product. If omitted, defaults to all formats supported by the product.&#34;,
             min_length=1,
         ),
     ] = None
+    impressions: Annotated[
+        float | None, Field(description=&#34;Impression goal for this package&#34;, ge=0.0)
+    ] = None
     pacing: pacing_1.Pacing | None = None
+    paused: Annotated[
+        bool | None,
+        Field(
+            description=&#34;Whether this package should be created in a paused state. Paused packages do not deliver impressions. Defaults to false.&#34;
+        ),
+    ] = False
     pricing_option_id: Annotated[
         str,
         Field(
             description=&#34;ID of the selected pricing option from the product&#39;s pricing_options array&#34;
         ),
     ]
-    product_id: Annotated[str, Field(description=&#39;Product ID for this package&#39;)]
+    product_id: Annotated[str, Field(description=&#34;Product ID for this package&#34;)]
     targeting_overlay: targeting.TargetingOverlay | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -10772,11 +10801,19 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.PackageRequest.impressions"><code class="name">var <span class="ident">impressions</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.PackageRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.PackageRequest.pacing"><code class="name">var <span class="ident">pacing</span> : <a title="adcp.types.generated_poc.enums.pacing.Pacing" href="types/generated_poc/enums/pacing.html#adcp.types.generated_poc.enums.pacing.Pacing">Pacing</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.PackageRequest.paused"><code class="name">var <span class="ident">paused</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -10817,9 +10854,9 @@ validated to form a valid model.</p>
     root: Annotated[
         PreviewCreativeRequest1 | PreviewCreativeRequest2,
         Field(
-            discriminator=&#39;request_type&#39;,
-            description=&#39;Request to generate previews of one or more creative manifests. Accepts either a single creative request or an array of requests for batch processing.&#39;,
-            title=&#39;Preview Creative Request&#39;,
+            discriminator=&#34;request_type&#34;,
+            description=&#34;Request to generate previews of one or more creative manifests. Accepts either a single creative request or an array of requests for batch processing.&#34;,
+            title=&#34;Preview Creative Request&#34;,
         ),
     ]</code></pre>
 </details>
@@ -10873,23 +10910,23 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewCreativeRequest1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest,
         Field(
-            description=&#39;Complete creative manifest with all required assets (including promoted_offerings if required by the format)&#39;
+            description=&#34;Complete creative manifest with all required assets (including promoted_offerings if required by the format)&#34;
         ),
     ]
     ext: ext_1.ExtensionObject | None = None
     format_id: Annotated[
-        format_id_1.FormatId, Field(description=&#39;Format identifier for rendering the preview&#39;)
+        format_id_1.FormatId, Field(description=&#34;Format identifier for rendering the preview&#34;)
     ]
     inputs: Annotated[
         list[Input] | None,
         Field(
-            description=&#39;Array of input sets for generating multiple preview variants. Each input set defines macros and context values for one preview rendering. If not provided, creative agent will generate default previews.&#39;
+            description=&#34;Array of input sets for generating multiple preview variants. Each input set defines macros and context values for one preview rendering. If not provided, creative agent will generate default previews.&#34;
         ),
     ] = None
     output_format: Annotated[
@@ -10899,11 +10936,11 @@ validated to form a valid model.</p>
         ),
     ] = preview_output_format.PreviewOutputFormat.url
     request_type: Annotated[
-        Literal[&#39;single&#39;],
-        Field(description=&#39;Discriminator indicating this is a single preview request&#39;),
+        Literal[&#34;single&#34;],
+        Field(description=&#34;Discriminator indicating this is a single preview request&#34;),
     ]
     template_id: Annotated[
-        str | None, Field(description=&#39;Specific template ID for custom format rendering&#39;)
+        str | None, Field(description=&#34;Specific template ID for custom format rendering&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -10980,7 +11017,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewCreativeRequest2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
@@ -10991,13 +11028,13 @@ validated to form a valid model.</p>
         ),
     ] = preview_output_format.PreviewOutputFormat.url
     request_type: Annotated[
-        Literal[&#39;batch&#39;],
-        Field(description=&#39;Discriminator indicating this is a batch preview request&#39;),
+        Literal[&#34;batch&#34;],
+        Field(description=&#34;Discriminator indicating this is a batch preview request&#34;),
     ]
     requests: Annotated[
         list[Request],
         Field(
-            description=&#39;Array of preview requests (1-50 items). Each follows the single request structure.&#39;,
+            description=&#34;Array of preview requests (1-50 items). Each follows the single request structure.&#34;,
             max_length=50,
             min_length=1,
         ),
@@ -11067,8 +11104,8 @@ validated to form a valid model.</p>
     root: Annotated[
         PreviewCreativeResponse1 | PreviewCreativeResponse2,
         Field(
-            description=&#39;Response containing preview links for one or more creatives. Format matches the request: single preview response for single requests, batch results for batch requests.&#39;,
-            title=&#39;Preview Creative Response&#39;,
+            description=&#34;Response containing preview links for one or more creatives. Format matches the request: single preview response for single requests, batch results for batch requests.&#34;,
+            title=&#34;Preview Creative Response&#34;,
         ),
     ]</code></pre>
 </details>
@@ -11122,29 +11159,29 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewCreativeResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     expires_at: Annotated[
-        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when preview links expire&#39;)
+        AwareDatetime, Field(description=&#34;ISO 8601 timestamp when preview links expire&#34;)
     ]
     ext: ext_1.ExtensionObject | None = None
     interactive_url: Annotated[
         AnyUrl | None,
         Field(
-            description=&#39;Optional URL to an interactive testing page that shows all preview variants with controls to switch between them, modify macro values, and test different scenarios.&#39;
+            description=&#34;Optional URL to an interactive testing page that shows all preview variants with controls to switch between them, modify macro values, and test different scenarios.&#34;
         ),
     ] = None
     previews: Annotated[
         list[Preview],
         Field(
-            description=&#39;Array of preview variants. Each preview corresponds to an input set from the request. If no inputs were provided, returns a single default preview.&#39;,
+            description=&#34;Array of preview variants. Each preview corresponds to an input set from the request. If no inputs were provided, returns a single default preview.&#34;,
             min_length=1,
         ),
     ]
     response_type: Annotated[
-        Literal[&#39;single&#39;],
-        Field(description=&#39;Discriminator indicating this is a single preview response&#39;),
+        Literal[&#34;single&#34;],
+        Field(description=&#34;Discriminator indicating this is a single preview response&#34;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -11213,18 +11250,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewCreativeResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     response_type: Annotated[
-        Literal[&#39;batch&#39;],
-        Field(description=&#39;Discriminator indicating this is a batch preview response&#39;),
+        Literal[&#34;batch&#34;],
+        Field(description=&#34;Discriminator indicating this is a batch preview response&#34;),
     ]
     results: Annotated[
         list[Results | Results1],
         Field(
-            description=&#39;Array of preview results corresponding to each request in the same order. results[0] is the result for requests[0], results[1] for requests[1], etc. Order is guaranteed even when some requests fail. Each result contains either a successful preview response or an error.&#39;,
+            description=&#34;Array of preview results corresponding to each request in the same order. results[0] is the result for requests[0], results[1] for requests[1], etc. Order is guaranteed even when some requests fail. Each result contains either a successful preview response or an error.&#34;,
             min_length=1,
         ),
     ]</code></pre>
@@ -11287,26 +11324,26 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewRender1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     dimensions: Annotated[
-        Dimensions | None, Field(description=&#39;Dimensions for this rendered piece&#39;)
+        Dimensions | None, Field(description=&#34;Dimensions for this rendered piece&#34;)
     ] = None
     embedding: Annotated[
         Embedding | None,
-        Field(description=&#39;Optional security and embedding metadata for safe iframe integration&#39;),
+        Field(description=&#34;Optional security and embedding metadata for safe iframe integration&#34;),
     ] = None
     output_format: Annotated[
-        Literal[&#39;url&#39;], Field(description=&#39;Discriminator indicating preview_url is provided&#39;)
+        Literal[&#34;url&#34;], Field(description=&#34;Discriminator indicating preview_url is provided&#34;)
     ]
     preview_url: Annotated[
         AnyUrl,
         Field(
-            description=&#39;URL to an HTML page that renders this piece. Can be embedded in an iframe.&#39;
+            description=&#34;URL to an HTML page that renders this piece. Can be embedded in an iframe.&#34;
         ),
     ]
     render_id: Annotated[
-        str, Field(description=&#39;Unique identifier for this rendered piece within the variant&#39;)
+        str, Field(description=&#34;Unique identifier for this rendered piece within the variant&#34;)
     ]
     role: Annotated[
         str,
@@ -11381,25 +11418,25 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewRender2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     dimensions: Annotated[
-        Dimensions | None, Field(description=&#39;Dimensions for this rendered piece&#39;)
+        Dimensions | None, Field(description=&#34;Dimensions for this rendered piece&#34;)
     ] = None
     embedding: Annotated[
-        Embedding | None, Field(description=&#39;Optional security and embedding metadata&#39;)
+        Embedding | None, Field(description=&#34;Optional security and embedding metadata&#34;)
     ] = None
     output_format: Annotated[
-        Literal[&#39;html&#39;], Field(description=&#39;Discriminator indicating preview_html is provided&#39;)
+        Literal[&#34;html&#34;], Field(description=&#34;Discriminator indicating preview_html is provided&#34;)
     ]
     preview_html: Annotated[
         str,
         Field(
-            description=&#39;Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.&#39;
+            description=&#34;Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.&#34;
         ),
     ]
     render_id: Annotated[
-        str, Field(description=&#39;Unique identifier for this rendered piece within the variant&#39;)
+        str, Field(description=&#34;Unique identifier for this rendered piece within the variant&#34;)
     ]
     role: Annotated[
         str,
@@ -11474,35 +11511,35 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewRender3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     dimensions: Annotated[
-        Dimensions | None, Field(description=&#39;Dimensions for this rendered piece&#39;)
+        Dimensions | None, Field(description=&#34;Dimensions for this rendered piece&#34;)
     ] = None
     embedding: Annotated[
         Embedding | None,
-        Field(description=&#39;Optional security and embedding metadata for safe iframe integration&#39;),
+        Field(description=&#34;Optional security and embedding metadata for safe iframe integration&#34;),
     ] = None
     output_format: Annotated[
-        Literal[&#39;both&#39;],
+        Literal[&#34;both&#34;],
         Field(
-            description=&#39;Discriminator indicating both preview_url and preview_html are provided&#39;
+            description=&#34;Discriminator indicating both preview_url and preview_html are provided&#34;
         ),
     ]
     preview_html: Annotated[
         str,
         Field(
-            description=&#39;Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.&#39;
+            description=&#34;Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.&#34;
         ),
     ]
     preview_url: Annotated[
         AnyUrl,
         Field(
-            description=&#39;URL to an HTML page that renders this piece. Can be embedded in an iframe.&#39;
+            description=&#34;URL to an HTML page that renders this piece. Can be embedded in an iframe.&#34;
         ),
     ]
     render_id: Annotated[
-        str, Field(description=&#39;Unique identifier for this rendered piece within the variant&#39;)
+        str, Field(description=&#34;Unique identifier for this rendered piece within the variant&#34;)
     ]
     role: Annotated[
         str,
@@ -11583,13 +11620,13 @@ validated to form a valid model.</p>
     floor: Annotated[
         float,
         Field(
-            description=&#39;Minimum bid price - publisher will reject bids under this value&#39;, ge=0.0
+            description=&#34;Minimum bid price - publisher will reject bids under this value&#34;, ge=0.0
         ),
     ]
-    p25: Annotated[float | None, Field(description=&#39;25th percentile winning price&#39;, ge=0.0)] = None
-    p50: Annotated[float | None, Field(description=&#39;Median winning price&#39;, ge=0.0)] = None
-    p75: Annotated[float | None, Field(description=&#39;75th percentile winning price&#39;, ge=0.0)] = None
-    p90: Annotated[float | None, Field(description=&#39;90th percentile winning price&#39;, ge=0.0)] = None</code></pre>
+    p25: Annotated[float | None, Field(description=&#34;25th percentile winning price&#34;, ge=0.0)] = None
+    p50: Annotated[float | None, Field(description=&#34;Median winning price&#34;, ge=0.0)] = None
+    p75: Annotated[float | None, Field(description=&#34;75th percentile winning price&#34;, ge=0.0)] = None
+    p90: Annotated[float | None, Field(description=&#34;90th percentile winning price&#34;, ge=0.0)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -11652,13 +11689,13 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PricingModel(Enum):
-    cpm = &#39;cpm&#39;
-    vcpm = &#39;vcpm&#39;
-    cpc = &#39;cpc&#39;
-    cpcv = &#39;cpcv&#39;
-    cpv = &#39;cpv&#39;
-    cpp = &#39;cpp&#39;
-    flat_rate = &#39;flat_rate&#39;</code></pre>
+    cpm = &#34;cpm&#34;
+    vcpm = &#34;vcpm&#34;
+    cpc = &#34;cpc&#34;
+    cpcv = &#34;cpcv&#34;
+    cpv = &#34;cpv&#34;
+    cpp = &#34;cpp&#34;
+    flat_rate = &#34;flat_rate&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -11742,66 +11779,66 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Product(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     brief_relevance: Annotated[
         str | None,
         Field(
-            description=&#39;Explanation of why this product matches the brief (only included when brief is provided)&#39;
+            description=&#34;Explanation of why this product matches the brief (only included when brief is provided)&#34;
         ),
     ] = None
     creative_policy: creative_policy_1.CreativePolicy | None = None
     delivery_measurement: Annotated[
         DeliveryMeasurement,
         Field(
-            description=&#39;Measurement provider and methodology for delivery metrics. The buyer accepts the declared provider as the source of truth for the buy. REQUIRED for all products.&#39;
+            description=&#34;Measurement provider and methodology for delivery metrics. The buyer accepts the declared provider as the source of truth for the buy. REQUIRED for all products.&#34;
         ),
     ]
     delivery_type: delivery_type_1.DeliveryType
     description: Annotated[
-        str, Field(description=&#39;Detailed description of the product and its inventory&#39;)
+        str, Field(description=&#34;Detailed description of the product and its inventory&#34;)
     ]
     estimated_exposures: Annotated[
         int | None,
-        Field(description=&#39;Estimated exposures/impressions for guaranteed products&#39;, ge=0),
+        Field(description=&#34;Estimated exposures/impressions for guaranteed products&#34;, ge=0),
     ] = None
     expires_at: Annotated[
-        AwareDatetime | None, Field(description=&#39;Expiration timestamp for custom products&#39;)
+        AwareDatetime | None, Field(description=&#34;Expiration timestamp for custom products&#34;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
     format_ids: Annotated[
         list[format_id_1.FormatId],
         Field(
-            description=&#39;Array of supported creative format IDs - structured format_id objects with agent_url and id&#39;
+            description=&#34;Array of supported creative format IDs - structured format_id objects with agent_url and id&#34;
         ),
     ]
-    is_custom: Annotated[bool | None, Field(description=&#39;Whether this is a custom product&#39;)] = None
+    is_custom: Annotated[bool | None, Field(description=&#34;Whether this is a custom product&#34;)] = None
     measurement: measurement_1.Measurement | None = None
-    name: Annotated[str, Field(description=&#39;Human-readable product name&#39;)]
+    name: Annotated[str, Field(description=&#34;Human-readable product name&#34;)]
     placements: Annotated[
         list[placement.Placement] | None,
         Field(
-            description=&#39;Optional array of specific placements within this product. When provided, buyers can target specific placements when assigning creatives.&#39;,
+            description=&#34;Optional array of specific placements within this product. When provided, buyers can target specific placements when assigning creatives.&#34;,
             min_length=1,
         ),
     ] = None
     pricing_options: Annotated[
         list[pricing_option.PricingOption],
-        Field(description=&#39;Available pricing models for this product&#39;, min_length=1),
+        Field(description=&#34;Available pricing models for this product&#34;, min_length=1),
     ]
     product_card: Annotated[
         ProductCard | None,
         Field(
-            description=&#39;Optional standard visual card (300x400px) for displaying this product in user interfaces. Can be rendered via preview_creative or pre-generated.&#39;
+            description=&#34;Optional standard visual card (300x400px) for displaying this product in user interfaces. Can be rendered via preview_creative or pre-generated.&#34;
         ),
     ] = None
     product_card_detailed: Annotated[
         ProductCardDetailed | None,
         Field(
-            description=&#39;Optional detailed card with carousel and full specifications. Provides rich product presentation similar to media kit pages.&#39;
+            description=&#34;Optional detailed card with carousel and full specifications. Provides rich product presentation similar to media kit pages.&#34;
         ),
     ] = None
-    product_id: Annotated[str, Field(description=&#39;Unique identifier for the product&#39;)]
+    product_id: Annotated[str, Field(description=&#34;Unique identifier for the product&#34;)]
     publisher_properties: Annotated[
         list[publisher_property_selector.PublisherPropertySelector],
         Field(
@@ -11929,11 +11966,11 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ProductFilters(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     budget_range: Annotated[
         BudgetRange | BudgetRange1 | None,
-        Field(description=&#39;Budget range to filter appropriate products&#39;),
+        Field(description=&#34;Budget range to filter appropriate products&#34;),
     ] = None
     channels: Annotated[
         list[channels_1.AdvertisingChannels] | None,
@@ -11949,29 +11986,29 @@ validated to form a valid model.</p>
     end_date: Annotated[
         date | None,
         Field(
-            description=&#39;Campaign end date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#39;
+            description=&#34;Campaign end date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#34;
         ),
     ] = None
     format_ids: Annotated[
-        list[format_id.FormatId] | None, Field(description=&#39;Filter by specific format IDs&#39;)
+        list[format_id.FormatId] | None, Field(description=&#34;Filter by specific format IDs&#34;)
     ] = None
     format_types: Annotated[
-        list[format_category.FormatCategory] | None, Field(description=&#39;Filter by format types&#39;)
+        list[format_category.FormatCategory] | None, Field(description=&#34;Filter by format types&#34;)
     ] = None
     is_fixed_price: Annotated[
-        bool | None, Field(description=&#39;Filter for fixed price vs auction products&#39;)
+        bool | None, Field(description=&#34;Filter for fixed price vs auction products&#34;)
     ] = None
     min_exposures: Annotated[
         int | None,
-        Field(description=&#39;Minimum exposures/impressions needed for measurement validity&#39;, ge=1),
+        Field(description=&#34;Minimum exposures/impressions needed for measurement validity&#34;, ge=1),
     ] = None
     standard_formats_only: Annotated[
-        bool | None, Field(description=&#39;Only return products accepting IAB standard formats&#39;)
+        bool | None, Field(description=&#34;Only return products accepting IAB standard formats&#34;)
     ] = None
     start_date: Annotated[
         date | None,
         Field(
-            description=&#39;Campaign start date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#39;
+            description=&#34;Campaign start date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -12061,31 +12098,31 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Property(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     identifiers: Annotated[
-        list[Identifier], Field(description=&#39;Array of identifiers for this property&#39;, min_length=1)
+        list[Identifier], Field(description=&#34;Array of identifiers for this property&#34;, min_length=1)
     ]
-    name: Annotated[str, Field(description=&#39;Human-readable property name&#39;)]
+    name: Annotated[str, Field(description=&#34;Human-readable property name&#34;)]
     property_id: Annotated[
         property_id_1.PropertyId | None,
         Field(
-            description=&#39;Unique identifier for this property (optional). Enables referencing properties by ID instead of repeating full objects.&#39;
+            description=&#34;Unique identifier for this property (optional). Enables referencing properties by ID instead of repeating full objects.&#34;
         ),
     ] = None
     property_type: Annotated[
-        property_type_1.PropertyType, Field(description=&#39;Type of advertising property&#39;)
+        property_type_1.PropertyType, Field(description=&#34;Type of advertising property&#34;)
     ]
     publisher_domain: Annotated[
         str | None,
         Field(
-            description=&#39;Domain where adagents.json should be checked for authorization validation. Required for list_authorized_properties response. Optional in adagents.json (file location implies domain).&#39;
+            description=&#34;Domain where adagents.json should be checked for authorization validation. Required for list_authorized_properties response. Optional in adagents.json (file location implies domain).&#34;
         ),
     ] = None
     tags: Annotated[
         list[property_tag.PropertyTag] | None,
         Field(
-            description=&#39;Tags for categorization and grouping (e.g., network membership, content categories)&#39;
+            description=&#34;Tags for categorization and grouping (e.g., network membership, content categories)&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -12157,10 +12194,10 @@ validated to form a valid model.</p>
     root: Annotated[
         str,
         Field(
-            description=&#39;Identifier for a publisher property. Must be lowercase alphanumeric with underscores only.&#39;,
-            examples=[&#39;cnn_ctv_app&#39;, &#39;homepage&#39;, &#39;mobile_ios&#39;, &#39;instagram&#39;],
-            pattern=&#39;^[a-z0-9_]+$&#39;,
-            title=&#39;Property ID&#39;,
+            description=&#34;Identifier for a publisher property. Must be lowercase alphanumeric with underscores only.&#34;,
+            examples=[&#34;cnn_ctv_app&#34;, &#34;homepage&#34;, &#34;mobile_ios&#34;, &#34;instagram&#34;],
+            pattern=&#34;^[a-z0-9_]+$&#34;,
+            title=&#34;Property ID&#34;,
         ),
     ]</code></pre>
 </details>
@@ -12216,10 +12253,10 @@ validated to form a valid model.</p>
     root: Annotated[
         str,
         Field(
-            description=&#39;Tag for categorizing publisher properties. Must be lowercase alphanumeric with underscores only.&#39;,
-            examples=[&#39;ctv&#39;, &#39;premium&#39;, &#39;news&#39;, &#39;sports&#39;, &#39;meta_network&#39;, &#39;social_media&#39;],
-            pattern=&#39;^[a-z0-9_]+$&#39;,
-            title=&#39;Property Tag&#39;,
+            description=&#34;Tag for categorizing publisher properties. Must be lowercase alphanumeric with underscores only.&#34;,
+            examples=[&#34;ctv&#34;, &#34;premium&#34;, &#34;news&#34;, &#34;sports&#34;, &#34;meta_network&#34;, &#34;social_media&#34;],
+            pattern=&#34;^[a-z0-9_]+$&#34;,
+            title=&#34;Property Tag&#34;,
         ),
     ]</code></pre>
 </details>
@@ -12310,8 +12347,8 @@ validated to form a valid model.</p>
     root: Annotated[
         ProvidePerformanceFeedbackRequest1 | ProvidePerformanceFeedbackRequest2,
         Field(
-            description=&#39;Request payload for provide_performance_feedback task&#39;,
-            title=&#39;Provide Performance Feedback Request&#39;,
+            description=&#34;Request payload for provide_performance_feedback task&#34;,
+            title=&#34;Provide Performance Feedback Request&#34;,
         ),
     ]</code></pre>
 </details>
@@ -12369,8 +12406,8 @@ validated to form a valid model.</p>
     root: Annotated[
         ProvidePerformanceFeedbackResponse1 | ProvidePerformanceFeedbackResponse2,
         Field(
-            description=&#39;Response payload for provide_performance_feedback task. Returns either success confirmation OR error information, never both.&#39;,
-            title=&#39;Provide Performance Feedback Response&#39;,
+            description=&#34;Response payload for provide_performance_feedback task. Returns either success confirmation OR error information, never both.&#34;,
+            title=&#34;Provide Performance Feedback Response&#34;,
         ),
     ]</code></pre>
 </details>
@@ -12424,13 +12461,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ProvidePerformanceFeedbackResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     success: Annotated[
         Literal[True],
-        Field(description=&#39;Whether the performance feedback was successfully received&#39;),
+        Field(description=&#34;Whether the performance feedback was successfully received&#34;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -12487,13 +12524,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ProvidePerformanceFeedbackResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
-            description=&#39;Array of errors explaining why feedback was rejected (e.g., invalid measurement period, missing campaign data)&#39;,
+            description=&#34;Array of errors explaining why feedback was rejected (e.g., invalid measurement period, missing campaign data)&#34;,
             min_length=1,
         ),
     ]
@@ -12553,19 +12590,19 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PublisherPropertySelector1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     publisher_domain: Annotated[
         str,
         Field(
             description=&#34;Domain where publisher&#39;s adagents.json is hosted (e.g., &#39;cnn.com&#39;)&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
         ),
     ]
     selection_type: Annotated[
-        Literal[&#39;all&#39;],
+        Literal[&#34;all&#34;],
         Field(
-            description=&#39;Discriminator indicating all properties from this publisher are included&#39;
+            description=&#34;Discriminator indicating all properties from this publisher are included&#34;
         ),
     ]</code></pre>
 </details>
@@ -12619,7 +12656,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PublisherPropertySelector2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     property_ids: Annotated[
         list[property_id.PropertyId],
@@ -12629,12 +12666,12 @@ validated to form a valid model.</p>
         str,
         Field(
             description=&#34;Domain where publisher&#39;s adagents.json is hosted (e.g., &#39;cnn.com&#39;)&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
         ),
     ]
     selection_type: Annotated[
-        Literal[&#39;by_id&#39;],
-        Field(description=&#39;Discriminator indicating selection by specific property IDs&#39;),
+        Literal[&#34;by_id&#34;],
+        Field(description=&#34;Discriminator indicating selection by specific property IDs&#34;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -12691,7 +12728,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PublisherPropertySelector3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     property_tags: Annotated[
         list[property_tag.PropertyTag],
@@ -12704,11 +12741,11 @@ validated to form a valid model.</p>
         str,
         Field(
             description=&#34;Domain where publisher&#39;s adagents.json is hosted (e.g., &#39;cnn.com&#39;)&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
         ),
     ]
     selection_type: Annotated[
-        Literal[&#39;by_tag&#39;], Field(description=&#39;Discriminator indicating selection by property tags&#39;)
+        Literal[&#34;by_tag&#34;], Field(description=&#34;Discriminator indicating selection by property tags&#34;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -12766,16 +12803,16 @@ validated to form a valid model.</p>
 <pre><code class="python">class PushNotificationConfig(AdCPBaseModel):
     authentication: Annotated[
         Authentication,
-        Field(description=&#39;Authentication configuration for webhook delivery (A2A-compatible)&#39;),
+        Field(description=&#34;Authentication configuration for webhook delivery (A2A-compatible)&#34;),
     ]
     token: Annotated[
         str | None,
         Field(
-            description=&#39;Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.&#39;,
+            description=&#34;Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.&#34;,
             min_length=16,
         ),
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#39;Webhook endpoint URL for task status notifications&#39;)]</code></pre>
+    url: Annotated[AnyUrl, Field(description=&#34;Webhook endpoint URL for task status notifications&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -12831,18 +12868,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SignalFilters(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     catalog_types: Annotated[
         list[signal_catalog_type.SignalCatalogType] | None,
-        Field(description=&#39;Filter by catalog type&#39;),
+        Field(description=&#34;Filter by catalog type&#34;),
     ] = None
     data_providers: Annotated[
-        list[str] | None, Field(description=&#39;Filter by specific data providers&#39;)
+        list[str] | None, Field(description=&#34;Filter by specific data providers&#34;)
     ] = None
-    max_cpm: Annotated[float | None, Field(description=&#39;Maximum CPM price filter&#39;, ge=0.0)] = None
+    max_cpm: Annotated[float | None, Field(description=&#34;Maximum CPM price filter&#34;, ge=0.0)] = None
     min_coverage_percentage: Annotated[
-        float | None, Field(description=&#39;Minimum coverage requirement&#39;, ge=0.0, le=100.0)
+        float | None, Field(description=&#34;Minimum coverage requirement&#34;, ge=0.0, le=100.0)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -12903,22 +12940,22 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SubAsset1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     asset_id: Annotated[
-        str, Field(description=&#39;Unique identifier for the asset within the creative&#39;)
+        str, Field(description=&#34;Unique identifier for the asset within the creative&#34;)
     ]
     asset_kind: Annotated[
-        Literal[&#39;media&#39;],
-        Field(description=&#39;Discriminator indicating this is a media asset with content_uri&#39;),
+        Literal[&#34;media&#34;],
+        Field(description=&#34;Discriminator indicating this is a media asset with content_uri&#34;),
     ]
     asset_type: Annotated[
         str,
         Field(
-            description=&#39;Type of asset. Common types: thumbnail_image, product_image, featured_image, logo&#39;
+            description=&#34;Type of asset. Common types: thumbnail_image, product_image, featured_image, logo&#34;
         ),
     ]
-    content_uri: Annotated[AnyUrl, Field(description=&#39;URL for media assets (images, videos, etc.)&#39;)]</code></pre>
+    content_uri: Annotated[AnyUrl, Field(description=&#34;URL for media assets (images, videos, etc.)&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -12978,25 +13015,25 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SubAsset2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     asset_id: Annotated[
-        str, Field(description=&#39;Unique identifier for the asset within the creative&#39;)
+        str, Field(description=&#34;Unique identifier for the asset within the creative&#34;)
     ]
     asset_kind: Annotated[
-        Literal[&#39;text&#39;],
-        Field(description=&#39;Discriminator indicating this is a text asset with content&#39;),
+        Literal[&#34;text&#34;],
+        Field(description=&#34;Discriminator indicating this is a text asset with content&#34;),
     ]
     asset_type: Annotated[
         str,
         Field(
-            description=&#39;Type of asset. Common types: headline, body_text, cta_text, price_text, sponsor_name, author_name, click_url&#39;
+            description=&#34;Type of asset. Common types: headline, body_text, cta_text, price_text, sponsor_name, author_name, click_url&#34;
         ),
     ]
     content: Annotated[
         str | list[str],
         Field(
-            description=&#39;Text content for text-based assets like headlines, body text, CTA text, etc.&#39;
+            description=&#34;Text content for text-based assets like headlines, body text, CTA text, etc.&#34;
         ),
     ]</code></pre>
 </details>
@@ -13058,41 +13095,41 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SyncCreativesRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     assignments: Annotated[
         dict[str, list[str]] | None,
-        Field(description=&#39;Optional bulk assignment of creatives to packages&#39;),
+        Field(description=&#34;Optional bulk assignment of creatives to packages&#34;),
     ] = None
     context: context_1.ContextObject | None = None
     creative_ids: Annotated[
         list[str] | None,
         Field(
-            description=&#39;Optional filter to limit sync scope to specific creative IDs. When provided, only these creatives will be created/updated. Other creatives in the library are unaffected. Useful for partial updates and error recovery.&#39;,
+            description=&#34;Optional filter to limit sync scope to specific creative IDs. When provided, only these creatives will be created/updated. Other creatives in the library are unaffected. Useful for partial updates and error recovery.&#34;,
             max_length=100,
         ),
     ] = None
     creatives: Annotated[
         list[creative_asset.CreativeAsset],
-        Field(description=&#39;Array of creative assets to sync (create or update)&#39;, max_length=100),
+        Field(description=&#34;Array of creative assets to sync (create or update)&#34;, max_length=100),
     ]
     delete_missing: Annotated[
         bool | None,
         Field(
-            description=&#39;When true, creatives not included in this sync will be archived. Use with caution for full library replacement.&#39;
+            description=&#34;When true, creatives not included in this sync will be archived. Use with caution for full library replacement.&#34;
         ),
     ] = False
     dry_run: Annotated[
         bool | None,
         Field(
-            description=&#39;When true, preview changes without applying them. Returns what would be created/updated/deleted.&#39;
+            description=&#34;When true, preview changes without applying them. Returns what would be created/updated/deleted.&#34;
         ),
     ] = False
     ext: ext_1.ExtensionObject | None = None
     push_notification_config: Annotated[
         push_notification_config_1.PushNotificationConfig | None,
         Field(
-            description=&#39;Optional webhook configuration for async sync notifications. Publisher will send webhook when sync completes if operation takes longer than immediate response time (typically for large bulk operations or manual approval/HITL).&#39;
+            description=&#34;Optional webhook configuration for async sync notifications. Publisher will send webhook when sync completes if operation takes longer than immediate response time (typically for large bulk operations or manual approval/HITL).&#34;
         ),
     ] = None
     validation_mode: Annotated[
@@ -13182,8 +13219,8 @@ validated to form a valid model.</p>
     root: Annotated[
         SyncCreativesResponse1 | SyncCreativesResponse2,
         Field(
-            description=&#39;Response from creative sync operation. Returns either per-creative results (best-effort processing) OR operation-level errors (complete failure). This enforces atomic semantics at the operation level while allowing per-item failures within successful operations.&#39;,
-            title=&#39;Sync Creatives Response&#39;,
+            description=&#34;Response from creative sync operation. Returns either per-creative results (best-effort processing) OR operation-level errors (complete failure). This enforces atomic semantics at the operation level while allowing per-item failures within successful operations.&#34;,
+            title=&#34;Sync Creatives Response&#34;,
         ),
     ]</code></pre>
 </details>
@@ -13237,7 +13274,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SyncCreativesResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     creatives: Annotated[
@@ -13247,7 +13284,7 @@ validated to form a valid model.</p>
         ),
     ]
     dry_run: Annotated[
-        bool | None, Field(description=&#39;Whether this was a dry run (no actual changes made)&#39;)
+        bool | None, Field(description=&#34;Whether this was a dry run (no actual changes made)&#34;)
     ] = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
@@ -13309,13 +13346,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SyncCreativesResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
-            description=&#39;Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)&#39;,
+            description=&#34;Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)&#34;,
             min_length=1,
         ),
     ]
@@ -13517,15 +13554,15 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class TaskStatus(Enum):
-    submitted = &#39;submitted&#39;
-    working = &#39;working&#39;
-    input_required = &#39;input-required&#39;
-    completed = &#39;completed&#39;
-    canceled = &#39;canceled&#39;
-    failed = &#39;failed&#39;
-    rejected = &#39;rejected&#39;
-    auth_required = &#39;auth-required&#39;
-    unknown = &#39;unknown&#39;</code></pre>
+    submitted = &#34;submitted&#34;
+    working = &#34;working&#34;
+    input_required = &#34;input-required&#34;
+    completed = &#34;completed&#34;
+    canceled = &#34;canceled&#34;
+    failed = &#34;failed&#34;
+    rejected = &#34;rejected&#34;
+    auth_required = &#34;auth-required&#34;
+    unknown = &#34;unknown&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -13619,8 +13656,8 @@ attributes &ndash; see the documentation for details.</p></div>
     root: Annotated[
         UpdateMediaBuyRequest1 | UpdateMediaBuyRequest2,
         Field(
-            description=&#39;Request parameters for updating campaign and package settings&#39;,
-            title=&#39;Update Media Buy Request&#39;,
+            description=&#34;Request parameters for updating campaign and package settings&#34;,
+            title=&#34;Update Media Buy Request&#34;,
         ),
     ]</code></pre>
 </details>
@@ -13674,28 +13711,28 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class UpdateMediaBuyRequest1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     buyer_ref: Annotated[
         str | None, Field(description=&#34;Buyer&#39;s reference for the media buy to update&#34;)
     ] = None
     context: context_1.ContextObject | None = None
     end_time: Annotated[
-        AwareDatetime | None, Field(description=&#39;New end date/time in ISO 8601 format&#39;)
+        AwareDatetime | None, Field(description=&#34;New end date/time in ISO 8601 format&#34;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
     media_buy_id: Annotated[str, Field(description=&#34;Publisher&#39;s ID of the media buy to update&#34;)]
     packages: Annotated[
-        list[Packages | Packages1] | None, Field(description=&#39;Package-specific updates&#39;)
+        list[Packages | Packages1] | None, Field(description=&#34;Package-specific updates&#34;)
     ] = None
     paused: Annotated[
         bool | None,
-        Field(description=&#39;Pause/resume the entire media buy (true = paused, false = active)&#39;),
+        Field(description=&#34;Pause/resume the entire media buy (true = paused, false = active)&#34;),
     ] = None
     push_notification_config: Annotated[
         push_notification_config_1.PushNotificationConfig | None,
         Field(
-            description=&#39;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time.&#39;
+            description=&#34;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time.&#34;
         ),
     ] = None
     start_time: start_timing.StartTiming | None = None</code></pre>
@@ -13778,28 +13815,28 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class UpdateMediaBuyRequest2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference for the media buy to update&#34;)]
     context: context_1.ContextObject | None = None
     end_time: Annotated[
-        AwareDatetime | None, Field(description=&#39;New end date/time in ISO 8601 format&#39;)
+        AwareDatetime | None, Field(description=&#34;New end date/time in ISO 8601 format&#34;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
     media_buy_id: Annotated[
         str | None, Field(description=&#34;Publisher&#39;s ID of the media buy to update&#34;)
     ] = None
     packages: Annotated[
-        list[Packages2 | Packages3] | None, Field(description=&#39;Package-specific updates&#39;)
+        list[Packages2 | Packages3] | None, Field(description=&#34;Package-specific updates&#34;)
     ] = None
     paused: Annotated[
         bool | None,
-        Field(description=&#39;Pause/resume the entire media buy (true = paused, false = active)&#39;),
+        Field(description=&#34;Pause/resume the entire media buy (true = paused, false = active)&#34;),
     ] = None
     push_notification_config: Annotated[
         push_notification_config_1.PushNotificationConfig | None,
         Field(
-            description=&#39;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time.&#39;
+            description=&#34;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time.&#34;
         ),
     ] = None
     start_time: start_timing.StartTiming | None = None</code></pre>
@@ -13843,7 +13880,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.UpdateMediaBuyRequest2.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.media_buy.update_media_buy_request.Packages" href="types/generated_poc/media_buy/update_media_buy_request.html#adcp.types.generated_poc.media_buy.update_media_buy_request.Packages">Packages</a> | <a title="adcp.types.generated_poc.media_buy.update_media_buy_request.Packages1" href="types/generated_poc/media_buy/update_media_buy_request.html#adcp.types.generated_poc.media_buy.update_media_buy_request.Packages1">Packages1</a>] | None</code></dt>
+<dt id="adcp.UpdateMediaBuyRequest2.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.media_buy.update_media_buy_request.Packages2" href="types/generated_poc/media_buy/update_media_buy_request.html#adcp.types.generated_poc.media_buy.update_media_buy_request.Packages2">Packages2</a> | <a title="adcp.types.generated_poc.media_buy.update_media_buy_request.Packages3" href="types/generated_poc/media_buy/update_media_buy_request.html#adcp.types.generated_poc.media_buy.update_media_buy_request.Packages3">Packages3</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -13884,8 +13921,8 @@ validated to form a valid model.</p>
     root: Annotated[
         UpdateMediaBuyResponse1 | UpdateMediaBuyResponse2,
         Field(
-            description=&#39;Response payload for update_media_buy task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - updates are either fully applied or not applied at all.&#39;,
-            title=&#39;Update Media Buy Response&#39;,
+            description=&#34;Response payload for update_media_buy task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - updates are either fully applied or not applied at all.&#34;,
+            title=&#34;Update Media Buy Response&#34;,
         ),
     ]</code></pre>
 </details>
@@ -13939,18 +13976,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class UpdateMediaBuyResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     affected_packages: Annotated[
         list[package.Package] | None,
-        Field(description=&#39;Array of packages that were modified with complete state information&#39;),
+        Field(description=&#34;Array of packages that were modified with complete state information&#34;),
     ] = None
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for the media buy&#34;)]
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     implementation_date: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;ISO 8601 timestamp when changes take effect (null if pending approval)&#39;),
+        Field(description=&#34;ISO 8601 timestamp when changes take effect (null if pending approval)&#34;),
     ] = None
     media_buy_id: Annotated[str, Field(description=&#34;Publisher&#39;s identifier for the media buy&#34;)]</code></pre>
 </details>
@@ -14020,12 +14057,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class UpdateMediaBuyResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
-        Field(description=&#39;Array of errors explaining why the operation failed&#39;, min_length=1),
+        Field(description=&#34;Array of errors explaining why the operation failed&#34;, min_length=1),
     ]
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
@@ -14105,26 +14142,26 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class VastAsset1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     delivery_type: Annotated[
-        Literal[&#39;url&#39;],
-        Field(description=&#39;Discriminator indicating VAST is delivered via URL endpoint&#39;),
+        Literal[&#34;url&#34;],
+        Field(description=&#34;Discriminator indicating VAST is delivered via URL endpoint&#34;),
     ]
     duration_ms: Annotated[
-        int | None, Field(description=&#39;Expected video duration in milliseconds (if known)&#39;, ge=0)
+        int | None, Field(description=&#34;Expected video duration in milliseconds (if known)&#34;, ge=0)
     ] = None
     tracking_events: Annotated[
         list[vast_tracking_event.VastTrackingEvent] | None,
-        Field(description=&#39;Tracking events supported by this VAST tag&#39;),
+        Field(description=&#34;Tracking events supported by this VAST tag&#34;),
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#39;URL endpoint that returns VAST XML&#39;)]
+    url: Annotated[AnyUrl, Field(description=&#34;URL endpoint that returns VAST XML&#34;)]
     vast_version: Annotated[
-        vast_version_1.VastVersion | None, Field(description=&#39;VAST specification version&#39;)
+        vast_version_1.VastVersion | None, Field(description=&#34;VAST specification version&#34;)
     ] = None
     vpaid_enabled: Annotated[
         bool | None,
-        Field(description=&#39;Whether VPAID (Video Player-Ad Interface Definition) is supported&#39;),
+        Field(description=&#34;Whether VPAID (Video Player-Ad Interface Definition) is supported&#34;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -14193,26 +14230,26 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class VastAsset2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    content: Annotated[str, Field(description=&#39;Inline VAST XML content&#39;)]
+    content: Annotated[str, Field(description=&#34;Inline VAST XML content&#34;)]
     delivery_type: Annotated[
-        Literal[&#39;inline&#39;],
-        Field(description=&#39;Discriminator indicating VAST is delivered as inline XML content&#39;),
+        Literal[&#34;inline&#34;],
+        Field(description=&#34;Discriminator indicating VAST is delivered as inline XML content&#34;),
     ]
     duration_ms: Annotated[
-        int | None, Field(description=&#39;Expected video duration in milliseconds (if known)&#39;, ge=0)
+        int | None, Field(description=&#34;Expected video duration in milliseconds (if known)&#34;, ge=0)
     ] = None
     tracking_events: Annotated[
         list[vast_tracking_event.VastTrackingEvent] | None,
-        Field(description=&#39;Tracking events supported by this VAST tag&#39;),
+        Field(description=&#34;Tracking events supported by this VAST tag&#34;),
     ] = None
     vast_version: Annotated[
-        vast_version_1.VastVersion | None, Field(description=&#39;VAST specification version&#39;)
+        vast_version_1.VastVersion | None, Field(description=&#34;VAST specification version&#34;)
     ] = None
     vpaid_enabled: Annotated[
         bool | None,
-        Field(description=&#39;Whether VPAID (Video Player-Ad Interface Definition) is supported&#39;),
+        Field(description=&#34;Whether VPAID (Video Player-Ad Interface Definition) is supported&#34;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -14281,32 +14318,32 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class VcpmAuctionPricingOption(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     currency: Annotated[
         str,
         Field(
-            description=&#39;ISO 4217 currency code&#39;,
-            examples=[&#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;, &#39;JPY&#39;],
-            pattern=&#39;^[A-Z]{3}$&#39;,
+            description=&#34;ISO 4217 currency code&#34;,
+            examples=[&#34;USD&#34;, &#34;EUR&#34;, &#34;GBP&#34;, &#34;JPY&#34;],
+            pattern=&#34;^[A-Z]{3}$&#34;,
         ),
     ]
     is_fixed: Annotated[
         Literal[False],
-        Field(description=&#39;Whether this is a fixed rate (true) or auction-based (false)&#39;),
+        Field(description=&#34;Whether this is a fixed rate (true) or auction-based (false)&#34;),
     ]
     min_spend_per_package: Annotated[
         float | None,
         Field(
-            description=&#39;Minimum spend requirement per package using this pricing option, in the specified currency&#39;,
+            description=&#34;Minimum spend requirement per package using this pricing option, in the specified currency&#34;,
             ge=0.0,
         ),
     ] = None
     price_guidance: Annotated[
-        PriceGuidance, Field(description=&#39;Statistical guidance for auction pricing&#39;)
+        PriceGuidance, Field(description=&#34;Statistical guidance for auction pricing&#34;)
     ]
     pricing_model: Annotated[
-        Literal[&#39;vcpm&#39;], Field(description=&#39;Cost per 1,000 viewable impressions (MRC standard)&#39;)
+        Literal[&#34;vcpm&#34;], Field(description=&#34;Cost per 1,000 viewable impressions (MRC standard)&#34;)
     ]
     pricing_option_id: Annotated[
         str,
@@ -14381,29 +14418,29 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class VcpmFixedRatePricingOption(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     currency: Annotated[
         str,
         Field(
-            description=&#39;ISO 4217 currency code&#39;,
-            examples=[&#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;, &#39;JPY&#39;],
-            pattern=&#39;^[A-Z]{3}$&#39;,
+            description=&#34;ISO 4217 currency code&#34;,
+            examples=[&#34;USD&#34;, &#34;EUR&#34;, &#34;GBP&#34;, &#34;JPY&#34;],
+            pattern=&#34;^[A-Z]{3}$&#34;,
         ),
     ]
     is_fixed: Annotated[
         Literal[True],
-        Field(description=&#39;Whether this is a fixed rate (true) or auction-based (false)&#39;),
+        Field(description=&#34;Whether this is a fixed rate (true) or auction-based (false)&#34;),
     ]
     min_spend_per_package: Annotated[
         float | None,
         Field(
-            description=&#39;Minimum spend requirement per package using this pricing option, in the specified currency&#39;,
+            description=&#34;Minimum spend requirement per package using this pricing option, in the specified currency&#34;,
             ge=0.0,
         ),
     ] = None
     pricing_model: Annotated[
-        Literal[&#39;vcpm&#39;], Field(description=&#39;Cost per 1,000 viewable impressions (MRC standard)&#39;)
+        Literal[&#34;vcpm&#34;], Field(description=&#34;Cost per 1,000 viewable impressions (MRC standard)&#34;)
     ]
     pricing_option_id: Annotated[
         str,
@@ -14412,7 +14449,7 @@ validated to form a valid model.</p>
         ),
     ]
     rate: Annotated[
-        float, Field(description=&#39;Fixed vCPM rate (cost per 1,000 viewable impressions)&#39;, ge=0.0)
+        float, Field(description=&#34;Fixed vCPM rate (cost per 1,000 viewable impressions)&#34;, ge=0.0)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -15161,6 +15198,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.GetProductsRequest.ext" href="#adcp.GetProductsRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.GetProductsRequest.filters" href="#adcp.GetProductsRequest.filters">filters</a></code></li>
 <li><code><a title="adcp.GetProductsRequest.model_config" href="#adcp.GetProductsRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.GetProductsRequest.property_list" href="#adcp.GetProductsRequest.property_list">property_list</a></code></li>
 </ul>
 </li>
 <li>
@@ -15171,6 +15209,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.GetProductsResponse.ext" href="#adcp.GetProductsResponse.ext">ext</a></code></li>
 <li><code><a title="adcp.GetProductsResponse.model_config" href="#adcp.GetProductsResponse.model_config">model_config</a></code></li>
 <li><code><a title="adcp.GetProductsResponse.products" href="#adcp.GetProductsResponse.products">products</a></code></li>
+<li><code><a title="adcp.GetProductsResponse.property_list_applied" href="#adcp.GetProductsResponse.property_list_applied">property_list_applied</a></code></li>
 </ul>
 </li>
 <li>
@@ -15344,8 +15383,10 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.PackageRequest.creatives" href="#adcp.PackageRequest.creatives">creatives</a></code></li>
 <li><code><a title="adcp.PackageRequest.ext" href="#adcp.PackageRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.PackageRequest.format_ids" href="#adcp.PackageRequest.format_ids">format_ids</a></code></li>
+<li><code><a title="adcp.PackageRequest.impressions" href="#adcp.PackageRequest.impressions">impressions</a></code></li>
 <li><code><a title="adcp.PackageRequest.model_config" href="#adcp.PackageRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.PackageRequest.pacing" href="#adcp.PackageRequest.pacing">pacing</a></code></li>
+<li><code><a title="adcp.PackageRequest.paused" href="#adcp.PackageRequest.paused">paused</a></code></li>
 <li><code><a title="adcp.PackageRequest.pricing_option_id" href="#adcp.PackageRequest.pricing_option_id">pricing_option_id</a></code></li>
 <li><code><a title="adcp.PackageRequest.product_id" href="#adcp.PackageRequest.product_id">product_id</a></code></li>
 <li><code><a title="adcp.PackageRequest.targeting_overlay" href="#adcp.PackageRequest.targeting_overlay">targeting_overlay</a></code></li>

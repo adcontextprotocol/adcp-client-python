@@ -57,12 +57,12 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class UrlAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     description: Annotated[
-        str | None, Field(description=&#39;Description of what this URL points to&#39;)
+        str | None, Field(description=&#34;Description of what this URL points to&#34;)
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#39;URL reference&#39;)]
+    url: Annotated[AnyUrl, Field(description=&#34;URL reference&#34;)]
     url_type: Annotated[
         url_asset_type.UrlAssetType | None,
         Field(

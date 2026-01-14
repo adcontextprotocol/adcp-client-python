@@ -57,20 +57,26 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class GetProductsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     brand_manifest: Annotated[
         brand_manifest_ref.BrandManifestReference | None,
         Field(
-            description=&#39;Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest.&#39;
+            description=&#34;Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest.&#34;
         ),
     ] = None
     brief: Annotated[
-        str | None, Field(description=&#39;Natural language description of campaign requirements&#39;)
+        str | None, Field(description=&#34;Natural language description of campaign requirements&#34;)
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
-    filters: product_filters.ProductFilters | None = None</code></pre>
+    filters: product_filters.ProductFilters | None = None
+    property_list: Annotated[
+        property_list_ref.PropertyListReference | None,
+        Field(
+            description=&#34;[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list.&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -111,6 +117,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.property_list"><code class="name">var <span class="ident">property_list</span> : <a title="adcp.types.generated_poc.core.property_list_ref.PropertyListReference" href="../core/property_list_ref.html#adcp.types.generated_poc.core.property_list_ref.PropertyListReference">PropertyListReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
@@ -147,6 +157,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.ext" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.filters" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.filters">filters</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.model_config" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.property_list" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.property_list">property_list</a></code></li>
 </ul>
 </li>
 </ul>

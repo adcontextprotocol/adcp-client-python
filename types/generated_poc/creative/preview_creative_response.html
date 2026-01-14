@@ -62,8 +62,8 @@ el.replaceWith(d);
             description=&#34;Error code (e.g., &#39;invalid_manifest&#39;, &#39;unsupported_format&#39;, &#39;missing_assets&#39;)&#34;
         ),
     ]
-    details: Annotated[dict[str, Any] | None, Field(description=&#39;Additional error context&#39;)] = None
-    message: Annotated[str, Field(description=&#39;Human-readable error message&#39;)]</code></pre>
+    details: Annotated[dict[str, Any] | None, Field(description=&#34;Additional error context&#34;)] = None
+    message: Annotated[str, Field(description=&#34;Human-readable error message&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -119,12 +119,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Input(AdCPBaseModel):
     context_description: Annotated[
-        str | None, Field(description=&#39;Context description applied to this variant&#39;)
+        str | None, Field(description=&#34;Context description applied to this variant&#34;)
     ] = None
     macros: Annotated[
-        dict[str, str] | None, Field(description=&#39;Macro values applied to this variant&#39;)
+        dict[str, str] | None, Field(description=&#34;Macro values applied to this variant&#34;)
     ] = None
-    name: Annotated[str, Field(description=&#39;Human-readable name for this variant&#39;)]</code></pre>
+    name: Annotated[str, Field(description=&#34;Human-readable name for this variant&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -239,14 +239,14 @@ validated to form a valid model.</p>
     input: Annotated[
         Input,
         Field(
-            description=&#39;The input parameters that generated this preview variant. Echoes back the request input or shows defaults used.&#39;
+            description=&#34;The input parameters that generated this preview variant. Echoes back the request input or shows defaults used.&#34;
         ),
     ]
-    preview_id: Annotated[str, Field(description=&#39;Unique identifier for this preview variant&#39;)]
+    preview_id: Annotated[str, Field(description=&#34;Unique identifier for this preview variant&#34;)]
     renders: Annotated[
         list[preview_render.PreviewRender],
         Field(
-            description=&#39;Array of rendered pieces for this preview variant. Most formats render as a single piece. Companion ad formats (video + banner), multi-placement formats, and adaptive formats render as multiple pieces.&#39;,
+            description=&#34;Array of rendered pieces for this preview variant. Most formats render as a single piece. Companion ad formats (video + banner), multi-placement formats, and adaptive formats render as multiple pieces.&#34;,
             min_length=1,
         ),
     ]</code></pre>
@@ -321,52 +321,9 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview1.input"><code class="name">var <span class="ident">input</span> : <a title="adcp.types.generated_poc.creative.preview_creative_response.Input4" href="#adcp.types.generated_poc.creative.preview_creative_response.Input4">Input4</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview1.preview_id"><code class="name">var <span class="ident">preview_id</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview1.renders"><code class="name">var <span class="ident">renders</span> : list[<a title="adcp.types.generated_poc.creative.preview_render.PreviewRender" href="preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender">PreviewRender</a>]</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview1"><code class="flex name class">
-<span>class <span class="ident">Preview2</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Preview1(AdCPBaseModel):
-    input: Input4
-    preview_id: str
-    renders: Annotated[list[preview_render.PreviewRender], Field(min_length=1)]</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
+<h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
+<li><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview2" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview2">Preview2</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -398,6 +355,50 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview2"><code class="flex name class">
+<span>class <span class="ident">Preview2</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Preview2(Preview1):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview1">Preview1</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview1">Preview1</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.creative.preview_creative_response.PreviewCreativeResponse"><code class="flex name class">
 <span>class <span class="ident">PreviewCreativeResponse</span></span>
 <span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
@@ -411,8 +412,8 @@ validated to form a valid model.</p>
     root: Annotated[
         PreviewCreativeResponse1 | PreviewCreativeResponse2,
         Field(
-            description=&#39;Response containing preview links for one or more creatives. Format matches the request: single preview response for single requests, batch results for batch requests.&#39;,
-            title=&#39;Preview Creative Response&#39;,
+            description=&#34;Response containing preview links for one or more creatives. Format matches the request: single preview response for single requests, batch results for batch requests.&#34;,
+            title=&#34;Preview Creative Response&#34;,
         ),
     ]</code></pre>
 </details>
@@ -466,29 +467,29 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewCreativeResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     expires_at: Annotated[
-        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when preview links expire&#39;)
+        AwareDatetime, Field(description=&#34;ISO 8601 timestamp when preview links expire&#34;)
     ]
     ext: ext_1.ExtensionObject | None = None
     interactive_url: Annotated[
         AnyUrl | None,
         Field(
-            description=&#39;Optional URL to an interactive testing page that shows all preview variants with controls to switch between them, modify macro values, and test different scenarios.&#39;
+            description=&#34;Optional URL to an interactive testing page that shows all preview variants with controls to switch between them, modify macro values, and test different scenarios.&#34;
         ),
     ] = None
     previews: Annotated[
         list[Preview],
         Field(
-            description=&#39;Array of preview variants. Each preview corresponds to an input set from the request. If no inputs were provided, returns a single default preview.&#39;,
+            description=&#34;Array of preview variants. Each preview corresponds to an input set from the request. If no inputs were provided, returns a single default preview.&#34;,
             min_length=1,
         ),
     ]
     response_type: Annotated[
-        Literal[&#39;single&#39;],
-        Field(description=&#39;Discriminator indicating this is a single preview response&#39;),
+        Literal[&#34;single&#34;],
+        Field(description=&#34;Discriminator indicating this is a single preview response&#34;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -557,18 +558,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewCreativeResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     response_type: Annotated[
-        Literal[&#39;batch&#39;],
-        Field(description=&#39;Discriminator indicating this is a batch preview response&#39;),
+        Literal[&#34;batch&#34;],
+        Field(description=&#34;Discriminator indicating this is a batch preview response&#34;),
     ]
     results: Annotated[
         list[Results | Results1],
         Field(
-            description=&#39;Array of preview results corresponding to each request in the same order. results[0] is the result for requests[0], results[1] for requests[1], etc. Order is guaranteed even when some requests fail. Each result contains either a successful preview response or an error.&#39;,
+            description=&#34;Array of preview results corresponding to each request in the same order. results[0] is the result for requests[0], results[1] for requests[1], etc. Order is guaranteed even when some requests fail. Each result contains either a successful preview response or an error.&#34;,
             min_length=1,
         ),
     ]</code></pre>
@@ -634,7 +635,7 @@ validated to form a valid model.</p>
     interactive_url: AnyUrl | None = None
     previews: Annotated[
         list[Preview1],
-        Field(description=&#39;Array of preview variants for this creative&#39;, min_length=1),
+        Field(description=&#34;Array of preview variants for this creative&#34;, min_length=1),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -694,7 +695,7 @@ validated to form a valid model.</p>
     interactive_url: AnyUrl | None = None
     previews: Annotated[
         list[Preview2],
-        Field(description=&#39;Array of preview variants for this creative&#39;, min_length=1),
+        Field(description=&#34;Array of preview variants for this creative&#34;, min_length=1),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -724,7 +725,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Response1.previews"><code class="name">var <span class="ident">previews</span> : list[<a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview1">Preview1</a>]</code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Response1.previews"><code class="name">var <span class="ident">previews</span> : list[<a title="adcp.types.generated_poc.creative.preview_creative_response.Preview2" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview2">Preview2</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -750,11 +751,11 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Results(AdCPBaseModel):
-    error: Annotated[Error | None, Field(description=&#39;Error information for failed requests&#39;)] = (
+    error: Annotated[Error | None, Field(description=&#34;Error information for failed requests&#34;)] = (
         None
     )
-    response: Annotated[Response, Field(description=&#39;Preview response for successful requests&#39;)]
-    success: Annotated[Literal[True], Field(description=&#39;Whether this preview request succeeded&#39;)]</code></pre>
+    response: Annotated[Response, Field(description=&#34;Preview response for successful requests&#34;)]
+    success: Annotated[Literal[True], Field(description=&#34;Whether this preview request succeeded&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -809,11 +810,11 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Results1(AdCPBaseModel):
-    error: Annotated[Error, Field(description=&#39;Error information for failed requests&#39;)]
+    error: Annotated[Error, Field(description=&#34;Error information for failed requests&#34;)]
     response: Annotated[
-        Response1 | None, Field(description=&#39;Preview response for successful requests&#39;)
+        Response1 | None, Field(description=&#34;Preview response for successful requests&#34;)
     ] = None
-    success: Annotated[Literal[False], Field(description=&#39;Whether this preview request succeeded&#39;)]</code></pre>
+    success: Annotated[Literal[False], Field(description=&#34;Whether this preview request succeeded&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -919,12 +920,9 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview1">Preview1</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview2" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview2">Preview2</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1.input" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview1.input">input</a></code></li>
-<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1.model_config" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview1.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1.preview_id" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview1.preview_id">preview_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1.renders" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview1.renders">renders</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview2.model_config" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview2.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>

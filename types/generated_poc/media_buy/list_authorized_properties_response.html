@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class ListAuthorizedPropertiesResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     advertising_policies: Annotated[
         str | None,
@@ -70,7 +70,7 @@ el.replaceWith(d);
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error] | None,
-        Field(description=&#39;Task-specific errors and warnings (e.g., property availability issues)&#39;),
+        Field(description=&#34;Task-specific errors and warnings (e.g., property availability issues)&#34;),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     last_updated: Annotated[
@@ -82,7 +82,7 @@ el.replaceWith(d);
     portfolio_description: Annotated[
         str | None,
         Field(
-            description=&#39;Markdown-formatted description of the property portfolio, including inventory types, audience characteristics, and special features.&#39;,
+            description=&#34;Markdown-formatted description of the property portfolio, including inventory types, audience characteristics, and special features.&#34;,
             max_length=5000,
             min_length=1,
         ),
@@ -90,14 +90,14 @@ el.replaceWith(d);
     primary_channels: Annotated[
         list[channels.AdvertisingChannels] | None,
         Field(
-            description=&#39;Primary advertising channels represented in this property portfolio. Helps buying agents quickly filter relevance.&#39;,
+            description=&#34;Primary advertising channels represented in this property portfolio. Helps buying agents quickly filter relevance.&#34;,
             min_length=1,
         ),
     ] = None
     primary_countries: Annotated[
         list[PrimaryCountry] | None,
         Field(
-            description=&#39;Primary countries (ISO 3166-1 alpha-2 codes) where properties are concentrated. Helps buying agents quickly filter relevance.&#39;,
+            description=&#34;Primary countries (ISO 3166-1 alpha-2 codes) where properties are concentrated. Helps buying agents quickly filter relevance.&#34;,
             min_length=1,
         ),
     ] = None
@@ -186,7 +186,7 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PrimaryCountry(RootModel[str]):
-    root: Annotated[str, Field(pattern=&#39;^[A-Z]{2}$&#39;)]</code></pre>
+    root: Annotated[str, Field(pattern=&#34;^[A-Z]{2}$&#34;)]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -241,7 +241,7 @@ validated to form a valid model.</p>
         str,
         Field(
             description=&#34;Domain where publisher&#39;s adagents.json is hosted (e.g., &#39;cnn.com&#39;)&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
         ),
     ]</code></pre>
 </details>

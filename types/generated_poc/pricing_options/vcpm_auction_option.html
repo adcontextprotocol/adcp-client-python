@@ -56,16 +56,16 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PriceGuidance(AdCPBaseModel):
-    floor: Annotated[float, Field(description=&#39;Minimum acceptable bid price&#39;, ge=0.0)]
+    floor: Annotated[float, Field(description=&#34;Minimum acceptable bid price&#34;, ge=0.0)]
     p25: Annotated[
-        float | None, Field(description=&#39;25th percentile of recent winning bids&#39;, ge=0.0)
+        float | None, Field(description=&#34;25th percentile of recent winning bids&#34;, ge=0.0)
     ] = None
-    p50: Annotated[float | None, Field(description=&#39;Median of recent winning bids&#39;, ge=0.0)] = None
+    p50: Annotated[float | None, Field(description=&#34;Median of recent winning bids&#34;, ge=0.0)] = None
     p75: Annotated[
-        float | None, Field(description=&#39;75th percentile of recent winning bids&#39;, ge=0.0)
+        float | None, Field(description=&#34;75th percentile of recent winning bids&#34;, ge=0.0)
     ] = None
     p90: Annotated[
-        float | None, Field(description=&#39;90th percentile of recent winning bids&#39;, ge=0.0)
+        float | None, Field(description=&#34;90th percentile of recent winning bids&#34;, ge=0.0)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -130,32 +130,32 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class VcpmAuctionPricingOption(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     currency: Annotated[
         str,
         Field(
-            description=&#39;ISO 4217 currency code&#39;,
-            examples=[&#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;, &#39;JPY&#39;],
-            pattern=&#39;^[A-Z]{3}$&#39;,
+            description=&#34;ISO 4217 currency code&#34;,
+            examples=[&#34;USD&#34;, &#34;EUR&#34;, &#34;GBP&#34;, &#34;JPY&#34;],
+            pattern=&#34;^[A-Z]{3}$&#34;,
         ),
     ]
     is_fixed: Annotated[
         Literal[False],
-        Field(description=&#39;Whether this is a fixed rate (true) or auction-based (false)&#39;),
+        Field(description=&#34;Whether this is a fixed rate (true) or auction-based (false)&#34;),
     ]
     min_spend_per_package: Annotated[
         float | None,
         Field(
-            description=&#39;Minimum spend requirement per package using this pricing option, in the specified currency&#39;,
+            description=&#34;Minimum spend requirement per package using this pricing option, in the specified currency&#34;,
             ge=0.0,
         ),
     ] = None
     price_guidance: Annotated[
-        PriceGuidance, Field(description=&#39;Statistical guidance for auction pricing&#39;)
+        PriceGuidance, Field(description=&#34;Statistical guidance for auction pricing&#34;)
     ]
     pricing_model: Annotated[
-        Literal[&#39;vcpm&#39;], Field(description=&#39;Cost per 1,000 viewable impressions (MRC standard)&#39;)
+        Literal[&#34;vcpm&#34;], Field(description=&#34;Cost per 1,000 viewable impressions (MRC standard)&#34;)
     ]
     pricing_option_id: Annotated[
         str,

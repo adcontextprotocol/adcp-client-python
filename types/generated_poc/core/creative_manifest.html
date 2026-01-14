@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class CreativeManifest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     assets: Annotated[
         dict[
@@ -89,7 +89,7 @@ el.replaceWith(d);
     promoted_offering: Annotated[
         str | None,
         Field(
-            description=&#39;Product name or offering being advertised. Maps to promoted_offerings in create_media_buy request to associate creative with the product being promoted.&#39;
+            description=&#34;Product name or offering being advertised. Maps to promoted_offerings in create_media_buy request to associate creative with the product being promoted.&#34;
         ),
     ] = None</code></pre>
 </details>

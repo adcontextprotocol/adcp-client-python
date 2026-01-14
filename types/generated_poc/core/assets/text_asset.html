@@ -57,9 +57,9 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class TextAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    content: Annotated[str, Field(description=&#39;Text content&#39;)]
+    content: Annotated[str, Field(description=&#34;Text content&#34;)]
     language: Annotated[str | None, Field(description=&#34;Language code (e.g., &#39;en&#39;, &#39;es&#39;, &#39;fr&#39;)&#34;)] = (
         None
     )</code></pre>

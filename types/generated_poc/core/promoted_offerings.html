@@ -57,13 +57,13 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class AssetSelectors(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     asset_types: Annotated[
         list[AssetType] | None, Field(description=&#34;Filter by asset type (e.g., [&#39;image&#39;, &#39;video&#39;])&#34;)
     ] = None
     exclude_tags: Annotated[
-        list[str] | None, Field(description=&#39;Exclude assets with these tags&#39;)
+        list[str] | None, Field(description=&#34;Exclude assets with these tags&#34;)
     ] = None
     tags: Annotated[
         list[str] | None,
@@ -123,17 +123,17 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class AssetType(Enum):
-    image = &#39;image&#39;
-    video = &#39;video&#39;
-    audio = &#39;audio&#39;
-    vast = &#39;vast&#39;
-    daast = &#39;daast&#39;
-    text = &#39;text&#39;
-    url = &#39;url&#39;
-    html = &#39;html&#39;
-    css = &#39;css&#39;
-    javascript = &#39;javascript&#39;
-    webhook = &#39;webhook&#39;</code></pre>
+    image = &#34;image&#34;
+    video = &#34;video&#34;
+    audio = &#34;audio&#34;
+    vast = &#34;vast&#34;
+    daast = &#34;daast&#34;
+    text = &#34;text&#34;
+    url = &#34;url&#34;
+    html = &#34;html&#34;
+    css = &#34;css&#34;
+    javascript = &#34;javascript&#34;
+    webhook = &#34;webhook&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -233,10 +233,10 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Offering(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     assets: Annotated[
-        list[dict[str, Any]] | None, Field(description=&#39;Assets specific to this offering&#39;)
+        list[dict[str, Any]] | None, Field(description=&#34;Assets specific to this offering&#34;)
     ] = None
     description: Annotated[str | None, Field(description=&#34;Description of what&#39;s being offered&#34;)] = (
         None
@@ -299,28 +299,28 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PromotedOfferings(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     asset_selectors: Annotated[
         AssetSelectors | None,
-        Field(description=&#39;Selectors to choose specific assets from the brand manifest&#39;),
+        Field(description=&#34;Selectors to choose specific assets from the brand manifest&#34;),
     ] = None
     brand_manifest: Annotated[
         brand_manifest_ref.BrandManifestReference,
         Field(
-            description=&#39;Brand information manifest containing assets, themes, and guidelines. Can be provided inline or as a URL reference to a hosted manifest.&#39;
+            description=&#34;Brand information manifest containing assets, themes, and guidelines. Can be provided inline or as a URL reference to a hosted manifest.&#34;
         ),
     ]
     offerings: Annotated[
         list[Offering] | None,
         Field(
-            description=&#39;Inline offerings for campaigns without a product catalog. Each offering has a name, description, and associated assets.&#39;
+            description=&#34;Inline offerings for campaigns without a product catalog. Each offering has a name, description, and associated assets.&#34;
         ),
     ] = None
     product_selectors: Annotated[
         promoted_products.PromotedProducts | None,
         Field(
-            description=&#39;Selectors to choose which products/offerings from the brand manifest product catalog to promote&#39;
+            description=&#34;Selectors to choose which products/offerings from the brand manifest product catalog to promote&#34;
         ),
     ] = None</code></pre>
 </details>
