@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "A content standards configuration defining brand safety and suitability policies. Standards are scoped by brand, geography, and channel. Multiple standards can be active simultaneously for different scopes.",
+  "properties": {
+    "calibration_exemplars": {
+      "description": "Training/test set to calibrate policy interpretation. Provides concrete examples of pass/fail decisions.",
+      "properties": {
+        "fail": {
+          "description": "Artifacts that fail the content standards",
+          "items": {
+            "$ref": "artifact.json"
+          },
+          "type": "array"
+        },
+        "pass": {
+          "description": "Artifacts that pass the content standards",
+          "items": {
+            "$ref": "artifact.json"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "channels_any": {
+      "description": "Advertising channels. Standards apply to ANY of the listed channels (OR logic).",
+      "items": {
+        "$ref": "../enums/channels.json"
+      },
+      "type": "array"
+    },
+    "countries_all": {
+      "description": "ISO 3166-1 alpha-2 country codes. Standards apply in ALL listed countries (AND logic).",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "languages_any": {
+      "description": "BCP 47 language tags (e.g., 'en', 'de', 'fr'). Standards apply to content in ANY of these languages (OR logic). Content in unlisted languages is not covered by these standards.",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "name": {
+      "description": "Human-readable name for this standards configuration",
+      "type": "string"
+    },
+    "policy": {
+      "description": "Natural language policy describing acceptable and unacceptable content contexts. Used by LLMs and human reviewers to make judgments.",
+      "type": "string"
+    },
+    "standards_id": {
+      "description": "Unique identifier for this standards configuration",
+      "type": "string"
+    }
+  },
+  "required": [
+    "standards_id"
+  ],
+  "title": "Content Standards",
+  "type": "object"
+}

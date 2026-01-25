@@ -28,13 +28,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Union
 
 from adcp.types.generated_poc.core.format import Assets as AssetsModel
-from adcp.types.generated_poc.core.format import Assets1 as Assets1Model
+from adcp.types.generated_poc.core.format import Assets5 as Assets5Model
 
 if TYPE_CHECKING:
-    from adcp.types.generated_poc.core.format import Assets, Assets1, Format
+    from adcp.types.generated_poc.core.format import Assets, Assets5, Format
 
 # Type alias for any format asset (individual or repeatable group)
-FormatAsset = Union["Assets", "Assets1"]
+FormatAsset = Union["Assets", "Assets5"]
 
 
 def get_format_assets(format: Format) -> list[FormatAsset]:
@@ -93,8 +93,8 @@ def normalize_assets_required(assets_required: list[Any]) -> list[FormatAsset]:
 
         # Check if it's a repeatable group (has asset_group_id) or individual asset
         if "asset_group_id" in asset_dict:
-            # Repeatable group - use Assets1Model
-            normalized.append(Assets1Model(**{**asset_dict, "required": True}))
+            # Repeatable group - use Assets5Model
+            normalized.append(Assets5Model(**{**asset_dict, "required": True}))
         else:
             # Individual asset - use AssetsModel
             normalized.append(AssetsModel(**{**asset_dict, "required": True}))

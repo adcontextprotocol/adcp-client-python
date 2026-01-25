@@ -188,3 +188,104 @@ class ProtocolAdapter(ABC):
         Implementations should close any open connections, clients, or other resources.
         """
         pass
+
+    # ========================================================================
+    # V3 Protocol Methods - Protocol Discovery
+    # ========================================================================
+
+    @abstractmethod
+    async def get_adcp_capabilities(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Get AdCP capabilities from the agent."""
+        pass
+
+    # ========================================================================
+    # V3 Protocol Methods - Content Standards
+    # ========================================================================
+
+    @abstractmethod
+    async def create_content_standards(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Create content standards configuration."""
+        pass
+
+    @abstractmethod
+    async def get_content_standards(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Get content standards configuration."""
+        pass
+
+    @abstractmethod
+    async def list_content_standards(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """List content standards configurations."""
+        pass
+
+    @abstractmethod
+    async def update_content_standards(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Update content standards configuration."""
+        pass
+
+    @abstractmethod
+    async def calibrate_content(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Calibrate content against standards."""
+        pass
+
+    @abstractmethod
+    async def validate_content_delivery(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Validate content delivery against standards."""
+        pass
+
+    @abstractmethod
+    async def get_media_buy_artifacts(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Get artifacts associated with a media buy."""
+        pass
+
+    # ========================================================================
+    # V3 Protocol Methods - Sponsored Intelligence
+    # ========================================================================
+
+    @abstractmethod
+    async def si_get_offering(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Get sponsored intelligence offering."""
+        pass
+
+    @abstractmethod
+    async def si_initiate_session(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Initiate sponsored intelligence session."""
+        pass
+
+    @abstractmethod
+    async def si_send_message(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Send message in sponsored intelligence session."""
+        pass
+
+    @abstractmethod
+    async def si_terminate_session(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Terminate sponsored intelligence session."""
+        pass
+
+    # ========================================================================
+    # V3 Protocol Methods - Governance (Property Lists)
+    # ========================================================================
+
+    @abstractmethod
+    async def create_property_list(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Create a property list for governance."""
+        pass
+
+    @abstractmethod
+    async def get_property_list(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Get a property list with optional resolution."""
+        pass
+
+    @abstractmethod
+    async def list_property_lists(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """List property lists."""
+        pass
+
+    @abstractmethod
+    async def update_property_list(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Update a property list."""
+        pass
+
+    @abstractmethod
+    async def delete_property_list(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Delete a property list."""
+        pass

@@ -3,10 +3,6 @@
   "additionalProperties": true,
   "description": "Creative asset for upload to library - supports static assets, generative formats, and third-party snippets",
   "properties": {
-    "approved": {
-      "description": "For generative creatives: set to true to approve and finalize, false to request regeneration with updated assets/message. Omit for non-generative creatives.",
-      "type": "boolean"
-    },
     "assets": {
       "additionalProperties": true,
       "description": "Assets required by the format, keyed by asset_role",
@@ -98,6 +94,10 @@
       },
       "minItems": 1,
       "type": "array"
+    },
+    "status": {
+      "$ref": "../enums/creative-status.json",
+      "description": "For generative creatives: set to 'approved' to finalize, 'rejected' to request regeneration with updated assets/message. Omit for non-generative creatives (system will set based on processing state)."
     },
     "tags": {
       "description": "User-defined tags for organization and searchability",

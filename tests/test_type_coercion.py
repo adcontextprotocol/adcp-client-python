@@ -134,7 +134,7 @@ class TestFieldModelStringCoercion:
         assert len(req.fields) == 3
         assert req.fields[0] == FieldModel.creative_id
         assert req.fields[1] == FieldModel.name
-        assert req.fields[2] == FieldModel.format
+        assert req.fields[2] == FieldModel.format_  # format_ to avoid Python keyword collision
         assert all(isinstance(x, FieldModel) for x in req.fields)
 
     def test_fields_accepts_enum_list(self):
@@ -332,11 +332,11 @@ class TestListVariance:
         assert request.packages[0].campaign_id == "internal-campaign-456"  # type: ignore[attr-defined]
 
     def test_update_packages_accepts_extended_creatives(self):
-        """UpdateMediaBuyRequest Packages types accept extended CreativeAsset."""
+        """UpdateMediaBuyRequest PackageUpdate types accept extended CreativeAsset."""
         from pydantic import Field
 
         from adcp.types import CreativeAsset, FormatId
-        from adcp.types.generated_poc.media_buy.update_media_buy_request import Packages
+        from adcp.types.generated_poc.media_buy.package_update import PackageUpdate1
 
         class ExtendedCreative(CreativeAsset):
             internal_id: str | None = Field(None, exclude=True)
@@ -350,13 +350,13 @@ class TestListVariance:
         )
 
         # No cast() needed!
-        packages = Packages(
+        package_update = PackageUpdate1(
             package_id="pkg1",
             creatives=[creative],  # type: ignore[list-item]
         )
 
-        assert len(packages.creatives) == 1
-        assert packages.creatives[0].creative_id == "c1"
+        assert len(package_update.creatives) == 1
+        assert package_update.creatives[0].creative_id == "c1"
 
 
 class TestSerializationRoundtrip:
@@ -590,9 +590,12 @@ class TestResponseTypeCoercion:
         """Response types with errors field accept Error subclass instances."""
         from pydantic import Field
 
-        from adcp.types import Error, GetProductsResponse
+        from adcp.types import GetProductsResponse
+        # Import Error from core.error - the type used in ergonomic coercion
+        # (adcp.types.Error exports a different Error from content_standards)
+        from adcp.types.generated_poc.core.error import Error as CoreError
 
-        class ExtendedError(Error):
+        class ExtendedError(CoreError):
             """Extended with internal tracking fields."""
 
             internal_trace_id: str | None = Field(None, exclude=True)

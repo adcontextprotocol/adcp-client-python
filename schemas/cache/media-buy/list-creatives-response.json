@@ -69,9 +69,8 @@
               "assigned_packages": [
                 {
                   "assigned_date": "2024-01-16T09:00:00Z",
-                  "package_id": "pkg_ctv_001",
-                  "package_name": "CTV Prime Time",
-                  "status": "active"
+                  "buyer_ref": "ctv_prime_time_q1",
+                  "package_id": "pkg_ctv_001"
                 }
               ],
               "assignment_count": 2
@@ -173,28 +172,18 @@
                       "format": "date-time",
                       "type": "string"
                     },
+                    "buyer_ref": {
+                      "description": "Buyer's reference identifier for this package",
+                      "type": "string"
+                    },
                     "package_id": {
                       "description": "Package identifier",
-                      "type": "string"
-                    },
-                    "package_name": {
-                      "description": "Human-readable package name",
-                      "type": "string"
-                    },
-                    "status": {
-                      "description": "Status of this specific assignment",
-                      "enum": [
-                        "active",
-                        "paused",
-                        "ended"
-                      ],
                       "type": "string"
                     }
                   },
                   "required": [
                     "package_id",
-                    "assigned_date",
-                    "status"
+                    "assigned_date"
                   ],
                   "type": "object"
                 },
@@ -414,6 +403,11 @@
         },
         "pending_review": {
           "description": "Number of creatives pending review",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "processing": {
+          "description": "Number of creatives being processed",
           "minimum": 0,
           "type": "integer"
         },

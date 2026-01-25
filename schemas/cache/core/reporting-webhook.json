@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Webhook configuration for automated reporting delivery. Configures where and how campaign performance reports are sent.",
+  "properties": {
+    "authentication": {
+      "additionalProperties": false,
+      "description": "Authentication configuration for webhook delivery (A2A-compatible)",
+      "properties": {
+        "credentials": {
+          "description": "Credentials for authentication. For Bearer: token sent in Authorization header. For HMAC-SHA256: shared secret used to generate signature. Minimum 32 characters. Exchanged out-of-band during onboarding.",
+          "minLength": 32,
+          "type": "string"
+        },
+        "schemes": {
+          "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for signature verification (recommended for production)",
+          "items": {
+            "$ref": "../enums/auth-scheme.json"
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "schemes",
+        "credentials"
+      ],
+      "type": "object"
+    },
+    "reporting_frequency": {
+      "description": "Frequency for automated reporting delivery. Must be supported by all products in the media buy.",
+      "enum": [
+        "hourly",
+        "daily",
+        "monthly"
+      ],
+      "type": "string"
+    },
+    "requested_metrics": {
+      "description": "Optional list of metrics to include in webhook notifications. If omitted, all available metrics are included. Must be subset of product's available_metrics.",
+      "items": {
+        "$ref": "../enums/available-metric.json"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "token": {
+      "description": "Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.",
+      "minLength": 16,
+      "type": "string"
+    },
+    "url": {
+      "description": "Webhook endpoint URL for reporting notifications",
+      "format": "uri",
+      "type": "string"
+    }
+  },
+  "required": [
+    "url",
+    "authentication",
+    "reporting_frequency"
+  ],
+  "title": "Reporting Webhook",
+  "type": "object"
+}

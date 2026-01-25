@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "A proposed media plan with budget allocations across products. Represents the publisher's strategic recommendation for how to structure a campaign based on the brief. Proposals are actionable - buyers can execute them directly via create_media_buy by providing the proposal_id.",
+  "properties": {
+    "allocations": {
+      "description": "Budget allocations across products. Allocation percentages MUST sum to 100. Publishers are responsible for ensuring the sum equals 100; buyers SHOULD validate this before execution.",
+      "items": {
+        "$ref": "product-allocation.json"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "brief_alignment": {
+      "description": "Explanation of how this proposal aligns with the campaign brief",
+      "type": "string"
+    },
+    "description": {
+      "description": "Explanation of the proposal strategy and what it achieves",
+      "type": "string"
+    },
+    "expires_at": {
+      "description": "When this proposal expires and can no longer be executed. After expiration, referenced products or pricing may no longer be available.",
+      "format": "date-time",
+      "type": "string"
+    },
+    "ext": {
+      "$ref": "ext.json"
+    },
+    "name": {
+      "description": "Human-readable name for this media plan proposal",
+      "type": "string"
+    },
+    "proposal_id": {
+      "description": "Unique identifier for this proposal. Used to refine the proposal in subsequent get_products calls or to execute it via create_media_buy.",
+      "type": "string"
+    },
+    "total_budget_guidance": {
+      "additionalProperties": true,
+      "description": "Optional budget guidance for this proposal",
+      "properties": {
+        "currency": {
+          "description": "ISO 4217 currency code",
+          "type": "string"
+        },
+        "max": {
+          "description": "Maximum budget before diminishing returns",
+          "minimum": 0,
+          "type": "number"
+        },
+        "min": {
+          "description": "Minimum recommended budget",
+          "minimum": 0,
+          "type": "number"
+        },
+        "recommended": {
+          "description": "Recommended budget for optimal performance",
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "proposal_id",
+    "name",
+    "allocations"
+  ],
+  "title": "Proposal",
+  "type": "object"
+}

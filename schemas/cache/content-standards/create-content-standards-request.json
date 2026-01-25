@@ -1,0 +1,136 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Request parameters for creating a new content standards configuration",
+  "properties": {
+    "calibration_exemplars": {
+      "description": "Training/test set to calibrate policy interpretation. Use URL references for pages to be fetched and analyzed, or full artifacts for pre-extracted content.",
+      "properties": {
+        "fail": {
+          "description": "Content that fails the standards",
+          "items": {
+            "oneOf": [
+              {
+                "description": "URL reference - specific page to fetch and evaluate",
+                "properties": {
+                  "language": {
+                    "description": "BCP 47 language tag for content at this URL",
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "url",
+                    "description": "Indicates this is a URL reference",
+                    "type": "string"
+                  },
+                  "value": {
+                    "description": "Full URL to a specific page (e.g., 'https://news.example.com/controversial-article')",
+                    "format": "uri",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "value"
+                ],
+                "type": "object"
+              },
+              {
+                "$ref": "artifact.json",
+                "description": "Full artifact with pre-extracted content (text, images, video, audio)"
+              }
+            ]
+          },
+          "type": "array"
+        },
+        "pass": {
+          "description": "Content that passes the standards",
+          "items": {
+            "oneOf": [
+              {
+                "description": "URL reference - specific page to fetch and evaluate",
+                "properties": {
+                  "language": {
+                    "description": "BCP 47 language tag for content at this URL",
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "url",
+                    "description": "Indicates this is a URL reference",
+                    "type": "string"
+                  },
+                  "value": {
+                    "description": "Full URL to a specific page (e.g., 'https://espn.com/nba/story/_/id/12345/lakers-win')",
+                    "format": "uri",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "value"
+                ],
+                "type": "object"
+              },
+              {
+                "$ref": "artifact.json",
+                "description": "Full artifact with pre-extracted content (text, images, video, audio)"
+              }
+            ]
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "policy": {
+      "description": "Natural language policy describing acceptable and unacceptable content contexts. Used by LLMs and human reviewers to make judgments.",
+      "type": "string"
+    },
+    "scope": {
+      "description": "Where this standards configuration applies",
+      "properties": {
+        "channels_any": {
+          "description": "Advertising channels. Standards apply to ANY of the listed channels (OR logic).",
+          "items": {
+            "$ref": "../enums/channels.json"
+          },
+          "type": "array"
+        },
+        "countries_all": {
+          "description": "ISO 3166-1 alpha-2 country codes. Standards apply in ALL listed countries (AND logic).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "description": {
+          "description": "Human-readable description of this scope",
+          "type": "string"
+        },
+        "languages_any": {
+          "description": "BCP 47 language tags (e.g., 'en', 'de', 'fr'). Standards apply to content in ANY of these languages (OR logic). Content in unlisted languages is not covered by these standards.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "languages_any"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "scope",
+    "policy"
+  ],
+  "title": "Create Content Standards Request",
+  "type": "object"
+}

@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Response payload with verdict and detailed explanations for collaborative calibration",
+  "oneOf": [
+    {
+      "description": "Success response with detailed calibration feedback",
+      "properties": {
+        "confidence": {
+          "description": "Model confidence in the verdict (0-1)",
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        "errors": {
+          "description": "Field must not be present in success response",
+          "not": {}
+        },
+        "explanation": {
+          "description": "Detailed natural language explanation of the decision",
+          "type": "string"
+        },
+        "features": {
+          "description": "Per-feature breakdown with explanations",
+          "items": {
+            "properties": {
+              "explanation": {
+                "description": "Human-readable explanation of why this feature passed or failed",
+                "type": "string"
+              },
+              "feature_id": {
+                "description": "Which feature was evaluated (e.g., brand_safety, brand_suitability, competitor_adjacency)",
+                "type": "string"
+              },
+              "status": {
+                "description": "Evaluation status for this feature",
+                "enum": [
+                  "passed",
+                  "failed",
+                  "warning",
+                  "unevaluated"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "feature_id",
+              "status"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "verdict": {
+          "description": "Overall pass/fail verdict for the content evaluation",
+          "enum": [
+            "pass",
+            "fail"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "verdict"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Error response",
+      "properties": {
+        "errors": {
+          "items": {
+            "$ref": "../core/error.json"
+          },
+          "type": "array"
+        },
+        "verdict": {
+          "description": "Field must not be present in error response",
+          "not": {}
+        }
+      },
+      "required": [
+        "errors"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "Calibrate Content Response",
+  "type": "object"
+}

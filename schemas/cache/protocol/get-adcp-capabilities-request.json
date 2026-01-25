@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Request payload for get_adcp_capabilities task. Protocol-level capability discovery that works across all AdCP protocols.",
+  "properties": {
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "protocols": {
+      "description": "Specific protocols to query capabilities for. If omitted, returns capabilities for all supported protocols.",
+      "items": {
+        "enum": [
+          "media_buy",
+          "signals",
+          "sponsored_intelligence"
+        ],
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "title": "Get AdCP Capabilities Request",
+  "type": "object"
+}

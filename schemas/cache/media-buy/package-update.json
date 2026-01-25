@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Package update configuration for update_media_buy. Identifies package by package_id or buyer_ref and specifies fields to modify. Fields not present are left unchanged. Note: product_id, format_ids, and pricing_option_id cannot be changed after creation.",
+  "oneOf": [
+    {
+      "required": [
+        "package_id"
+      ]
+    },
+    {
+      "required": [
+        "buyer_ref"
+      ]
+    }
+  ],
+  "properties": {
+    "bid_price": {
+      "description": "Updated bid price for auction-based pricing options (only applies when pricing_option is auction-based)",
+      "minimum": 0,
+      "type": "number"
+    },
+    "budget": {
+      "description": "Updated budget allocation for this package in the currency specified by the pricing option",
+      "minimum": 0,
+      "type": "number"
+    },
+    "buyer_ref": {
+      "description": "Buyer's reference for the package to update",
+      "type": "string"
+    },
+    "creative_assignments": {
+      "description": "Replace creative assignments for this package with optional weights and placement targeting. Uses replacement semantics - omit to leave assignments unchanged.",
+      "items": {
+        "$ref": "../core/creative-assignment.json"
+      },
+      "type": "array"
+    },
+    "creatives": {
+      "description": "Upload new creative assets and assign to this package (creatives will be added to library). Use creative_assignments instead for existing library creatives.",
+      "items": {
+        "$ref": "../core/creative-asset.json"
+      },
+      "maxItems": 100,
+      "type": "array"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "impressions": {
+      "description": "Updated impression goal for this package",
+      "minimum": 0,
+      "type": "number"
+    },
+    "pacing": {
+      "$ref": "../enums/pacing.json"
+    },
+    "package_id": {
+      "description": "Publisher's ID of package to update",
+      "type": "string"
+    },
+    "paused": {
+      "description": "Pause/resume specific package (true = paused, false = active)",
+      "type": "boolean"
+    },
+    "targeting_overlay": {
+      "$ref": "../core/targeting.json"
+    }
+  },
+  "title": "Package Update",
+  "type": "object"
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Get offering details and availability before session handoff. Returns offering information, availability status, and optionally matching products based on context.",
+  "properties": {
+    "context": {
+      "description": "Optional natural language context about user intent for personalized results (e.g., 'mens size 14 near Cincinnati'). Must be anonymous - no PII.",
+      "type": "string"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "include_products": {
+      "default": false,
+      "description": "Whether to include matching products in the response",
+      "type": "boolean"
+    },
+    "offering_id": {
+      "description": "Offering identifier from promoted offerings to get details for",
+      "type": "string"
+    },
+    "product_limit": {
+      "default": 5,
+      "description": "Maximum number of matching products to return",
+      "maximum": 50,
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "offering_id"
+  ],
+  "title": "SI Get Offering Request",
+  "type": "object"
+}

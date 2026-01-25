@@ -1,0 +1,160 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Response containing content artifacts from a media buy for validation",
+  "oneOf": [
+    {
+      "description": "Success response with artifacts",
+      "properties": {
+        "artifacts": {
+          "description": "Delivery records with full artifact content",
+          "items": {
+            "properties": {
+              "artifact": {
+                "$ref": "artifact.json",
+                "description": "Full artifact with content assets"
+              },
+              "brand_context": {
+                "description": "Brand information for policy evaluation. Schema TBD - placeholder for brand identifiers.",
+                "properties": {
+                  "brand_id": {
+                    "description": "Brand identifier",
+                    "type": "string"
+                  },
+                  "sku_id": {
+                    "description": "Product/SKU identifier if applicable",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "channel": {
+                "description": "Channel type (e.g., display, video, audio, social)",
+                "type": "string"
+              },
+              "country": {
+                "description": "ISO 3166-1 alpha-2 country code where delivery occurred",
+                "type": "string"
+              },
+              "local_verdict": {
+                "description": "Seller's local model verdict for this artifact",
+                "enum": [
+                  "pass",
+                  "fail",
+                  "unevaluated"
+                ],
+                "type": "string"
+              },
+              "package_id": {
+                "description": "Which package this delivery belongs to",
+                "type": "string"
+              },
+              "record_id": {
+                "description": "Unique identifier for this delivery record",
+                "type": "string"
+              },
+              "timestamp": {
+                "description": "When the delivery occurred",
+                "format": "date-time",
+                "type": "string"
+              }
+            },
+            "required": [
+              "record_id",
+              "artifact"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "errors": {
+          "description": "Field must not be present in success response",
+          "not": {}
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
+        "media_buy_id": {
+          "description": "Media buy these artifacts belong to",
+          "type": "string"
+        },
+        "pagination": {
+          "description": "Pagination information for large result sets",
+          "properties": {
+            "cursor": {
+              "description": "Cursor for fetching the next page",
+              "type": "string"
+            },
+            "has_more": {
+              "description": "Whether more results are available",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "sampling_info": {
+          "description": "Information about how the sample was generated",
+          "properties": {
+            "effective_rate": {
+              "description": "Actual sampling rate achieved",
+              "type": "number"
+            },
+            "method": {
+              "description": "Sampling method used",
+              "enum": [
+                "random",
+                "stratified",
+                "recent",
+                "failures_only"
+              ],
+              "type": "string"
+            },
+            "sampled_count": {
+              "description": "Number of artifacts in this response",
+              "type": "integer"
+            },
+            "total_deliveries": {
+              "description": "Total deliveries in the time range",
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "media_buy_id",
+        "artifacts"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Error response",
+      "properties": {
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "errors": {
+          "items": {
+            "$ref": "../core/error.json"
+          },
+          "type": "array"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
+        "media_buy_id": {
+          "description": "Field must not be present in error response",
+          "not": {}
+        }
+      },
+      "required": [
+        "errors"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "Get Media Buy Artifacts Response",
+  "type": "object"
+}

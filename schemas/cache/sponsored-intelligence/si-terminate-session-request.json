@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Request to terminate an SI session",
+  "properties": {
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "reason": {
+      "description": "Reason for termination",
+      "enum": [
+        "handoff_transaction",
+        "handoff_complete",
+        "user_exit",
+        "session_timeout",
+        "host_terminated"
+      ],
+      "type": "string"
+    },
+    "session_id": {
+      "description": "Session identifier to terminate",
+      "type": "string"
+    },
+    "termination_context": {
+      "additionalProperties": true,
+      "description": "Context for the termination",
+      "properties": {
+        "cause": {
+          "description": "For host_terminated - why host ended session",
+          "type": "string"
+        },
+        "summary": {
+          "description": "Summary of the conversation",
+          "type": "string"
+        },
+        "transaction_intent": {
+          "additionalProperties": true,
+          "description": "For handoff_transaction - what user wants to buy",
+          "properties": {
+            "action": {
+              "enum": [
+                "purchase",
+                "subscribe"
+              ],
+              "type": "string"
+            },
+            "product": {
+              "description": "Product/service details",
+              "type": "object"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "session_id",
+    "reason"
+  ],
+  "title": "SI Terminate Session Request",
+  "type": "object"
+}

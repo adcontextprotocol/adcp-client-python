@@ -157,21 +157,46 @@ async def execute_tool(
 # Types are filled at runtime to avoid circular imports
 # Special case: list_tools and get_info take no parameters (None means no request type)
 TOOL_DISPATCH: dict[str, tuple[str, type | None]] = {
+    # Protocol introspection
     "list_tools": ("list_tools", None),  # Protocol introspection - no request type
     "get_info": ("get_info", None),  # Agent info - no request type
+    # Core catalog
     "get_products": ("get_products", None),
     "list_creative_formats": ("list_creative_formats", None),
     "preview_creative": ("preview_creative", None),
     "build_creative": ("build_creative", None),
     "sync_creatives": ("sync_creatives", None),
     "list_creatives": ("list_creatives", None),
+    # Media buy
     "create_media_buy": ("create_media_buy", None),
     "update_media_buy": ("update_media_buy", None),
     "get_media_buy_delivery": ("get_media_buy_delivery", None),
     "list_authorized_properties": ("list_authorized_properties", None),
+    # Signals
     "get_signals": ("get_signals", None),
     "activate_signal": ("activate_signal", None),
     "provide_performance_feedback": ("provide_performance_feedback", None),
+    # V3 Protocol Discovery
+    "get_adcp_capabilities": ("get_adcp_capabilities", None),
+    # V3 Content Standards
+    "create_content_standards": ("create_content_standards", None),
+    "get_content_standards": ("get_content_standards", None),
+    "list_content_standards": ("list_content_standards", None),
+    "update_content_standards": ("update_content_standards", None),
+    "calibrate_content": ("calibrate_content", None),
+    "validate_content_delivery": ("validate_content_delivery", None),
+    "get_media_buy_artifacts": ("get_media_buy_artifacts", None),
+    # V3 Sponsored Intelligence
+    "si_get_offering": ("si_get_offering", None),
+    "si_initiate_session": ("si_initiate_session", None),
+    "si_send_message": ("si_send_message", None),
+    "si_terminate_session": ("si_terminate_session", None),
+    # V3 Governance (Property Lists)
+    "create_property_list": ("create_property_list", None),
+    "get_property_list": ("get_property_list", None),
+    "list_property_lists": ("list_property_lists", None),
+    "update_property_list": ("update_property_list", None),
+    "delete_property_list": ("delete_property_list", None),
 }
 
 
@@ -220,6 +245,66 @@ async def _dispatch_tool(client: ADCPClient, tool_name: str, payload: dict[str, 
         TOOL_DISPATCH["provide_performance_feedback"] = (
             "provide_performance_feedback",
             gen.ProvidePerformanceFeedbackRequest,
+        )
+        # V3 Protocol Discovery
+        TOOL_DISPATCH["get_adcp_capabilities"] = (
+            "get_adcp_capabilities",
+            gen.GetAdcpCapabilitiesRequest,
+        )
+        # V3 Content Standards
+        TOOL_DISPATCH["create_content_standards"] = (
+            "create_content_standards",
+            gen.CreateContentStandardsRequest,
+        )
+        TOOL_DISPATCH["get_content_standards"] = (
+            "get_content_standards",
+            gen.GetContentStandardsRequest,
+        )
+        TOOL_DISPATCH["list_content_standards"] = (
+            "list_content_standards",
+            gen.ListContentStandardsRequest,
+        )
+        TOOL_DISPATCH["update_content_standards"] = (
+            "update_content_standards",
+            gen.UpdateContentStandardsRequest,
+        )
+        TOOL_DISPATCH["calibrate_content"] = ("calibrate_content", gen.CalibrateContentRequest)
+        TOOL_DISPATCH["validate_content_delivery"] = (
+            "validate_content_delivery",
+            gen.ValidateContentDeliveryRequest,
+        )
+        TOOL_DISPATCH["get_media_buy_artifacts"] = (
+            "get_media_buy_artifacts",
+            gen.GetMediaBuyArtifactsRequest,
+        )
+        # V3 Sponsored Intelligence
+        TOOL_DISPATCH["si_get_offering"] = ("si_get_offering", gen.SiGetOfferingRequest)
+        TOOL_DISPATCH["si_initiate_session"] = (
+            "si_initiate_session",
+            gen.SiInitiateSessionRequest,
+        )
+        TOOL_DISPATCH["si_send_message"] = ("si_send_message", gen.SiSendMessageRequest)
+        TOOL_DISPATCH["si_terminate_session"] = (
+            "si_terminate_session",
+            gen.SiTerminateSessionRequest,
+        )
+        # V3 Governance (Property Lists)
+        TOOL_DISPATCH["create_property_list"] = (
+            "create_property_list",
+            gen.CreatePropertyListRequest,
+        )
+        TOOL_DISPATCH["get_property_list"] = ("get_property_list", gen.GetPropertyListRequest)
+        TOOL_DISPATCH["list_property_lists"] = (
+            "list_property_lists",
+            gen.ListPropertyListsRequest,
+        )
+        TOOL_DISPATCH["update_property_list"] = (
+            "update_property_list",
+            gen.UpdatePropertyListRequest,
+        )
+        TOOL_DISPATCH["delete_property_list"] = (
+            "delete_property_list",
+            gen.DeletePropertyListRequest,
         )
 
     # Check if tool exists
@@ -451,6 +536,11 @@ def main() -> None:
         print("  adcp myagent list_tools")
         print('  adcp myagent get_products \'{"brief":"TV ads"}\'')
         print("  adcp https://agent.example.com list_tools")
+        print("\nV3 Protocol Examples:")
+        print("  adcp myagent get_adcp_capabilities")
+        print("  adcp cs-agent calibrate_content '{\"content_standards_id\":\"cs-123\"}'")
+        print("  adcp si-agent si_get_offering")
+        print("  adcp gov-agent list_property_lists")
         sys.exit(0)
 
     # Handle configuration commands

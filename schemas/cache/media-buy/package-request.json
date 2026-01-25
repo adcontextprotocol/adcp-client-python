@@ -17,15 +17,15 @@
       "description": "Buyer's reference identifier for this package",
       "type": "string"
     },
-    "creative_ids": {
-      "description": "Creative IDs to assign to this package at creation time (references existing library creatives)",
+    "creative_assignments": {
+      "description": "Assign existing library creatives to this package with optional weights and placement targeting",
       "items": {
-        "type": "string"
+        "$ref": "../core/creative-assignment.json"
       },
       "type": "array"
     },
     "creatives": {
-      "description": "Full creative objects to upload and assign to this package at creation time (alternative to creative_ids - creatives will be added to library). Supports both static and generative creatives.",
+      "description": "Upload new creative assets and assign to this package (creatives will be added to library). Use creative_assignments instead for existing library creatives.",
       "items": {
         "$ref": "../core/creative-asset.json"
       },

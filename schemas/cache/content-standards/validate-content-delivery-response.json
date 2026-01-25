@@ -1,0 +1,131 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Response payload with per-record verdicts and optional feature breakdown",
+  "oneOf": [
+    {
+      "description": "Success response",
+      "properties": {
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "errors": {
+          "description": "Field must not be present in success response",
+          "not": {}
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
+        "results": {
+          "description": "Per-record evaluation results",
+          "items": {
+            "properties": {
+              "features": {
+                "description": "Optional feature-level breakdown",
+                "items": {
+                  "properties": {
+                    "feature_id": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "rule_id": {
+                      "description": "Which rule triggered this result (e.g., GARM category, Scope3 standard)",
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "passed",
+                        "failed",
+                        "warning",
+                        "unevaluated"
+                      ],
+                      "type": "string"
+                    },
+                    "value": {}
+                  },
+                  "required": [
+                    "feature_id",
+                    "status"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "record_id": {
+                "description": "Which delivery record was evaluated",
+                "type": "string"
+              },
+              "verdict": {
+                "description": "Overall pass/fail verdict for this record",
+                "enum": [
+                  "pass",
+                  "fail"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "record_id",
+              "verdict"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "summary": {
+          "description": "Summary counts across all records",
+          "properties": {
+            "failed_records": {
+              "type": "integer"
+            },
+            "passed_records": {
+              "type": "integer"
+            },
+            "total_records": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "total_records",
+            "passed_records",
+            "failed_records"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "summary",
+        "results"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Error response",
+      "properties": {
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "errors": {
+          "items": {
+            "$ref": "../core/error.json"
+          },
+          "type": "array"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
+        "summary": {
+          "description": "Field must not be present in error response",
+          "not": {}
+        }
+      },
+      "required": [
+        "errors"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "Validate Content Delivery Response",
+  "type": "object"
+}

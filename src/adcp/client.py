@@ -47,6 +47,116 @@ from adcp.types import (
     UpdateMediaBuyRequest,
     UpdateMediaBuyResponse,
 )
+
+# V3 Protocol Discovery types
+from adcp.types.generated_poc.protocol.get_adcp_capabilities_request import (
+    GetAdcpCapabilitiesRequest,
+)
+from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
+    GetAdcpCapabilitiesResponse,
+)
+
+# V3 Content Standards types
+from adcp.types.generated_poc.content_standards.create_content_standards_request import (
+    CreateContentStandardsRequest,
+)
+from adcp.types.generated_poc.content_standards.create_content_standards_response import (
+    CreateContentStandardsResponse,
+)
+from adcp.types.generated_poc.content_standards.get_content_standards_request import (
+    GetContentStandardsRequest,
+)
+from adcp.types.generated_poc.content_standards.get_content_standards_response import (
+    GetContentStandardsResponse,
+)
+from adcp.types.generated_poc.content_standards.list_content_standards_request import (
+    ListContentStandardsRequest,
+)
+from adcp.types.generated_poc.content_standards.list_content_standards_response import (
+    ListContentStandardsResponse,
+)
+from adcp.types.generated_poc.content_standards.update_content_standards_request import (
+    UpdateContentStandardsRequest,
+)
+from adcp.types.generated_poc.content_standards.update_content_standards_response import (
+    UpdateContentStandardsResponse,
+)
+from adcp.types.generated_poc.content_standards.calibrate_content_request import (
+    CalibrateContentRequest,
+)
+from adcp.types.generated_poc.content_standards.calibrate_content_response import (
+    CalibrateContentResponse,
+)
+from adcp.types.generated_poc.content_standards.validate_content_delivery_request import (
+    ValidateContentDeliveryRequest,
+)
+from adcp.types.generated_poc.content_standards.validate_content_delivery_response import (
+    ValidateContentDeliveryResponse,
+)
+from adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request import (
+    GetMediaBuyArtifactsRequest,
+)
+from adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response import (
+    GetMediaBuyArtifactsResponse,
+)
+
+# V3 Sponsored Intelligence types
+from adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request import (
+    SiGetOfferingRequest,
+)
+from adcp.types.generated_poc.sponsored_intelligence.si_get_offering_response import (
+    SiGetOfferingResponse,
+)
+from adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_request import (
+    SiInitiateSessionRequest,
+)
+from adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response import (
+    SiInitiateSessionResponse,
+)
+from adcp.types.generated_poc.sponsored_intelligence.si_send_message_request import (
+    SiSendMessageRequest,
+)
+from adcp.types.generated_poc.sponsored_intelligence.si_send_message_response import (
+    SiSendMessageResponse,
+)
+from adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_request import (
+    SiTerminateSessionRequest,
+)
+from adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response import (
+    SiTerminateSessionResponse,
+)
+
+# V3 Governance (Property Lists) types
+from adcp.types.generated_poc.property.create_property_list_request import (
+    CreatePropertyListRequest,
+)
+from adcp.types.generated_poc.property.create_property_list_response import (
+    CreatePropertyListResponse,
+)
+from adcp.types.generated_poc.property.get_property_list_request import (
+    GetPropertyListRequest,
+)
+from adcp.types.generated_poc.property.get_property_list_response import (
+    GetPropertyListResponse,
+)
+from adcp.types.generated_poc.property.list_property_lists_request import (
+    ListPropertyListsRequest,
+)
+from adcp.types.generated_poc.property.list_property_lists_response import (
+    ListPropertyListsResponse,
+)
+from adcp.types.generated_poc.property.update_property_list_request import (
+    UpdatePropertyListRequest,
+)
+from adcp.types.generated_poc.property.update_property_list_response import (
+    UpdatePropertyListResponse,
+)
+from adcp.types.generated_poc.property.delete_property_list_request import (
+    DeletePropertyListRequest,
+)
+from adcp.types.generated_poc.property.delete_property_list_response import (
+    DeletePropertyListResponse,
+)
 from adcp.types.core import (
     Activity,
     ActivityType,
@@ -772,6 +882,761 @@ class ADCPClient:
         )
 
         return self.adapter._parse_response(raw_result, BuildCreativeResponse)
+
+    # ========================================================================
+    # V3 Protocol Methods - Protocol Discovery
+    # ========================================================================
+
+    async def get_adcp_capabilities(
+        self,
+        request: GetAdcpCapabilitiesRequest,
+    ) -> TaskResult[GetAdcpCapabilitiesResponse]:
+        """
+        Get AdCP capabilities from the agent.
+
+        Queries the agent's supported AdCP features, protocol versions, and
+        domain-specific capabilities (media_buy, signals, sponsored_intelligence).
+
+        Args:
+            request: Request parameters including optional protocol filters
+
+        Returns:
+            TaskResult containing GetAdcpCapabilitiesResponse with:
+                - adcp: Core protocol version information
+                - supported_protocols: List of supported domain protocols
+                - media_buy: Media buy capabilities (if supported)
+                - sponsored_intelligence: SI capabilities (if supported)
+                - signals: Signals capabilities (if supported)
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="get_adcp_capabilities",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.get_adcp_capabilities(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="get_adcp_capabilities",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, GetAdcpCapabilitiesResponse)
+
+    # ========================================================================
+    # V3 Protocol Methods - Content Standards
+    # ========================================================================
+
+    async def create_content_standards(
+        self,
+        request: CreateContentStandardsRequest,
+    ) -> TaskResult[CreateContentStandardsResponse]:
+        """
+        Create a new content standards configuration.
+
+        Defines acceptable content contexts for ad placement using natural
+        language policy and optional calibration exemplars.
+
+        Args:
+            request: Request parameters including policy and scope
+
+        Returns:
+            TaskResult containing CreateContentStandardsResponse with standards_id
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="create_content_standards",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.create_content_standards(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="create_content_standards",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, CreateContentStandardsResponse)
+
+    async def get_content_standards(
+        self,
+        request: GetContentStandardsRequest,
+    ) -> TaskResult[GetContentStandardsResponse]:
+        """
+        Get a content standards configuration by ID.
+
+        Args:
+            request: Request parameters including standards_id
+
+        Returns:
+            TaskResult containing GetContentStandardsResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="get_content_standards",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.get_content_standards(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="get_content_standards",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, GetContentStandardsResponse)
+
+    async def list_content_standards(
+        self,
+        request: ListContentStandardsRequest,
+    ) -> TaskResult[ListContentStandardsResponse]:
+        """
+        List content standards configurations.
+
+        Args:
+            request: Request parameters including optional filters
+
+        Returns:
+            TaskResult containing ListContentStandardsResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="list_content_standards",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.list_content_standards(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="list_content_standards",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, ListContentStandardsResponse)
+
+    async def update_content_standards(
+        self,
+        request: UpdateContentStandardsRequest,
+    ) -> TaskResult[UpdateContentStandardsResponse]:
+        """
+        Update a content standards configuration.
+
+        Args:
+            request: Request parameters including standards_id and updates
+
+        Returns:
+            TaskResult containing UpdateContentStandardsResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="update_content_standards",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.update_content_standards(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="update_content_standards",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, UpdateContentStandardsResponse)
+
+    async def calibrate_content(
+        self,
+        request: CalibrateContentRequest,
+    ) -> TaskResult[CalibrateContentResponse]:
+        """
+        Calibrate content against standards.
+
+        Evaluates content (artifact or URL) against configured standards to
+        determine suitability for ad placement.
+
+        Args:
+            request: Request parameters including content to evaluate
+
+        Returns:
+            TaskResult containing CalibrateContentResponse with verdict
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="calibrate_content",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.calibrate_content(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="calibrate_content",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, CalibrateContentResponse)
+
+    async def validate_content_delivery(
+        self,
+        request: ValidateContentDeliveryRequest,
+    ) -> TaskResult[ValidateContentDeliveryResponse]:
+        """
+        Validate content delivery against standards.
+
+        Validates that ad delivery records comply with content standards.
+
+        Args:
+            request: Request parameters including delivery records
+
+        Returns:
+            TaskResult containing ValidateContentDeliveryResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="validate_content_delivery",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.validate_content_delivery(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="validate_content_delivery",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, ValidateContentDeliveryResponse)
+
+    async def get_media_buy_artifacts(
+        self,
+        request: GetMediaBuyArtifactsRequest,
+    ) -> TaskResult[GetMediaBuyArtifactsResponse]:
+        """
+        Get artifacts associated with a media buy.
+
+        Retrieves content artifacts where ads were delivered for a media buy.
+
+        Args:
+            request: Request parameters including media_buy_id
+
+        Returns:
+            TaskResult containing GetMediaBuyArtifactsResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="get_media_buy_artifacts",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.get_media_buy_artifacts(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="get_media_buy_artifacts",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, GetMediaBuyArtifactsResponse)
+
+    # ========================================================================
+    # V3 Protocol Methods - Sponsored Intelligence
+    # ========================================================================
+
+    async def si_get_offering(
+        self,
+        request: SiGetOfferingRequest,
+    ) -> TaskResult[SiGetOfferingResponse]:
+        """
+        Get sponsored intelligence offering.
+
+        Retrieves product/service offerings that can be presented in a
+        sponsored intelligence session.
+
+        Args:
+            request: Request parameters including brand context
+
+        Returns:
+            TaskResult containing SiGetOfferingResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="si_get_offering",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.si_get_offering(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="si_get_offering",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, SiGetOfferingResponse)
+
+    async def si_initiate_session(
+        self,
+        request: SiInitiateSessionRequest,
+    ) -> TaskResult[SiInitiateSessionResponse]:
+        """
+        Initiate a sponsored intelligence session.
+
+        Starts a conversational brand experience session with a user.
+
+        Args:
+            request: Request parameters including identity and context
+
+        Returns:
+            TaskResult containing SiInitiateSessionResponse with session_id
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="si_initiate_session",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.si_initiate_session(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="si_initiate_session",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, SiInitiateSessionResponse)
+
+    async def si_send_message(
+        self,
+        request: SiSendMessageRequest,
+    ) -> TaskResult[SiSendMessageResponse]:
+        """
+        Send a message in a sponsored intelligence session.
+
+        Continues the conversation in an active SI session.
+
+        Args:
+            request: Request parameters including session_id and message
+
+        Returns:
+            TaskResult containing SiSendMessageResponse with brand response
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="si_send_message",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.si_send_message(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="si_send_message",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, SiSendMessageResponse)
+
+    async def si_terminate_session(
+        self,
+        request: SiTerminateSessionRequest,
+    ) -> TaskResult[SiTerminateSessionResponse]:
+        """
+        Terminate a sponsored intelligence session.
+
+        Ends an active SI session, optionally with follow-up actions.
+
+        Args:
+            request: Request parameters including session_id and termination context
+
+        Returns:
+            TaskResult containing SiTerminateSessionResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="si_terminate_session",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.si_terminate_session(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="si_terminate_session",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, SiTerminateSessionResponse)
+
+    # ========================================================================
+    # V3 Governance (Property Lists) Methods
+    # ========================================================================
+
+    async def create_property_list(
+        self,
+        request: CreatePropertyListRequest,
+    ) -> TaskResult[CreatePropertyListResponse]:
+        """
+        Create a property list for governance filtering.
+
+        Property lists define dynamic sets of properties based on filters,
+        brand manifests, and feature requirements.
+
+        Args:
+            request: Request parameters for creating the property list
+
+        Returns:
+            TaskResult containing CreatePropertyListResponse with list_id
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="create_property_list",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.create_property_list(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="create_property_list",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, CreatePropertyListResponse)
+
+    async def get_property_list(
+        self,
+        request: GetPropertyListRequest,
+    ) -> TaskResult[GetPropertyListResponse]:
+        """
+        Get a property list with optional resolution.
+
+        When resolve=true, returns the list of resolved property identifiers.
+        Use this to get the actual properties that match the list's filters.
+
+        Args:
+            request: Request parameters including list_id and resolve flag
+
+        Returns:
+            TaskResult containing GetPropertyListResponse with identifiers
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="get_property_list",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.get_property_list(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="get_property_list",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, GetPropertyListResponse)
+
+    async def list_property_lists(
+        self,
+        request: ListPropertyListsRequest,
+    ) -> TaskResult[ListPropertyListsResponse]:
+        """
+        List property lists owned by a principal.
+
+        Retrieves metadata for all property lists, optionally filtered
+        by principal or pagination parameters.
+
+        Args:
+            request: Request parameters with optional filtering
+
+        Returns:
+            TaskResult containing ListPropertyListsResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="list_property_lists",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.list_property_lists(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="list_property_lists",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, ListPropertyListsResponse)
+
+    async def update_property_list(
+        self,
+        request: UpdatePropertyListRequest,
+    ) -> TaskResult[UpdatePropertyListResponse]:
+        """
+        Update a property list.
+
+        Modifies the filters, brand manifest, or other parameters
+        of an existing property list.
+
+        Args:
+            request: Request parameters with list_id and updates
+
+        Returns:
+            TaskResult containing UpdatePropertyListResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="update_property_list",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.update_property_list(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="update_property_list",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, UpdatePropertyListResponse)
+
+    async def delete_property_list(
+        self,
+        request: DeletePropertyListRequest,
+    ) -> TaskResult[DeletePropertyListResponse]:
+        """
+        Delete a property list.
+
+        Removes a property list. Any active subscriptions to this list
+        will be terminated.
+
+        Args:
+            request: Request parameters with list_id
+
+        Returns:
+            TaskResult containing DeletePropertyListResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="delete_property_list",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.delete_property_list(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="delete_property_list",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, DeletePropertyListResponse)
 
     async def list_tools(self) -> list[str]:
         """

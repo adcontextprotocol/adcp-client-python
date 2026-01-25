@@ -48,7 +48,7 @@
       "type": "array"
     },
     "countries": {
-      "description": "Filter by target countries using ISO 3166-1 alpha-2 country codes (e.g., ['US', 'CA', 'GB'])",
+      "description": "Filter by country coverage using ISO 3166-1 alpha-2 codes (e.g., ['US', 'CA', 'GB']). Works for all inventory types.",
       "items": {
         "pattern": "^[A-Z]{2}$",
         "type": "string"
@@ -81,10 +81,73 @@
       "description": "Filter for fixed price vs auction products",
       "type": "boolean"
     },
+    "metros": {
+      "description": "Filter by metro coverage for locally-bound inventory (radio, DOOH, local TV). Use when products have DMA/metro-specific coverage. For digital inventory where products have broad coverage, use required_geo_targeting instead to filter by seller capability.",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "description": "Metro code within the system (e.g., '501' for NYC DMA)",
+            "type": "string"
+          },
+          "system": {
+            "$ref": "../enums/metro-system.json",
+            "description": "Metro classification system"
+          }
+        },
+        "required": [
+          "system",
+          "code"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
     "min_exposures": {
       "description": "Minimum exposures/impressions needed for measurement validity",
       "minimum": 1,
       "type": "integer"
+    },
+    "regions": {
+      "description": "Filter by region coverage using ISO 3166-2 codes (e.g., ['US-NY', 'US-CA', 'GB-SCT']). Use for locally-bound inventory (regional OOH, local TV) where products have region-specific coverage.",
+      "items": {
+        "pattern": "^[A-Z]{2}-[A-Z0-9]+$",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "required_axe_integrations": {
+      "description": "Filter to products executable through specific agentic ad exchanges. URLs are canonical identifiers.",
+      "items": {
+        "format": "uri",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "required_features": {
+      "$ref": "media-buy-features.json",
+      "description": "Filter to products from sellers supporting specific protocol features. Only features set to true are used for filtering."
+    },
+    "required_geo_targeting": {
+      "description": "Filter to products from sellers supporting specific geo targeting capabilities. Each entry specifies a targeting level (country, region, metro, postal_area) and optionally a system for levels that have multiple classification systems.",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "level": {
+            "$ref": "../enums/geo-level.json",
+            "description": "Geographic targeting level (country, region, metro, postal_area)"
+          },
+          "system": {
+            "description": "Classification system within the level. Required for metro (e.g., 'nielsen_dma') and postal_area (e.g., 'us_zip'). Not applicable for country/region which use ISO standards.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "level"
+        ],
+        "type": "object"
+      },
+      "type": "array"
     },
     "standard_formats_only": {
       "description": "Only return products accepting IAB standard formats",

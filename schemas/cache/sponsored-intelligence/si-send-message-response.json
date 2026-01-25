@@ -1,0 +1,113 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Brand agent's response to a user message",
+  "properties": {
+    "errors": {
+      "items": {
+        "$ref": "../core/error.json"
+      },
+      "type": "array"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "handoff": {
+      "additionalProperties": true,
+      "description": "Handoff request when session_status is pending_handoff",
+      "properties": {
+        "context_for_checkout": {
+          "additionalProperties": true,
+          "description": "Context to pass to ACP for seamless checkout",
+          "properties": {
+            "applied_offers": {
+              "description": "Offer IDs that were applied during the conversation",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "conversation_summary": {
+              "description": "Summary of the conversation leading to purchase",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "intent": {
+          "additionalProperties": true,
+          "description": "For transaction handoffs: what the user wants to purchase",
+          "properties": {
+            "action": {
+              "description": "The commerce action (e.g., 'purchase')",
+              "type": "string"
+            },
+            "price": {
+              "description": "Price information",
+              "properties": {
+                "amount": {
+                  "type": "number"
+                },
+                "currency": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "product": {
+              "description": "Product details for checkout",
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "type": {
+          "description": "Type of handoff: transaction (ready for ACP checkout) or complete (conversation done)",
+          "enum": [
+            "transaction",
+            "complete"
+          ],
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "response": {
+      "additionalProperties": true,
+      "description": "Brand agent's response",
+      "properties": {
+        "message": {
+          "description": "Conversational message from brand agent",
+          "type": "string"
+        },
+        "ui_elements": {
+          "description": "Visual components to render",
+          "items": {
+            "$ref": "si-ui-element.json"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "session_id": {
+      "description": "Session identifier",
+      "type": "string"
+    },
+    "session_status": {
+      "description": "Current session status",
+      "enum": [
+        "active",
+        "pending_handoff",
+        "complete"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "session_id",
+    "session_status"
+  ],
+  "title": "SI Send Message Response",
+  "type": "object"
+}

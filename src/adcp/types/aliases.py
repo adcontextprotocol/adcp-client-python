@@ -35,9 +35,6 @@ from adcp.types._generated import (
     # Activation responses
     ActivateSignalResponse1,
     ActivateSignalResponse2,
-    # Activation keys
-    ActivationKey1,
-    ActivationKey2,
     # Authorized agents
     AuthorizedAgents,
     AuthorizedAgents1,
@@ -198,12 +195,11 @@ UpdateMediaBuyPropertiesRequest = UpdateMediaBuyRequest2
 # ============================================================================
 # ACTIVATION KEY ALIASES
 # ============================================================================
-
-PropertyIdActivationKey = ActivationKey1
-"""Activation key using property_id for identification."""
-
-PropertyTagActivationKey = ActivationKey2
-"""Activation key using property_tags for identification."""
+# Note: Activation key schema changed from property_id/property_tag variants
+# to segment_id/key_value variants. Import directly from _generated:
+#   from adcp.types._generated import ActivationKey1 as SegmentIdActivationKey
+#   from adcp.types._generated import ActivationKey2 as KeyValueActivationKey
+# These will be added once the types are regenerated with proper schema.
 
 # ============================================================================
 # PREVIEW/RENDER TYPE ALIASES
@@ -700,9 +696,6 @@ __all__ = [
     # Activation responses
     "ActivateSignalSuccessResponse",
     "ActivateSignalErrorResponse",
-    # Activation keys
-    "PropertyIdActivationKey",
-    "PropertyTagActivationKey",
     # Asset type aliases
     "BothPreviewRender",
     "HtmlPreviewRender",

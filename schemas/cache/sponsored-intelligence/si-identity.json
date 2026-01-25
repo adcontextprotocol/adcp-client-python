@@ -1,0 +1,101 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "User identity shared with brand agent (with explicit consent)",
+  "properties": {
+    "anonymous_session_id": {
+      "description": "Session ID for anonymous users (when consent_granted is false)",
+      "type": "string"
+    },
+    "consent_granted": {
+      "description": "Whether user consented to share identity",
+      "type": "boolean"
+    },
+    "consent_scope": {
+      "description": "What data was consented to share",
+      "items": {
+        "enum": [
+          "name",
+          "email",
+          "shipping_address",
+          "phone",
+          "locale"
+        ],
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "consent_timestamp": {
+      "description": "When consent was granted (ISO 8601)",
+      "format": "date-time",
+      "type": "string"
+    },
+    "privacy_policy_acknowledged": {
+      "additionalProperties": true,
+      "description": "Brand privacy policy acknowledgment",
+      "properties": {
+        "brand_policy_url": {
+          "description": "URL to brand's privacy policy",
+          "format": "uri",
+          "type": "string"
+        },
+        "brand_policy_version": {
+          "description": "Version of policy acknowledged",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "user": {
+      "additionalProperties": true,
+      "description": "User data (only present if consent_granted is true)",
+      "properties": {
+        "email": {
+          "description": "User's email address",
+          "format": "email",
+          "type": "string"
+        },
+        "locale": {
+          "description": "User's locale (e.g., en-US)",
+          "type": "string"
+        },
+        "name": {
+          "description": "User's display name",
+          "type": "string"
+        },
+        "phone": {
+          "description": "User's phone number",
+          "type": "string"
+        },
+        "shipping_address": {
+          "additionalProperties": true,
+          "description": "User's shipping address for accurate pricing",
+          "properties": {
+            "city": {
+              "type": "string"
+            },
+            "country": {
+              "type": "string"
+            },
+            "postal_code": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            },
+            "street": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "consent_granted"
+  ],
+  "title": "SI Identity",
+  "type": "object"
+}

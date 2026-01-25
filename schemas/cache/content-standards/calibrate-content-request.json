@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Request parameters for evaluating content during calibration. Multi-turn dialogue is handled at the protocol layer via contextId.",
+  "properties": {
+    "artifact": {
+      "$ref": "artifact.json",
+      "description": "Artifact to evaluate"
+    },
+    "standards_id": {
+      "description": "Standards configuration to calibrate against",
+      "type": "string"
+    }
+  },
+  "required": [
+    "standards_id",
+    "artifact"
+  ],
+  "title": "Calibrate Content Request",
+  "type": "object"
+}

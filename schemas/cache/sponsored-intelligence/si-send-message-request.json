@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "anyOf": [
+    {
+      "required": [
+        "message"
+      ]
+    },
+    {
+      "required": [
+        "action_response"
+      ]
+    }
+  ],
+  "description": "Send a message to the brand agent within an active session",
+  "properties": {
+    "action_response": {
+      "additionalProperties": true,
+      "description": "Response to a previous action_button (e.g., user clicked checkout)",
+      "properties": {
+        "action": {
+          "description": "The action that was triggered",
+          "type": "string"
+        },
+        "payload": {
+          "description": "Action-specific response data",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "message": {
+      "description": "User's message to the brand agent",
+      "type": "string"
+    },
+    "session_id": {
+      "description": "Active session identifier",
+      "type": "string"
+    }
+  },
+  "required": [
+    "session_id"
+  ],
+  "title": "SI Send Message Request",
+  "type": "object"
+}

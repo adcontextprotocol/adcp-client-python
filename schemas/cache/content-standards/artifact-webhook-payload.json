@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Payload sent by sales agents to orchestrators when pushing content artifacts for governance validation. Complements get_media_buy_artifacts for push-based artifact delivery.",
+  "properties": {
+    "artifacts": {
+      "description": "Content artifacts from delivered impressions",
+      "items": {
+        "properties": {
+          "artifact": {
+            "$ref": "artifact.json",
+            "description": "The content artifact"
+          },
+          "delivered_at": {
+            "description": "When the impression was delivered (ISO 8601)",
+            "format": "date-time",
+            "type": "string"
+          },
+          "impression_id": {
+            "description": "Optional impression identifier for correlation with delivery reports",
+            "type": "string"
+          },
+          "package_id": {
+            "description": "Package within the media buy this artifact relates to",
+            "type": "string"
+          }
+        },
+        "required": [
+          "artifact",
+          "delivered_at"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "batch_id": {
+      "description": "Unique identifier for this batch of artifacts. Use for deduplication and acknowledgment.",
+      "type": "string"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "media_buy_id": {
+      "description": "Media buy identifier these artifacts belong to",
+      "type": "string"
+    },
+    "pagination": {
+      "description": "Pagination info when batching large artifact sets",
+      "properties": {
+        "batch_number": {
+          "description": "Current batch number (1-indexed)",
+          "type": "integer"
+        },
+        "total_artifacts": {
+          "description": "Total artifacts in the delivery period",
+          "type": "integer"
+        },
+        "total_batches": {
+          "description": "Total batches for this delivery period",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "timestamp": {
+      "description": "When this batch was generated (ISO 8601)",
+      "format": "date-time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "media_buy_id",
+    "batch_id",
+    "timestamp",
+    "artifacts"
+  ],
+  "title": "Artifact Webhook Payload",
+  "type": "object"
+}

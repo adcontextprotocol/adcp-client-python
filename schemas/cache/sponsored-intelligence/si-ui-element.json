@@ -1,0 +1,339 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "text"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "properties": {
+              "message": {
+                "description": "Text message content",
+                "type": "string"
+              }
+            },
+            "required": [
+              "message"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "link"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "properties": {
+              "label": {
+                "description": "Link text",
+                "type": "string"
+              },
+              "preview": {
+                "description": "Show link preview",
+                "type": "boolean"
+              },
+              "url": {
+                "description": "Link URL",
+                "format": "uri",
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "label"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "image"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "properties": {
+              "alt": {
+                "description": "Alt text",
+                "type": "string"
+              },
+              "caption": {
+                "description": "Image caption",
+                "type": "string"
+              },
+              "url": {
+                "description": "Image URL",
+                "format": "uri",
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "alt"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "product_card"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "properties": {
+              "badge": {
+                "description": "Badge text (e.g., 'Free Upgrade')",
+                "type": "string"
+              },
+              "cta": {
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "description": {
+                "description": "Product description",
+                "type": "string"
+              },
+              "image_url": {
+                "description": "Product image",
+                "format": "uri",
+                "type": "string"
+              },
+              "price": {
+                "description": "Price display string",
+                "type": "string"
+              },
+              "subtitle": {
+                "description": "Product subtitle",
+                "type": "string"
+              },
+              "title": {
+                "description": "Product title",
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "price"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "carousel"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "properties": {
+              "items": {
+                "description": "Carousel items (product cards or images)",
+                "items": {
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "title": {
+                "description": "Carousel title",
+                "type": "string"
+              }
+            },
+            "required": [
+              "items"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "action_button"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "properties": {
+              "action": {
+                "description": "Action identifier (e.g., 'acp_checkout')",
+                "type": "string"
+              },
+              "label": {
+                "description": "Button label",
+                "type": "string"
+              },
+              "payload": {
+                "description": "Action payload",
+                "type": "object"
+              }
+            },
+            "required": [
+              "label",
+              "action"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "app_handoff"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "apps": {
+            "additionalProperties": {
+              "properties": {
+                "app_id": {
+                  "type": "string"
+                },
+                "deep_link": {
+                  "type": "string"
+                },
+                "url": {
+                  "format": "uri",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "description": "Platform-specific app handoff targets",
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "integration_actions"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "properties": {
+              "actions": {
+                "description": "Available integration actions",
+                "items": {
+                  "properties": {
+                    "highlighted": {
+                      "description": "Whether this action should be visually emphasized",
+                      "type": "boolean"
+                    },
+                    "label": {
+                      "description": "User-facing button label",
+                      "type": "string"
+                    },
+                    "type": {
+                      "description": "Integration type",
+                      "enum": [
+                        "mcp",
+                        "a2a"
+                      ],
+                      "type": "string"
+                    },
+                    "url": {
+                      "description": "URL for the integration endpoint",
+                      "format": "uri",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "label"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "actions"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    }
+  ],
+  "description": "Standard visual component that brand returns and host renders",
+  "properties": {
+    "data": {
+      "additionalProperties": true,
+      "description": "Component-specific data",
+      "type": "object"
+    },
+    "type": {
+      "description": "Component type",
+      "enum": [
+        "text",
+        "link",
+        "image",
+        "product_card",
+        "carousel",
+        "action_button",
+        "app_handoff",
+        "integration_actions"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "type"
+  ],
+  "title": "SI UI Element",
+  "type": "object"
+}

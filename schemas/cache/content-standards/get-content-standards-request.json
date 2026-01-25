@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Request parameters for retrieving content safety policies",
+  "properties": {
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "standards_id": {
+      "description": "Identifier for the standards configuration to retrieve",
+      "type": "string"
+    }
+  },
+  "required": [
+    "standards_id"
+  ],
+  "title": "Get Content Standards Request",
+  "type": "object"
+}

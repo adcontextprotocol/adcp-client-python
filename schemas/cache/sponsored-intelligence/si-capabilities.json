@@ -1,0 +1,128 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Capabilities that a brand agent declares or a host supports",
+  "properties": {
+    "commerce": {
+      "additionalProperties": true,
+      "description": "Commerce capabilities",
+      "properties": {
+        "acp_checkout": {
+          "description": "Supports ACP (Agentic Commerce Protocol) checkout handoff",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "components": {
+      "additionalProperties": true,
+      "description": "Visual components supported",
+      "properties": {
+        "extensions": {
+          "additionalProperties": true,
+          "description": "Platform-specific extensions (chatgpt_apps_sdk, maps, forms, etc.)",
+          "type": "object"
+        },
+        "standard": {
+          "description": "Standard components that all SI hosts must render",
+          "items": {
+            "enum": [
+              "text",
+              "link",
+              "image",
+              "product_card",
+              "carousel",
+              "action_button"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "modalities": {
+      "additionalProperties": true,
+      "description": "Interaction modalities supported",
+      "properties": {
+        "avatar": {
+          "description": "Animated video presence with brand avatar",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "avatar_id": {
+                  "description": "Brand avatar identifier",
+                  "type": "string"
+                },
+                "provider": {
+                  "description": "Avatar provider (d-id, heygen, synthesia, etc.)",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          ]
+        },
+        "conversational": {
+          "default": true,
+          "description": "Pure text exchange - the baseline modality",
+          "type": "boolean"
+        },
+        "video": {
+          "description": "Brand video content playback",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "formats": {
+                  "description": "Supported video formats (mp4, webm, etc.)",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "max_duration_seconds": {
+                  "description": "Maximum video duration",
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            }
+          ]
+        },
+        "voice": {
+          "description": "Audio-based interaction using brand voice",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "provider": {
+                  "description": "TTS provider (elevenlabs, openai, etc.)",
+                  "type": "string"
+                },
+                "voice_id": {
+                  "description": "Brand voice identifier",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    }
+  },
+  "title": "SI Capabilities",
+  "type": "object"
+}

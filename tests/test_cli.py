@@ -279,6 +279,40 @@ class TestCLIErrorHandling:
 class TestCLIIntegration:
     """Integration tests for CLI (with mocked network calls)."""
 
+    def test_tool_dispatch_includes_all_v3_operations(self):
+        """Test that TOOL_DISPATCH includes all V3 protocol operations."""
+        from adcp.__main__ import TOOL_DISPATCH
+
+        # Core operations
+        assert "get_products" in TOOL_DISPATCH
+        assert "create_media_buy" in TOOL_DISPATCH
+        assert "list_tools" in TOOL_DISPATCH
+
+        # V3 Protocol Discovery
+        assert "get_adcp_capabilities" in TOOL_DISPATCH
+
+        # V3 Content Standards
+        assert "create_content_standards" in TOOL_DISPATCH
+        assert "get_content_standards" in TOOL_DISPATCH
+        assert "list_content_standards" in TOOL_DISPATCH
+        assert "update_content_standards" in TOOL_DISPATCH
+        assert "calibrate_content" in TOOL_DISPATCH
+        assert "validate_content_delivery" in TOOL_DISPATCH
+        assert "get_media_buy_artifacts" in TOOL_DISPATCH
+
+        # V3 Sponsored Intelligence
+        assert "si_get_offering" in TOOL_DISPATCH
+        assert "si_initiate_session" in TOOL_DISPATCH
+        assert "si_send_message" in TOOL_DISPATCH
+        assert "si_terminate_session" in TOOL_DISPATCH
+
+        # V3 Governance (Property Lists)
+        assert "create_property_list" in TOOL_DISPATCH
+        assert "get_property_list" in TOOL_DISPATCH
+        assert "list_property_lists" in TOOL_DISPATCH
+        assert "update_property_list" in TOOL_DISPATCH
+        assert "delete_property_list" in TOOL_DISPATCH
+
     @pytest.mark.asyncio
     async def test_list_tools_dispatch(self):
         """Test that list_tools is in TOOL_DISPATCH and handled correctly."""
@@ -366,11 +400,14 @@ class TestDeprecatedFieldWarnings:
 
     def test_check_deprecated_fields_warns_on_assets_required(self, capsys):
         """Should warn when response contains deprecated assets_required field."""
-        from adcp import Format, FormatCategory, FormatId
+        from adcp import Format, FormatCategory
         from adcp.__main__ import _check_deprecated_fields
 
+        # Use the core FormatId which is a proper format identifier type
+        from adcp.types.generated_poc.core.format_id import FormatId as CoreFormatId
+
         fmt = Format(
-            format_id=FormatId(agent_url="https://test.com", id="test"),
+            format_id=CoreFormatId(agent_url="https://test.com", id="test"),
             name="Test",
             type=FormatCategory.display,
             assets_required=[
@@ -385,11 +422,14 @@ class TestDeprecatedFieldWarnings:
 
     def test_check_deprecated_fields_no_warning_for_new_assets(self, capsys):
         """Should not warn when using new assets field."""
-        from adcp import Format, FormatCategory, FormatId
+        from adcp import Format, FormatCategory
         from adcp.__main__ import _check_deprecated_fields
 
+        # Use the core FormatId which is a proper format identifier type
+        from adcp.types.generated_poc.core.format_id import FormatId as CoreFormatId
+
         fmt = Format(
-            format_id=FormatId(agent_url="https://test.com", id="test"),
+            format_id=CoreFormatId(agent_url="https://test.com", id="test"),
             name="Test",
             type=FormatCategory.display,
             assets=[

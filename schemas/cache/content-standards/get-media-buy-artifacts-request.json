@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Request parameters for retrieving content artifacts from a media buy for validation",
+  "properties": {
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "cursor": {
+      "description": "Pagination cursor for fetching subsequent pages",
+      "type": "string"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "limit": {
+      "default": 1000,
+      "description": "Maximum artifacts to return per request",
+      "maximum": 10000,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "media_buy_id": {
+      "description": "Media buy to get artifacts from",
+      "type": "string"
+    },
+    "package_ids": {
+      "description": "Filter to specific packages within the media buy",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "sampling": {
+      "description": "Sampling parameters. Defaults to the sampling rate agreed in the media buy.",
+      "properties": {
+        "method": {
+          "description": "How to select the sample",
+          "enum": [
+            "random",
+            "stratified",
+            "recent",
+            "failures_only"
+          ],
+          "type": "string"
+        },
+        "rate": {
+          "description": "Sampling rate (0-1). 1.0 = all deliveries, 0.25 = 25% sample.",
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "time_range": {
+      "description": "Filter to specific time period",
+      "properties": {
+        "end": {
+          "description": "End of time range (exclusive)",
+          "format": "date-time",
+          "type": "string"
+        },
+        "start": {
+          "description": "Start of time range (inclusive)",
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "media_buy_id"
+  ],
+  "title": "Get Media Buy Artifacts Request",
+  "type": "object"
+}

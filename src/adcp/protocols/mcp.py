@@ -517,3 +517,87 @@ class MCPAdapter(ProtocolAdapter):
     async def close(self) -> None:
         """Close the MCP session and clean up resources."""
         await self._cleanup_failed_connection("during close")
+
+    # ========================================================================
+    # V3 Protocol Methods - Protocol Discovery
+    # ========================================================================
+
+    async def get_adcp_capabilities(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Get AdCP capabilities from the agent."""
+        return await self._call_mcp_tool("get_adcp_capabilities", params)
+
+    # ========================================================================
+    # V3 Protocol Methods - Content Standards
+    # ========================================================================
+
+    async def create_content_standards(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Create content standards configuration."""
+        return await self._call_mcp_tool("create_content_standards", params)
+
+    async def get_content_standards(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Get content standards configuration."""
+        return await self._call_mcp_tool("get_content_standards", params)
+
+    async def list_content_standards(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """List content standards configurations."""
+        return await self._call_mcp_tool("list_content_standards", params)
+
+    async def update_content_standards(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Update content standards configuration."""
+        return await self._call_mcp_tool("update_content_standards", params)
+
+    async def calibrate_content(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Calibrate content against standards."""
+        return await self._call_mcp_tool("calibrate_content", params)
+
+    async def validate_content_delivery(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Validate content delivery against standards."""
+        return await self._call_mcp_tool("validate_content_delivery", params)
+
+    async def get_media_buy_artifacts(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Get artifacts associated with a media buy."""
+        return await self._call_mcp_tool("get_media_buy_artifacts", params)
+
+    # ========================================================================
+    # V3 Protocol Methods - Sponsored Intelligence
+    # ========================================================================
+
+    async def si_get_offering(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Get sponsored intelligence offering."""
+        return await self._call_mcp_tool("si_get_offering", params)
+
+    async def si_initiate_session(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Initiate sponsored intelligence session."""
+        return await self._call_mcp_tool("si_initiate_session", params)
+
+    async def si_send_message(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Send message in sponsored intelligence session."""
+        return await self._call_mcp_tool("si_send_message", params)
+
+    async def si_terminate_session(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Terminate sponsored intelligence session."""
+        return await self._call_mcp_tool("si_terminate_session", params)
+
+    # ========================================================================
+    # V3 Protocol Methods - Governance (Property Lists)
+    # ========================================================================
+
+    async def create_property_list(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Create a property list for governance."""
+        return await self._call_mcp_tool("create_property_list", params)
+
+    async def get_property_list(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Get a property list with optional resolution."""
+        return await self._call_mcp_tool("get_property_list", params)
+
+    async def list_property_lists(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """List property lists."""
+        return await self._call_mcp_tool("list_property_lists", params)
+
+    async def update_property_list(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Update a property list."""
+        return await self._call_mcp_tool("update_property_list", params)
+
+    async def delete_property_list(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Delete a property list."""
+        return await self._call_mcp_tool("delete_property_list", params)

@@ -1,42 +1,17 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
-  "description": "Request parameters for creating a media buy",
+  "dependencies": {
+    "proposal_id": [
+      "total_budget"
+    ]
+  },
+  "description": "Request parameters for creating a media buy. Supports two modes: (1) Manual mode - provide packages array with explicit line item configurations, or (2) Proposal mode - provide proposal_id and total_budget to execute a proposal from get_products. One of packages or proposal_id must be provided.",
   "properties": {
-    "brand_manifest": {
-      "$ref": "../core/brand-manifest-ref.json",
-      "description": "Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests."
-    },
-    "buyer_ref": {
-      "description": "Buyer's reference identifier for this media buy",
-      "type": "string"
-    },
-    "context": {
-      "$ref": "../core/context.json"
-    },
-    "end_time": {
-      "description": "Campaign end date/time in ISO 8601 format",
-      "format": "date-time",
-      "type": "string"
-    },
-    "ext": {
-      "$ref": "../core/ext.json"
-    },
-    "packages": {
-      "description": "Array of package configurations",
-      "items": {
-        "$ref": "package-request.json"
-      },
-      "type": "array"
-    },
-    "po_number": {
-      "description": "Purchase order number for tracking",
-      "type": "string"
-    },
-    "reporting_webhook": {
-      "$comment": "Fields url, token, and authentication mirror push-notification-config.json. Inlined here because allOf + additionalProperties:false doesn't work in JSON Schema (additionalProperties can't see $ref properties). See CLAUDE.md 'Avoiding allOf with additionalProperties'.",
+    "artifact_webhook": {
+      "$comment": "Webhook configuration for content artifact delivery - enables governance validation. Same authentication structure as reporting_webhook.",
       "additionalProperties": true,
-      "description": "Optional webhook configuration for automated reporting delivery. Combines push_notification_config structure with reporting-specific fields.",
+      "description": "Optional webhook configuration for content artifact delivery. Used by governance agents to validate content adjacency. Seller pushes artifacts to this endpoint; orchestrator forwards to governance agent for validation.",
       "properties": {
         "authentication": {
           "additionalProperties": false,
@@ -63,33 +38,27 @@
           ],
           "type": "object"
         },
-        "reporting_frequency": {
-          "description": "Frequency for automated reporting delivery. Must be supported by all products in the media buy.",
+        "batch_frequency": {
+          "description": "For batched delivery, how often to push artifacts. Required when delivery_mode is 'batched'.",
           "enum": [
             "hourly",
-            "daily",
-            "monthly"
+            "daily"
           ],
           "type": "string"
         },
-        "requested_metrics": {
-          "description": "Optional list of metrics to include in webhook notifications. If omitted, all available metrics are included. Must be subset of product's available_metrics.",
-          "items": {
-            "enum": [
-              "impressions",
-              "spend",
-              "clicks",
-              "ctr",
-              "video_completions",
-              "completion_rate",
-              "conversions",
-              "viewability",
-              "engagement_rate"
-            ],
-            "type": "string"
-          },
-          "type": "array",
-          "uniqueItems": true
+        "delivery_mode": {
+          "description": "How artifacts are delivered. 'realtime' pushes artifacts as impressions occur. 'batched' aggregates artifacts and pushes periodically (see batch_frequency).",
+          "enum": [
+            "realtime",
+            "batched"
+          ],
+          "type": "string"
+        },
+        "sampling_rate": {
+          "description": "Fraction of impressions to include (0-1). 1.0 = all impressions, 0.1 = 10% sample. Default: 1.0",
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
         },
         "token": {
           "description": "Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.",
@@ -97,7 +66,7 @@
           "type": "string"
         },
         "url": {
-          "description": "Webhook endpoint URL for reporting notifications",
+          "description": "Webhook endpoint URL for artifact delivery",
           "format": "uri",
           "type": "string"
         }
@@ -105,17 +74,74 @@
       "required": [
         "url",
         "authentication",
-        "reporting_frequency"
+        "delivery_mode"
       ],
       "type": "object"
     },
+    "brand_manifest": {
+      "$ref": "../core/brand-manifest-ref.json",
+      "description": "Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests."
+    },
+    "buyer_ref": {
+      "description": "Buyer's reference identifier for this media buy",
+      "type": "string"
+    },
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "end_time": {
+      "description": "Campaign end date/time in ISO 8601 format",
+      "format": "date-time",
+      "type": "string"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "packages": {
+      "description": "Array of package configurations. Required when not using proposal_id. When executing a proposal, this can be omitted and packages will be derived from the proposal's allocations.",
+      "items": {
+        "$ref": "package-request.json"
+      },
+      "type": "array"
+    },
+    "po_number": {
+      "description": "Purchase order number for tracking",
+      "type": "string"
+    },
+    "proposal_id": {
+      "description": "ID of a proposal from get_products to execute. When provided with total_budget, the publisher converts the proposal's allocation percentages into packages automatically. Alternative to providing packages array.",
+      "type": "string"
+    },
+    "reporting_webhook": {
+      "$ref": "../core/reporting-webhook.json",
+      "description": "Optional webhook configuration for automated reporting delivery"
+    },
     "start_time": {
       "$ref": "../core/start-timing.json"
+    },
+    "total_budget": {
+      "additionalProperties": false,
+      "description": "Total budget for the media buy when executing a proposal. The publisher applies the proposal's allocation percentages to this amount to derive package budgets.",
+      "properties": {
+        "amount": {
+          "description": "Total budget amount",
+          "minimum": 0,
+          "type": "number"
+        },
+        "currency": {
+          "description": "ISO 4217 currency code",
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "currency"
+      ],
+      "type": "object"
     }
   },
   "required": [
     "buyer_ref",
-    "packages",
     "brand_manifest",
     "start_time",
     "end_time"
