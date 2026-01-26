@@ -114,6 +114,34 @@ immediately rather than at runtime when users try to use the aliases.</p>
         return f&quot;Agent: {dest.agent_url}&quot;
 </code></pre></div>
 </dd>
+<dt id="adcp.types.aliases.PricingOption"><code class="name">var <span class="ident">PricingOption</span></code></dt>
+<dd>
+<div class="desc"><p>Union type for all pricing option variants.</p>
+<p>Use this for type hints when constructing Product.pricing_options or any field
+that accepts pricing options. This fixes mypy list-item errors that occur when
+using the individual variant types.</p>
+<h2 id="example">Example</h2>
+<pre><code class="language-python">from adcp.types import Product, CpmPricingOption, PricingOption
+
+# Type hint for a list of pricing options
+def get_pricing(options: list[PricingOption]) -&gt; None:
+    for opt in options:
+        print(f&quot;Model: {opt.pricing_model}&quot;)
+
+# Use in Product construction (no more mypy errors!)
+product = Product(
+    product_id=&quot;test&quot;,
+    name=&quot;Test Product&quot;,
+    pricing_options=[
+        CpmPricingOption(
+            pricing_model=&quot;cpm&quot;,
+            floor_price=1.50,
+            currency=&quot;USD&quot;
+        )
+    ]
+)
+</code></pre></div>
+</dd>
 <dt id="adcp.types.aliases.PublisherProperties"><code class="name">var <span class="ident">PublisherProperties</span></code></dt>
 <dd>
 <div class="desc"><p>Union type for all publisher properties variants.</p>
@@ -3611,6 +3639,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.AuthorizedAgent" href="#adcp.types.aliases.AuthorizedAgent">AuthorizedAgent</a></code></li>
 <li><code><a title="adcp.types.aliases.Deployment" href="#adcp.types.aliases.Deployment">Deployment</a></code></li>
 <li><code><a title="adcp.types.aliases.Destination" href="#adcp.types.aliases.Destination">Destination</a></code></li>
+<li><code><a title="adcp.types.aliases.PricingOption" href="#adcp.types.aliases.PricingOption">PricingOption</a></code></li>
 <li><code><a title="adcp.types.aliases.PublisherProperties" href="#adcp.types.aliases.PublisherProperties">PublisherProperties</a></code></li>
 </ul>
 </li>
