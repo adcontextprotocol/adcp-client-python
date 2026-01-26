@@ -204,7 +204,7 @@ class AdCPBaseModel(BaseModel):
             kwargs["exclude_none"] = True
         return super().model_dump_json(**kwargs)
 
-    def summary(self) -> str:
+    def model_summary(self) -> str:
         """Human-readable summary for protocol responses.
 
         Returns a standardized human-readable message suitable for MCP tool
