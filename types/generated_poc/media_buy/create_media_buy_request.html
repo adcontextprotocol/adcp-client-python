@@ -46,6 +46,107 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook"><code class="flex name class">
+<span>class <span class="ident">ArtifactWebhook</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ArtifactWebhook(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    authentication: Annotated[
+        Authentication,
+        Field(description=&#39;Authentication configuration for webhook delivery (A2A-compatible)&#39;),
+    ]
+    batch_frequency: Annotated[
+        BatchFrequency | None,
+        Field(
+            description=&#34;For batched delivery, how often to push artifacts. Required when delivery_mode is &#39;batched&#39;.&#34;
+        ),
+    ] = None
+    delivery_mode: Annotated[
+        DeliveryMode,
+        Field(
+            description=&#34;How artifacts are delivered. &#39;realtime&#39; pushes artifacts as impressions occur. &#39;batched&#39; aggregates artifacts and pushes periodically (see batch_frequency).&#34;
+        ),
+    ]
+    sampling_rate: Annotated[
+        float | None,
+        Field(
+            description=&#39;Fraction of impressions to include (0-1). 1.0 = all impressions, 0.1 = 10% sample. Default: 1.0&#39;,
+            ge=0.0,
+            le=1.0,
+        ),
+    ] = None
+    token: Annotated[
+        str | None,
+        Field(
+            description=&#39;Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.&#39;,
+            min_length=16,
+        ),
+    ] = None
+    url: Annotated[AnyUrl, Field(description=&#39;Webhook endpoint URL for artifact delivery&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook.authentication"><code class="name">var <span class="ident">authentication</span> : <a title="adcp.types.generated_poc.media_buy.create_media_buy_request.Authentication" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.Authentication">Authentication</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook.batch_frequency"><code class="name">var <span class="ident">batch_frequency</span> : <a title="adcp.types.generated_poc.media_buy.create_media_buy_request.BatchFrequency" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.BatchFrequency">BatchFrequency</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook.delivery_mode"><code class="name">var <span class="ident">delivery_mode</span> : <a title="adcp.types.generated_poc.media_buy.create_media_buy_request.DeliveryMode" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.DeliveryMode">DeliveryMode</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook.sampling_rate"><code class="name">var <span class="ident">sampling_rate</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook.token"><code class="name">var <span class="ident">token</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.Authentication"><code class="flex name class">
 <span>class <span class="ident">Authentication</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -57,12 +158,12 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Authentication(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;forbid&#39;,
     )
     credentials: Annotated[
         str,
         Field(
-            description=&#34;Credentials for authentication. For Bearer: token sent in Authorization header. For HMAC-SHA256: shared secret used to generate signature. Minimum 32 characters. Exchanged out-of-band during onboarding.&#34;,
+            description=&#39;Credentials for authentication. For Bearer: token sent in Authorization header. For HMAC-SHA256: shared secret used to generate signature. Minimum 32 characters. Exchanged out-of-band during onboarding.&#39;,
             min_length=32,
         ),
     ]
@@ -109,10 +210,74 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.BatchFrequency"><code class="flex name class">
+<span>class <span class="ident">BatchFrequency</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class BatchFrequency(Enum):
+    hourly = &#39;hourly&#39;
+    daily = &#39;daily&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.BatchFrequency.daily"><code class="name">var <span class="ident">daily</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.BatchFrequency.hourly"><code class="name">var <span class="ident">hourly</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest"><code class="flex name class">
 <span>class <span class="ident">CreateMediaBuyRequest</span></span>
@@ -125,31 +290,50 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreateMediaBuyRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
+    artifact_webhook: Annotated[
+        ArtifactWebhook | None,
+        Field(
+            description=&#39;Optional webhook configuration for content artifact delivery. Used by governance agents to validate content adjacency. Seller pushes artifacts to this endpoint; orchestrator forwards to governance agent for validation.&#39;
+        ),
+    ] = None
     brand_manifest: Annotated[
         brand_manifest_ref.BrandManifestReference,
         Field(
-            description=&#34;Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests.&#34;
+            description=&#39;Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests.&#39;
         ),
     ]
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
     context: context_1.ContextObject | None = None
     end_time: Annotated[
-        AwareDatetime, Field(description=&#34;Campaign end date/time in ISO 8601 format&#34;)
+        AwareDatetime, Field(description=&#39;Campaign end date/time in ISO 8601 format&#39;)
     ]
     ext: ext_1.ExtensionObject | None = None
     packages: Annotated[
-        list[package_request.PackageRequest], Field(description=&#34;Array of package configurations&#34;)
-    ]
-    po_number: Annotated[str | None, Field(description=&#34;Purchase order number for tracking&#34;)] = None
-    reporting_webhook: Annotated[
-        ReportingWebhook | None,
+        list[package_request.PackageRequest] | None,
         Field(
-            description=&#34;Optional webhook configuration for automated reporting delivery. Combines push_notification_config structure with reporting-specific fields.&#34;
+            description=&#34;Array of package configurations. Required when not using proposal_id. When executing a proposal, this can be omitted and packages will be derived from the proposal&#39;s allocations.&#34;
         ),
     ] = None
-    start_time: start_timing.StartTiming</code></pre>
+    po_number: Annotated[str | None, Field(description=&#39;Purchase order number for tracking&#39;)] = None
+    proposal_id: Annotated[
+        str | None,
+        Field(
+            description=&#34;ID of a proposal from get_products to execute. When provided with total_budget, the publisher converts the proposal&#39;s allocation percentages into packages automatically. Alternative to providing packages array.&#34;
+        ),
+    ] = None
+    reporting_webhook: Annotated[
+        reporting_webhook_1.ReportingWebhook | None,
+        Field(description=&#39;Optional webhook configuration for automated reporting delivery&#39;),
+    ] = None
+    start_time: start_timing.StartTiming
+    total_budget: Annotated[
+        TotalBudget | None,
+        Field(
+            description=&#34;Total budget for the media buy when executing a proposal. The publisher applies the proposal&#39;s allocation percentages to this amount to derive package budgets.&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -166,6 +350,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.artifact_webhook"><code class="name">var <span class="ident">artifact_webhook</span> : <a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook">ArtifactWebhook</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference" href="../core/brand_manifest_ref.html#adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference">BrandManifestReference</a></code></dt>
 <dd>
 <div class="desc"></div>
@@ -190,7 +378,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest" href="package_request.html#adcp.types.generated_poc.media_buy.package_request.PackageRequest">PackageRequest</a>]</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest" href="package_request.html#adcp.types.generated_poc.media_buy.package_request.PackageRequest">PackageRequest</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -198,11 +386,19 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.reporting_webhook"><code class="name">var <span class="ident">reporting_webhook</span> : <a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook">ReportingWebhook</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.proposal_id"><code class="name">var <span class="ident">proposal_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.reporting_webhook"><code class="name">var <span class="ident">reporting_webhook</span> : <a title="adcp.types.generated_poc.core.reporting_webhook.ReportingWebhook" href="../core/reporting_webhook.html#adcp.types.generated_poc.core.reporting_webhook.ReportingWebhook">ReportingWebhook</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.start_time"><code class="name">var <span class="ident">start_time</span> : <a title="adcp.types.generated_poc.core.start_timing.StartTiming" href="../core/start_timing.html#adcp.types.generated_poc.core.start_timing.StartTiming">StartTiming</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.total_budget"><code class="name">var <span class="ident">total_budget</span> : <a title="adcp.types.generated_poc.media_buy.create_media_buy_request.TotalBudget" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.TotalBudget">TotalBudget</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -213,13 +409,13 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingFrequency"><code class="flex name class">
-<span>class <span class="ident">ReportingFrequency</span></span>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.DeliveryMode"><code class="flex name class">
+<span>class <span class="ident">DeliveryMode</span></span>
 <span>(</span><span>*args, **kwds)</span>
 </code></dt>
 <dd>
@@ -227,10 +423,9 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class ReportingFrequency(Enum):
-    hourly = &#34;hourly&#34;
-    daily = &#34;daily&#34;
-    monthly = &#34;monthly&#34;</code></pre>
+<pre><code class="python">class DeliveryMode(Enum):
+    realtime = &#39;realtime&#39;
+    batched = &#39;batched&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -273,22 +468,18 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingFrequency.daily"><code class="name">var <span class="ident">daily</span></code></dt>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.DeliveryMode.batched"><code class="name">var <span class="ident">batched</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingFrequency.hourly"><code class="name">var <span class="ident">hourly</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingFrequency.monthly"><code class="name">var <span class="ident">monthly</span></code></dt>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.DeliveryMode.realtime"><code class="name">var <span class="ident">realtime</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook"><code class="flex name class">
-<span>class <span class="ident">ReportingWebhook</span></span>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.TotalBudget"><code class="flex name class">
+<span>class <span class="ident">TotalBudget</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -296,34 +487,12 @@ attributes &ndash; see the documentation for details.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class ReportingWebhook(AdCPBaseModel):
+<pre><code class="python">class TotalBudget(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;forbid&#39;,
     )
-    authentication: Annotated[
-        Authentication,
-        Field(description=&#34;Authentication configuration for webhook delivery (A2A-compatible)&#34;),
-    ]
-    reporting_frequency: Annotated[
-        ReportingFrequency,
-        Field(
-            description=&#34;Frequency for automated reporting delivery. Must be supported by all products in the media buy.&#34;
-        ),
-    ]
-    requested_metrics: Annotated[
-        list[RequestedMetric] | None,
-        Field(
-            description=&#34;Optional list of metrics to include in webhook notifications. If omitted, all available metrics are included. Must be subset of product&#39;s available_metrics.&#34;
-        ),
-    ] = None
-    token: Annotated[
-        str | None,
-        Field(
-            description=&#34;Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.&#34;,
-            min_length=16,
-        ),
-    ] = None
-    url: Annotated[AnyUrl, Field(description=&#34;Webhook endpoint URL for reporting notifications&#34;)]</code></pre>
+    amount: Annotated[float, Field(description=&#39;Total budget amount&#39;, ge=0.0)]
+    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -340,27 +509,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook.authentication"><code class="name">var <span class="ident">authentication</span> : <a title="adcp.types.generated_poc.media_buy.create_media_buy_request.Authentication" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.Authentication">Authentication</a></code></dt>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.TotalBudget.amount"><code class="name">var <span class="ident">amount</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.TotalBudget.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook.reporting_frequency"><code class="name">var <span class="ident">reporting_frequency</span> : <a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingFrequency" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingFrequency">ReportingFrequency</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook.requested_metrics"><code class="name">var <span class="ident">requested_metrics</span> : list[<a title="adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric">RequestedMetric</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook.token"><code class="name">var <span class="ident">token</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.TotalBudget.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -371,109 +528,10 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric"><code class="flex name class">
-<span>class <span class="ident">RequestedMetric</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class RequestedMetric(Enum):
-    impressions = &#34;impressions&#34;
-    spend = &#34;spend&#34;
-    clicks = &#34;clicks&#34;
-    ctr = &#34;ctr&#34;
-    video_completions = &#34;video_completions&#34;
-    completion_rate = &#34;completion_rate&#34;
-    conversions = &#34;conversions&#34;
-    viewability = &#34;viewability&#34;
-    engagement_rate = &#34;engagement_rate&#34;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.clicks"><code class="name">var <span class="ident">clicks</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.completion_rate"><code class="name">var <span class="ident">completion_rate</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.conversions"><code class="name">var <span class="ident">conversions</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.ctr"><code class="name">var <span class="ident">ctr</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.engagement_rate"><code class="name">var <span class="ident">engagement_rate</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.impressions"><code class="name">var <span class="ident">impressions</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.spend"><code class="name">var <span class="ident">spend</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.video_completions"><code class="name">var <span class="ident">video_completions</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.viewability"><code class="name">var <span class="ident">viewability</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
 </dd>
 </dl>
 </section>
@@ -491,6 +549,18 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook">ArtifactWebhook</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook.authentication" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook.authentication">authentication</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook.batch_frequency" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook.batch_frequency">batch_frequency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook.delivery_mode" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook.delivery_mode">delivery_mode</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook.model_config" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook.sampling_rate" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook.sampling_rate">sampling_rate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook.token" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook.token">token</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook.url" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ArtifactWebhook.url">url</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.Authentication" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.Authentication">Authentication</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.Authentication.credentials" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.Authentication.credentials">credentials</a></code></li>
@@ -499,8 +569,16 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.BatchFrequency" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.BatchFrequency">BatchFrequency</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.BatchFrequency.daily" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.BatchFrequency.daily">daily</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.BatchFrequency.hourly" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.BatchFrequency.hourly">hourly</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest">CreateMediaBuyRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.artifact_webhook" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.artifact_webhook">artifact_webhook</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.brand_manifest" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.brand_manifest">brand_manifest</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.buyer_ref" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.buyer_ref">buyer_ref</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.context" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.context">context</a></code></li>
@@ -509,41 +587,25 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.model_config" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.packages" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.packages">packages</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.po_number" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.po_number">po_number</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.proposal_id" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.proposal_id">proposal_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.reporting_webhook" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.reporting_webhook">reporting_webhook</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.start_time" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.start_time">start_time</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.total_budget" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.total_budget">total_budget</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingFrequency" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingFrequency">ReportingFrequency</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.DeliveryMode" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.DeliveryMode">DeliveryMode</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingFrequency.daily" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingFrequency.daily">daily</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingFrequency.hourly" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingFrequency.hourly">hourly</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingFrequency.monthly" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingFrequency.monthly">monthly</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.DeliveryMode.batched" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.DeliveryMode.batched">batched</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.DeliveryMode.realtime" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.DeliveryMode.realtime">realtime</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook">ReportingWebhook</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook.authentication" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook.authentication">authentication</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook.model_config" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook.reporting_frequency" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook.reporting_frequency">reporting_frequency</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook.requested_metrics" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook.requested_metrics">requested_metrics</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook.token" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook.token">token</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook.url" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.ReportingWebhook.url">url</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric">RequestedMetric</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.clicks" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.clicks">clicks</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.completion_rate" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.completion_rate">completion_rate</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.conversions" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.conversions">conversions</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.ctr" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.ctr">ctr</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.engagement_rate" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.engagement_rate">engagement_rate</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.impressions" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.impressions">impressions</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.spend" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.spend">spend</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.video_completions" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.video_completions">video_completions</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.viewability" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.RequestedMetric.viewability">viewability</a></code></li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.TotalBudget" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.TotalBudget">TotalBudget</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.TotalBudget.amount" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.TotalBudget.amount">amount</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.TotalBudget.currency" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.TotalBudget.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.TotalBudget.model_config" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.TotalBudget.model_config">model_config</a></code></li>
 </ul>
 </li>
 </ul>

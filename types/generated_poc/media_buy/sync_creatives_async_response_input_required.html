@@ -56,9 +56,9 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Reason(Enum):
-    APPROVAL_REQUIRED = &#34;APPROVAL_REQUIRED&#34;
-    ASSET_CONFIRMATION = &#34;ASSET_CONFIRMATION&#34;
-    FORMAT_CLARIFICATION = &#34;FORMAT_CLARIFICATION&#34;</code></pre>
+    APPROVAL_REQUIRED = &#39;APPROVAL_REQUIRED&#39;
+    ASSET_CONFIRMATION = &#39;ASSET_CONFIRMATION&#39;
+    FORMAT_CLARIFICATION = &#39;FORMAT_CLARIFICATION&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -126,12 +126,12 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class SyncCreativesInputRequired(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     reason: Annotated[
-        Reason | None, Field(description=&#34;Reason code indicating why buyer input is needed&#34;)
+        Reason | None, Field(description=&#39;Reason code indicating why buyer input is needed&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -172,7 +172,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>

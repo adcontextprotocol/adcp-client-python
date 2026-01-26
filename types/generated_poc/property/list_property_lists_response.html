@@ -57,19 +57,19 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class ListPropertyListsResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;forbid&#39;,
     )
     ext: ext_1.ExtensionObject | None = None
     lists: Annotated[
         list[property_list.PropertyList],
-        Field(description=&#34;Array of property lists (metadata only, not resolved properties)&#34;),
+        Field(description=&#39;Array of property lists (metadata only, not resolved properties)&#39;),
     ]
-    pagination: Annotated[Pagination | None, Field(description=&#34;Pagination information&#34;)] = None
+    pagination: Annotated[Pagination | None, Field(description=&#39;Pagination information&#39;)] = None
     returned_count: Annotated[
-        int | None, Field(description=&#34;Number of lists returned in this response&#34;)
+        int | None, Field(description=&#39;Number of lists returned in this response&#39;)
     ] = None
     total_count: Annotated[
-        int | None, Field(description=&#34;Total number of lists matching criteria&#34;)
+        int | None, Field(description=&#39;Total number of lists matching criteria&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -118,7 +118,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -134,10 +134,10 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Pagination(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;forbid&#39;,
     )
-    cursor: Annotated[str | None, Field(description=&#34;Cursor for next page&#34;)] = None
-    has_more: Annotated[bool | None, Field(description=&#34;Whether more results are available&#34;)] = None</code></pre>
+    cursor: Annotated[str | None, Field(description=&#39;Cursor for next page&#39;)] = None
+    has_more: Annotated[bool | None, Field(description=&#39;Whether more results are available&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -173,7 +173,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>

@@ -46,8 +46,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.core.targeting.GeoCountryAnyOfItem"><code class="flex name class">
-<span>class <span class="ident">GeoCountryAnyOfItem</span></span>
+<dt id="adcp.types.generated_poc.core.targeting.GeoCountry"><code class="flex name class">
+<span>class <span class="ident">GeoCountry</span></span>
 <span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
 </code></dt>
 <dd>
@@ -55,8 +55,8 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class GeoCountryAnyOfItem(RootModel[str]):
-    root: Annotated[str, Field(pattern=&#34;^[A-Z]{2}$&#34;)]</code></pre>
+<pre><code class="python">class GeoCountry(RootModel[str]):
+    root: Annotated[str, Field(pattern=&#39;^[A-Z]{2}$&#39;)]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -87,11 +87,192 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.targeting.GeoCountryAnyOfItem.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoCountry.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoCountryAnyOfItem.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoCountry.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoMetro"><code class="flex name class">
+<span>class <span class="ident">GeoMetro</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GeoMetro(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    system: Annotated[
+        metro_system.MetroAreaSystem,
+        Field(description=&#34;Metro area classification system (e.g., &#39;nielsen_dma&#39;, &#39;uk_itl2&#39;)&#34;),
+    ]
+    values: Annotated[
+        list[str],
+        Field(
+            description=&#34;Metro codes within the system (e.g., [&#39;501&#39;, &#39;602&#39;] for Nielsen DMAs)&#34;,
+            min_length=1,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.targeting.GeoMetro.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoMetro.system"><code class="name">var <span class="ident">system</span> : <a title="adcp.types.generated_poc.enums.metro_system.MetroAreaSystem" href="../enums/metro_system.html#adcp.types.generated_poc.enums.metro_system.MetroAreaSystem">MetroAreaSystem</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoMetro.values"><code class="name">var <span class="ident">values</span> : list[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoPostalArea"><code class="flex name class">
+<span>class <span class="ident">GeoPostalArea</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GeoPostalArea(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    system: Annotated[
+        postal_system.PostalCodeSystem,
+        Field(
+            description=&#34;Postal code system (e.g., &#39;us_zip&#39;, &#39;gb_outward&#39;). System name encodes country and precision.&#34;
+        ),
+    ]
+    values: Annotated[
+        list[str],
+        Field(
+            description=&#34;Postal codes within the system (e.g., [&#39;10001&#39;, &#39;10002&#39;] for us_zip)&#34;,
+            min_length=1,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.targeting.GeoPostalArea.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoPostalArea.system"><code class="name">var <span class="ident">system</span> : <a title="adcp.types.generated_poc.enums.postal_system.PostalCodeSystem" href="../enums/postal_system.html#adcp.types.generated_poc.enums.postal_system.PostalCodeSystem">PostalCodeSystem</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoPostalArea.values"><code class="name">var <span class="ident">values</span> : list[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoRegion"><code class="flex name class">
+<span>class <span class="ident">GeoRegion</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GeoRegion(RootModel[str]):
+    root: Annotated[str, Field(pattern=&#39;^[A-Z]{2}-[A-Z0-9]{1,3}$&#39;)]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[str]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.targeting.GeoRegion.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoRegion.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -108,37 +289,37 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class TargetingOverlay(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     axe_exclude_segment: Annotated[
-        str | None, Field(description=&#34;AXE segment ID to exclude from targeting&#34;)
+        str | None, Field(description=&#39;AXE segment ID to exclude from targeting&#39;)
     ] = None
     axe_include_segment: Annotated[
-        str | None, Field(description=&#34;AXE segment ID to include for targeting&#34;)
+        str | None, Field(description=&#39;AXE segment ID to include for targeting&#39;)
     ] = None
     frequency_cap: frequency_cap_1.FrequencyCap | None = None
-    geo_country_any_of: Annotated[
-        list[GeoCountryAnyOfItem] | None,
+    geo_countries: Annotated[
+        list[GeoCountry] | None,
         Field(
-            description=&#34;Restrict delivery to specific countries (ISO codes). Use for regulatory compliance or RCT testing.&#34;
+            description=&#34;Restrict delivery to specific countries. ISO 3166-1 alpha-2 codes (e.g., &#39;US&#39;, &#39;GB&#39;, &#39;DE&#39;).&#34;
         ),
     ] = None
-    geo_metro_any_of: Annotated[
-        list[str] | None,
+    geo_metros: Annotated[
+        list[GeoMetro] | None,
         Field(
-            description=&#34;Restrict delivery to specific metro areas (DMA codes). Use for regulatory compliance or RCT testing.&#34;
+            description=&#39;Restrict delivery to specific metro areas. Each entry specifies the classification system and target values. Seller must declare supported systems in get_adcp_capabilities.&#39;
         ),
     ] = None
-    geo_postal_code_any_of: Annotated[
-        list[str] | None,
+    geo_postal_areas: Annotated[
+        list[GeoPostalArea] | None,
         Field(
-            description=&#34;Restrict delivery to specific postal/ZIP codes. Use for regulatory compliance or RCT testing.&#34;
+            description=&#39;Restrict delivery to specific postal areas. Each entry specifies the postal system and target values. Seller must declare supported systems in get_adcp_capabilities.&#39;
         ),
     ] = None
-    geo_region_any_of: Annotated[
-        list[str] | None,
+    geo_regions: Annotated[
+        list[GeoRegion] | None,
         Field(
-            description=&#34;Restrict delivery to specific regions/states. Use for regulatory compliance or RCT testing.&#34;
+            description=&#34;Restrict delivery to specific regions/states. ISO 3166-2 subdivision codes (e.g., &#39;US-CA&#39;, &#39;GB-SCT&#39;).&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -169,19 +350,19 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_country_any_of"><code class="name">var <span class="ident">geo_country_any_of</span> : list[<a title="adcp.types.generated_poc.core.targeting.GeoCountryAnyOfItem" href="#adcp.types.generated_poc.core.targeting.GeoCountryAnyOfItem">GeoCountryAnyOfItem</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_countries"><code class="name">var <span class="ident">geo_countries</span> : list[<a title="adcp.types.generated_poc.core.targeting.GeoCountry" href="#adcp.types.generated_poc.core.targeting.GeoCountry">GeoCountry</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_metro_any_of"><code class="name">var <span class="ident">geo_metro_any_of</span> : list[str] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_metros"><code class="name">var <span class="ident">geo_metros</span> : list[<a title="adcp.types.generated_poc.core.targeting.GeoMetro" href="#adcp.types.generated_poc.core.targeting.GeoMetro">GeoMetro</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_postal_code_any_of"><code class="name">var <span class="ident">geo_postal_code_any_of</span> : list[str] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_postal_areas"><code class="name">var <span class="ident">geo_postal_areas</span> : list[<a title="adcp.types.generated_poc.core.targeting.GeoPostalArea" href="#adcp.types.generated_poc.core.targeting.GeoPostalArea">GeoPostalArea</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_region_any_of"><code class="name">var <span class="ident">geo_region_any_of</span> : list[str] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_regions"><code class="name">var <span class="ident">geo_regions</span> : list[<a title="adcp.types.generated_poc.core.targeting.GeoRegion" href="#adcp.types.generated_poc.core.targeting.GeoRegion">GeoRegion</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -196,7 +377,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -217,22 +398,45 @@ validated to form a valid model.</p>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.targeting.GeoCountryAnyOfItem" href="#adcp.types.generated_poc.core.targeting.GeoCountryAnyOfItem">GeoCountryAnyOfItem</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.GeoCountry" href="#adcp.types.generated_poc.core.targeting.GeoCountry">GeoCountry</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.targeting.GeoCountryAnyOfItem.model_config" href="#adcp.types.generated_poc.core.targeting.GeoCountryAnyOfItem.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.targeting.GeoCountryAnyOfItem.root" href="#adcp.types.generated_poc.core.targeting.GeoCountryAnyOfItem.root">root</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoCountry.model_config" href="#adcp.types.generated_poc.core.targeting.GeoCountry.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoCountry.root" href="#adcp.types.generated_poc.core.targeting.GeoCountry.root">root</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.GeoMetro" href="#adcp.types.generated_poc.core.targeting.GeoMetro">GeoMetro</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoMetro.model_config" href="#adcp.types.generated_poc.core.targeting.GeoMetro.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoMetro.system" href="#adcp.types.generated_poc.core.targeting.GeoMetro.system">system</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoMetro.values" href="#adcp.types.generated_poc.core.targeting.GeoMetro.values">values</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.GeoPostalArea" href="#adcp.types.generated_poc.core.targeting.GeoPostalArea">GeoPostalArea</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoPostalArea.model_config" href="#adcp.types.generated_poc.core.targeting.GeoPostalArea.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoPostalArea.system" href="#adcp.types.generated_poc.core.targeting.GeoPostalArea.system">system</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoPostalArea.values" href="#adcp.types.generated_poc.core.targeting.GeoPostalArea.values">values</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.GeoRegion" href="#adcp.types.generated_poc.core.targeting.GeoRegion">GeoRegion</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoRegion.model_config" href="#adcp.types.generated_poc.core.targeting.GeoRegion.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoRegion.root" href="#adcp.types.generated_poc.core.targeting.GeoRegion.root">root</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay">TargetingOverlay</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.axe_exclude_segment" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.axe_exclude_segment">axe_exclude_segment</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.axe_include_segment" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.axe_include_segment">axe_include_segment</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.frequency_cap" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.frequency_cap">frequency_cap</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_country_any_of" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_country_any_of">geo_country_any_of</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_metro_any_of" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_metro_any_of">geo_metro_any_of</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_postal_code_any_of" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_postal_code_any_of">geo_postal_code_any_of</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_region_any_of" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_region_any_of">geo_region_any_of</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_countries" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_countries">geo_countries</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_metros" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_metros">geo_metros</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_postal_areas" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_postal_areas">geo_postal_areas</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_regions" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_regions">geo_regions</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.model_config" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.model_config">model_config</a></code></li>
 </ul>
 </li>

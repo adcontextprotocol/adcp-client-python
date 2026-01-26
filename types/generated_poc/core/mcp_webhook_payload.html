@@ -57,58 +57,58 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class McpWebhookPayload(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context_id: Annotated[
         str | None,
         Field(
-            description=&#34;Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters.&#34;
+            description=&#39;Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters.&#39;
         ),
     ] = None
     domain: Annotated[
         adcp_domain.AdcpDomain | None,
         Field(
-            description=&#34;AdCP domain this task belongs to. Helps classify the operation type at a high level.&#34;
+            description=&#39;AdCP domain this task belongs to. Helps classify the operation type at a high level.&#39;
         ),
     ] = None
     message: Annotated[
         str | None,
         Field(
-            description=&#34;Human-readable summary of the current task state. Provides context about what happened and what action may be needed.&#34;
+            description=&#39;Human-readable summary of the current task state. Provides context about what happened and what action may be needed.&#39;
         ),
     ] = None
     operation_id: Annotated[
         str | None,
         Field(
-            description=&#34;Publisher-defined operation identifier correlating a sequence of task updates across webhooks.&#34;
+            description=&#39;Publisher-defined operation identifier correlating a sequence of task updates across webhooks.&#39;
         ),
     ] = None
     result: Annotated[
         async_response_data.AdcpAsyncResponseData | None,
         Field(
-            description=&#34;Task-specific payload matching the status. For completed/failed, contains the full task response. For working/input-required/submitted, contains status-specific data. This is the data layer that AdCP specs - same structure used in A2A status.message.parts[].data.&#34;
+            description=&#39;Task-specific payload matching the status. For completed/failed, contains the full task response. For working/input-required/submitted, contains status-specific data. This is the data layer that AdCP specs - same structure used in A2A status.message.parts[].data.&#39;
         ),
     ] = None
     status: Annotated[
         task_status.TaskStatus,
         Field(
-            description=&#34;Current task status. Webhooks are triggered for status changes after initial submission.&#34;
+            description=&#39;Current task status. Webhooks are triggered for status changes after initial submission.&#39;
         ),
     ]
     task_id: Annotated[
         str,
         Field(
-            description=&#34;Unique identifier for this task. Use this to correlate webhook notifications with the original task submission.&#34;
+            description=&#39;Unique identifier for this task. Use this to correlate webhook notifications with the original task submission.&#39;
         ),
     ]
     task_type: Annotated[
         task_type_1.TaskType,
         Field(
-            description=&#34;Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic.&#34;
+            description=&#39;Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic.&#39;
         ),
     ]
     timestamp: Annotated[
-        AwareDatetime, Field(description=&#34;ISO 8601 timestamp when this webhook was generated.&#34;)
+        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when this webhook was generated.&#39;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -173,7 +173,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>

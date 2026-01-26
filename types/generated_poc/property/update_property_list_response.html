@@ -57,10 +57,10 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class UpdatePropertyListResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;forbid&#39;,
     )
     ext: ext_1.ExtensionObject | None = None
-    list: Annotated[property_list.PropertyList, Field(description=&#34;The updated property list&#34;)]</code></pre>
+    list: Annotated[property_list.PropertyList, Field(description=&#39;The updated property list&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -96,7 +96,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>

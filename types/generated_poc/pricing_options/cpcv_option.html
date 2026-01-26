@@ -57,37 +57,49 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class CpcvPricingOption(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     currency: Annotated[
         str,
         Field(
-            description=&#34;ISO 4217 currency code&#34;,
-            examples=[&#34;USD&#34;, &#34;EUR&#34;, &#34;GBP&#34;, &#34;JPY&#34;],
-            pattern=&#34;^[A-Z]{3}$&#34;,
+            description=&#39;ISO 4217 currency code&#39;,
+            examples=[&#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;, &#39;JPY&#39;],
+            pattern=&#39;^[A-Z]{3}$&#39;,
         ),
     ]
-    is_fixed: Annotated[
-        Literal[True],
-        Field(description=&#34;Whether this is a fixed rate (true) or auction-based (false)&#34;),
-    ]
-    min_spend_per_package: Annotated[
+    fixed_price: Annotated[
         float | None,
         Field(
-            description=&#34;Minimum spend requirement per package using this pricing option, in the specified currency&#34;,
+            description=&#39;Fixed price per completed view. If present, this is fixed pricing. If absent, auction-based.&#39;,
             ge=0.0,
         ),
     ] = None
+    floor_price: Annotated[
+        float | None,
+        Field(
+            description=&#39;Minimum acceptable bid for auction pricing (mutually exclusive with fixed_price). Bids below this value will be rejected.&#39;,
+            ge=0.0,
+        ),
+    ] = None
+    min_spend_per_package: Annotated[
+        float | None,
+        Field(
+            description=&#39;Minimum spend requirement per package using this pricing option, in the specified currency&#39;,
+            ge=0.0,
+        ),
+    ] = None
+    price_guidance: Annotated[
+        PriceGuidance | None,
+        Field(
+            description=&#39;Optional pricing guidance for auction-based bidding. Helps buyers calibrate bids with historical percentiles.&#39;
+        ),
+    ] = None
     pricing_model: Annotated[
-        Literal[&#34;cpcv&#34;], Field(description=&#34;Cost per completed view (100% completion)&#34;)
+        Literal[&#39;cpcv&#39;], Field(description=&#39;Cost per completed view (100% completion)&#39;)
     ]
     pricing_option_id: Annotated[
-        str,
-        Field(
-            description=&#34;Unique identifier for this pricing option within the product (e.g., &#39;cpcv_usd_guaranteed&#39;)&#34;
-        ),
-    ]
-    rate: Annotated[float, Field(description=&#34;Fixed CPCV rate (cost per 100% completion)&#34;, ge=0.0)]</code></pre>
+        str, Field(description=&#39;Unique identifier for this pricing option within the product&#39;)
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -108,7 +120,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.is_fixed"><code class="name">var <span class="ident">is_fixed</span> : Literal[True]</code></dt>
+<dt id="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.fixed_price"><code class="name">var <span class="ident">fixed_price</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.floor_price"><code class="name">var <span class="ident">floor_price</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -120,15 +136,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.price_guidance"><code class="name">var <span class="ident">price_guidance</span> : <a title="adcp.types.generated_poc.pricing_options.cpcv_option.PriceGuidance" href="#adcp.types.generated_poc.pricing_options.cpcv_option.PriceGuidance">PriceGuidance</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.pricing_model"><code class="name">var <span class="ident">pricing_model</span> : Literal['cpcv']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.pricing_option_id"><code class="name">var <span class="ident">pricing_option_id</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.rate"><code class="name">var <span class="ident">rate</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -139,7 +155,75 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.pricing_options.cpcv_option.PriceGuidance"><code class="flex name class">
+<span>class <span class="ident">PriceGuidance</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PriceGuidance(AdCPBaseModel):
+    p25: Annotated[
+        float | None, Field(description=&#39;25th percentile of recent winning bids&#39;, ge=0.0)
+    ] = None
+    p50: Annotated[float | None, Field(description=&#39;Median of recent winning bids&#39;, ge=0.0)] = None
+    p75: Annotated[
+        float | None, Field(description=&#39;75th percentile of recent winning bids&#39;, ge=0.0)
+    ] = None
+    p90: Annotated[
+        float | None, Field(description=&#39;90th percentile of recent winning bids&#39;, ge=0.0)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.pricing_options.cpcv_option.PriceGuidance.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.pricing_options.cpcv_option.PriceGuidance.p25"><code class="name">var <span class="ident">p25</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.pricing_options.cpcv_option.PriceGuidance.p50"><code class="name">var <span class="ident">p50</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.pricing_options.cpcv_option.PriceGuidance.p75"><code class="name">var <span class="ident">p75</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.pricing_options.cpcv_option.PriceGuidance.p90"><code class="name">var <span class="ident">p90</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -163,12 +247,23 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption" href="#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption">CpcvPricingOption</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.currency" href="#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.currency">currency</a></code></li>
-<li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.is_fixed" href="#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.is_fixed">is_fixed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.fixed_price" href="#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.fixed_price">fixed_price</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.floor_price" href="#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.floor_price">floor_price</a></code></li>
 <li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.min_spend_per_package" href="#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.min_spend_per_package">min_spend_per_package</a></code></li>
 <li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.model_config" href="#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.price_guidance" href="#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.price_guidance">price_guidance</a></code></li>
 <li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.pricing_model" href="#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.pricing_model">pricing_model</a></code></li>
 <li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.pricing_option_id" href="#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.pricing_option_id">pricing_option_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.rate" href="#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.rate">rate</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.PriceGuidance" href="#adcp.types.generated_poc.pricing_options.cpcv_option.PriceGuidance">PriceGuidance</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.PriceGuidance.model_config" href="#adcp.types.generated_poc.pricing_options.cpcv_option.PriceGuidance.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.PriceGuidance.p25" href="#adcp.types.generated_poc.pricing_options.cpcv_option.PriceGuidance.p25">p25</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.PriceGuidance.p50" href="#adcp.types.generated_poc.pricing_options.cpcv_option.PriceGuidance.p50">p50</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.PriceGuidance.p75" href="#adcp.types.generated_poc.pricing_options.cpcv_option.PriceGuidance.p75">p75</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.PriceGuidance.p90" href="#adcp.types.generated_poc.pricing_options.cpcv_option.PriceGuidance.p90">p90</a></code></li>
 </ul>
 </li>
 </ul>

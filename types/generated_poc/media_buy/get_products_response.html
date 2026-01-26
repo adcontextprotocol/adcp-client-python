@@ -57,19 +57,25 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class GetProductsResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error] | None,
-        Field(description=&#34;Task-specific errors and warnings (e.g., product filtering issues)&#34;),
+        Field(description=&#39;Task-specific errors and warnings (e.g., product filtering issues)&#39;),
     ] = None
     ext: ext_1.ExtensionObject | None = None
-    products: Annotated[list[product.Product], Field(description=&#34;Array of matching products&#34;)]
+    products: Annotated[list[product.Product], Field(description=&#39;Array of matching products&#39;)]
     property_list_applied: Annotated[
         bool | None,
         Field(
-            description=&#34;[AdCP 3.0] Indicates whether property_list filtering was applied. True if the agent filtered products based on the provided property_list. Absent or false if property_list was not provided or not supported by this agent.&#34;
+            description=&#39;[AdCP 3.0] Indicates whether property_list filtering was applied. True if the agent filtered products based on the provided property_list. Absent or false if property_list was not provided or not supported by this agent.&#39;
+        ),
+    ] = None
+    proposals: Annotated[
+        list[proposal.Proposal] | None,
+        Field(
+            description=&#39;Optional array of proposed media plans with budget allocations across products. Publishers include proposals when they can provide strategic guidance based on the brief. Proposals are actionable - buyers can refine them via subsequent get_products calls or execute them directly via create_media_buy.&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -112,6 +118,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.proposals"><code class="name">var <span class="ident">proposals</span> : list[<a title="adcp.types.generated_poc.core.proposal.Proposal" href="../core/proposal.html#adcp.types.generated_poc.core.proposal.Proposal">Proposal</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
@@ -119,7 +129,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -148,6 +158,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.model_config" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.products" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.products">products</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.property_list_applied" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.property_list_applied">property_list_applied</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.proposals" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.proposals">proposals</a></code></li>
 </ul>
 </li>
 </ul>

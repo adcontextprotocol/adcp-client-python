@@ -57,10 +57,8 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class PricingOption(
     RootModel[
-        cpm_fixed_option.CpmFixedRatePricingOption
-        | cpm_auction_option.CpmAuctionPricingOption
-        | vcpm_fixed_option.VcpmFixedRatePricingOption
-        | vcpm_auction_option.VcpmAuctionPricingOption
+        cpm_option.CpmPricingOption
+        | vcpm_option.VcpmPricingOption
         | cpc_option.CpcPricingOption
         | cpcv_option.CpcvPricingOption
         | cpv_option.CpvPricingOption
@@ -69,18 +67,16 @@ el.replaceWith(d);
     ]
 ):
     root: Annotated[
-        cpm_fixed_option.CpmFixedRatePricingOption
-        | cpm_auction_option.CpmAuctionPricingOption
-        | vcpm_fixed_option.VcpmFixedRatePricingOption
-        | vcpm_auction_option.VcpmAuctionPricingOption
+        cpm_option.CpmPricingOption
+        | vcpm_option.VcpmPricingOption
         | cpc_option.CpcPricingOption
         | cpcv_option.CpcvPricingOption
         | cpv_option.CpvPricingOption
         | cpp_option.CppPricingOption
         | flat_rate_option.FlatRatePricingOption,
         Field(
-            description=&#34;A pricing model option offered by a publisher for a product. Each pricing model has its own schema with model-specific requirements.&#34;,
-            title=&#34;Pricing Option&#34;,
+            description=&#34;A pricing model option offered by a publisher for a product. Discriminated by pricing_model field. If fixed_price is present, it&#39;s fixed pricing. If absent, it&#39;s auction-based (floor_price and price_guidance optional).&#34;,
+            title=&#39;Pricing Option&#39;,
         ),
     ]</code></pre>
 </details>
@@ -106,7 +102,7 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li>pydantic.root_model.RootModel[Union[CpmFixedRatePricingOption, CpmAuctionPricingOption, VcpmFixedRatePricingOption, VcpmAuctionPricingOption, CpcPricingOption, CpcvPricingOption, CpvPricingOption, CppPricingOption, FlatRatePricingOption]]</li>
+<li>pydantic.root_model.RootModel[Union[CpmPricingOption, VcpmPricingOption, CpcPricingOption, CpcvPricingOption, CpvPricingOption, CppPricingOption, FlatRatePricingOption]]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
 <li>typing.Generic</li>
@@ -117,7 +113,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.pricing_option.PricingOption.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption" href="../pricing_options/cpm_fixed_option.html#adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption">CpmFixedRatePricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.cpm_auction_option.CpmAuctionPricingOption" href="../pricing_options/cpm_auction_option.html#adcp.types.generated_poc.pricing_options.cpm_auction_option.CpmAuctionPricingOption">CpmAuctionPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.vcpm_fixed_option.VcpmFixedRatePricingOption" href="../pricing_options/vcpm_fixed_option.html#adcp.types.generated_poc.pricing_options.vcpm_fixed_option.VcpmFixedRatePricingOption">VcpmFixedRatePricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.vcpm_auction_option.VcpmAuctionPricingOption" href="../pricing_options/vcpm_auction_option.html#adcp.types.generated_poc.pricing_options.vcpm_auction_option.VcpmAuctionPricingOption">VcpmAuctionPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.cpc_option.CpcPricingOption" href="../pricing_options/cpc_option.html#adcp.types.generated_poc.pricing_options.cpc_option.CpcPricingOption">CpcPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption" href="../pricing_options/cpcv_option.html#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption">CpcvPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption" href="../pricing_options/cpv_option.html#adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption">CpvPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.cpp_option.CppPricingOption" href="../pricing_options/cpp_option.html#adcp.types.generated_poc.pricing_options.cpp_option.CppPricingOption">CppPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.flat_rate_option.FlatRatePricingOption" href="../pricing_options/flat_rate_option.html#adcp.types.generated_poc.pricing_options.flat_rate_option.FlatRatePricingOption">FlatRatePricingOption</a></code></dt>
+<dt id="adcp.types.generated_poc.core.pricing_option.PricingOption.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.pricing_options.cpm_option.CpmPricingOption" href="../pricing_options/cpm_option.html#adcp.types.generated_poc.pricing_options.cpm_option.CpmPricingOption">CpmPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.vcpm_option.VcpmPricingOption" href="../pricing_options/vcpm_option.html#adcp.types.generated_poc.pricing_options.vcpm_option.VcpmPricingOption">VcpmPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.cpc_option.CpcPricingOption" href="../pricing_options/cpc_option.html#adcp.types.generated_poc.pricing_options.cpc_option.CpcPricingOption">CpcPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption" href="../pricing_options/cpcv_option.html#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption">CpcvPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption" href="../pricing_options/cpv_option.html#adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption">CpvPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.cpp_option.CppPricingOption" href="../pricing_options/cpp_option.html#adcp.types.generated_poc.pricing_options.cpp_option.CppPricingOption">CppPricingOption</a> | <a title="adcp.types.generated_poc.pricing_options.flat_rate_option.FlatRatePricingOption" href="../pricing_options/flat_rate_option.html#adcp.types.generated_poc.pricing_options.flat_rate_option.FlatRatePricingOption">FlatRatePricingOption</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>

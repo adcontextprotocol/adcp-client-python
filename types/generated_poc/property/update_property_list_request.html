@@ -57,31 +57,31 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class UpdatePropertyListRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;forbid&#39;,
     )
     base_properties: Annotated[
         list[base_property_source.BasePropertySource] | None,
         Field(
-            description=&#34;Complete replacement for the base properties list (not a patch). Each entry is a discriminated union: publisher_tags (publisher_domain + tags), publisher_ids (publisher_domain + property_ids), or identifiers (direct identifiers).&#34;
+            description=&#39;Complete replacement for the base properties list (not a patch). Each entry is a discriminated union: publisher_tags (publisher_domain + tags), publisher_ids (publisher_domain + property_ids), or identifiers (direct identifiers).&#39;
         ),
     ] = None
     brand_manifest: Annotated[
         brand_manifest_1.BrandManifest | None,
-        Field(description=&#34;Update brand identity and requirements&#34;),
+        Field(description=&#39;Update brand identity and requirements&#39;),
     ] = None
     context: context_1.ContextObject | None = None
-    description: Annotated[str | None, Field(description=&#34;New description&#34;)] = None
+    description: Annotated[str | None, Field(description=&#39;New description&#39;)] = None
     ext: ext_1.ExtensionObject | None = None
     filters: Annotated[
         property_list_filters.PropertyListFilters | None,
-        Field(description=&#34;Complete replacement for the filters (not a patch)&#34;),
+        Field(description=&#39;Complete replacement for the filters (not a patch)&#39;),
     ] = None
-    list_id: Annotated[str, Field(description=&#34;ID of the property list to update&#34;)]
-    name: Annotated[str | None, Field(description=&#34;New name for the list&#34;)] = None
+    list_id: Annotated[str, Field(description=&#39;ID of the property list to update&#39;)]
+    name: Annotated[str | None, Field(description=&#39;New name for the list&#39;)] = None
     webhook_url: Annotated[
         AnyUrl | None,
         Field(
-            description=&#34;Update the webhook URL for list change notifications (set to empty string to remove)&#34;
+            description=&#39;Update the webhook URL for list change notifications (set to empty string to remove)&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -147,7 +147,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>

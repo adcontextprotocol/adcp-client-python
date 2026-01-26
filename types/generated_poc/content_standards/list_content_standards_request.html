@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.property.list_property_features_response API documentation</title>
+<title>adcp.types.generated_poc.content_standards.list_content_standards_request API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.property.list_property_features_response</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.content_standards.list_content_standards_request</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,8 +46,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.property.list_property_features_response.ListPropertyFeaturesResponse"><code class="flex name class">
-<span>class <span class="ident">ListPropertyFeaturesResponse</span></span>
+<dt id="adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest"><code class="flex name class">
+<span>class <span class="ident">ListContentStandardsRequest</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -55,15 +55,21 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class ListPropertyFeaturesResponse(AdCPBaseModel):
+<pre><code class="python">class ListContentStandardsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;allow&#39;,
     )
+    channels: Annotated[
+        list[channels_1.MediaChannel] | None, Field(description=&#39;Filter by channel&#39;)
+    ] = None
+    context: context_1.ContextObject | None = None
+    countries: Annotated[
+        list[str] | None, Field(description=&#39;Filter by ISO 3166-1 alpha-2 country codes&#39;)
+    ] = None
     ext: ext_1.ExtensionObject | None = None
-    features: Annotated[
-        list[property_feature_definition.PropertyFeatureDefinition],
-        Field(description=&#34;Features this agent can evaluate&#34;),
-    ]</code></pre>
+    languages: Annotated[list[str] | None, Field(description=&#39;Filter by BCP 47 language tags&#39;)] = (
+        None
+    )</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -80,15 +86,27 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.property.list_property_features_response.ListPropertyFeaturesResponse.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.channels"><code class="name">var <span class="ident">channels</span> : list[<a title="adcp.types.generated_poc.enums.channels.MediaChannel" href="../enums/channels.html#adcp.types.generated_poc.enums.channels.MediaChannel">MediaChannel</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.property.list_property_features_response.ListPropertyFeaturesResponse.features"><code class="name">var <span class="ident">features</span> : list[<a title="adcp.types.generated_poc.property.property_feature_definition.PropertyFeatureDefinition" href="property_feature_definition.html#adcp.types.generated_poc.property.property_feature_definition.PropertyFeatureDefinition">PropertyFeatureDefinition</a>]</code></dt>
+<dt id="adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.property.list_property_features_response.ListPropertyFeaturesResponse.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.countries"><code class="name">var <span class="ident">countries</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.languages"><code class="name">var <span class="ident">languages</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -99,7 +117,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -114,17 +132,20 @@ validated to form a valid model.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.property" href="index.html">adcp.types.generated_poc.property</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards" href="index.html">adcp.types.generated_poc.content_standards</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.property.list_property_features_response.ListPropertyFeaturesResponse" href="#adcp.types.generated_poc.property.list_property_features_response.ListPropertyFeaturesResponse">ListPropertyFeaturesResponse</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.property.list_property_features_response.ListPropertyFeaturesResponse.ext" href="#adcp.types.generated_poc.property.list_property_features_response.ListPropertyFeaturesResponse.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.property.list_property_features_response.ListPropertyFeaturesResponse.features" href="#adcp.types.generated_poc.property.list_property_features_response.ListPropertyFeaturesResponse.features">features</a></code></li>
-<li><code><a title="adcp.types.generated_poc.property.list_property_features_response.ListPropertyFeaturesResponse.model_config" href="#adcp.types.generated_poc.property.list_property_features_response.ListPropertyFeaturesResponse.model_config">model_config</a></code></li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest" href="#adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest">ListContentStandardsRequest</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.channels" href="#adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.channels">channels</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.context" href="#adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.countries" href="#adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.countries">countries</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.ext" href="#adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.languages" href="#adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.languages">languages</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.model_config" href="#adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.model_config">model_config</a></code></li>
 </ul>
 </li>
 </ul>

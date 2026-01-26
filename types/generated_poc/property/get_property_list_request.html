@@ -57,21 +57,21 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class GetPropertyListRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;forbid&#39;,
     )
     context: context_1.ContextObject | None = None
-    cursor: Annotated[str | None, Field(description=&#34;Pagination cursor for large result sets&#34;)] = (
+    cursor: Annotated[str | None, Field(description=&#39;Pagination cursor for large result sets&#39;)] = (
         None
     )
     ext: ext_1.ExtensionObject | None = None
-    list_id: Annotated[str, Field(description=&#34;ID of the property list to retrieve&#34;)]
+    list_id: Annotated[str, Field(description=&#39;ID of the property list to retrieve&#39;)]
     max_results: Annotated[
-        int | None, Field(description=&#34;Maximum identifiers to return (for large lists)&#34;, ge=1)
+        int | None, Field(description=&#39;Maximum identifiers to return (for large lists)&#39;, ge=1)
     ] = None
     resolve: Annotated[
         bool | None,
         Field(
-            description=&#34;Whether to apply filters and return resolved identifiers (default: true)&#34;
+            description=&#39;Whether to apply filters and return resolved identifiers (default: true)&#39;
         ),
     ] = True</code></pre>
 </details>
@@ -125,7 +125,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>

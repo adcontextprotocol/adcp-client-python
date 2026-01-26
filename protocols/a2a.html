@@ -616,7 +616,91 @@ el.replaceWith(d);
                 f&#34;Failed to fetch agent card: {e}&#34;,
                 agent_id=self.agent_config.id,
                 agent_uri=self.agent_config.agent_uri,
-            ) from e</code></pre>
+            ) from e
+
+    # ========================================================================
+    # V3 Protocol Methods - Protocol Discovery
+    # ========================================================================
+
+    async def get_adcp_capabilities(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get AdCP capabilities from the agent.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;get_adcp_capabilities&#34;, params)
+
+    # ========================================================================
+    # V3 Protocol Methods - Content Standards
+    # ========================================================================
+
+    async def create_content_standards(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Create content standards configuration.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;create_content_standards&#34;, params)
+
+    async def get_content_standards(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get content standards configuration.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;get_content_standards&#34;, params)
+
+    async def list_content_standards(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;List content standards configurations.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;list_content_standards&#34;, params)
+
+    async def update_content_standards(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Update content standards configuration.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;update_content_standards&#34;, params)
+
+    async def calibrate_content(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Calibrate content against standards.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;calibrate_content&#34;, params)
+
+    async def validate_content_delivery(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Validate content delivery against standards.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;validate_content_delivery&#34;, params)
+
+    async def get_media_buy_artifacts(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get artifacts associated with a media buy.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;get_media_buy_artifacts&#34;, params)
+
+    # ========================================================================
+    # V3 Protocol Methods - Sponsored Intelligence
+    # ========================================================================
+
+    async def si_get_offering(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get sponsored intelligence offering.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;si_get_offering&#34;, params)
+
+    async def si_initiate_session(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Initiate sponsored intelligence session.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;si_initiate_session&#34;, params)
+
+    async def si_send_message(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Send message in sponsored intelligence session.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;si_send_message&#34;, params)
+
+    async def si_terminate_session(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Terminate sponsored intelligence session.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;si_terminate_session&#34;, params)
+
+    # ========================================================================
+    # V3 Protocol Methods - Governance (Property Lists)
+    # ========================================================================
+
+    async def create_property_list(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Create a property list for governance.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;create_property_list&#34;, params)
+
+    async def get_property_list(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get a property list with optional resolution.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;get_property_list&#34;, params)
+
+    async def list_property_lists(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;List property lists.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;list_property_lists&#34;, params)
+
+    async def update_property_list(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Update a property list.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;update_property_list&#34;, params)
+
+    async def delete_property_list(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Delete a property list.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;delete_property_list&#34;, params)</code></pre>
 </details>
 <div class="desc"><p>Adapter for A2A protocol using official a2a-sdk client.</p>
 <p>Initialize A2A adapter with official A2A client.</p></div>
@@ -818,16 +902,33 @@ el.replaceWith(d);
 <ul class="hlist">
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.activate_signal" href="base.html#adcp.protocols.base.ProtocolAdapter.activate_signal">activate_signal</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.build_creative" href="base.html#adcp.protocols.base.ProtocolAdapter.build_creative">build_creative</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.calibrate_content" href="base.html#adcp.protocols.base.ProtocolAdapter.calibrate_content">calibrate_content</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.create_content_standards" href="base.html#adcp.protocols.base.ProtocolAdapter.create_content_standards">create_content_standards</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.create_media_buy" href="base.html#adcp.protocols.base.ProtocolAdapter.create_media_buy">create_media_buy</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.create_property_list" href="base.html#adcp.protocols.base.ProtocolAdapter.create_property_list">create_property_list</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.delete_property_list" href="base.html#adcp.protocols.base.ProtocolAdapter.delete_property_list">delete_property_list</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_adcp_capabilities" href="base.html#adcp.protocols.base.ProtocolAdapter.get_adcp_capabilities">get_adcp_capabilities</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_content_standards" href="base.html#adcp.protocols.base.ProtocolAdapter.get_content_standards">get_content_standards</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_media_buy_artifacts" href="base.html#adcp.protocols.base.ProtocolAdapter.get_media_buy_artifacts">get_media_buy_artifacts</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery" href="base.html#adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_products" href="base.html#adcp.protocols.base.ProtocolAdapter.get_products">get_products</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_property_list" href="base.html#adcp.protocols.base.ProtocolAdapter.get_property_list">get_property_list</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_signals" href="base.html#adcp.protocols.base.ProtocolAdapter.get_signals">get_signals</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_authorized_properties" href="base.html#adcp.protocols.base.ProtocolAdapter.list_authorized_properties">list_authorized_properties</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.list_content_standards" href="base.html#adcp.protocols.base.ProtocolAdapter.list_content_standards">list_content_standards</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_creative_formats" href="base.html#adcp.protocols.base.ProtocolAdapter.list_creative_formats">list_creative_formats</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_creatives" href="base.html#adcp.protocols.base.ProtocolAdapter.list_creatives">list_creatives</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.list_property_lists" href="base.html#adcp.protocols.base.ProtocolAdapter.list_property_lists">list_property_lists</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.provide_performance_feedback" href="base.html#adcp.protocols.base.ProtocolAdapter.provide_performance_feedback">provide_performance_feedback</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.si_get_offering" href="base.html#adcp.protocols.base.ProtocolAdapter.si_get_offering">si_get_offering</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.si_initiate_session" href="base.html#adcp.protocols.base.ProtocolAdapter.si_initiate_session">si_initiate_session</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.si_send_message" href="base.html#adcp.protocols.base.ProtocolAdapter.si_send_message">si_send_message</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.si_terminate_session" href="base.html#adcp.protocols.base.ProtocolAdapter.si_terminate_session">si_terminate_session</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.sync_creatives" href="base.html#adcp.protocols.base.ProtocolAdapter.sync_creatives">sync_creatives</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.update_content_standards" href="base.html#adcp.protocols.base.ProtocolAdapter.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.update_media_buy" href="base.html#adcp.protocols.base.ProtocolAdapter.update_media_buy">update_media_buy</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.update_property_list" href="base.html#adcp.protocols.base.ProtocolAdapter.update_property_list">update_property_list</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.validate_content_delivery" href="base.html#adcp.protocols.base.ProtocolAdapter.validate_content_delivery">validate_content_delivery</a></code></li>
 </ul>
 </li>
 </ul>

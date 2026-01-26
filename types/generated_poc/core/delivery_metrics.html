@@ -57,54 +57,54 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class DeliveryMetrics(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    clicks: Annotated[float | None, Field(description=&#34;Total clicks&#34;, ge=0.0)] = None
+    clicks: Annotated[float | None, Field(description=&#39;Total clicks&#39;, ge=0.0)] = None
     completed_views: Annotated[
-        float | None, Field(description=&#34;100% completions (for CPCV)&#34;, ge=0.0)
+        float | None, Field(description=&#39;100% completions (for CPCV)&#39;, ge=0.0)
     ] = None
     completion_rate: Annotated[
         float | None,
-        Field(description=&#34;Completion rate (completed_views/impressions)&#34;, ge=0.0, le=1.0),
+        Field(description=&#39;Completion rate (completed_views/impressions)&#39;, ge=0.0, le=1.0),
     ] = None
     conversions: Annotated[
         float | None,
-        Field(description=&#34;Conversions (reserved for future CPA pricing support)&#34;, ge=0.0),
+        Field(description=&#39;Conversions (reserved for future CPA pricing support)&#39;, ge=0.0),
     ] = None
     ctr: Annotated[
-        float | None, Field(description=&#34;Click-through rate (clicks/impressions)&#34;, ge=0.0, le=1.0)
+        float | None, Field(description=&#39;Click-through rate (clicks/impressions)&#39;, ge=0.0, le=1.0)
     ] = None
     dooh_metrics: Annotated[
         DoohMetrics | None,
-        Field(description=&#34;DOOH-specific metrics (only included for DOOH campaigns)&#34;),
+        Field(description=&#39;DOOH-specific metrics (only included for DOOH campaigns)&#39;),
     ] = None
     frequency: Annotated[
         float | None,
         Field(
-            description=&#34;Average frequency per individual (typically measured over campaign duration, but can vary by measurement provider)&#34;,
+            description=&#39;Average frequency per individual (typically measured over campaign duration, but can vary by measurement provider)&#39;,
             ge=0.0,
         ),
     ] = None
     grps: Annotated[
-        float | None, Field(description=&#34;Gross Rating Points delivered (for CPP)&#34;, ge=0.0)
+        float | None, Field(description=&#39;Gross Rating Points delivered (for CPP)&#39;, ge=0.0)
     ] = None
-    impressions: Annotated[float | None, Field(description=&#34;Impressions delivered&#34;, ge=0.0)] = None
+    impressions: Annotated[float | None, Field(description=&#39;Impressions delivered&#39;, ge=0.0)] = None
     leads: Annotated[
         float | None,
-        Field(description=&#34;Leads generated (reserved for future CPL pricing support)&#34;, ge=0.0),
+        Field(description=&#39;Leads generated (reserved for future CPL pricing support)&#39;, ge=0.0),
     ] = None
     quartile_data: Annotated[
-        QuartileData | None, Field(description=&#34;Video quartile completion data&#34;)
+        QuartileData | None, Field(description=&#39;Video quartile completion data&#39;)
     ] = None
     reach: Annotated[
         float | None,
         Field(
-            description=&#34;Unique reach - units depend on measurement provider (e.g., individuals, households, devices, cookies). See delivery_measurement.provider for methodology.&#34;,
+            description=&#39;Unique reach - units depend on measurement provider (e.g., individuals, households, devices, cookies). See delivery_measurement.provider for methodology.&#39;,
             ge=0.0,
         ),
     ] = None
-    spend: Annotated[float | None, Field(description=&#34;Amount spent&#34;, ge=0.0)] = None
-    views: Annotated[float | None, Field(description=&#34;Views at threshold (for CPV)&#34;, ge=0.0)] = None</code></pre>
+    spend: Annotated[float | None, Field(description=&#39;Amount spent&#39;, ge=0.0)] = None
+    views: Annotated[float | None, Field(description=&#39;Views at threshold (for CPV)&#39;, ge=0.0)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -193,7 +193,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -209,26 +209,26 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class DoohMetrics(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     calculation_notes: Annotated[
-        str | None, Field(description=&#34;Explanation of how DOOH impressions were calculated&#34;)
+        str | None, Field(description=&#39;Explanation of how DOOH impressions were calculated&#39;)
     ] = None
     loop_plays: Annotated[
-        int | None, Field(description=&#34;Number of times ad played in rotation&#34;, ge=0)
+        int | None, Field(description=&#39;Number of times ad played in rotation&#39;, ge=0)
     ] = None
     screen_time_seconds: Annotated[
-        int | None, Field(description=&#34;Total display time in seconds&#34;, ge=0)
+        int | None, Field(description=&#39;Total display time in seconds&#39;, ge=0)
     ] = None
     screens_used: Annotated[
-        int | None, Field(description=&#34;Number of unique screens displaying the ad&#34;, ge=0)
+        int | None, Field(description=&#39;Number of unique screens displaying the ad&#39;, ge=0)
     ] = None
     sov_achieved: Annotated[
         float | None,
-        Field(description=&#34;Actual share of voice delivered (0.0 to 1.0)&#34;, ge=0.0, le=1.0),
+        Field(description=&#39;Actual share of voice delivered (0.0 to 1.0)&#39;, ge=0.0, le=1.0),
     ] = None
     venue_breakdown: Annotated[
-        list[VenueBreakdownItem] | None, Field(description=&#34;Per-venue performance breakdown&#34;)
+        list[VenueBreakdownItem] | None, Field(description=&#39;Per-venue performance breakdown&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -281,7 +281,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -296,10 +296,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class QuartileData(AdCPBaseModel):
-    q1_views: Annotated[float | None, Field(description=&#34;25% completion views&#34;, ge=0.0)] = None
-    q2_views: Annotated[float | None, Field(description=&#34;50% completion views&#34;, ge=0.0)] = None
-    q3_views: Annotated[float | None, Field(description=&#34;75% completion views&#34;, ge=0.0)] = None
-    q4_views: Annotated[float | None, Field(description=&#34;100% completion views&#34;, ge=0.0)] = None</code></pre>
+    q1_views: Annotated[float | None, Field(description=&#39;25% completion views&#39;, ge=0.0)] = None
+    q2_views: Annotated[float | None, Field(description=&#39;50% completion views&#39;, ge=0.0)] = None
+    q3_views: Annotated[float | None, Field(description=&#39;75% completion views&#39;, ge=0.0)] = None
+    q4_views: Annotated[float | None, Field(description=&#39;100% completion views&#39;, ge=0.0)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -343,7 +343,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -359,15 +359,15 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class VenueBreakdownItem(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    impressions: Annotated[int, Field(description=&#34;Impressions delivered at this venue&#34;, ge=0)]
-    loop_plays: Annotated[int | None, Field(description=&#34;Loop plays at this venue&#34;, ge=0)] = None
+    impressions: Annotated[int, Field(description=&#39;Impressions delivered at this venue&#39;, ge=0)]
+    loop_plays: Annotated[int | None, Field(description=&#39;Loop plays at this venue&#39;, ge=0)] = None
     screens_used: Annotated[
-        int | None, Field(description=&#34;Number of screens used at this venue&#34;, ge=0)
+        int | None, Field(description=&#39;Number of screens used at this venue&#39;, ge=0)
     ] = None
-    venue_id: Annotated[str, Field(description=&#34;Venue identifier&#34;)]
-    venue_name: Annotated[str | None, Field(description=&#34;Human-readable venue name&#34;)] = None
+    venue_id: Annotated[str, Field(description=&#39;Venue identifier&#39;)]
+    venue_name: Annotated[str | None, Field(description=&#39;Human-readable venue name&#39;)] = None
     venue_type: Annotated[
         str | None,
         Field(description=&#34;Venue type (e.g., &#39;airport&#39;, &#39;transit&#39;, &#39;retail&#39;, &#39;billboard&#39;)&#34;),
@@ -423,7 +423,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>

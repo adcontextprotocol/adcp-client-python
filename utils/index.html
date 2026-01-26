@@ -369,8 +369,8 @@ print(f&quot;Must provide {len(required_assets)} assets&quot;)
 
         # Check if it&#39;s a repeatable group (has asset_group_id) or individual asset
         if &#34;asset_group_id&#34; in asset_dict:
-            # Repeatable group - use Assets1Model
-            normalized.append(Assets1Model(**{**asset_dict, &#34;required&#34;: True}))
+            # Repeatable group - use Assets5Model
+            normalized.append(Assets5Model(**{**asset_dict, &#34;required&#34;: True}))
         else:
             # Individual asset - use AssetsModel
             normalized.append(AssetsModel(**{**asset_dict, &#34;required&#34;: True}))

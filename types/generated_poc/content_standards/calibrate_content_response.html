@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.content_standards.calibrate_content_response API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.content_standards.calibrate_content_response</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse"><code class="flex name class">
+<span>class <span class="ident">CalibrateContentResponse</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class CalibrateContentResponse(RootModel[CalibrateContentResponse1 | CalibrateContentResponse2]):
+    root: Annotated[
+        CalibrateContentResponse1 | CalibrateContentResponse2,
+        Field(
+            description=&#39;Response payload with verdict and detailed explanations for collaborative calibration&#39;,
+            title=&#39;Calibrate Content Response&#39;,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[Union[CalibrateContentResponse1, CalibrateContentResponse2]]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1">CalibrateContentResponse1</a> | <a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2">CalibrateContentResponse2</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1"><code class="flex name class">
+<span>class <span class="ident">CalibrateContentResponse1</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class CalibrateContentResponse1(AdCPBaseModel):
+    confidence: Annotated[
+        float | None, Field(description=&#39;Model confidence in the verdict (0-1)&#39;, ge=0.0, le=1.0)
+    ] = None
+    errors: Annotated[
+        Any | None, Field(description=&#39;Field must not be present in success response&#39;)
+    ] = None
+    explanation: Annotated[
+        str | None, Field(description=&#39;Detailed natural language explanation of the decision&#39;)
+    ] = None
+    features: Annotated[
+        list[Feature] | None, Field(description=&#39;Per-feature breakdown with explanations&#39;)
+    ] = None
+    verdict: Annotated[
+        Verdict, Field(description=&#39;Overall pass/fail verdict for the content evaluation&#39;)
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.confidence"><code class="name">var <span class="ident">confidence</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.errors"><code class="name">var <span class="ident">errors</span> : typing.Any | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.explanation"><code class="name">var <span class="ident">explanation</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.features"><code class="name">var <span class="ident">features</span> : list[<a title="adcp.types.generated_poc.content_standards.calibrate_content_response.Feature" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.Feature">Feature</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.verdict"><code class="name">var <span class="ident">verdict</span> : <a title="adcp.types.generated_poc.content_standards.calibrate_content_response.Verdict" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.Verdict">Verdict</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2"><code class="flex name class">
+<span>class <span class="ident">CalibrateContentResponse2</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class CalibrateContentResponse2(AdCPBaseModel):
+    errors: list[error.Error]
+    verdict: Annotated[
+        Any | None, Field(description=&#39;Field must not be present in error response&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="../core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.verdict"><code class="name">var <span class="ident">verdict</span> : typing.Any | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.Feature"><code class="flex name class">
+<span>class <span class="ident">Feature</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Feature(AdCPBaseModel):
+    explanation: Annotated[
+        str | None,
+        Field(description=&#39;Human-readable explanation of why this feature passed or failed&#39;),
+    ] = None
+    feature_id: Annotated[
+        str,
+        Field(
+            description=&#39;Which feature was evaluated (e.g., brand_safety, brand_suitability, competitor_adjacency)&#39;
+        ),
+    ]
+    status: Annotated[Status, Field(description=&#39;Evaluation status for this feature&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.Feature.explanation"><code class="name">var <span class="ident">explanation</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.Feature.feature_id"><code class="name">var <span class="ident">feature_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.Feature.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.Feature.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.content_standards.calibrate_content_response.Status" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.Status">Status</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.Status"><code class="flex name class">
+<span>class <span class="ident">Status</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Status(Enum):
+    passed = &#39;passed&#39;
+    failed = &#39;failed&#39;
+    warning = &#39;warning&#39;
+    unevaluated = &#39;unevaluated&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.Status.failed"><code class="name">var <span class="ident">failed</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.Status.passed"><code class="name">var <span class="ident">passed</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.Status.unevaluated"><code class="name">var <span class="ident">unevaluated</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.Status.warning"><code class="name">var <span class="ident">warning</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.Verdict"><code class="flex name class">
+<span>class <span class="ident">Verdict</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Verdict(Enum):
+    pass_ = &#39;pass&#39;
+    fail = &#39;fail&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.Verdict.fail"><code class="name">var <span class="ident">fail</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.Verdict.pass_"><code class="name">var <span class="ident">pass_</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc.content_standards" href="index.html">adcp.types.generated_poc.content_standards</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse">CalibrateContentResponse</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse.model_config" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse.root" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse.root">root</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1">CalibrateContentResponse1</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.confidence" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.confidence">confidence</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.errors" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.errors">errors</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.explanation" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.explanation">explanation</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.features" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.features">features</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.model_config" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.verdict" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.verdict">verdict</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2">CalibrateContentResponse2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.errors" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.model_config" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.verdict" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.verdict">verdict</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.Feature" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.Feature">Feature</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.Feature.explanation" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.Feature.explanation">explanation</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.Feature.feature_id" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.Feature.feature_id">feature_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.Feature.model_config" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.Feature.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.Feature.status" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.Feature.status">status</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.Status" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.Status">Status</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.Status.failed" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.Status.failed">failed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.Status.passed" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.Status.passed">passed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.Status.unevaluated" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.Status.unevaluated">unevaluated</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.Status.warning" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.Status.warning">warning</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.Verdict" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.Verdict">Verdict</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.Verdict.fail" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.Verdict.fail">fail</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.Verdict.pass_" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.Verdict.pass_">pass_</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

@@ -57,9 +57,9 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class CreativeAssignment(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    creative_id: Annotated[str, Field(description=&#34;Unique identifier for the creative&#34;)]
+    creative_id: Annotated[str, Field(description=&#39;Unique identifier for the creative&#39;)]
     placement_ids: Annotated[
         list[str] | None,
         Field(
@@ -68,7 +68,7 @@ el.replaceWith(d);
         ),
     ] = None
     weight: Annotated[
-        float | None, Field(description=&#34;Delivery weight for this creative&#34;, ge=0.0, le=100.0)
+        float | None, Field(description=&#39;Delivery weight for this creative&#39;, ge=0.0, le=100.0)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -109,7 +109,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>

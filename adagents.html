@@ -130,6 +130,11 @@ el.replaceWith(d);
 ) -&gt; dict[str, Any]:
     &#34;&#34;&#34;Fetch and parse adagents.json from publisher domain.
 
+    Follows authoritative_location redirects per the AdCP specification. When a
+    publisher&#39;s adagents.json contains an authoritative_location field instead of
+    authorized_agents, this function fetches the referenced URL to get the actual
+    authorization data.
+
     Args:
         publisher_domain: Domain hosting the adagents.json file
         timeout: Request timeout in seconds
@@ -139,11 +144,12 @@ el.replaceWith(d);
             If None, a new client is created for this request.
 
     Returns:
-        Parsed adagents.json data
+        Parsed adagents.json data (resolved from authoritative_location if present)
 
     Raises:
         AdagentsNotFoundError: If adagents.json not found (404)
-        AdagentsValidationError: If JSON is invalid or malformed
+        AdagentsValidationError: If JSON is invalid, malformed, or redirects
+            exceed maximum depth or form a loop
         AdagentsTimeoutError: If request times out
 
     Notes:
@@ -153,68 +159,58 @@ el.replaceWith(d);
     # Validate and normalize domain for security
     publisher_domain = _validate_publisher_domain(publisher_domain)
 
-    # Construct URL
+    # Construct initial URL
     url = f&#34;https://{publisher_domain}/.well-known/adagents.json&#34;
 
-    try:
-        # Use provided client or create a new one
-        if client is not None:
-            # Reuse provided client (connection pooling)
-            response = await client.get(
-                url,
-                headers={&#34;User-Agent&#34;: user_agent},
-                timeout=timeout,
-                follow_redirects=True,
+    # Track visited URLs to detect loops
+    visited_urls: set[str] = set()
+
+    for depth in range(MAX_REDIRECT_DEPTH + 1):
+        # Check for redirect loop
+        if url in visited_urls:
+            raise AdagentsValidationError(
+                f&#34;Circular redirect detected: {url} already visited&#34;
             )
-        else:
-            # Create new client for single request
-            async with httpx.AsyncClient() as new_client:
-                response = await new_client.get(
-                    url,
-                    headers={&#34;User-Agent&#34;: user_agent},
-                    timeout=timeout,
-                    follow_redirects=True,
+        visited_urls.add(url)
+
+        data = await _fetch_adagents_url(url, timeout, user_agent, client)
+
+        # Check if this is a redirect. A response with authoritative_location but no
+        # authorized_agents indicates a redirect. If both are present, authorized_agents
+        # takes precedence (response is treated as final).
+        if &#34;authoritative_location&#34; in data and &#34;authorized_agents&#34; not in data:
+            authoritative_url = data[&#34;authoritative_location&#34;]
+
+            # Validate HTTPS requirement
+            if not isinstance(authoritative_url, str) or not authoritative_url.startswith(
+                &#34;https://&#34;
+            ):
+                raise AdagentsValidationError(
+                    f&#34;authoritative_location must be an HTTPS URL, got: {authoritative_url!r}&#34;
                 )
 
-        # Process response (same for both paths)
-        if response.status_code == 404:
-            raise AdagentsNotFoundError(publisher_domain)
+            # Check if we&#39;ve exceeded max depth
+            if depth &gt;= MAX_REDIRECT_DEPTH:
+                raise AdagentsValidationError(
+                    f&#34;Maximum redirect depth ({MAX_REDIRECT_DEPTH}) exceeded&#34;
+                )
 
-        if response.status_code != 200:
-            raise AdagentsValidationError(
-                f&#34;Failed to fetch adagents.json: HTTP {response.status_code}&#34;
-            )
+            # Follow the redirect
+            url = authoritative_url
+            continue
 
-        # Parse JSON
-        try:
-            data = response.json()
-        except Exception as e:
-            raise AdagentsValidationError(f&#34;Invalid JSON in adagents.json: {e}&#34;) from e
-
-        # Validate basic structure
-        if not isinstance(data, dict):
-            raise AdagentsValidationError(&#34;adagents.json must be a JSON object&#34;)
-
-        if &#34;authorized_agents&#34; not in data:
-            raise AdagentsValidationError(&#34;adagents.json must have &#39;authorized_agents&#39; field&#34;)
-
-        if not isinstance(data[&#34;authorized_agents&#34;], list):
-            raise AdagentsValidationError(&#34;&#39;authorized_agents&#39; must be an array&#34;)
-
-        # Validate mutual exclusivity constraints
-        try:
-            validate_adagents(data)
-        except ValidationError as e:
-            raise AdagentsValidationError(f&#34;Invalid adagents.json structure: {e}&#34;) from e
-
+        # We have the final data with authorized_agents (or both fields present,
+        # in which case authorized_agents takes precedence)
         return data
 
-    except httpx.TimeoutException as e:
-        raise AdagentsTimeoutError(publisher_domain, timeout) from e
-    except httpx.RequestError as e:
-        raise AdagentsValidationError(f&#34;Failed to fetch adagents.json: {e}&#34;) from e</code></pre>
+    # Unreachable: loop always exits via return or raise above
+    raise AssertionError(&#34;Unreachable&#34;)  # pragma: no cover</code></pre>
 </details>
 <div class="desc"><p>Fetch and parse adagents.json from publisher domain.</p>
+<p>Follows authoritative_location redirects per the AdCP specification. When a
+publisher's adagents.json contains an authoritative_location field instead of
+authorized_agents, this function fetches the referenced URL to get the actual
+authorization data.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>publisher_domain</code></strong></dt>
@@ -229,13 +225,14 @@ If provided, caller is responsible for client lifecycle.
 If None, a new client is created for this request.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>Parsed adagents.json data</p>
+<p>Parsed adagents.json data (resolved from authoritative_location if present)</p>
 <h2 id="raises">Raises</h2>
 <dl>
 <dt><code>AdagentsNotFoundError</code></dt>
 <dd>If adagents.json not found (404)</dd>
 <dt><code>AdagentsValidationError</code></dt>
-<dd>If JSON is invalid or malformed</dd>
+<dd>If JSON is invalid, malformed, or redirects
+exceed maximum depth or form a loop</dd>
 <dt><code>AdagentsTimeoutError</code></dt>
 <dd>If request times out</dd>
 </dl>

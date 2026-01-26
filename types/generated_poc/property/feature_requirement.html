@@ -57,14 +57,14 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class FeatureRequirement(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;forbid&#39;,
     )
     allowed_values: Annotated[
         list[Any] | None,
-        Field(description=&#34;Values that pass the requirement (for binary/categorical features)&#34;),
+        Field(description=&#39;Values that pass the requirement (for binary/categorical features)&#39;),
     ] = None
     feature_id: Annotated[
-        str, Field(description=&#34;Feature to evaluate (discovered via list_property_features)&#34;)
+        str, Field(description=&#39;Feature to evaluate (discovered via list_property_features)&#39;)
     ]
     if_not_covered: Annotated[
         IfNotCovered | None,
@@ -73,11 +73,11 @@ el.replaceWith(d);
         ),
     ] = IfNotCovered.exclude
     max_value: Annotated[
-        float | None, Field(description=&#34;Maximum numeric value allowed (for quantitative features)&#34;)
+        float | None, Field(description=&#39;Maximum numeric value allowed (for quantitative features)&#39;)
     ] = None
     min_value: Annotated[
         float | None,
-        Field(description=&#34;Minimum numeric value required (for quantitative features)&#34;),
+        Field(description=&#39;Minimum numeric value required (for quantitative features)&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -126,7 +126,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -141,8 +141,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class IfNotCovered(Enum):
-    exclude = &#34;exclude&#34;
-    include = &#34;include&#34;</code></pre>
+    exclude = &#39;exclude&#39;
+    include = &#39;include&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>

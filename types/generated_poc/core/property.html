@@ -57,11 +57,11 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Identifier(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     type: Annotated[
         identifier_types.PropertyIdentifierTypes,
-        Field(description=&#34;Type of identifier for this property&#34;),
+        Field(description=&#39;Type of identifier for this property&#39;),
     ]
     value: Annotated[
         str,
@@ -104,7 +104,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -120,31 +120,31 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Property(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     identifiers: Annotated[
-        list[Identifier], Field(description=&#34;Array of identifiers for this property&#34;, min_length=1)
+        list[Identifier], Field(description=&#39;Array of identifiers for this property&#39;, min_length=1)
     ]
-    name: Annotated[str, Field(description=&#34;Human-readable property name&#34;)]
+    name: Annotated[str, Field(description=&#39;Human-readable property name&#39;)]
     property_id: Annotated[
         property_id_1.PropertyId | None,
         Field(
-            description=&#34;Unique identifier for this property (optional). Enables referencing properties by ID instead of repeating full objects.&#34;
+            description=&#39;Unique identifier for this property (optional). Enables referencing properties by ID instead of repeating full objects.&#39;
         ),
     ] = None
     property_type: Annotated[
-        property_type_1.PropertyType, Field(description=&#34;Type of advertising property&#34;)
+        property_type_1.PropertyType, Field(description=&#39;Type of advertising property&#39;)
     ]
     publisher_domain: Annotated[
         str | None,
         Field(
-            description=&#34;Domain where adagents.json should be checked for authorization validation. Required for list_authorized_properties response. Optional in adagents.json (file location implies domain).&#34;
+            description=&#39;Domain where adagents.json should be checked for authorization validation. Required for list_authorized_properties response. Optional in adagents.json (file location implies domain).&#39;
         ),
     ] = None
     tags: Annotated[
         list[property_tag.PropertyTag] | None,
         Field(
-            description=&#34;Tags for categorization and grouping (e.g., network membership, content categories)&#34;
+            description=&#39;Tags for categorization and grouping (e.g., network membership, content categories)&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -198,7 +198,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>

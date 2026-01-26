@@ -59,8 +59,8 @@ el.replaceWith(d);
     root: Annotated[
         ActivateSignalResponse1 | ActivateSignalResponse2,
         Field(
-            description=&#34;Response payload for activate_signal task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - the signal is either fully activated or not activated at all.&#34;,
-            title=&#34;Activate Signal Response&#34;,
+            description=&#39;Response payload for activate_signal task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - the signal is either fully activated or not activated at all.&#39;,
+            title=&#39;Activate Signal Response&#39;,
         ),
     ]</code></pre>
 </details>
@@ -114,12 +114,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ActivateSignalResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     deployments: Annotated[
         list[deployment.Deployment],
-        Field(description=&#34;Array of deployment results for each deployment target&#34;),
+        Field(description=&#39;Array of deployment results for each deployment target&#39;),
     ]
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
@@ -161,7 +161,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -177,13 +177,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ActivateSignalResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
-            description=&#34;Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)&#34;,
+            description=&#39;Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)&#39;,
             min_length=1,
         ),
     ]
@@ -227,7 +227,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>

@@ -1,0 +1,1340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.content_standards.artifact API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.content_standards.artifact</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Artifact"><code class="flex name class">
+<span>class <span class="ident">Artifact</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Artifact(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    artifact_id: Annotated[
+        str,
+        Field(
+            description=&#34;Identifier for this artifact within the property. The property owner defines the scheme (e.g., &#39;article_12345&#39;, &#39;episode_42_segment_3&#39;, &#39;post_abc123&#39;).&#34;
+        ),
+    ]
+    assets: Annotated[
+        list[Assets | Assets1 | Assets2 | Assets3],
+        Field(
+            description=&#39;Artifact assets in document flow order - text blocks, images, video, audio&#39;
+        ),
+    ]
+    format_id: Annotated[
+        format_id_1.FormatId | None,
+        Field(
+            description=&#39;Optional reference to a format definition. Uses the same format registry as creative formats.&#39;
+        ),
+    ] = None
+    identifiers: Annotated[
+        Identifiers | None, Field(description=&#39;Platform-specific identifiers for this artifact&#39;)
+    ] = None
+    last_update_time: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;When the artifact was last modified (ISO 8601 format)&#39;),
+    ] = None
+    metadata: Annotated[
+        Metadata | None, Field(description=&#39;Rich metadata extracted from the artifact&#39;)
+    ] = None
+    property_id: Annotated[
+        identifier.Identifier,
+        Field(description=&#39;Identifier for the property where this artifact appears&#39;),
+    ]
+    published_time: Annotated[
+        AwareDatetime | None, Field(description=&#39;When the artifact was published (ISO 8601 format)&#39;)
+    ] = None
+    url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#39;Optional URL for this artifact (web page, podcast feed, video page). Not all artifacts have URLs (e.g., Instagram content, podcast segments, TV scenes).&#39;
+        ),
+    ] = None
+    variant_id: Annotated[
+        str | None,
+        Field(
+            description=&#34;Identifies a specific variant of this artifact. Use for A/B tests, translations, or temporal versions. Examples: &#39;en&#39;, &#39;es-MX&#39;, &#39;v2&#39;, &#39;headline_test_b&#39;. The combination of artifact_id + variant_id must be unique.&#34;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Artifact.artifact_id"><code class="name">var <span class="ident">artifact_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Artifact.assets"><code class="name">var <span class="ident">assets</span> : list[<a title="adcp.types.generated_poc.content_standards.artifact.Assets" href="#adcp.types.generated_poc.content_standards.artifact.Assets">Assets</a> | <a title="adcp.types.generated_poc.content_standards.artifact.Assets1" href="#adcp.types.generated_poc.content_standards.artifact.Assets1">Assets1</a> | <a title="adcp.types.generated_poc.content_standards.artifact.Assets2" href="#adcp.types.generated_poc.content_standards.artifact.Assets2">Assets2</a> | <a title="adcp.types.generated_poc.content_standards.artifact.Assets3" href="#adcp.types.generated_poc.content_standards.artifact.Assets3">Assets3</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Artifact.format_id"><code class="name">var <span class="ident">format_id</span> : <a title="adcp.types.generated_poc.core.format_id.FormatId" href="../core/format_id.html#adcp.types.generated_poc.core.format_id.FormatId">FormatId</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Artifact.identifiers"><code class="name">var <span class="ident">identifiers</span> : <a title="adcp.types.generated_poc.content_standards.artifact.Identifiers" href="#adcp.types.generated_poc.content_standards.artifact.Identifiers">Identifiers</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Artifact.last_update_time"><code class="name">var <span class="ident">last_update_time</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Artifact.metadata"><code class="name">var <span class="ident">metadata</span> : <a title="adcp.types.generated_poc.content_standards.artifact.Metadata" href="#adcp.types.generated_poc.content_standards.artifact.Metadata">Metadata</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Artifact.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Artifact.property_id"><code class="name">var <span class="ident">property_id</span> : <a title="adcp.types.generated_poc.core.identifier.Identifier" href="../core/identifier.html#adcp.types.generated_poc.core.identifier.Identifier">Identifier</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Artifact.published_time"><code class="name">var <span class="ident">published_time</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Artifact.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Artifact.variant_id"><code class="name">var <span class="ident">variant_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.AssetAccess"><code class="flex name class">
+<span>class <span class="ident">AssetAccess</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AssetAccess(RootModel[AssetAccess1 | AssetAccess2 | AssetAccess3]):
+    root: Annotated[
+        AssetAccess1 | AssetAccess2 | AssetAccess3,
+        Field(description=&#39;Authentication for accessing secured asset URLs&#39;),
+    ]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[Union[AssetAccess1, AssetAccess2, AssetAccess3]]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.artifact.AssetAccess.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.AssetAccess.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.content_standards.artifact.AssetAccess1" href="#adcp.types.generated_poc.content_standards.artifact.AssetAccess1">AssetAccess1</a> | <a title="adcp.types.generated_poc.content_standards.artifact.AssetAccess2" href="#adcp.types.generated_poc.content_standards.artifact.AssetAccess2">AssetAccess2</a> | <a title="adcp.types.generated_poc.content_standards.artifact.AssetAccess3" href="#adcp.types.generated_poc.content_standards.artifact.AssetAccess3">AssetAccess3</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.AssetAccess1"><code class="flex name class">
+<span>class <span class="ident">AssetAccess1</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AssetAccess1(AdCPBaseModel):
+    method: Literal[&#39;bearer_token&#39;]
+    token: Annotated[str, Field(description=&#39;OAuth2 bearer token for Authorization header&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.artifact.AssetAccess1.method"><code class="name">var <span class="ident">method</span> : Literal['bearer_token']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.AssetAccess1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.AssetAccess1.token"><code class="name">var <span class="ident">token</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.AssetAccess2"><code class="flex name class">
+<span>class <span class="ident">AssetAccess2</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AssetAccess2(AdCPBaseModel):
+    credentials: Annotated[
+        dict[str, Any] | None, Field(description=&#39;Service account credentials&#39;)
+    ] = None
+    method: Literal[&#39;service_account&#39;]
+    provider: Annotated[Provider, Field(description=&#39;Cloud provider&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.artifact.AssetAccess2.credentials"><code class="name">var <span class="ident">credentials</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.AssetAccess2.method"><code class="name">var <span class="ident">method</span> : Literal['service_account']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.AssetAccess2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.AssetAccess2.provider"><code class="name">var <span class="ident">provider</span> : <a title="adcp.types.generated_poc.content_standards.artifact.Provider" href="#adcp.types.generated_poc.content_standards.artifact.Provider">Provider</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.AssetAccess3"><code class="flex name class">
+<span>class <span class="ident">AssetAccess3</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AssetAccess3(AdCPBaseModel):
+    method: Literal[&#39;signed_url&#39;]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.artifact.AssetAccess3.method"><code class="name">var <span class="ident">method</span> : Literal['signed_url']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.AssetAccess3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets"><code class="flex name class">
+<span>class <span class="ident">Assets</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Assets(AdCPBaseModel):
+    content: Annotated[str, Field(description=&#39;Text content&#39;)]
+    heading_level: Annotated[
+        int | None, Field(description=&#39;Heading level (1-6), only for role=heading&#39;, ge=1, le=6)
+    ] = None
+    language: Annotated[
+        str | None,
+        Field(
+            description=&#34;BCP 47 language tag for this text (e.g., &#39;en&#39;, &#39;es-MX&#39;). Useful when artifact contains mixed-language content.&#34;
+        ),
+    ] = None
+    role: Annotated[
+        Role | None,
+        Field(
+            description=&#34;Role of this text in the document. Use &#39;title&#39; for the main artifact title, &#39;description&#39; for summaries.&#34;
+        ),
+    ] = None
+    type: Literal[&#39;text&#39;]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets.content"><code class="name">var <span class="ident">content</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets.heading_level"><code class="name">var <span class="ident">heading_level</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets.language"><code class="name">var <span class="ident">language</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets.role"><code class="name">var <span class="ident">role</span> : <a title="adcp.types.generated_poc.content_standards.artifact.Role" href="#adcp.types.generated_poc.content_standards.artifact.Role">Role</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets.type"><code class="name">var <span class="ident">type</span> : Literal['text']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets1"><code class="flex name class">
+<span>class <span class="ident">Assets1</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Assets1(AdCPBaseModel):
+    access: Annotated[AssetAccess | None, Field(description=&#39;Authentication for secured URLs&#39;)] = (
+        None
+    )
+    alt_text: Annotated[str | None, Field(description=&#39;Alt text or image description&#39;)] = None
+    caption: Annotated[str | None, Field(description=&#39;Image caption&#39;)] = None
+    height: Annotated[int | None, Field(description=&#39;Image height in pixels&#39;)] = None
+    type: Literal[&#39;image&#39;]
+    url: Annotated[AnyUrl, Field(description=&#39;Image URL&#39;)]
+    width: Annotated[int | None, Field(description=&#39;Image width in pixels&#39;)] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets1.access"><code class="name">var <span class="ident">access</span> : <a title="adcp.types.generated_poc.content_standards.artifact.AssetAccess" href="#adcp.types.generated_poc.content_standards.artifact.AssetAccess">AssetAccess</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets1.alt_text"><code class="name">var <span class="ident">alt_text</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets1.caption"><code class="name">var <span class="ident">caption</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets1.height"><code class="name">var <span class="ident">height</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets1.type"><code class="name">var <span class="ident">type</span> : Literal['image']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets1.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets1.width"><code class="name">var <span class="ident">width</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets2"><code class="flex name class">
+<span>class <span class="ident">Assets2</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Assets2(AdCPBaseModel):
+    access: Annotated[AssetAccess | None, Field(description=&#39;Authentication for secured URLs&#39;)] = (
+        None
+    )
+    duration_ms: Annotated[int | None, Field(description=&#39;Video duration in milliseconds&#39;)] = None
+    thumbnail_url: Annotated[AnyUrl | None, Field(description=&#39;Video thumbnail URL&#39;)] = None
+    transcript: Annotated[str | None, Field(description=&#39;Video transcript&#39;)] = None
+    transcript_source: Annotated[
+        TranscriptSource | None, Field(description=&#39;How the transcript was generated&#39;)
+    ] = None
+    type: Literal[&#39;video&#39;]
+    url: Annotated[AnyUrl, Field(description=&#39;Video URL&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets2.access"><code class="name">var <span class="ident">access</span> : <a title="adcp.types.generated_poc.content_standards.artifact.AssetAccess" href="#adcp.types.generated_poc.content_standards.artifact.AssetAccess">AssetAccess</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets2.duration_ms"><code class="name">var <span class="ident">duration_ms</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets2.thumbnail_url"><code class="name">var <span class="ident">thumbnail_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets2.transcript"><code class="name">var <span class="ident">transcript</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets2.transcript_source"><code class="name">var <span class="ident">transcript_source</span> : <a title="adcp.types.generated_poc.content_standards.artifact.TranscriptSource" href="#adcp.types.generated_poc.content_standards.artifact.TranscriptSource">TranscriptSource</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets2.type"><code class="name">var <span class="ident">type</span> : Literal['video']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets2.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets3"><code class="flex name class">
+<span>class <span class="ident">Assets3</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Assets3(AdCPBaseModel):
+    access: Annotated[AssetAccess | None, Field(description=&#39;Authentication for secured URLs&#39;)] = (
+        None
+    )
+    duration_ms: Annotated[int | None, Field(description=&#39;Audio duration in milliseconds&#39;)] = None
+    transcript: Annotated[str | None, Field(description=&#39;Audio transcript&#39;)] = None
+    transcript_source: Annotated[
+        TranscriptSource1 | None, Field(description=&#39;How the transcript was generated&#39;)
+    ] = None
+    type: Literal[&#39;audio&#39;]
+    url: Annotated[AnyUrl, Field(description=&#39;Audio URL&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets3.access"><code class="name">var <span class="ident">access</span> : <a title="adcp.types.generated_poc.content_standards.artifact.AssetAccess" href="#adcp.types.generated_poc.content_standards.artifact.AssetAccess">AssetAccess</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets3.duration_ms"><code class="name">var <span class="ident">duration_ms</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets3.transcript"><code class="name">var <span class="ident">transcript</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets3.transcript_source"><code class="name">var <span class="ident">transcript_source</span> : <a title="adcp.types.generated_poc.content_standards.artifact.TranscriptSource1" href="#adcp.types.generated_poc.content_standards.artifact.TranscriptSource1">TranscriptSource1</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets3.type"><code class="name">var <span class="ident">type</span> : Literal['audio']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets3.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Identifiers"><code class="flex name class">
+<span>class <span class="ident">Identifiers</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Identifiers(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    apple_podcast_id: Annotated[str | None, Field(description=&#39;Apple Podcasts ID&#39;)] = None
+    podcast_guid: Annotated[str | None, Field(description=&#39;Podcast GUID (from RSS feed)&#39;)] = None
+    rss_url: Annotated[AnyUrl | None, Field(description=&#39;RSS feed URL&#39;)] = None
+    spotify_show_id: Annotated[str | None, Field(description=&#39;Spotify show ID&#39;)] = None
+    youtube_video_id: Annotated[str | None, Field(description=&#39;YouTube video ID&#39;)] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Identifiers.apple_podcast_id"><code class="name">var <span class="ident">apple_podcast_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Identifiers.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Identifiers.podcast_guid"><code class="name">var <span class="ident">podcast_guid</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Identifiers.rss_url"><code class="name">var <span class="ident">rss_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Identifiers.spotify_show_id"><code class="name">var <span class="ident">spotify_show_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Identifiers.youtube_video_id"><code class="name">var <span class="ident">youtube_video_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Metadata"><code class="flex name class">
+<span>class <span class="ident">Metadata</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Metadata(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    author: Annotated[str | None, Field(description=&#39;Artifact author name&#39;)] = None
+    canonical: Annotated[AnyUrl | None, Field(description=&#39;Canonical URL&#39;)] = None
+    json_ld: Annotated[
+        list[dict[str, Any]] | None, Field(description=&#39;JSON-LD structured data (schema.org)&#39;)
+    ] = None
+    keywords: Annotated[str | None, Field(description=&#39;Artifact keywords&#39;)] = None
+    open_graph: Annotated[
+        dict[str, Any] | None, Field(description=&#39;Open Graph protocol metadata&#39;)
+    ] = None
+    twitter_card: Annotated[dict[str, Any] | None, Field(description=&#39;Twitter Card metadata&#39;)] = (
+        None
+    )</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Metadata.author"><code class="name">var <span class="ident">author</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Metadata.canonical"><code class="name">var <span class="ident">canonical</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Metadata.json_ld"><code class="name">var <span class="ident">json_ld</span> : list[dict[str, typing.Any]] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Metadata.keywords"><code class="name">var <span class="ident">keywords</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Metadata.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Metadata.open_graph"><code class="name">var <span class="ident">open_graph</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Metadata.twitter_card"><code class="name">var <span class="ident">twitter_card</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Provider"><code class="flex name class">
+<span>class <span class="ident">Provider</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Provider(Enum):
+    gcp = &#39;gcp&#39;
+    aws = &#39;aws&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Provider.aws"><code class="name">var <span class="ident">aws</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Provider.gcp"><code class="name">var <span class="ident">gcp</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Role"><code class="flex name class">
+<span>class <span class="ident">Role</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Role(Enum):
+    title_ = &#39;title&#39;
+    paragraph = &#39;paragraph&#39;
+    heading = &#39;heading&#39;
+    caption = &#39;caption&#39;
+    quote = &#39;quote&#39;
+    list_item = &#39;list_item&#39;
+    description = &#39;description&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Role.caption"><code class="name">var <span class="ident">caption</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Role.description"><code class="name">var <span class="ident">description</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Role.heading"><code class="name">var <span class="ident">heading</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Role.list_item"><code class="name">var <span class="ident">list_item</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Role.paragraph"><code class="name">var <span class="ident">paragraph</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Role.quote"><code class="name">var <span class="ident">quote</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Role.title_"><code class="name">var <span class="ident">title_</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.TranscriptSource"><code class="flex name class">
+<span>class <span class="ident">TranscriptSource</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TranscriptSource(Enum):
+    original_script = &#39;original_script&#39;
+    subtitles = &#39;subtitles&#39;
+    closed_captions = &#39;closed_captions&#39;
+    dub = &#39;dub&#39;
+    generated = &#39;generated&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.artifact.TranscriptSource.closed_captions"><code class="name">var <span class="ident">closed_captions</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.TranscriptSource.dub"><code class="name">var <span class="ident">dub</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.TranscriptSource.generated"><code class="name">var <span class="ident">generated</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.TranscriptSource.original_script"><code class="name">var <span class="ident">original_script</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.TranscriptSource.subtitles"><code class="name">var <span class="ident">subtitles</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.TranscriptSource1"><code class="flex name class">
+<span>class <span class="ident">TranscriptSource1</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TranscriptSource1(Enum):
+    original_script = &#39;original_script&#39;
+    closed_captions = &#39;closed_captions&#39;
+    generated = &#39;generated&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.artifact.TranscriptSource1.closed_captions"><code class="name">var <span class="ident">closed_captions</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.TranscriptSource1.generated"><code class="name">var <span class="ident">generated</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.TranscriptSource1.original_script"><code class="name">var <span class="ident">original_script</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc.content_standards" href="index.html">adcp.types.generated_poc.content_standards</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.artifact.Artifact" href="#adcp.types.generated_poc.content_standards.artifact.Artifact">Artifact</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Artifact.artifact_id" href="#adcp.types.generated_poc.content_standards.artifact.Artifact.artifact_id">artifact_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Artifact.assets" href="#adcp.types.generated_poc.content_standards.artifact.Artifact.assets">assets</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Artifact.format_id" href="#adcp.types.generated_poc.content_standards.artifact.Artifact.format_id">format_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Artifact.identifiers" href="#adcp.types.generated_poc.content_standards.artifact.Artifact.identifiers">identifiers</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Artifact.last_update_time" href="#adcp.types.generated_poc.content_standards.artifact.Artifact.last_update_time">last_update_time</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Artifact.metadata" href="#adcp.types.generated_poc.content_standards.artifact.Artifact.metadata">metadata</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Artifact.model_config" href="#adcp.types.generated_poc.content_standards.artifact.Artifact.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Artifact.property_id" href="#adcp.types.generated_poc.content_standards.artifact.Artifact.property_id">property_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Artifact.published_time" href="#adcp.types.generated_poc.content_standards.artifact.Artifact.published_time">published_time</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Artifact.url" href="#adcp.types.generated_poc.content_standards.artifact.Artifact.url">url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Artifact.variant_id" href="#adcp.types.generated_poc.content_standards.artifact.Artifact.variant_id">variant_id</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.artifact.AssetAccess" href="#adcp.types.generated_poc.content_standards.artifact.AssetAccess">AssetAccess</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.AssetAccess.model_config" href="#adcp.types.generated_poc.content_standards.artifact.AssetAccess.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.AssetAccess.root" href="#adcp.types.generated_poc.content_standards.artifact.AssetAccess.root">root</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.artifact.AssetAccess1" href="#adcp.types.generated_poc.content_standards.artifact.AssetAccess1">AssetAccess1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.AssetAccess1.method" href="#adcp.types.generated_poc.content_standards.artifact.AssetAccess1.method">method</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.AssetAccess1.model_config" href="#adcp.types.generated_poc.content_standards.artifact.AssetAccess1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.AssetAccess1.token" href="#adcp.types.generated_poc.content_standards.artifact.AssetAccess1.token">token</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.artifact.AssetAccess2" href="#adcp.types.generated_poc.content_standards.artifact.AssetAccess2">AssetAccess2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.AssetAccess2.credentials" href="#adcp.types.generated_poc.content_standards.artifact.AssetAccess2.credentials">credentials</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.AssetAccess2.method" href="#adcp.types.generated_poc.content_standards.artifact.AssetAccess2.method">method</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.AssetAccess2.model_config" href="#adcp.types.generated_poc.content_standards.artifact.AssetAccess2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.AssetAccess2.provider" href="#adcp.types.generated_poc.content_standards.artifact.AssetAccess2.provider">provider</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.artifact.AssetAccess3" href="#adcp.types.generated_poc.content_standards.artifact.AssetAccess3">AssetAccess3</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.AssetAccess3.method" href="#adcp.types.generated_poc.content_standards.artifact.AssetAccess3.method">method</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.AssetAccess3.model_config" href="#adcp.types.generated_poc.content_standards.artifact.AssetAccess3.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets" href="#adcp.types.generated_poc.content_standards.artifact.Assets">Assets</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets.content" href="#adcp.types.generated_poc.content_standards.artifact.Assets.content">content</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets.heading_level" href="#adcp.types.generated_poc.content_standards.artifact.Assets.heading_level">heading_level</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets.language" href="#adcp.types.generated_poc.content_standards.artifact.Assets.language">language</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets.model_config" href="#adcp.types.generated_poc.content_standards.artifact.Assets.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets.role" href="#adcp.types.generated_poc.content_standards.artifact.Assets.role">role</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets.type" href="#adcp.types.generated_poc.content_standards.artifact.Assets.type">type</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets1" href="#adcp.types.generated_poc.content_standards.artifact.Assets1">Assets1</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets1.access" href="#adcp.types.generated_poc.content_standards.artifact.Assets1.access">access</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets1.alt_text" href="#adcp.types.generated_poc.content_standards.artifact.Assets1.alt_text">alt_text</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets1.caption" href="#adcp.types.generated_poc.content_standards.artifact.Assets1.caption">caption</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets1.height" href="#adcp.types.generated_poc.content_standards.artifact.Assets1.height">height</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets1.model_config" href="#adcp.types.generated_poc.content_standards.artifact.Assets1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets1.type" href="#adcp.types.generated_poc.content_standards.artifact.Assets1.type">type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets1.url" href="#adcp.types.generated_poc.content_standards.artifact.Assets1.url">url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets1.width" href="#adcp.types.generated_poc.content_standards.artifact.Assets1.width">width</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets2" href="#adcp.types.generated_poc.content_standards.artifact.Assets2">Assets2</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets2.access" href="#adcp.types.generated_poc.content_standards.artifact.Assets2.access">access</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets2.duration_ms" href="#adcp.types.generated_poc.content_standards.artifact.Assets2.duration_ms">duration_ms</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets2.model_config" href="#adcp.types.generated_poc.content_standards.artifact.Assets2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets2.thumbnail_url" href="#adcp.types.generated_poc.content_standards.artifact.Assets2.thumbnail_url">thumbnail_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets2.transcript" href="#adcp.types.generated_poc.content_standards.artifact.Assets2.transcript">transcript</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets2.transcript_source" href="#adcp.types.generated_poc.content_standards.artifact.Assets2.transcript_source">transcript_source</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets2.type" href="#adcp.types.generated_poc.content_standards.artifact.Assets2.type">type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets2.url" href="#adcp.types.generated_poc.content_standards.artifact.Assets2.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets3" href="#adcp.types.generated_poc.content_standards.artifact.Assets3">Assets3</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets3.access" href="#adcp.types.generated_poc.content_standards.artifact.Assets3.access">access</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets3.duration_ms" href="#adcp.types.generated_poc.content_standards.artifact.Assets3.duration_ms">duration_ms</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets3.model_config" href="#adcp.types.generated_poc.content_standards.artifact.Assets3.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets3.transcript" href="#adcp.types.generated_poc.content_standards.artifact.Assets3.transcript">transcript</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets3.transcript_source" href="#adcp.types.generated_poc.content_standards.artifact.Assets3.transcript_source">transcript_source</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets3.type" href="#adcp.types.generated_poc.content_standards.artifact.Assets3.type">type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets3.url" href="#adcp.types.generated_poc.content_standards.artifact.Assets3.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.artifact.Identifiers" href="#adcp.types.generated_poc.content_standards.artifact.Identifiers">Identifiers</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Identifiers.apple_podcast_id" href="#adcp.types.generated_poc.content_standards.artifact.Identifiers.apple_podcast_id">apple_podcast_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Identifiers.model_config" href="#adcp.types.generated_poc.content_standards.artifact.Identifiers.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Identifiers.podcast_guid" href="#adcp.types.generated_poc.content_standards.artifact.Identifiers.podcast_guid">podcast_guid</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Identifiers.rss_url" href="#adcp.types.generated_poc.content_standards.artifact.Identifiers.rss_url">rss_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Identifiers.spotify_show_id" href="#adcp.types.generated_poc.content_standards.artifact.Identifiers.spotify_show_id">spotify_show_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Identifiers.youtube_video_id" href="#adcp.types.generated_poc.content_standards.artifact.Identifiers.youtube_video_id">youtube_video_id</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.artifact.Metadata" href="#adcp.types.generated_poc.content_standards.artifact.Metadata">Metadata</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Metadata.author" href="#adcp.types.generated_poc.content_standards.artifact.Metadata.author">author</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Metadata.canonical" href="#adcp.types.generated_poc.content_standards.artifact.Metadata.canonical">canonical</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Metadata.json_ld" href="#adcp.types.generated_poc.content_standards.artifact.Metadata.json_ld">json_ld</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Metadata.keywords" href="#adcp.types.generated_poc.content_standards.artifact.Metadata.keywords">keywords</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Metadata.model_config" href="#adcp.types.generated_poc.content_standards.artifact.Metadata.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Metadata.open_graph" href="#adcp.types.generated_poc.content_standards.artifact.Metadata.open_graph">open_graph</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Metadata.twitter_card" href="#adcp.types.generated_poc.content_standards.artifact.Metadata.twitter_card">twitter_card</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.artifact.Provider" href="#adcp.types.generated_poc.content_standards.artifact.Provider">Provider</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Provider.aws" href="#adcp.types.generated_poc.content_standards.artifact.Provider.aws">aws</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Provider.gcp" href="#adcp.types.generated_poc.content_standards.artifact.Provider.gcp">gcp</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.artifact.Role" href="#adcp.types.generated_poc.content_standards.artifact.Role">Role</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Role.caption" href="#adcp.types.generated_poc.content_standards.artifact.Role.caption">caption</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Role.description" href="#adcp.types.generated_poc.content_standards.artifact.Role.description">description</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Role.heading" href="#adcp.types.generated_poc.content_standards.artifact.Role.heading">heading</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Role.list_item" href="#adcp.types.generated_poc.content_standards.artifact.Role.list_item">list_item</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Role.paragraph" href="#adcp.types.generated_poc.content_standards.artifact.Role.paragraph">paragraph</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Role.quote" href="#adcp.types.generated_poc.content_standards.artifact.Role.quote">quote</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Role.title_" href="#adcp.types.generated_poc.content_standards.artifact.Role.title_">title_</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.artifact.TranscriptSource" href="#adcp.types.generated_poc.content_standards.artifact.TranscriptSource">TranscriptSource</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.TranscriptSource.closed_captions" href="#adcp.types.generated_poc.content_standards.artifact.TranscriptSource.closed_captions">closed_captions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.TranscriptSource.dub" href="#adcp.types.generated_poc.content_standards.artifact.TranscriptSource.dub">dub</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.TranscriptSource.generated" href="#adcp.types.generated_poc.content_standards.artifact.TranscriptSource.generated">generated</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.TranscriptSource.original_script" href="#adcp.types.generated_poc.content_standards.artifact.TranscriptSource.original_script">original_script</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.TranscriptSource.subtitles" href="#adcp.types.generated_poc.content_standards.artifact.TranscriptSource.subtitles">subtitles</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.artifact.TranscriptSource1" href="#adcp.types.generated_poc.content_standards.artifact.TranscriptSource1">TranscriptSource1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.TranscriptSource1.closed_captions" href="#adcp.types.generated_poc.content_standards.artifact.TranscriptSource1.closed_captions">closed_captions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.TranscriptSource1.generated" href="#adcp.types.generated_poc.content_standards.artifact.TranscriptSource1.generated">generated</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.TranscriptSource1.original_script" href="#adcp.types.generated_poc.content_standards.artifact.TranscriptSource1.original_script">original_script</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

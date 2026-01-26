@@ -57,34 +57,34 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class GetMediaBuyDeliveryRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     buyer_refs: Annotated[
-        list[str] | None, Field(description=&#34;Array of buyer reference IDs to get delivery data for&#34;)
+        list[str] | None, Field(description=&#39;Array of buyer reference IDs to get delivery data for&#39;)
     ] = None
     context: context_1.ContextObject | None = None
     end_date: Annotated[
         str | None,
         Field(
-            description=&#34;End date for reporting period (YYYY-MM-DD)&#34;,
-            pattern=&#34;^\\d{4}-\\d{2}-\\d{2}$&#34;,
+            description=&#39;End date for reporting period (YYYY-MM-DD)&#39;,
+            pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;,
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     media_buy_ids: Annotated[
         list[str] | None,
-        Field(description=&#34;Array of publisher media buy IDs to get delivery data for&#34;),
+        Field(description=&#39;Array of publisher media buy IDs to get delivery data for&#39;),
     ] = None
     start_date: Annotated[
         str | None,
         Field(
-            description=&#34;Start date for reporting period (YYYY-MM-DD)&#34;,
-            pattern=&#34;^\\d{4}-\\d{2}-\\d{2}$&#34;,
+            description=&#39;Start date for reporting period (YYYY-MM-DD)&#39;,
+            pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;,
         ),
     ] = None
     status_filter: Annotated[
         media_buy_status.MediaBuyStatus | list[media_buy_status.MediaBuyStatus] | None,
-        Field(description=&#34;Filter by status. Can be a single status or array of statuses&#34;),
+        Field(description=&#39;Filter by status. Can be a single status or array of statuses&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -141,7 +141,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>

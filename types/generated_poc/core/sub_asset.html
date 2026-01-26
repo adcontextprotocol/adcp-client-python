@@ -59,8 +59,8 @@ el.replaceWith(d);
     root: Annotated[
         SubAsset1 | SubAsset2,
         Field(
-            description=&#34;Sub-asset for multi-asset creative formats, including carousel images and native ad template variables&#34;,
-            title=&#34;Sub-Asset&#34;,
+            description=&#39;Sub-asset for multi-asset creative formats, including carousel images and native ad template variables&#39;,
+            title=&#39;Sub-Asset&#39;,
         ),
     ]</code></pre>
 </details>
@@ -114,22 +114,22 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SubAsset1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     asset_id: Annotated[
-        str, Field(description=&#34;Unique identifier for the asset within the creative&#34;)
+        str, Field(description=&#39;Unique identifier for the asset within the creative&#39;)
     ]
     asset_kind: Annotated[
-        Literal[&#34;media&#34;],
-        Field(description=&#34;Discriminator indicating this is a media asset with content_uri&#34;),
+        Literal[&#39;media&#39;],
+        Field(description=&#39;Discriminator indicating this is a media asset with content_uri&#39;),
     ]
     asset_type: Annotated[
         str,
         Field(
-            description=&#34;Type of asset. Common types: thumbnail_image, product_image, featured_image, logo&#34;
+            description=&#39;Type of asset. Common types: thumbnail_image, product_image, featured_image, logo&#39;
         ),
     ]
-    content_uri: Annotated[AnyUrl, Field(description=&#34;URL for media assets (images, videos, etc.)&#34;)]</code></pre>
+    content_uri: Annotated[AnyUrl, Field(description=&#39;URL for media assets (images, videos, etc.)&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -173,7 +173,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -189,25 +189,25 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SubAsset2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     asset_id: Annotated[
-        str, Field(description=&#34;Unique identifier for the asset within the creative&#34;)
+        str, Field(description=&#39;Unique identifier for the asset within the creative&#39;)
     ]
     asset_kind: Annotated[
-        Literal[&#34;text&#34;],
-        Field(description=&#34;Discriminator indicating this is a text asset with content&#34;),
+        Literal[&#39;text&#39;],
+        Field(description=&#39;Discriminator indicating this is a text asset with content&#39;),
     ]
     asset_type: Annotated[
         str,
         Field(
-            description=&#34;Type of asset. Common types: headline, body_text, cta_text, price_text, sponsor_name, author_name, click_url&#34;
+            description=&#39;Type of asset. Common types: headline, body_text, cta_text, price_text, sponsor_name, author_name, click_url&#39;
         ),
     ]
     content: Annotated[
         str | list[str],
         Field(
-            description=&#34;Text content for text-based assets like headlines, body text, CTA text, etc.&#34;
+            description=&#39;Text content for text-based assets like headlines, body text, CTA text, etc.&#39;
         ),
     ]</code></pre>
 </details>
@@ -253,7 +253,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>

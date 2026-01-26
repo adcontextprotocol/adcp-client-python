@@ -46,8 +46,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParams"><code class="flex name class">
-<span>class <span class="ident">AdcpAgentCardExtensionParams</span></span>
+<dt id="adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParamsDeprecated"><code class="flex name class">
+<span>class <span class="ident">AdcpAgentCardExtensionParamsDeprecated</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -55,27 +55,30 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class AdcpAgentCardExtensionParams(AdCPBaseModel):
+<pre><code class="python">class AdcpAgentCardExtensionParamsDeprecated(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     adcp_version: Annotated[
         str,
         Field(
-            description=&#34;Semantic version of the AdCP specification this agent implements (e.g., &#39;2.5.0&#39;). Extension schemas are versioned along with the AdCP spec.&#34;,
-            pattern=&#34;^\\d+\\.\\d+\\.\\d+$&#34;,
+            deprecated=True,
+            description=&#39;DEPRECATED: Use get_adcp_capabilities response adcp.major_versions instead.&#39;,
+            pattern=&#39;^\\d+\\.\\d+\\.\\d+$&#39;,
         ),
     ]
     extensions_supported: Annotated[
         list[ExtensionsSupportedItem] | None,
         Field(
-            description=&#34;Typed extensions this agent supports. Each extension has a formal schema in /schemas/extensions/. Extension version is determined by adcp_version.&#34;
+            deprecated=True,
+            description=&#39;DEPRECATED: Typed extensions can be declared in get_adcp_capabilities ext field.&#39;,
         ),
     ] = None
     protocols_supported: Annotated[
         list[ProtocolsSupportedEnum],
         Field(
-            description=&#34;AdCP protocol domains supported by this agent. At least one must be specified.&#34;,
+            deprecated=True,
+            description=&#39;DEPRECATED: Use get_adcp_capabilities response supported_protocols instead.&#39;,
             min_length=1,
         ),
     ]</code></pre>
@@ -95,21 +98,99 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParams.adcp_version"><code class="name">var <span class="ident">adcp_version</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParamsDeprecated.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParams.extensions_supported"><code class="name">var <span class="ident">extensions_supported</span> : list[<a title="adcp.types.generated_poc.protocols.adcp_extension.ExtensionsSupportedItem" href="#adcp.types.generated_poc.protocols.adcp_extension.ExtensionsSupportedItem">ExtensionsSupportedItem</a>] | None</code></dt>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParamsDeprecated.adcp_version"><code class="name">var <span class="ident">adcp_version</span> : str</code></dt>
 <dd>
-<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def __get__(self, obj: BaseModel | None, obj_type: type[BaseModel] | None = None) -&gt; Any:
+    if obj is None:
+        if self.wrapped_property is not None:
+            return self.wrapped_property.__get__(None, obj_type)
+        raise AttributeError(self.field_name)
+
+    warnings.warn(self.msg, DeprecationWarning, stacklevel=2)
+
+    if self.wrapped_property is not None:
+        return self.wrapped_property.__get__(obj, obj_type)
+    return obj.__dict__[self.field_name]</code></pre>
+</details>
+<div class="desc"><p>Read-only data descriptor used to emit a runtime deprecation warning before accessing a deprecated field.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>msg</code></strong></dt>
+<dd>The deprecation message to be emitted.</dd>
+<dt><strong><code>wrapped_property</code></strong></dt>
+<dd>The property instance if the deprecated field is a computed field, or <code>None</code>.</dd>
+<dt><strong><code>field_name</code></strong></dt>
+<dd>The name of the field being deprecated.</dd>
+</dl></div>
 </dd>
-<dt id="adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParams.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParamsDeprecated.extensions_supported"><code class="name">var <span class="ident">extensions_supported</span> : list[<a title="adcp.types.generated_poc.protocols.adcp_extension.ExtensionsSupportedItem" href="#adcp.types.generated_poc.protocols.adcp_extension.ExtensionsSupportedItem">ExtensionsSupportedItem</a>] | None</code></dt>
 <dd>
-<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def __get__(self, obj: BaseModel | None, obj_type: type[BaseModel] | None = None) -&gt; Any:
+    if obj is None:
+        if self.wrapped_property is not None:
+            return self.wrapped_property.__get__(None, obj_type)
+        raise AttributeError(self.field_name)
+
+    warnings.warn(self.msg, DeprecationWarning, stacklevel=2)
+
+    if self.wrapped_property is not None:
+        return self.wrapped_property.__get__(obj, obj_type)
+    return obj.__dict__[self.field_name]</code></pre>
+</details>
+<div class="desc"><p>Read-only data descriptor used to emit a runtime deprecation warning before accessing a deprecated field.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>msg</code></strong></dt>
+<dd>The deprecation message to be emitted.</dd>
+<dt><strong><code>wrapped_property</code></strong></dt>
+<dd>The property instance if the deprecated field is a computed field, or <code>None</code>.</dd>
+<dt><strong><code>field_name</code></strong></dt>
+<dd>The name of the field being deprecated.</dd>
+</dl></div>
 </dd>
-<dt id="adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParams.protocols_supported"><code class="name">var <span class="ident">protocols_supported</span> : list[<a title="adcp.types.generated_poc.protocols.adcp_extension.ProtocolsSupportedEnum" href="#adcp.types.generated_poc.protocols.adcp_extension.ProtocolsSupportedEnum">ProtocolsSupportedEnum</a>]</code></dt>
+<dt id="adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParamsDeprecated.protocols_supported"><code class="name">var <span class="ident">protocols_supported</span> : list[<a title="adcp.types.generated_poc.protocols.adcp_extension.ProtocolsSupportedEnum" href="#adcp.types.generated_poc.protocols.adcp_extension.ProtocolsSupportedEnum">ProtocolsSupportedEnum</a>]</code></dt>
 <dd>
-<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def __get__(self, obj: BaseModel | None, obj_type: type[BaseModel] | None = None) -&gt; Any:
+    if obj is None:
+        if self.wrapped_property is not None:
+            return self.wrapped_property.__get__(None, obj_type)
+        raise AttributeError(self.field_name)
+
+    warnings.warn(self.msg, DeprecationWarning, stacklevel=2)
+
+    if self.wrapped_property is not None:
+        return self.wrapped_property.__get__(obj, obj_type)
+    return obj.__dict__[self.field_name]</code></pre>
+</details>
+<div class="desc"><p>Read-only data descriptor used to emit a runtime deprecation warning before accessing a deprecated field.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>msg</code></strong></dt>
+<dd>The deprecation message to be emitted.</dd>
+<dt><strong><code>wrapped_property</code></strong></dt>
+<dd>The property instance if the deprecated field is a computed field, or <code>None</code>.</dd>
+<dt><strong><code>field_name</code></strong></dt>
+<dd>The name of the field being deprecated.</dd>
+</dl></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
@@ -118,7 +199,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -133,13 +214,7 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ExtensionsSupportedItem(RootModel[str]):
-    root: Annotated[
-        str,
-        Field(
-            description=&#34;Extension namespace (e.g., &#39;sustainability&#39;). Must be lowercase alphanumeric with underscores.&#34;,
-            pattern=&#34;^[a-z][a-z0-9_]*$&#34;,
-        ),
-    ]</code></pre>
+    root: Annotated[str, Field(pattern=&#39;^[a-z][a-z0-9_]*$&#39;)]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -190,9 +265,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ProtocolsSupportedEnum(Enum):
-    media_buy = &#34;media_buy&#34;
-    creative = &#34;creative&#34;
-    signals = &#34;signals&#34;</code></pre>
+    media_buy = &#39;media_buy&#39;
+    creative = &#39;creative&#39;
+    signals = &#39;signals&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -265,12 +340,12 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParams" href="#adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParams">AdcpAgentCardExtensionParams</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParamsDeprecated" href="#adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParamsDeprecated">AdcpAgentCardExtensionParamsDeprecated</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParams.adcp_version" href="#adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParams.adcp_version">adcp_version</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParams.extensions_supported" href="#adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParams.extensions_supported">extensions_supported</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParams.model_config" href="#adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParams.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParams.protocols_supported" href="#adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParams.protocols_supported">protocols_supported</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParamsDeprecated.adcp_version" href="#adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParamsDeprecated.adcp_version">adcp_version</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParamsDeprecated.extensions_supported" href="#adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParamsDeprecated.extensions_supported">extensions_supported</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParamsDeprecated.model_config" href="#adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParamsDeprecated.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParamsDeprecated.protocols_supported" href="#adcp.types.generated_poc.protocols.adcp_extension.AdcpAgentCardExtensionParamsDeprecated.protocols_supported">protocols_supported</a></code></li>
 </ul>
 </li>
 <li>

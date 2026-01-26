@@ -57,31 +57,31 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Measurement(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     attribution: Annotated[
         str,
         Field(
-            description=&#34;Attribution methodology&#34;,
-            examples=[&#34;deterministic_purchase&#34;, &#34;probabilistic&#34;],
+            description=&#39;Attribution methodology&#39;,
+            examples=[&#39;deterministic_purchase&#39;, &#39;probabilistic&#39;],
         ),
     ]
     reporting: Annotated[
         str,
         Field(
-            description=&#34;Reporting frequency and format&#34;,
-            examples=[&#34;weekly_dashboard&#34;, &#34;real_time_api&#34;],
+            description=&#39;Reporting frequency and format&#39;,
+            examples=[&#39;weekly_dashboard&#39;, &#39;real_time_api&#39;],
         ),
     ]
     type: Annotated[
         str,
         Field(
-            description=&#34;Type of measurement&#34;,
-            examples=[&#34;incremental_sales_lift&#34;, &#34;brand_lift&#34;, &#34;foot_traffic&#34;],
+            description=&#39;Type of measurement&#39;,
+            examples=[&#39;incremental_sales_lift&#39;, &#39;brand_lift&#39;, &#39;foot_traffic&#39;],
         ),
     ]
     window: Annotated[
-        str | None, Field(description=&#34;Attribution window&#34;, examples=[&#34;30_days&#34;, &#34;7_days&#34;])
+        str | None, Field(description=&#39;Attribution window&#39;, examples=[&#39;30_days&#39;, &#39;7_days&#39;])
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -126,7 +126,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>

@@ -56,22 +56,22 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Asset(AdCPBaseModel):
-    asset_id: Annotated[str, Field(description=&#34;Identifier for this asset within the group&#34;)]
+    asset_id: Annotated[str, Field(description=&#39;Identifier for this asset within the group&#39;)]
     asset_role: Annotated[
         str | None,
         Field(
             description=&#34;Optional descriptive label for this asset&#39;s purpose. Not used for referencing assets in manifests—use asset_id instead. This field is for human-readable documentation and UI display only.&#34;
         ),
     ] = None
-    asset_type: Annotated[asset_content_type.AssetContentType, Field(description=&#34;Type of asset&#34;)]
+    asset_type: Annotated[asset_content_type.AssetContentType, Field(description=&#39;Type of asset&#39;)]
     required: Annotated[
         bool,
-        Field(description=&#34;Whether this asset is required within each repetition of the group&#34;),
+        Field(description=&#39;Whether this asset is required within each repetition of the group&#39;),
     ]
     requirements: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#34;Technical requirements for this asset. For template formats, use parameters_from_format_id: true to indicate asset parameters must match the format_id parameters (width/height/unit and/or duration_ms).&#34;
+            description=&#39;Technical requirements for this asset. For template formats, use parameters_from_format_id: true to indicate asset parameters must match the format_id parameters (width/height/unit and/or duration_ms).&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -121,7 +121,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -136,21 +136,21 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Asset2(AdCPBaseModel):
-    asset_id: Annotated[str, Field(description=&#34;Identifier for this asset within the group&#34;)]
+    asset_id: Annotated[str, Field(description=&#39;Identifier for this asset within the group&#39;)]
     asset_role: Annotated[
         str | None,
         Field(
             description=&#34;Optional descriptive label for this asset&#39;s purpose (e.g., &#39;hero_image&#39;, &#39;logo&#39;). Not used for referencing assets in manifests—use asset_id instead. This field is for human-readable documentation and UI display only.&#34;
         ),
     ] = None
-    asset_type: Annotated[asset_content_type.AssetContentType, Field(description=&#34;Type of asset&#34;)]
+    asset_type: Annotated[asset_content_type.AssetContentType, Field(description=&#39;Type of asset&#39;)]
     required: Annotated[
-        bool | None, Field(description=&#34;Whether this asset is required in each repetition&#34;)
+        bool | None, Field(description=&#39;Whether this asset is required in each repetition&#39;)
     ] = None
     requirements: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#34;Technical requirements for this asset. For template formats, use parameters_from_format_id: true to indicate asset parameters must match the format_id parameters (width/height/unit and/or duration_ms).&#34;
+            description=&#39;Technical requirements for this asset. For template formats, use parameters_from_format_id: true to indicate asset parameters must match the format_id parameters (width/height/unit and/or duration_ms).&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -200,7 +200,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -218,7 +218,7 @@ validated to form a valid model.</p>
     asset_id: Annotated[
         str,
         Field(
-            description=&#34;Unique identifier for this asset. Creative manifests MUST use this exact value as the key in the assets object.&#34;
+            description=&#39;Unique identifier for this asset. Creative manifests MUST use this exact value as the key in the assets object.&#39;
         ),
     ]
     asset_role: Annotated[
@@ -227,21 +227,21 @@ validated to form a valid model.</p>
             description=&#34;Optional descriptive label for this asset&#39;s purpose (e.g., &#39;hero_image&#39;, &#39;logo&#39;, &#39;third_party_tracking&#39;). Not used for referencing assets in manifests—use asset_id instead. This field is for human-readable documentation and UI display only.&#34;
         ),
     ] = None
-    asset_type: Annotated[asset_content_type.AssetContentType, Field(description=&#34;Type of asset&#34;)]
+    asset_type: Annotated[asset_content_type.AssetContentType, Field(description=&#39;Type of asset&#39;)]
     item_type: Annotated[
-        Literal[&#34;individual&#34;],
-        Field(description=&#34;Discriminator indicating this is an individual asset&#34;),
+        Literal[&#39;individual&#39;],
+        Field(description=&#39;Discriminator indicating this is an individual asset&#39;),
     ]
     required: Annotated[
         bool,
         Field(
-            description=&#34;Whether this asset is required (true) or optional (false). Required assets must be provided for a valid creative. Optional assets enhance the creative but are not mandatory.&#34;
+            description=&#39;Whether this asset is required (true) or optional (false). Required assets must be provided for a valid creative. Optional assets enhance the creative but are not mandatory.&#39;
         ),
     ]
     requirements: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#34;Technical requirements for this asset (dimensions, file size, duration, etc.). For template formats, use parameters_from_format_id: true to indicate asset parameters must match the format_id parameters (width/height/unit and/or duration_ms).&#34;
+            description=&#39;Technical requirements for this asset (dimensions, file size, duration, etc.). For template formats, use parameters_from_format_id: true to indicate asset parameters must match the format_id parameters (width/height/unit and/or duration_ms).&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -295,13 +295,13 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets1"><code class="flex name class">
-<span>class <span class="ident">Assets1</span></span>
+<dt id="adcp.types.generated_poc.core.format.Assets5"><code class="flex name class">
+<span>class <span class="ident">Assets5</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -309,27 +309,27 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Assets1(AdCPBaseModel):
+<pre><code class="python">class Assets5(AdCPBaseModel):
     asset_group_id: Annotated[
         str, Field(description=&#34;Identifier for this asset group (e.g., &#39;product&#39;, &#39;slide&#39;, &#39;card&#39;)&#34;)
     ]
-    assets: Annotated[list[Asset], Field(description=&#34;Assets within each repetition of this group&#34;)]
+    assets: Annotated[list[Asset], Field(description=&#39;Assets within each repetition of this group&#39;)]
     item_type: Annotated[
-        Literal[&#34;repeatable_group&#34;],
-        Field(description=&#34;Discriminator indicating this is a repeatable asset group&#34;),
+        Literal[&#39;repeatable_group&#39;],
+        Field(description=&#39;Discriminator indicating this is a repeatable asset group&#39;),
     ]
-    max_count: Annotated[int, Field(description=&#34;Maximum number of repetitions allowed&#34;, ge=1)]
+    max_count: Annotated[int, Field(description=&#39;Maximum number of repetitions allowed&#39;, ge=1)]
     min_count: Annotated[
         int,
         Field(
-            description=&#34;Minimum number of repetitions required (if group is required) or allowed (if optional)&#34;,
+            description=&#39;Minimum number of repetitions required (if group is required) or allowed (if optional)&#39;,
             ge=0,
         ),
     ]
     required: Annotated[
         bool,
         Field(
-            description=&#34;Whether this asset group is required. If true, at least min_count repetitions must be provided.&#34;
+            description=&#39;Whether this asset group is required. If true, at least min_count repetitions must be provided.&#39;
         ),
     ]</code></pre>
 </details>
@@ -348,31 +348,31 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.format.Assets1.asset_group_id"><code class="name">var <span class="ident">asset_group_id</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets5.asset_group_id"><code class="name">var <span class="ident">asset_group_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets1.assets"><code class="name">var <span class="ident">assets</span> : list[<a title="adcp.types.generated_poc.core.format.Asset" href="#adcp.types.generated_poc.core.format.Asset">Asset</a>]</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets5.assets"><code class="name">var <span class="ident">assets</span> : list[<a title="adcp.types.generated_poc.core.format.Asset" href="#adcp.types.generated_poc.core.format.Asset">Asset</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets1.item_type"><code class="name">var <span class="ident">item_type</span> : Literal['repeatable_group']</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets5.item_type"><code class="name">var <span class="ident">item_type</span> : Literal['repeatable_group']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets1.max_count"><code class="name">var <span class="ident">max_count</span> : int</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets5.max_count"><code class="name">var <span class="ident">max_count</span> : int</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets1.min_count"><code class="name">var <span class="ident">min_count</span> : int</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets5.min_count"><code class="name">var <span class="ident">min_count</span> : int</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets5.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets1.required"><code class="name">var <span class="ident">required</span> : bool</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets5.required"><code class="name">var <span class="ident">required</span> : bool</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -383,7 +383,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -401,7 +401,7 @@ validated to form a valid model.</p>
     asset_id: Annotated[
         str,
         Field(
-            description=&#34;Unique identifier for this asset. Creative manifests MUST use this exact value as the key in the assets object.&#34;
+            description=&#39;Unique identifier for this asset. Creative manifests MUST use this exact value as the key in the assets object.&#39;
         ),
     ]
     asset_role: Annotated[
@@ -410,16 +410,16 @@ validated to form a valid model.</p>
             description=&#34;Optional descriptive label for this asset&#39;s purpose (e.g., &#39;hero_image&#39;, &#39;logo&#39;). Not used for referencing assets in manifests—use asset_id instead. This field is for human-readable documentation and UI display only.&#34;
         ),
     ] = None
-    asset_type: Annotated[asset_content_type.AssetContentType, Field(description=&#34;Type of asset&#34;)]
+    asset_type: Annotated[asset_content_type.AssetContentType, Field(description=&#39;Type of asset&#39;)]
     item_type: Annotated[
-        Literal[&#34;individual&#34;],
-        Field(description=&#34;Discriminator indicating this is an individual asset requirement&#34;),
+        Literal[&#39;individual&#39;],
+        Field(description=&#39;Discriminator indicating this is an individual asset requirement&#39;),
     ]
-    required: Annotated[bool | None, Field(description=&#34;Whether this asset is required&#34;)] = None
+    required: Annotated[bool | None, Field(description=&#39;Whether this asset is required&#39;)] = None
     requirements: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#34;Technical requirements for this asset (dimensions, file size, duration, etc.). For template formats, use parameters_from_format_id: true to indicate asset parameters must match the format_id parameters (width/height/unit and/or duration_ms).&#34;
+            description=&#39;Technical requirements for this asset (dimensions, file size, duration, etc.). For template formats, use parameters_from_format_id: true to indicate asset parameters must match the format_id parameters (width/height/unit and/or duration_ms).&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -473,7 +473,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -492,14 +492,14 @@ validated to form a valid model.</p>
         str, Field(description=&#34;Identifier for this asset group (e.g., &#39;product&#39;, &#39;slide&#39;, &#39;card&#39;)&#34;)
     ]
     assets: Annotated[
-        list[Asset2], Field(description=&#34;Assets within each repetition of this group&#34;)
+        list[Asset2], Field(description=&#39;Assets within each repetition of this group&#39;)
     ]
     item_type: Annotated[
-        Literal[&#34;repeatable_group&#34;],
-        Field(description=&#34;Discriminator indicating this is a repeatable asset group&#34;),
+        Literal[&#39;repeatable_group&#39;],
+        Field(description=&#39;Discriminator indicating this is a repeatable asset group&#39;),
     ]
-    max_count: Annotated[int, Field(description=&#34;Maximum number of repetitions allowed&#34;, ge=1)]
-    min_count: Annotated[int, Field(description=&#34;Minimum number of repetitions required&#34;, ge=1)]</code></pre>
+    max_count: Annotated[int, Field(description=&#39;Maximum number of repetitions allowed&#39;, ge=1)]
+    min_count: Annotated[int, Field(description=&#39;Minimum number of repetitions required&#39;, ge=1)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -547,7 +547,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -566,26 +566,26 @@ validated to form a valid model.</p>
         str | None,
         Field(
             description=&#34;Fixed aspect ratio constraint (e.g., &#39;16:9&#39;, &#39;4:3&#39;, &#39;1:1&#39;)&#34;,
-            pattern=&#34;^\\d+:\\d+$&#34;,
+            pattern=&#39;^\\d+:\\d+$&#39;,
         ),
     ] = None
-    height: Annotated[int | None, Field(description=&#34;Fixed height in pixels&#34;, ge=1)] = None
+    height: Annotated[int | None, Field(description=&#39;Fixed height in pixels&#39;, ge=1)] = None
     max_height: Annotated[
-        int | None, Field(description=&#34;Maximum height in pixels for responsive renders&#34;, ge=1)
+        int | None, Field(description=&#39;Maximum height in pixels for responsive renders&#39;, ge=1)
     ] = None
     max_width: Annotated[
-        int | None, Field(description=&#34;Maximum width in pixels for responsive renders&#34;, ge=1)
+        int | None, Field(description=&#39;Maximum width in pixels for responsive renders&#39;, ge=1)
     ] = None
     min_height: Annotated[
-        int | None, Field(description=&#34;Minimum height in pixels for responsive renders&#34;, ge=1)
+        int | None, Field(description=&#39;Minimum height in pixels for responsive renders&#39;, ge=1)
     ] = None
     min_width: Annotated[
-        int | None, Field(description=&#34;Minimum width in pixels for responsive renders&#34;, ge=1)
+        int | None, Field(description=&#39;Minimum width in pixels for responsive renders&#39;, ge=1)
     ] = None
     responsive: Annotated[
-        Responsive | None, Field(description=&#34;Indicates which dimensions are responsive/fluid&#34;)
+        Responsive | None, Field(description=&#39;Indicates which dimensions are responsive/fluid&#39;)
     ] = None
-    width: Annotated[int | None, Field(description=&#34;Fixed width in pixels&#34;, ge=1)] = None</code></pre>
+    width: Annotated[int | None, Field(description=&#39;Fixed width in pixels&#39;, ge=1)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -649,7 +649,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -693,7 +693,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.generated_poc.core.format.Dimensions.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.format.Dimensions.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.Dimensions.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Dimensions.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -709,16 +709,16 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Format(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     accepts_parameters: Annotated[
         list[format_id_parameter.FormatIdParameter] | None,
         Field(
-            description=&#34;List of parameters this format accepts in format_id. Template formats define which parameters (dimensions, duration, etc.) can be specified when instantiating the format. Empty or omitted means this is a concrete format with fixed parameters.&#34;
+            description=&#39;List of parameters this format accepts in format_id. Template formats define which parameters (dimensions, duration, etc.) can be specified when instantiating the format. Empty or omitted means this is a concrete format with fixed parameters.&#39;
         ),
     ] = None
     assets: Annotated[
-        list[Assets | Assets1] | None,
+        list[Assets | Assets5] | None,
         Field(
             description=&#34;Array of all assets supported for this format. Each asset is identified by its asset_id, which must be used as the key in creative manifests. Use the &#39;required&#39; boolean on each asset to indicate whether it&#39;s mandatory. This field replaces the deprecated &#39;assets_required&#39; and enables full asset discovery for buyers and AI agents.&#34;
         ),
@@ -732,66 +732,66 @@ validated to form a valid model.</p>
     ] = None
     delivery: Annotated[
         dict[str, Any] | None,
-        Field(description=&#34;Delivery method specifications (e.g., hosted, VAST, third-party tags)&#34;),
+        Field(description=&#39;Delivery method specifications (e.g., hosted, VAST, third-party tags)&#39;),
     ] = None
     description: Annotated[
         str | None,
         Field(
-            description=&#34;Plain text explanation of what this format does and what assets it requires&#34;
+            description=&#39;Plain text explanation of what this format does and what assets it requires&#39;
         ),
     ] = None
     example_url: Annotated[
         AnyUrl | None,
         Field(
-            description=&#34;Optional URL to showcase page with examples and interactive demos of this format&#34;
+            description=&#39;Optional URL to showcase page with examples and interactive demos of this format&#39;
         ),
     ] = None
     format_card: Annotated[
         FormatCard | None,
         Field(
-            description=&#34;Optional standard visual card (300x400px) for displaying this format in user interfaces. Can be rendered via preview_creative or pre-generated.&#34;
+            description=&#39;Optional standard visual card (300x400px) for displaying this format in user interfaces. Can be rendered via preview_creative or pre-generated.&#39;
         ),
     ] = None
     format_card_detailed: Annotated[
         FormatCardDetailed | None,
         Field(
-            description=&#34;Optional detailed card with carousel and full specifications. Provides rich format documentation similar to ad spec pages.&#34;
+            description=&#39;Optional detailed card with carousel and full specifications. Provides rich format documentation similar to ad spec pages.&#39;
         ),
     ] = None
     format_id: Annotated[
         format_id_1.FormatId,
-        Field(description=&#34;Structured format identifier with agent URL and format name&#34;),
+        Field(description=&#39;Structured format identifier with agent URL and format name&#39;),
     ]
-    name: Annotated[str, Field(description=&#34;Human-readable format name&#34;)]
+    name: Annotated[str, Field(description=&#39;Human-readable format name&#39;)]
     output_format_ids: Annotated[
         list[format_id_1.FormatId] | None,
         Field(
-            description=&#34;For generative formats: array of format IDs that this format can generate. When a format accepts inputs like brand_manifest and message, this specifies what concrete output formats can be produced (e.g., a generative banner format might output standard image banner formats).&#34;
+            description=&#39;For generative formats: array of format IDs that this format can generate. When a format accepts inputs like brand_manifest and message, this specifies what concrete output formats can be produced (e.g., a generative banner format might output standard image banner formats).&#39;
         ),
     ] = None
     preview_image: Annotated[
         AnyUrl | None,
         Field(
-            description=&#34;DEPRECATED: Use format_card instead. Optional preview image URL for format browsing/discovery UI. Should be 400x300px (4:3 aspect ratio) PNG or JPG. Used as thumbnail/card image in format browsers. This field is maintained for backward compatibility but format_card provides a more flexible, structured approach.&#34;
+            description=&#39;DEPRECATED: Use format_card instead. Optional preview image URL for format browsing/discovery UI. Should be 400x300px (4:3 aspect ratio) PNG or JPG. Used as thumbnail/card image in format browsers. This field is maintained for backward compatibility but format_card provides a more flexible, structured approach.&#39;
         ),
     ] = None
     renders: Annotated[
         list[Renders | Renders1] | None,
         Field(
-            description=&#34;Specification of rendered pieces for this format. Most formats produce a single render. Companion ad formats (video + banner), adaptive formats, and multi-placement formats produce multiple renders. Each render specifies its role and dimensions.&#34;,
+            description=&#39;Specification of rendered pieces for this format. Most formats produce a single render. Companion ad formats (video + banner), adaptive formats, and multi-placement formats produce multiple renders. Each render specifies its role and dimensions.&#39;,
             min_length=1,
         ),
     ] = None
     supported_macros: Annotated[
         list[str] | None,
         Field(
-            description=&#34;List of universal macros supported by this format (e.g., MEDIA_BUY_ID, CACHEBUSTER, DEVICE_ID). Used for validation and developer tooling.&#34;
+            description=&#39;List of universal macros supported by this format (e.g., MEDIA_BUY_ID, CACHEBUSTER, DEVICE_ID). Used for validation and developer tooling.&#39;
         ),
     ] = None
     type: Annotated[
         format_category.FormatCategory,
         Field(
-            description=&#34;Media type of this format - determines rendering method and asset requirements&#34;
+            description=&#39;Media type of this format - determines rendering method and asset requirements&#39;
         ),
     ]</code></pre>
 </details>
@@ -814,7 +814,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Format.assets"><code class="name">var <span class="ident">assets</span> : list[<a title="adcp.types.generated_poc.core.format.Assets" href="#adcp.types.generated_poc.core.format.Assets">Assets</a> | <a title="adcp.types.generated_poc.core.format.Assets1" href="#adcp.types.generated_poc.core.format.Assets1">Assets1</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Format.assets"><code class="name">var <span class="ident">assets</span> : list[<a title="adcp.types.generated_poc.core.format.Assets" href="#adcp.types.generated_poc.core.format.Assets">Assets</a> | <a title="adcp.types.generated_poc.core.format.Assets5" href="#adcp.types.generated_poc.core.format.Assets5">Assets5</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -909,7 +909,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -925,17 +925,17 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class FormatCard(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     format_id: Annotated[
         format_id_1.FormatId,
         Field(
-            description=&#34;Creative format defining the card layout (typically format_card_standard)&#34;
+            description=&#39;Creative format defining the card layout (typically format_card_standard)&#39;
         ),
     ]
     manifest: Annotated[
         dict[str, Any],
-        Field(description=&#34;Asset manifest for rendering the card, structure defined by the format&#34;),
+        Field(description=&#39;Asset manifest for rendering the card, structure defined by the format&#39;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -972,7 +972,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -988,18 +988,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class FormatCardDetailed(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     format_id: Annotated[
         format_id_1.FormatId,
         Field(
-            description=&#34;Creative format defining the detailed card layout (typically format_card_detailed)&#34;
+            description=&#39;Creative format defining the detailed card layout (typically format_card_detailed)&#39;
         ),
     ]
     manifest: Annotated[
         dict[str, Any],
         Field(
-            description=&#34;Asset manifest for rendering the detailed card, structure defined by the format&#34;
+            description=&#39;Asset manifest for rendering the detailed card, structure defined by the format&#39;
         ),
     ]</code></pre>
 </details>
@@ -1037,7 +1037,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -1053,12 +1053,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Renders(AdCPBaseModel):
     dimensions: Annotated[
-        Dimensions, Field(description=&#34;Dimensions for this rendered piece (in pixels)&#34;)
+        Dimensions, Field(description=&#39;Dimensions for this rendered piece (in pixels)&#39;)
     ]
     parameters_from_format_id: Annotated[
         bool | None,
         Field(
-            description=&#34;When true, parameters for this render (dimensions and/or duration) are specified in the format_id. Used for template formats that accept parameters. Mutually exclusive with specifying dimensions object explicitly.&#34;
+            description=&#39;When true, parameters for this render (dimensions and/or duration) are specified in the format_id. Used for template formats that accept parameters. Mutually exclusive with specifying dimensions object explicitly.&#39;
         ),
     ] = None
     role: Annotated[
@@ -1106,7 +1106,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -1122,12 +1122,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Renders1(AdCPBaseModel):
     dimensions: Annotated[
-        Dimensions1 | None, Field(description=&#34;Dimensions for this rendered piece (in pixels)&#34;)
+        Dimensions1 | None, Field(description=&#39;Dimensions for this rendered piece (in pixels)&#39;)
     ] = None
     parameters_from_format_id: Annotated[
         Literal[True],
         Field(
-            description=&#34;When true, parameters for this render (dimensions and/or duration) are specified in the format_id. Used for template formats that accept parameters. Mutually exclusive with specifying dimensions object explicitly.&#34;
+            description=&#39;When true, parameters for this render (dimensions and/or duration) are specified in the format_id. Used for template formats that accept parameters. Mutually exclusive with specifying dimensions object explicitly.&#39;
         ),
     ]
     role: Annotated[
@@ -1175,7 +1175,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -1227,7 +1227,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -1282,15 +1282,15 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.format.Assets1" href="#adcp.types.generated_poc.core.format.Assets1">Assets1</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.format.Assets5" href="#adcp.types.generated_poc.core.format.Assets5">Assets5</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.core.format.Assets1.asset_group_id" href="#adcp.types.generated_poc.core.format.Assets1.asset_group_id">asset_group_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.Assets1.assets" href="#adcp.types.generated_poc.core.format.Assets1.assets">assets</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.Assets1.item_type" href="#adcp.types.generated_poc.core.format.Assets1.item_type">item_type</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.Assets1.max_count" href="#adcp.types.generated_poc.core.format.Assets1.max_count">max_count</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.Assets1.min_count" href="#adcp.types.generated_poc.core.format.Assets1.min_count">min_count</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.Assets1.model_config" href="#adcp.types.generated_poc.core.format.Assets1.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.Assets1.required" href="#adcp.types.generated_poc.core.format.Assets1.required">required</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets5.asset_group_id" href="#adcp.types.generated_poc.core.format.Assets5.asset_group_id">asset_group_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets5.assets" href="#adcp.types.generated_poc.core.format.Assets5.assets">assets</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets5.item_type" href="#adcp.types.generated_poc.core.format.Assets5.item_type">item_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets5.max_count" href="#adcp.types.generated_poc.core.format.Assets5.max_count">max_count</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets5.min_count" href="#adcp.types.generated_poc.core.format.Assets5.min_count">min_count</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets5.model_config" href="#adcp.types.generated_poc.core.format.Assets5.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets5.required" href="#adcp.types.generated_poc.core.format.Assets5.required">required</a></code></li>
 </ul>
 </li>
 <li>

@@ -1,0 +1,1029 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.server.proposal API documentation</title>
+<meta name="description" content="Proposal generation helpers …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.server.proposal</code></h1>
+</header>
+<section id="section-intro">
+<p>Proposal generation helpers.</p>
+<p>Provides utilities for building ADCP Proposals in get_products responses.
+Proposals represent recommended media plans with budget allocations across products.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="adcp.server.proposal.proposals_not_supported"><code class="name flex">
+<span>def <span class="ident">proposals_not_supported</span></span>(<span>reason: str = 'This agent does not generate proposals') ‑> <a title="adcp.server.proposal.ProposalNotSupported" href="#adcp.server.proposal.ProposalNotSupported">ProposalNotSupported</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def proposals_not_supported(
+    reason: str = &#34;This agent does not generate proposals&#34;,
+) -&gt; ProposalNotSupported:
+    &#34;&#34;&#34;Create a response indicating proposals are not supported.
+
+    Args:
+        reason: Human-readable explanation
+
+    Returns:
+        ProposalNotSupported response
+    &#34;&#34;&#34;
+    return ProposalNotSupported(
+        proposals_supported=False,
+        reason=reason,
+        error=Error(
+            code=&#34;PROPOSALS_NOT_SUPPORTED&#34;,
+            message=reason,
+        ),
+    )</code></pre>
+</details>
+<div class="desc"><p>Create a response indicating proposals are not supported.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>reason</code></strong></dt>
+<dd>Human-readable explanation</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>ProposalNotSupported response</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.server.proposal.AllocationBuilder"><code class="flex name class">
+<span>class <span class="ident">AllocationBuilder</span></span>
+<span>(</span><span>product_id: str, allocation_percentage: float)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AllocationBuilder:
+    &#34;&#34;&#34;Builder for product allocations within a proposal.&#34;&#34;&#34;
+
+    def __init__(
+        self,
+        product_id: str,
+        allocation_percentage: float,
+    ):
+        &#34;&#34;&#34;Create an allocation builder.
+
+        Args:
+            product_id: ID of the product (must match a product in the response)
+            allocation_percentage: Percentage of budget (0-100)
+        &#34;&#34;&#34;
+        self._data: dict[str, Any] = {
+            &#34;product_id&#34;: product_id,
+            &#34;allocation_percentage&#34;: allocation_percentage,
+        }
+
+    def with_pricing_option(self, pricing_option_id: str) -&gt; AllocationBuilder:
+        &#34;&#34;&#34;Specify which pricing option to use.
+
+        Args:
+            pricing_option_id: ID from the product&#39;s pricing_options array
+        &#34;&#34;&#34;
+        self._data[&#34;pricing_option_id&#34;] = pricing_option_id
+        return self
+
+    def with_rationale(self, rationale: str) -&gt; AllocationBuilder:
+        &#34;&#34;&#34;Add explanation for this allocation.
+
+        Args:
+            rationale: Why this product/allocation is recommended
+        &#34;&#34;&#34;
+        self._data[&#34;rationale&#34;] = rationale
+        return self
+
+    def with_sequence(self, sequence: int) -&gt; AllocationBuilder:
+        &#34;&#34;&#34;Set ordering hint for multi-line-item plans.
+
+        Args:
+            sequence: 1-based ordering position
+        &#34;&#34;&#34;
+        self._data[&#34;sequence&#34;] = sequence
+        return self
+
+    def with_tags(self, tags: list[str]) -&gt; AllocationBuilder:
+        &#34;&#34;&#34;Add categorical tags.
+
+        Args:
+            tags: Tags like &#39;desktop&#39;, &#39;mobile&#39;, &#39;german&#39;
+        &#34;&#34;&#34;
+        self._data[&#34;tags&#34;] = tags
+        return self
+
+    def build(self) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Build the allocation dict.&#34;&#34;&#34;
+        return self._data.copy()</code></pre>
+</details>
+<div class="desc"><p>Builder for product allocations within a proposal.</p>
+<p>Create an allocation builder.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>product_id</code></strong></dt>
+<dd>ID of the product (must match a product in the response)</dd>
+<dt><strong><code>allocation_percentage</code></strong></dt>
+<dd>Percentage of budget (0-100)</dd>
+</dl></div>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.server.proposal.AllocationBuilder.build"><code class="name flex">
+<span>def <span class="ident">build</span></span>(<span>self) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def build(self) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build the allocation dict.&#34;&#34;&#34;
+    return self._data.copy()</code></pre>
+</details>
+<div class="desc"><p>Build the allocation dict.</p></div>
+</dd>
+<dt id="adcp.server.proposal.AllocationBuilder.with_pricing_option"><code class="name flex">
+<span>def <span class="ident">with_pricing_option</span></span>(<span>self, pricing_option_id: str) ‑> <a title="adcp.server.proposal.AllocationBuilder" href="#adcp.server.proposal.AllocationBuilder">AllocationBuilder</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def with_pricing_option(self, pricing_option_id: str) -&gt; AllocationBuilder:
+    &#34;&#34;&#34;Specify which pricing option to use.
+
+    Args:
+        pricing_option_id: ID from the product&#39;s pricing_options array
+    &#34;&#34;&#34;
+    self._data[&#34;pricing_option_id&#34;] = pricing_option_id
+    return self</code></pre>
+</details>
+<div class="desc"><p>Specify which pricing option to use.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>pricing_option_id</code></strong></dt>
+<dd>ID from the product's pricing_options array</dd>
+</dl></div>
+</dd>
+<dt id="adcp.server.proposal.AllocationBuilder.with_rationale"><code class="name flex">
+<span>def <span class="ident">with_rationale</span></span>(<span>self, rationale: str) ‑> <a title="adcp.server.proposal.AllocationBuilder" href="#adcp.server.proposal.AllocationBuilder">AllocationBuilder</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def with_rationale(self, rationale: str) -&gt; AllocationBuilder:
+    &#34;&#34;&#34;Add explanation for this allocation.
+
+    Args:
+        rationale: Why this product/allocation is recommended
+    &#34;&#34;&#34;
+    self._data[&#34;rationale&#34;] = rationale
+    return self</code></pre>
+</details>
+<div class="desc"><p>Add explanation for this allocation.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>rationale</code></strong></dt>
+<dd>Why this product/allocation is recommended</dd>
+</dl></div>
+</dd>
+<dt id="adcp.server.proposal.AllocationBuilder.with_sequence"><code class="name flex">
+<span>def <span class="ident">with_sequence</span></span>(<span>self, sequence: int) ‑> <a title="adcp.server.proposal.AllocationBuilder" href="#adcp.server.proposal.AllocationBuilder">AllocationBuilder</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def with_sequence(self, sequence: int) -&gt; AllocationBuilder:
+    &#34;&#34;&#34;Set ordering hint for multi-line-item plans.
+
+    Args:
+        sequence: 1-based ordering position
+    &#34;&#34;&#34;
+    self._data[&#34;sequence&#34;] = sequence
+    return self</code></pre>
+</details>
+<div class="desc"><p>Set ordering hint for multi-line-item plans.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>sequence</code></strong></dt>
+<dd>1-based ordering position</dd>
+</dl></div>
+</dd>
+<dt id="adcp.server.proposal.AllocationBuilder.with_tags"><code class="name flex">
+<span>def <span class="ident">with_tags</span></span>(<span>self, tags: list[str]) ‑> <a title="adcp.server.proposal.AllocationBuilder" href="#adcp.server.proposal.AllocationBuilder">AllocationBuilder</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def with_tags(self, tags: list[str]) -&gt; AllocationBuilder:
+    &#34;&#34;&#34;Add categorical tags.
+
+    Args:
+        tags: Tags like &#39;desktop&#39;, &#39;mobile&#39;, &#39;german&#39;
+    &#34;&#34;&#34;
+    self._data[&#34;tags&#34;] = tags
+    return self</code></pre>
+</details>
+<div class="desc"><p>Add categorical tags.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>tags</code></strong></dt>
+<dd>Tags like 'desktop', 'mobile', 'german'</dd>
+</dl></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.server.proposal.ProposalBuilder"><code class="flex name class">
+<span>class <span class="ident">ProposalBuilder</span></span>
+<span>(</span><span>name: str, proposal_id: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ProposalBuilder:
+    &#34;&#34;&#34;Builder for ADCP Proposals.
+
+    Helps construct valid proposals for get_products responses. Proposals
+    represent recommended media plans with budget allocations.
+
+    Example:
+        proposal = (
+            ProposalBuilder(&#34;Q1 Brand Campaign&#34;)
+            .with_description(&#34;Balanced awareness campaign&#34;)
+            .add_allocation(&#34;product-1&#34;, 60)
+                .with_rationale(&#34;High-impact display&#34;)
+            .add_allocation(&#34;product-2&#34;, 40)
+                .with_rationale(&#34;Contextual targeting&#34;)
+            .with_budget_guidance(min=10000, recommended=25000, max=50000)
+            .build()
+        )
+    &#34;&#34;&#34;
+
+    def __init__(self, name: str, proposal_id: str | None = None):
+        &#34;&#34;&#34;Create a new proposal builder.
+
+        Args:
+            name: Human-readable name for the proposal
+            proposal_id: Unique ID (auto-generated if not provided)
+        &#34;&#34;&#34;
+        self._name = name
+        self._proposal_id = proposal_id or f&#34;proposal-{uuid4().hex[:8]}&#34;
+        self._description: str | None = None
+        self._brief_alignment: str | None = None
+        self._expires_at: datetime | None = None
+        self._allocations: list[dict[str, Any]] = []
+        self._budget_guidance: dict[str, Any] | None = None
+        self._current_allocation: AllocationBuilder | None = None
+        self._ext: dict[str, Any] | None = None
+
+    def with_description(self, description: str) -&gt; ProposalBuilder:
+        &#34;&#34;&#34;Add description explaining the proposal strategy.
+
+        Args:
+            description: What the proposal achieves
+        &#34;&#34;&#34;
+        self._finalize_allocation()
+        self._description = description
+        return self
+
+    def with_brief_alignment(self, alignment: str) -&gt; ProposalBuilder:
+        &#34;&#34;&#34;Explain how proposal aligns with campaign brief.
+
+        Args:
+            alignment: Alignment explanation
+        &#34;&#34;&#34;
+        self._finalize_allocation()
+        self._brief_alignment = alignment
+        return self
+
+    def expires_in(self, days: int = 7) -&gt; ProposalBuilder:
+        &#34;&#34;&#34;Set expiration relative to now.
+
+        Args:
+            days: Number of days until expiration
+        &#34;&#34;&#34;
+        self._finalize_allocation()
+        self._expires_at = datetime.now(timezone.utc) + timedelta(days=days)
+        return self
+
+    def expires_at(self, expires: datetime) -&gt; ProposalBuilder:
+        &#34;&#34;&#34;Set absolute expiration time.
+
+        Args:
+            expires: When the proposal expires
+        &#34;&#34;&#34;
+        self._finalize_allocation()
+        self._expires_at = expires
+        return self
+
+    def add_allocation(
+        self,
+        product_id: str,
+        allocation_percentage: float,
+    ) -&gt; ProposalBuilder:
+        &#34;&#34;&#34;Add a product allocation.
+
+        After calling this, chain allocation methods (with_rationale, etc.)
+        before adding another allocation or calling build().
+
+        Args:
+            product_id: ID of the product
+            allocation_percentage: Percentage of budget (0-100)
+
+        Returns:
+            Self for method chaining
+        &#34;&#34;&#34;
+        self._finalize_allocation()
+        self._current_allocation = AllocationBuilder(product_id, allocation_percentage)
+        return self
+
+    def with_pricing_option(self, pricing_option_id: str) -&gt; ProposalBuilder:
+        &#34;&#34;&#34;Set pricing option for current allocation.&#34;&#34;&#34;
+        if self._current_allocation:
+            self._current_allocation.with_pricing_option(pricing_option_id)
+        return self
+
+    def with_rationale(self, rationale: str) -&gt; ProposalBuilder:
+        &#34;&#34;&#34;Add rationale for current allocation.&#34;&#34;&#34;
+        if self._current_allocation:
+            self._current_allocation.with_rationale(rationale)
+        return self
+
+    def with_sequence(self, sequence: int) -&gt; ProposalBuilder:
+        &#34;&#34;&#34;Set sequence for current allocation.&#34;&#34;&#34;
+        if self._current_allocation:
+            self._current_allocation.with_sequence(sequence)
+        return self
+
+    def with_tags(self, tags: list[str]) -&gt; ProposalBuilder:
+        &#34;&#34;&#34;Add tags for current allocation.&#34;&#34;&#34;
+        if self._current_allocation:
+            self._current_allocation.with_tags(tags)
+        return self
+
+    def with_budget_guidance(
+        self,
+        *,
+        min: float | None = None,
+        recommended: float | None = None,
+        max: float | None = None,
+        currency: str = &#34;USD&#34;,
+    ) -&gt; ProposalBuilder:
+        &#34;&#34;&#34;Add budget guidance for the proposal.
+
+        Args:
+            min: Minimum recommended budget
+            recommended: Optimal budget
+            max: Maximum before diminishing returns
+            currency: ISO 4217 currency code
+        &#34;&#34;&#34;
+        self._finalize_allocation()
+        self._budget_guidance = {
+            &#34;currency&#34;: currency,
+        }
+        if min is not None:
+            self._budget_guidance[&#34;min&#34;] = min
+        if recommended is not None:
+            self._budget_guidance[&#34;recommended&#34;] = recommended
+        if max is not None:
+            self._budget_guidance[&#34;max&#34;] = max
+        return self
+
+    def with_extension(self, ext: dict[str, Any]) -&gt; ProposalBuilder:
+        &#34;&#34;&#34;Add extension data.
+
+        Args:
+            ext: Extension object
+        &#34;&#34;&#34;
+        self._finalize_allocation()
+        self._ext = ext
+        return self
+
+    def _finalize_allocation(self) -&gt; None:
+        &#34;&#34;&#34;Finalize current allocation and add to list.&#34;&#34;&#34;
+        if self._current_allocation:
+            self._allocations.append(self._current_allocation.build())
+            self._current_allocation = None
+
+    def build(self) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Build the proposal dict.
+
+        Returns:
+            Proposal as a dict ready for use in get_products response
+
+        Raises:
+            ValueError: If allocations don&#39;t sum to 100
+        &#34;&#34;&#34;
+        self._finalize_allocation()
+
+        if not self._allocations:
+            raise ValueError(&#34;Proposal must have at least one allocation&#34;)
+
+        total = sum(a[&#34;allocation_percentage&#34;] for a in self._allocations)
+        if abs(total - 100.0) &gt; 0.01:
+            raise ValueError(
+                f&#34;Allocation percentages must sum to 100, got {total}&#34;
+            )
+
+        proposal: dict[str, Any] = {
+            &#34;proposal_id&#34;: self._proposal_id,
+            &#34;name&#34;: self._name,
+            &#34;allocations&#34;: self._allocations,
+        }
+
+        if self._description:
+            proposal[&#34;description&#34;] = self._description
+        if self._brief_alignment:
+            proposal[&#34;brief_alignment&#34;] = self._brief_alignment
+        if self._expires_at:
+            proposal[&#34;expires_at&#34;] = self._expires_at.isoformat()
+        if self._budget_guidance:
+            proposal[&#34;total_budget_guidance&#34;] = self._budget_guidance
+        if self._ext:
+            proposal[&#34;ext&#34;] = self._ext
+
+        return proposal
+
+    def validate(self) -&gt; list[str]:
+        &#34;&#34;&#34;Validate the proposal without building.
+
+        Returns:
+            List of validation errors (empty if valid)
+        &#34;&#34;&#34;
+        errors: list[str] = []
+
+        if self._current_allocation:
+            allocations = self._allocations + [self._current_allocation.build()]
+        else:
+            allocations = self._allocations
+
+        if not allocations:
+            errors.append(&#34;Proposal must have at least one allocation&#34;)
+        else:
+            total = sum(a[&#34;allocation_percentage&#34;] for a in allocations)
+            if abs(total - 100.0) &gt; 0.01:
+                errors.append(f&#34;Allocation percentages must sum to 100, got {total}&#34;)
+
+        return errors</code></pre>
+</details>
+<div class="desc"><p>Builder for ADCP Proposals.</p>
+<p>Helps construct valid proposals for get_products responses. Proposals
+represent recommended media plans with budget allocations.</p>
+<h2 id="example">Example</h2>
+<p>proposal = (
+ProposalBuilder("Q1 Brand Campaign")
+.with_description("Balanced awareness campaign")
+.add_allocation("product-1", 60)
+.with_rationale("High-impact display")
+.add_allocation("product-2", 40)
+.with_rationale("Contextual targeting")
+.with_budget_guidance(min=10000, recommended=25000, max=50000)
+.build()
+)</p>
+<p>Create a new proposal builder.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>name</code></strong></dt>
+<dd>Human-readable name for the proposal</dd>
+<dt><strong><code>proposal_id</code></strong></dt>
+<dd>Unique ID (auto-generated if not provided)</dd>
+</dl></div>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.server.proposal.ProposalBuilder.add_allocation"><code class="name flex">
+<span>def <span class="ident">add_allocation</span></span>(<span>self, product_id: str, allocation_percentage: float) ‑> <a title="adcp.server.proposal.ProposalBuilder" href="#adcp.server.proposal.ProposalBuilder">ProposalBuilder</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_allocation(
+    self,
+    product_id: str,
+    allocation_percentage: float,
+) -&gt; ProposalBuilder:
+    &#34;&#34;&#34;Add a product allocation.
+
+    After calling this, chain allocation methods (with_rationale, etc.)
+    before adding another allocation or calling build().
+
+    Args:
+        product_id: ID of the product
+        allocation_percentage: Percentage of budget (0-100)
+
+    Returns:
+        Self for method chaining
+    &#34;&#34;&#34;
+    self._finalize_allocation()
+    self._current_allocation = AllocationBuilder(product_id, allocation_percentage)
+    return self</code></pre>
+</details>
+<div class="desc"><p>Add a product allocation.</p>
+<p>After calling this, chain allocation methods (with_rationale, etc.)
+before adding another allocation or calling build().</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>product_id</code></strong></dt>
+<dd>ID of the product</dd>
+<dt><strong><code>allocation_percentage</code></strong></dt>
+<dd>Percentage of budget (0-100)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Self for method chaining</p></div>
+</dd>
+<dt id="adcp.server.proposal.ProposalBuilder.build"><code class="name flex">
+<span>def <span class="ident">build</span></span>(<span>self) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def build(self) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build the proposal dict.
+
+    Returns:
+        Proposal as a dict ready for use in get_products response
+
+    Raises:
+        ValueError: If allocations don&#39;t sum to 100
+    &#34;&#34;&#34;
+    self._finalize_allocation()
+
+    if not self._allocations:
+        raise ValueError(&#34;Proposal must have at least one allocation&#34;)
+
+    total = sum(a[&#34;allocation_percentage&#34;] for a in self._allocations)
+    if abs(total - 100.0) &gt; 0.01:
+        raise ValueError(
+            f&#34;Allocation percentages must sum to 100, got {total}&#34;
+        )
+
+    proposal: dict[str, Any] = {
+        &#34;proposal_id&#34;: self._proposal_id,
+        &#34;name&#34;: self._name,
+        &#34;allocations&#34;: self._allocations,
+    }
+
+    if self._description:
+        proposal[&#34;description&#34;] = self._description
+    if self._brief_alignment:
+        proposal[&#34;brief_alignment&#34;] = self._brief_alignment
+    if self._expires_at:
+        proposal[&#34;expires_at&#34;] = self._expires_at.isoformat()
+    if self._budget_guidance:
+        proposal[&#34;total_budget_guidance&#34;] = self._budget_guidance
+    if self._ext:
+        proposal[&#34;ext&#34;] = self._ext
+
+    return proposal</code></pre>
+</details>
+<div class="desc"><p>Build the proposal dict.</p>
+<h2 id="returns">Returns</h2>
+<p>Proposal as a dict ready for use in get_products response</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>ValueError</code></dt>
+<dd>If allocations don't sum to 100</dd>
+</dl></div>
+</dd>
+<dt id="adcp.server.proposal.ProposalBuilder.expires_at"><code class="name flex">
+<span>def <span class="ident">expires_at</span></span>(<span>self, expires: datetime) ‑> <a title="adcp.server.proposal.ProposalBuilder" href="#adcp.server.proposal.ProposalBuilder">ProposalBuilder</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def expires_at(self, expires: datetime) -&gt; ProposalBuilder:
+    &#34;&#34;&#34;Set absolute expiration time.
+
+    Args:
+        expires: When the proposal expires
+    &#34;&#34;&#34;
+    self._finalize_allocation()
+    self._expires_at = expires
+    return self</code></pre>
+</details>
+<div class="desc"><p>Set absolute expiration time.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>expires</code></strong></dt>
+<dd>When the proposal expires</dd>
+</dl></div>
+</dd>
+<dt id="adcp.server.proposal.ProposalBuilder.expires_in"><code class="name flex">
+<span>def <span class="ident">expires_in</span></span>(<span>self, days: int = 7) ‑> <a title="adcp.server.proposal.ProposalBuilder" href="#adcp.server.proposal.ProposalBuilder">ProposalBuilder</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def expires_in(self, days: int = 7) -&gt; ProposalBuilder:
+    &#34;&#34;&#34;Set expiration relative to now.
+
+    Args:
+        days: Number of days until expiration
+    &#34;&#34;&#34;
+    self._finalize_allocation()
+    self._expires_at = datetime.now(timezone.utc) + timedelta(days=days)
+    return self</code></pre>
+</details>
+<div class="desc"><p>Set expiration relative to now.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>days</code></strong></dt>
+<dd>Number of days until expiration</dd>
+</dl></div>
+</dd>
+<dt id="adcp.server.proposal.ProposalBuilder.validate"><code class="name flex">
+<span>def <span class="ident">validate</span></span>(<span>self) ‑> list[str]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def validate(self) -&gt; list[str]:
+    &#34;&#34;&#34;Validate the proposal without building.
+
+    Returns:
+        List of validation errors (empty if valid)
+    &#34;&#34;&#34;
+    errors: list[str] = []
+
+    if self._current_allocation:
+        allocations = self._allocations + [self._current_allocation.build()]
+    else:
+        allocations = self._allocations
+
+    if not allocations:
+        errors.append(&#34;Proposal must have at least one allocation&#34;)
+    else:
+        total = sum(a[&#34;allocation_percentage&#34;] for a in allocations)
+        if abs(total - 100.0) &gt; 0.01:
+            errors.append(f&#34;Allocation percentages must sum to 100, got {total}&#34;)
+
+    return errors</code></pre>
+</details>
+<div class="desc"><p>Validate the proposal without building.</p>
+<h2 id="returns">Returns</h2>
+<p>List of validation errors (empty if valid)</p></div>
+</dd>
+<dt id="adcp.server.proposal.ProposalBuilder.with_brief_alignment"><code class="name flex">
+<span>def <span class="ident">with_brief_alignment</span></span>(<span>self, alignment: str) ‑> <a title="adcp.server.proposal.ProposalBuilder" href="#adcp.server.proposal.ProposalBuilder">ProposalBuilder</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def with_brief_alignment(self, alignment: str) -&gt; ProposalBuilder:
+    &#34;&#34;&#34;Explain how proposal aligns with campaign brief.
+
+    Args:
+        alignment: Alignment explanation
+    &#34;&#34;&#34;
+    self._finalize_allocation()
+    self._brief_alignment = alignment
+    return self</code></pre>
+</details>
+<div class="desc"><p>Explain how proposal aligns with campaign brief.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>alignment</code></strong></dt>
+<dd>Alignment explanation</dd>
+</dl></div>
+</dd>
+<dt id="adcp.server.proposal.ProposalBuilder.with_budget_guidance"><code class="name flex">
+<span>def <span class="ident">with_budget_guidance</span></span>(<span>self,<br>*,<br>min: float | None = None,<br>recommended: float | None = None,<br>max: float | None = None,<br>currency: str = 'USD') ‑> <a title="adcp.server.proposal.ProposalBuilder" href="#adcp.server.proposal.ProposalBuilder">ProposalBuilder</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def with_budget_guidance(
+    self,
+    *,
+    min: float | None = None,
+    recommended: float | None = None,
+    max: float | None = None,
+    currency: str = &#34;USD&#34;,
+) -&gt; ProposalBuilder:
+    &#34;&#34;&#34;Add budget guidance for the proposal.
+
+    Args:
+        min: Minimum recommended budget
+        recommended: Optimal budget
+        max: Maximum before diminishing returns
+        currency: ISO 4217 currency code
+    &#34;&#34;&#34;
+    self._finalize_allocation()
+    self._budget_guidance = {
+        &#34;currency&#34;: currency,
+    }
+    if min is not None:
+        self._budget_guidance[&#34;min&#34;] = min
+    if recommended is not None:
+        self._budget_guidance[&#34;recommended&#34;] = recommended
+    if max is not None:
+        self._budget_guidance[&#34;max&#34;] = max
+    return self</code></pre>
+</details>
+<div class="desc"><p>Add budget guidance for the proposal.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>min</code></strong></dt>
+<dd>Minimum recommended budget</dd>
+<dt><strong><code>recommended</code></strong></dt>
+<dd>Optimal budget</dd>
+<dt><strong><code>max</code></strong></dt>
+<dd>Maximum before diminishing returns</dd>
+<dt><strong><code>currency</code></strong></dt>
+<dd>ISO 4217 currency code</dd>
+</dl></div>
+</dd>
+<dt id="adcp.server.proposal.ProposalBuilder.with_description"><code class="name flex">
+<span>def <span class="ident">with_description</span></span>(<span>self, description: str) ‑> <a title="adcp.server.proposal.ProposalBuilder" href="#adcp.server.proposal.ProposalBuilder">ProposalBuilder</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def with_description(self, description: str) -&gt; ProposalBuilder:
+    &#34;&#34;&#34;Add description explaining the proposal strategy.
+
+    Args:
+        description: What the proposal achieves
+    &#34;&#34;&#34;
+    self._finalize_allocation()
+    self._description = description
+    return self</code></pre>
+</details>
+<div class="desc"><p>Add description explaining the proposal strategy.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>description</code></strong></dt>
+<dd>What the proposal achieves</dd>
+</dl></div>
+</dd>
+<dt id="adcp.server.proposal.ProposalBuilder.with_extension"><code class="name flex">
+<span>def <span class="ident">with_extension</span></span>(<span>self, ext: dict[str, Any]) ‑> <a title="adcp.server.proposal.ProposalBuilder" href="#adcp.server.proposal.ProposalBuilder">ProposalBuilder</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def with_extension(self, ext: dict[str, Any]) -&gt; ProposalBuilder:
+    &#34;&#34;&#34;Add extension data.
+
+    Args:
+        ext: Extension object
+    &#34;&#34;&#34;
+    self._finalize_allocation()
+    self._ext = ext
+    return self</code></pre>
+</details>
+<div class="desc"><p>Add extension data.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>ext</code></strong></dt>
+<dd>Extension object</dd>
+</dl></div>
+</dd>
+<dt id="adcp.server.proposal.ProposalBuilder.with_pricing_option"><code class="name flex">
+<span>def <span class="ident">with_pricing_option</span></span>(<span>self, pricing_option_id: str) ‑> <a title="adcp.server.proposal.ProposalBuilder" href="#adcp.server.proposal.ProposalBuilder">ProposalBuilder</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def with_pricing_option(self, pricing_option_id: str) -&gt; ProposalBuilder:
+    &#34;&#34;&#34;Set pricing option for current allocation.&#34;&#34;&#34;
+    if self._current_allocation:
+        self._current_allocation.with_pricing_option(pricing_option_id)
+    return self</code></pre>
+</details>
+<div class="desc"><p>Set pricing option for current allocation.</p></div>
+</dd>
+<dt id="adcp.server.proposal.ProposalBuilder.with_rationale"><code class="name flex">
+<span>def <span class="ident">with_rationale</span></span>(<span>self, rationale: str) ‑> <a title="adcp.server.proposal.ProposalBuilder" href="#adcp.server.proposal.ProposalBuilder">ProposalBuilder</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def with_rationale(self, rationale: str) -&gt; ProposalBuilder:
+    &#34;&#34;&#34;Add rationale for current allocation.&#34;&#34;&#34;
+    if self._current_allocation:
+        self._current_allocation.with_rationale(rationale)
+    return self</code></pre>
+</details>
+<div class="desc"><p>Add rationale for current allocation.</p></div>
+</dd>
+<dt id="adcp.server.proposal.ProposalBuilder.with_sequence"><code class="name flex">
+<span>def <span class="ident">with_sequence</span></span>(<span>self, sequence: int) ‑> <a title="adcp.server.proposal.ProposalBuilder" href="#adcp.server.proposal.ProposalBuilder">ProposalBuilder</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def with_sequence(self, sequence: int) -&gt; ProposalBuilder:
+    &#34;&#34;&#34;Set sequence for current allocation.&#34;&#34;&#34;
+    if self._current_allocation:
+        self._current_allocation.with_sequence(sequence)
+    return self</code></pre>
+</details>
+<div class="desc"><p>Set sequence for current allocation.</p></div>
+</dd>
+<dt id="adcp.server.proposal.ProposalBuilder.with_tags"><code class="name flex">
+<span>def <span class="ident">with_tags</span></span>(<span>self, tags: list[str]) ‑> <a title="adcp.server.proposal.ProposalBuilder" href="#adcp.server.proposal.ProposalBuilder">ProposalBuilder</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def with_tags(self, tags: list[str]) -&gt; ProposalBuilder:
+    &#34;&#34;&#34;Add tags for current allocation.&#34;&#34;&#34;
+    if self._current_allocation:
+        self._current_allocation.with_tags(tags)
+    return self</code></pre>
+</details>
+<div class="desc"><p>Add tags for current allocation.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.server.proposal.ProposalNotSupported"><code class="flex name class">
+<span>class <span class="ident">ProposalNotSupported</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ProposalNotSupported(BaseModel):
+    &#34;&#34;&#34;Response indicating proposal generation is not supported.
+
+    Use this when your agent supports get_products but not proposal generation.
+    &#34;&#34;&#34;
+
+    proposals_supported: bool = False
+    reason: str = &#34;This agent does not generate proposals&#34;
+    error: Error | None = None</code></pre>
+</details>
+<div class="desc"><p>Response indicating proposal generation is not supported.</p>
+<p>Use this when your agent supports get_products but not proposal generation.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.server.proposal.ProposalNotSupported.error"><code class="name">var <span class="ident">error</span> : <a title="adcp.types.generated_poc.core.error.Error" href="../types/generated_poc/core/error.html#adcp.types.generated_poc.core.error.Error">Error</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.server.proposal.ProposalNotSupported.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.server.proposal.ProposalNotSupported.proposals_supported"><code class="name">var <span class="ident">proposals_supported</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.server.proposal.ProposalNotSupported.reason"><code class="name">var <span class="ident">reason</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.server" href="index.html">adcp.server</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="adcp.server.proposal.proposals_not_supported" href="#adcp.server.proposal.proposals_not_supported">proposals_not_supported</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.server.proposal.AllocationBuilder" href="#adcp.server.proposal.AllocationBuilder">AllocationBuilder</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.server.proposal.AllocationBuilder.build" href="#adcp.server.proposal.AllocationBuilder.build">build</a></code></li>
+<li><code><a title="adcp.server.proposal.AllocationBuilder.with_pricing_option" href="#adcp.server.proposal.AllocationBuilder.with_pricing_option">with_pricing_option</a></code></li>
+<li><code><a title="adcp.server.proposal.AllocationBuilder.with_rationale" href="#adcp.server.proposal.AllocationBuilder.with_rationale">with_rationale</a></code></li>
+<li><code><a title="adcp.server.proposal.AllocationBuilder.with_sequence" href="#adcp.server.proposal.AllocationBuilder.with_sequence">with_sequence</a></code></li>
+<li><code><a title="adcp.server.proposal.AllocationBuilder.with_tags" href="#adcp.server.proposal.AllocationBuilder.with_tags">with_tags</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.server.proposal.ProposalBuilder" href="#adcp.server.proposal.ProposalBuilder">ProposalBuilder</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.server.proposal.ProposalBuilder.add_allocation" href="#adcp.server.proposal.ProposalBuilder.add_allocation">add_allocation</a></code></li>
+<li><code><a title="adcp.server.proposal.ProposalBuilder.build" href="#adcp.server.proposal.ProposalBuilder.build">build</a></code></li>
+<li><code><a title="adcp.server.proposal.ProposalBuilder.expires_at" href="#adcp.server.proposal.ProposalBuilder.expires_at">expires_at</a></code></li>
+<li><code><a title="adcp.server.proposal.ProposalBuilder.expires_in" href="#adcp.server.proposal.ProposalBuilder.expires_in">expires_in</a></code></li>
+<li><code><a title="adcp.server.proposal.ProposalBuilder.validate" href="#adcp.server.proposal.ProposalBuilder.validate">validate</a></code></li>
+<li><code><a title="adcp.server.proposal.ProposalBuilder.with_brief_alignment" href="#adcp.server.proposal.ProposalBuilder.with_brief_alignment">with_brief_alignment</a></code></li>
+<li><code><a title="adcp.server.proposal.ProposalBuilder.with_budget_guidance" href="#adcp.server.proposal.ProposalBuilder.with_budget_guidance">with_budget_guidance</a></code></li>
+<li><code><a title="adcp.server.proposal.ProposalBuilder.with_description" href="#adcp.server.proposal.ProposalBuilder.with_description">with_description</a></code></li>
+<li><code><a title="adcp.server.proposal.ProposalBuilder.with_extension" href="#adcp.server.proposal.ProposalBuilder.with_extension">with_extension</a></code></li>
+<li><code><a title="adcp.server.proposal.ProposalBuilder.with_pricing_option" href="#adcp.server.proposal.ProposalBuilder.with_pricing_option">with_pricing_option</a></code></li>
+<li><code><a title="adcp.server.proposal.ProposalBuilder.with_rationale" href="#adcp.server.proposal.ProposalBuilder.with_rationale">with_rationale</a></code></li>
+<li><code><a title="adcp.server.proposal.ProposalBuilder.with_sequence" href="#adcp.server.proposal.ProposalBuilder.with_sequence">with_sequence</a></code></li>
+<li><code><a title="adcp.server.proposal.ProposalBuilder.with_tags" href="#adcp.server.proposal.ProposalBuilder.with_tags">with_tags</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.server.proposal.ProposalNotSupported" href="#adcp.server.proposal.ProposalNotSupported">ProposalNotSupported</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.server.proposal.ProposalNotSupported.error" href="#adcp.server.proposal.ProposalNotSupported.error">error</a></code></li>
+<li><code><a title="adcp.server.proposal.ProposalNotSupported.model_config" href="#adcp.server.proposal.ProposalNotSupported.model_config">model_config</a></code></li>
+<li><code><a title="adcp.server.proposal.ProposalNotSupported.proposals_supported" href="#adcp.server.proposal.ProposalNotSupported.proposals_supported">proposals_supported</a></code></li>
+<li><code><a title="adcp.server.proposal.ProposalNotSupported.reason" href="#adcp.server.proposal.ProposalNotSupported.reason">reason</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

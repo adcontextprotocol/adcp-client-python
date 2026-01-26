@@ -57,16 +57,19 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class GetProductsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     brand_manifest: Annotated[
         brand_manifest_ref.BrandManifestReference | None,
         Field(
-            description=&#34;Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest.&#34;
+            description=&#39;Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest.&#39;
         ),
     ] = None
     brief: Annotated[
-        str | None, Field(description=&#34;Natural language description of campaign requirements&#34;)
+        str | None,
+        Field(
+            description=&#34;Natural language description of campaign requirements. When refining a proposal, can include instructions like &#39;focus more on German speakers&#39; or &#39;increase mobile allocation&#39;.&#34;
+        ),
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
@@ -74,7 +77,13 @@ el.replaceWith(d);
     property_list: Annotated[
         property_list_ref.PropertyListReference | None,
         Field(
-            description=&#34;[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list.&#34;
+            description=&#39;[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list.&#39;
+        ),
+    ] = None
+    proposal_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Optional proposal ID to refine. When provided with a brief, the publisher will use the brief as refinement instructions for the specified proposal and return an updated version.&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -121,6 +130,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.proposal_id"><code class="name">var <span class="ident">proposal_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
@@ -128,7 +141,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -158,6 +171,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.filters" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.filters">filters</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.model_config" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.property_list" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.property_list">property_list</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.proposal_id" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.proposal_id">proposal_id</a></code></li>
 </ul>
 </li>
 </ul>

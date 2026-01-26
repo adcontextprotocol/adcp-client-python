@@ -57,75 +57,65 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class CreativeFilters(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    assigned_to_package: Annotated[
-        str | None, Field(description=&#34;Filter creatives assigned to this specific package&#34;)
-    ] = None
     assigned_to_packages: Annotated[
-        list[str] | None, Field(description=&#34;Filter creatives assigned to any of these packages&#34;)
+        list[str] | None, Field(description=&#39;Filter creatives assigned to any of these packages&#39;)
     ] = None
     buyer_refs: Annotated[
         list[str] | None,
         Field(
-            description=&#34;Filter creatives assigned to media buys with any of these buyer references&#34;
+            description=&#39;Filter creatives assigned to media buys with any of these buyer references&#39;
         ),
     ] = None
     created_after: Annotated[
         AwareDatetime | None,
-        Field(description=&#34;Filter creatives created after this date (ISO 8601)&#34;),
+        Field(description=&#39;Filter creatives created after this date (ISO 8601)&#39;),
     ] = None
     created_before: Annotated[
         AwareDatetime | None,
-        Field(description=&#34;Filter creatives created before this date (ISO 8601)&#34;),
+        Field(description=&#39;Filter creatives created before this date (ISO 8601)&#39;),
     ] = None
     creative_ids: Annotated[
-        list[str] | None, Field(description=&#34;Filter by specific creative IDs&#34;, max_length=100)
-    ] = None
-    format: Annotated[
-        str | None,
-        Field(description=&#34;Filter by creative format type (e.g., video, audio, display)&#34;),
+        list[str] | None, Field(description=&#39;Filter by specific creative IDs&#39;, max_length=100)
     ] = None
     formats: Annotated[
-        list[str] | None, Field(description=&#34;Filter by multiple creative format types&#34;)
+        list[str] | None,
+        Field(description=&#39;Filter by creative format types (e.g., video, audio, display)&#39;),
     ] = None
     has_performance_data: Annotated[
-        bool | None, Field(description=&#34;Filter creatives that have performance data when true&#34;)
+        bool | None, Field(description=&#39;Filter creatives that have performance data when true&#39;)
     ] = None
     media_buy_ids: Annotated[
-        list[str] | None, Field(description=&#34;Filter creatives assigned to any of these media buys&#34;)
+        list[str] | None, Field(description=&#39;Filter creatives assigned to any of these media buys&#39;)
     ] = None
     name_contains: Annotated[
         str | None,
-        Field(description=&#34;Filter by creative names containing this text (case-insensitive)&#34;),
-    ] = None
-    status: Annotated[
-        creative_status.CreativeStatus | None,
-        Field(description=&#34;Filter by creative approval status&#34;),
+        Field(description=&#39;Filter by creative names containing this text (case-insensitive)&#39;),
     ] = None
     statuses: Annotated[
         list[creative_status.CreativeStatus] | None,
-        Field(description=&#34;Filter by multiple creative statuses&#34;),
+        Field(description=&#39;Filter by creative approval statuses&#39;),
     ] = None
     tags: Annotated[
-        list[str] | None, Field(description=&#34;Filter by creative tags (all tags must match)&#34;)
+        list[str] | None, Field(description=&#39;Filter by creative tags (all tags must match)&#39;)
     ] = None
     tags_any: Annotated[
-        list[str] | None, Field(description=&#34;Filter by creative tags (any tag must match)&#34;)
+        list[str] | None, Field(description=&#39;Filter by creative tags (any tag must match)&#39;)
     ] = None
     unassigned: Annotated[
         bool | None,
         Field(
-            description=&#34;Filter for unassigned creatives when true, assigned creatives when false&#34;
+            description=&#39;Filter for unassigned creatives when true, assigned creatives when false&#39;
         ),
     ] = None
     updated_after: Annotated[
         AwareDatetime | None,
-        Field(description=&#34;Filter creatives last updated after this date (ISO 8601)&#34;),
+        Field(description=&#39;Filter creatives last updated after this date (ISO 8601)&#39;),
     ] = None
     updated_before: Annotated[
         AwareDatetime | None,
-        Field(description=&#34;Filter creatives last updated before this date (ISO 8601)&#34;),
+        Field(description=&#39;Filter creatives last updated before this date (ISO 8601)&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -143,10 +133,6 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.creative_filters.CreativeFilters.assigned_to_package"><code class="name">var <span class="ident">assigned_to_package</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="adcp.types.generated_poc.core.creative_filters.CreativeFilters.assigned_to_packages"><code class="name">var <span class="ident">assigned_to_packages</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -167,10 +153,6 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.creative_filters.CreativeFilters.format"><code class="name">var <span class="ident">format</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="adcp.types.generated_poc.core.creative_filters.CreativeFilters.formats"><code class="name">var <span class="ident">formats</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -188,10 +170,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.creative_filters.CreativeFilters.name_contains"><code class="name">var <span class="ident">name_contains</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.creative_filters.CreativeFilters.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.enums.creative_status.CreativeStatus" href="../enums/creative_status.html#adcp.types.generated_poc.enums.creative_status.CreativeStatus">CreativeStatus</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -226,7 +204,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -249,19 +227,16 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters">CreativeFilters</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters.assigned_to_package" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters.assigned_to_package">assigned_to_package</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters.assigned_to_packages" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters.assigned_to_packages">assigned_to_packages</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters.buyer_refs" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters.buyer_refs">buyer_refs</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters.created_after" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters.created_after">created_after</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters.created_before" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters.created_before">created_before</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters.creative_ids" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters.creative_ids">creative_ids</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters.format" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters.format">format</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters.formats" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters.formats">formats</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters.has_performance_data" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters.has_performance_data">has_performance_data</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters.media_buy_ids" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters.media_buy_ids">media_buy_ids</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters.model_config" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters.name_contains" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters.name_contains">name_contains</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters.status" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters.status">status</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters.statuses" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters.statuses">statuses</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters.tags" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters.tags">tags</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters.tags_any" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters.tags_any">tags_any</a></code></li>

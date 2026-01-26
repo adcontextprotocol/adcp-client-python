@@ -1,0 +1,1663 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.server.content_standards API documentation</title>
+<meta name="description" content="Content Standards protocol handler …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.server.content_standards</code></h1>
+</header>
+<section id="section-intro">
+<p>Content Standards protocol handler.</p>
+<p>Provides a base class for implementing Content Standards agents.
+Non-Content-Standards operations return 'not supported' by default.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.server.content_standards.ContentStandardsHandler"><code class="flex name class">
+<span>class <span class="ident">ContentStandardsHandler</span></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ContentStandardsHandler(ADCPHandler):
+    &#34;&#34;&#34;Handler for Content Standards protocol.
+
+    Subclass this to implement a Content Standards agent. All Content Standards
+    operations must be implemented via the handle_* methods.
+    The public methods (create_content_standards, etc.) handle validation and
+    error handling automatically.
+
+    Non-Content-Standards operations (get_products, create_media_buy, etc.)
+    return &#39;not supported&#39;.
+
+    Example:
+        class MyContentStandardsHandler(ContentStandardsHandler):
+            async def handle_create_content_standards(
+                self,
+                request: CreateContentStandardsRequest,
+                context: ToolContext | None = None
+            ) -&gt; CreateContentStandardsResponse:
+                # Your implementation
+                return CreateContentStandardsResponse(...)
+    &#34;&#34;&#34;
+
+    # ========================================================================
+    # Content Standards Operations - Override base class with validation
+    # ========================================================================
+
+    async def create_content_standards(
+        self,
+        params: dict[str, Any],
+        context: ToolContext | None = None,
+    ) -&gt; CreateContentStandardsResponse | NotImplementedResponse:
+        &#34;&#34;&#34;Create content standards configuration.
+
+        Validates params and delegates to handle_create_content_standards.
+
+        Args:
+            params: Request parameters as dict
+            context: Optional tool context
+
+        Returns:
+            Content standards creation response, or error response
+        &#34;&#34;&#34;
+        try:
+            request = CreateContentStandardsRequest.model_validate(params)
+        except ValidationError as e:
+            return NotImplementedResponse(
+                supported=False,
+                reason=f&#34;Invalid request: {e}&#34;,
+                error=Error(code=&#34;VALIDATION_ERROR&#34;, message=str(e)),
+            )
+        return await self.handle_create_content_standards(request, context)
+
+    async def get_content_standards(
+        self,
+        params: dict[str, Any],
+        context: ToolContext | None = None,
+    ) -&gt; GetContentStandardsResponse | NotImplementedResponse:
+        &#34;&#34;&#34;Get content standards configuration.
+
+        Validates params and delegates to handle_get_content_standards.
+
+        Args:
+            params: Request parameters as dict
+            context: Optional tool context
+
+        Returns:
+            Content standards response, or error response
+        &#34;&#34;&#34;
+        try:
+            request = GetContentStandardsRequest.model_validate(params)
+        except ValidationError as e:
+            return NotImplementedResponse(
+                supported=False,
+                reason=f&#34;Invalid request: {e}&#34;,
+                error=Error(code=&#34;VALIDATION_ERROR&#34;, message=str(e)),
+            )
+        return await self.handle_get_content_standards(request, context)
+
+    async def list_content_standards(
+        self,
+        params: dict[str, Any],
+        context: ToolContext | None = None,
+    ) -&gt; ListContentStandardsResponse | NotImplementedResponse:
+        &#34;&#34;&#34;List content standards configurations.
+
+        Validates params and delegates to handle_list_content_standards.
+
+        Args:
+            params: Request parameters as dict
+            context: Optional tool context
+
+        Returns:
+            List of content standards, or error response
+        &#34;&#34;&#34;
+        try:
+            request = ListContentStandardsRequest.model_validate(params)
+        except ValidationError as e:
+            return NotImplementedResponse(
+                supported=False,
+                reason=f&#34;Invalid request: {e}&#34;,
+                error=Error(code=&#34;VALIDATION_ERROR&#34;, message=str(e)),
+            )
+        return await self.handle_list_content_standards(request, context)
+
+    async def update_content_standards(
+        self,
+        params: dict[str, Any],
+        context: ToolContext | None = None,
+    ) -&gt; UpdateContentStandardsResponse | NotImplementedResponse:
+        &#34;&#34;&#34;Update content standards configuration.
+
+        Validates params and delegates to handle_update_content_standards.
+
+        Args:
+            params: Request parameters as dict
+            context: Optional tool context
+
+        Returns:
+            Updated content standards response, or error response
+        &#34;&#34;&#34;
+        try:
+            request = UpdateContentStandardsRequest.model_validate(params)
+        except ValidationError as e:
+            return NotImplementedResponse(
+                supported=False,
+                reason=f&#34;Invalid request: {e}&#34;,
+                error=Error(code=&#34;VALIDATION_ERROR&#34;, message=str(e)),
+            )
+        return await self.handle_update_content_standards(request, context)
+
+    async def calibrate_content(
+        self,
+        params: dict[str, Any],
+        context: ToolContext | None = None,
+    ) -&gt; CalibrateContentResponse | NotImplementedResponse:
+        &#34;&#34;&#34;Calibrate content against standards.
+
+        Validates params and delegates to handle_calibrate_content.
+
+        Args:
+            params: Request parameters as dict
+            context: Optional tool context
+
+        Returns:
+            Calibration response with scores and feedback, or error response
+        &#34;&#34;&#34;
+        try:
+            request = CalibrateContentRequest.model_validate(params)
+        except ValidationError as e:
+            return NotImplementedResponse(
+                supported=False,
+                reason=f&#34;Invalid request: {e}&#34;,
+                error=Error(code=&#34;VALIDATION_ERROR&#34;, message=str(e)),
+            )
+        return await self.handle_calibrate_content(request, context)
+
+    async def validate_content_delivery(
+        self,
+        params: dict[str, Any],
+        context: ToolContext | None = None,
+    ) -&gt; ValidateContentDeliveryResponse | NotImplementedResponse:
+        &#34;&#34;&#34;Validate content delivery against standards.
+
+        Validates params and delegates to handle_validate_content_delivery.
+
+        Args:
+            params: Request parameters as dict
+            context: Optional tool context
+
+        Returns:
+            Validation response, or error response
+        &#34;&#34;&#34;
+        try:
+            request = ValidateContentDeliveryRequest.model_validate(params)
+        except ValidationError as e:
+            return NotImplementedResponse(
+                supported=False,
+                reason=f&#34;Invalid request: {e}&#34;,
+                error=Error(code=&#34;VALIDATION_ERROR&#34;, message=str(e)),
+            )
+        return await self.handle_validate_content_delivery(request, context)
+
+    async def get_media_buy_artifacts(
+        self,
+        params: dict[str, Any],
+        context: ToolContext | None = None,
+    ) -&gt; GetMediaBuyArtifactsResponse | NotImplementedResponse:
+        &#34;&#34;&#34;Get artifacts associated with a media buy.
+
+        Validates params and delegates to handle_get_media_buy_artifacts.
+
+        Args:
+            params: Request parameters as dict
+            context: Optional tool context
+
+        Returns:
+            Media buy artifacts response, or error response
+        &#34;&#34;&#34;
+        try:
+            request = GetMediaBuyArtifactsRequest.model_validate(params)
+        except ValidationError as e:
+            return NotImplementedResponse(
+                supported=False,
+                reason=f&#34;Invalid request: {e}&#34;,
+                error=Error(code=&#34;VALIDATION_ERROR&#34;, message=str(e)),
+            )
+        return await self.handle_get_media_buy_artifacts(request, context)
+
+    # ========================================================================
+    # Abstract handlers - Implement these in subclasses
+    # ========================================================================
+
+    @abstractmethod
+    async def handle_create_content_standards(
+        self,
+        request: CreateContentStandardsRequest,
+        context: ToolContext | None = None,
+    ) -&gt; CreateContentStandardsResponse:
+        &#34;&#34;&#34;Handle create content standards request.
+
+        Must be implemented by Content Standards agents.
+
+        Args:
+            request: Validated content standards creation request
+            context: Optional tool context
+
+        Returns:
+            Content standards creation response
+        &#34;&#34;&#34;
+        ...
+
+    @abstractmethod
+    async def handle_get_content_standards(
+        self,
+        request: GetContentStandardsRequest,
+        context: ToolContext | None = None,
+    ) -&gt; GetContentStandardsResponse:
+        &#34;&#34;&#34;Handle get content standards request.
+
+        Must be implemented by Content Standards agents.
+
+        Args:
+            request: Validated content standards retrieval request
+            context: Optional tool context
+
+        Returns:
+            Content standards response
+        &#34;&#34;&#34;
+        ...
+
+    @abstractmethod
+    async def handle_list_content_standards(
+        self,
+        request: ListContentStandardsRequest,
+        context: ToolContext | None = None,
+    ) -&gt; ListContentStandardsResponse:
+        &#34;&#34;&#34;Handle list content standards request.
+
+        Must be implemented by Content Standards agents.
+
+        Args:
+            request: Validated list content standards request
+            context: Optional tool context
+
+        Returns:
+            List of content standards
+        &#34;&#34;&#34;
+        ...
+
+    @abstractmethod
+    async def handle_update_content_standards(
+        self,
+        request: UpdateContentStandardsRequest,
+        context: ToolContext | None = None,
+    ) -&gt; UpdateContentStandardsResponse:
+        &#34;&#34;&#34;Handle update content standards request.
+
+        Must be implemented by Content Standards agents.
+
+        Args:
+            request: Validated content standards update request
+            context: Optional tool context
+
+        Returns:
+            Updated content standards response
+        &#34;&#34;&#34;
+        ...
+
+    @abstractmethod
+    async def handle_calibrate_content(
+        self,
+        request: CalibrateContentRequest,
+        context: ToolContext | None = None,
+    ) -&gt; CalibrateContentResponse:
+        &#34;&#34;&#34;Handle calibrate content request.
+
+        Must be implemented by Content Standards agents.
+
+        Args:
+            request: Validated calibration request with content to evaluate
+            context: Optional tool context
+
+        Returns:
+            Calibration response with scores and feedback
+        &#34;&#34;&#34;
+        ...
+
+    @abstractmethod
+    async def handle_validate_content_delivery(
+        self,
+        request: ValidateContentDeliveryRequest,
+        context: ToolContext | None = None,
+    ) -&gt; ValidateContentDeliveryResponse:
+        &#34;&#34;&#34;Handle validate content delivery request.
+
+        Must be implemented by Content Standards agents.
+
+        Args:
+            request: Validated request with delivery data
+            context: Optional tool context
+
+        Returns:
+            Validation response
+        &#34;&#34;&#34;
+        ...
+
+    @abstractmethod
+    async def handle_get_media_buy_artifacts(
+        self,
+        request: GetMediaBuyArtifactsRequest,
+        context: ToolContext | None = None,
+    ) -&gt; GetMediaBuyArtifactsResponse:
+        &#34;&#34;&#34;Handle get media buy artifacts request.
+
+        Must be implemented by Content Standards agents.
+
+        Args:
+            request: Validated artifacts retrieval request
+            context: Optional tool context
+
+        Returns:
+            Media buy artifacts response
+        &#34;&#34;&#34;
+        ...
+
+    # ========================================================================
+    # Non-Content-Standards Operations - Return &#39;not supported&#39;
+    # ========================================================================
+
+    async def get_products(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(
+            &#34;get_products is not supported by Content Standards agents. &#34;
+            &#34;This agent handles content calibration and validation, not product catalog operations.&#34;
+        )
+
+    async def list_creative_formats(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(
+            &#34;list_creative_formats is not supported by Content Standards agents.&#34;
+        )
+
+    async def list_authorized_properties(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(
+            &#34;list_authorized_properties is not supported by Content Standards agents.&#34;
+        )
+
+    async def sync_creatives(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(
+            &#34;sync_creatives is not supported by Content Standards agents.&#34;
+        )
+
+    async def list_creatives(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(
+            &#34;list_creatives is not supported by Content Standards agents.&#34;
+        )
+
+    async def build_creative(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(
+            &#34;build_creative is not supported by Content Standards agents.&#34;
+        )
+
+    async def create_media_buy(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(
+            &#34;create_media_buy is not supported by Content Standards agents. &#34;
+            &#34;This agent handles content calibration and validation, not media buying.&#34;
+        )
+
+    async def update_media_buy(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(
+            &#34;update_media_buy is not supported by Content Standards agents.&#34;
+        )
+
+    async def get_media_buy_delivery(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(
+            &#34;get_media_buy_delivery is not supported by Content Standards agents.&#34;
+        )
+
+    async def get_signals(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(
+            &#34;get_signals is not supported by Content Standards agents.&#34;
+        )
+
+    async def activate_signal(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(
+            &#34;activate_signal is not supported by Content Standards agents.&#34;
+        )
+
+    async def provide_performance_feedback(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(
+            &#34;provide_performance_feedback is not supported by Content Standards agents.&#34;
+        )
+
+    # ========================================================================
+    # V3 Sponsored Intelligence - Not supported
+    # ========================================================================
+
+    async def si_get_offering(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(
+            &#34;si_get_offering is not supported by Content Standards agents. &#34;
+            &#34;Use a Sponsored Intelligence agent for SI operations.&#34;
+        )
+
+    async def si_initiate_session(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(
+            &#34;si_initiate_session is not supported by Content Standards agents.&#34;
+        )
+
+    async def si_send_message(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(
+            &#34;si_send_message is not supported by Content Standards agents.&#34;
+        )
+
+    async def si_terminate_session(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(
+            &#34;si_terminate_session is not supported by Content Standards agents.&#34;
+        )
+
+    # ========================================================================
+    # V3 Governance (Property Lists) - Not supported
+    # ========================================================================
+
+    async def create_property_list(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(
+            &#34;create_property_list is not supported by Content Standards agents. &#34;
+            &#34;Use a Governance agent for property list operations.&#34;
+        )
+
+    async def get_property_list(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(
+            &#34;get_property_list is not supported by Content Standards agents.&#34;
+        )
+
+    async def list_property_lists(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(
+            &#34;list_property_lists is not supported by Content Standards agents.&#34;
+        )
+
+    async def update_property_list(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(
+            &#34;update_property_list is not supported by Content Standards agents.&#34;
+        )
+
+    async def delete_property_list(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(
+            &#34;delete_property_list is not supported by Content Standards agents.&#34;
+        )</code></pre>
+</details>
+<div class="desc"><p>Handler for Content Standards protocol.</p>
+<p>Subclass this to implement a Content Standards agent. All Content Standards
+operations must be implemented via the handle_* methods.
+The public methods (create_content_standards, etc.) handle validation and
+error handling automatically.</p>
+<p>Non-Content-Standards operations (get_products, create_media_buy, etc.)
+return 'not supported'.</p>
+<h2 id="example">Example</h2>
+<p>class MyContentStandardsHandler(ContentStandardsHandler):
+async def handle_create_content_standards(
+self,
+request: CreateContentStandardsRequest,
+context: ToolContext | None = None
+) -&gt; CreateContentStandardsResponse:
+# Your implementation
+return CreateContentStandardsResponse(&hellip;)</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.server.base.ADCPHandler" href="base.html#adcp.server.base.ADCPHandler">ADCPHandler</a></li>
+<li>abc.ABC</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.activate_signal"><code class="name flex">
+<span>async def <span class="ident">activate_signal</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def activate_signal(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(
+        &#34;activate_signal is not supported by Content Standards agents.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.build_creative"><code class="name flex">
+<span>async def <span class="ident">build_creative</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def build_creative(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(
+        &#34;build_creative is not supported by Content Standards agents.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.calibrate_content"><code class="name flex">
+<span>async def <span class="ident">calibrate_content</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse" href="../types/generated_poc/content_standards/calibrate_content_response.html#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse">CalibrateContentResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def calibrate_content(
+    self,
+    params: dict[str, Any],
+    context: ToolContext | None = None,
+) -&gt; CalibrateContentResponse | NotImplementedResponse:
+    &#34;&#34;&#34;Calibrate content against standards.
+
+    Validates params and delegates to handle_calibrate_content.
+
+    Args:
+        params: Request parameters as dict
+        context: Optional tool context
+
+    Returns:
+        Calibration response with scores and feedback, or error response
+    &#34;&#34;&#34;
+    try:
+        request = CalibrateContentRequest.model_validate(params)
+    except ValidationError as e:
+        return NotImplementedResponse(
+            supported=False,
+            reason=f&#34;Invalid request: {e}&#34;,
+            error=Error(code=&#34;VALIDATION_ERROR&#34;, message=str(e)),
+        )
+    return await self.handle_calibrate_content(request, context)</code></pre>
+</details>
+<div class="desc"><p>Calibrate content against standards.</p>
+<p>Validates params and delegates to handle_calibrate_content.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>params</code></strong></dt>
+<dd>Request parameters as dict</dd>
+<dt><strong><code>context</code></strong></dt>
+<dd>Optional tool context</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Calibration response with scores and feedback, or error response</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.create_content_standards"><code class="name flex">
+<span>async def <span class="ident">create_content_standards</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse" href="../types/generated_poc/content_standards/create_content_standards_response.html#adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse">CreateContentStandardsResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def create_content_standards(
+    self,
+    params: dict[str, Any],
+    context: ToolContext | None = None,
+) -&gt; CreateContentStandardsResponse | NotImplementedResponse:
+    &#34;&#34;&#34;Create content standards configuration.
+
+    Validates params and delegates to handle_create_content_standards.
+
+    Args:
+        params: Request parameters as dict
+        context: Optional tool context
+
+    Returns:
+        Content standards creation response, or error response
+    &#34;&#34;&#34;
+    try:
+        request = CreateContentStandardsRequest.model_validate(params)
+    except ValidationError as e:
+        return NotImplementedResponse(
+            supported=False,
+            reason=f&#34;Invalid request: {e}&#34;,
+            error=Error(code=&#34;VALIDATION_ERROR&#34;, message=str(e)),
+        )
+    return await self.handle_create_content_standards(request, context)</code></pre>
+</details>
+<div class="desc"><p>Create content standards configuration.</p>
+<p>Validates params and delegates to handle_create_content_standards.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>params</code></strong></dt>
+<dd>Request parameters as dict</dd>
+<dt><strong><code>context</code></strong></dt>
+<dd>Optional tool context</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Content standards creation response, or error response</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.create_media_buy"><code class="name flex">
+<span>async def <span class="ident">create_media_buy</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def create_media_buy(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(
+        &#34;create_media_buy is not supported by Content Standards agents. &#34;
+        &#34;This agent handles content calibration and validation, not media buying.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.create_property_list"><code class="name flex">
+<span>async def <span class="ident">create_property_list</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def create_property_list(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(
+        &#34;create_property_list is not supported by Content Standards agents. &#34;
+        &#34;Use a Governance agent for property list operations.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.delete_property_list"><code class="name flex">
+<span>async def <span class="ident">delete_property_list</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def delete_property_list(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(
+        &#34;delete_property_list is not supported by Content Standards agents.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.get_content_standards"><code class="name flex">
+<span>async def <span class="ident">get_content_standards</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.get_content_standards_response.GetContentStandardsResponse" href="../types/generated_poc/content_standards/get_content_standards_response.html#adcp.types.generated_poc.content_standards.get_content_standards_response.GetContentStandardsResponse">GetContentStandardsResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_content_standards(
+    self,
+    params: dict[str, Any],
+    context: ToolContext | None = None,
+) -&gt; GetContentStandardsResponse | NotImplementedResponse:
+    &#34;&#34;&#34;Get content standards configuration.
+
+    Validates params and delegates to handle_get_content_standards.
+
+    Args:
+        params: Request parameters as dict
+        context: Optional tool context
+
+    Returns:
+        Content standards response, or error response
+    &#34;&#34;&#34;
+    try:
+        request = GetContentStandardsRequest.model_validate(params)
+    except ValidationError as e:
+        return NotImplementedResponse(
+            supported=False,
+            reason=f&#34;Invalid request: {e}&#34;,
+            error=Error(code=&#34;VALIDATION_ERROR&#34;, message=str(e)),
+        )
+    return await self.handle_get_content_standards(request, context)</code></pre>
+</details>
+<div class="desc"><p>Get content standards configuration.</p>
+<p>Validates params and delegates to handle_get_content_standards.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>params</code></strong></dt>
+<dd>Request parameters as dict</dd>
+<dt><strong><code>context</code></strong></dt>
+<dd>Optional tool context</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Content standards response, or error response</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.get_media_buy_artifacts"><code class="name flex">
+<span>async def <span class="ident">get_media_buy_artifacts</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse" href="../types/generated_poc/content_standards/get_media_buy_artifacts_response.html#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse">GetMediaBuyArtifactsResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_media_buy_artifacts(
+    self,
+    params: dict[str, Any],
+    context: ToolContext | None = None,
+) -&gt; GetMediaBuyArtifactsResponse | NotImplementedResponse:
+    &#34;&#34;&#34;Get artifacts associated with a media buy.
+
+    Validates params and delegates to handle_get_media_buy_artifacts.
+
+    Args:
+        params: Request parameters as dict
+        context: Optional tool context
+
+    Returns:
+        Media buy artifacts response, or error response
+    &#34;&#34;&#34;
+    try:
+        request = GetMediaBuyArtifactsRequest.model_validate(params)
+    except ValidationError as e:
+        return NotImplementedResponse(
+            supported=False,
+            reason=f&#34;Invalid request: {e}&#34;,
+            error=Error(code=&#34;VALIDATION_ERROR&#34;, message=str(e)),
+        )
+    return await self.handle_get_media_buy_artifacts(request, context)</code></pre>
+</details>
+<div class="desc"><p>Get artifacts associated with a media buy.</p>
+<p>Validates params and delegates to handle_get_media_buy_artifacts.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>params</code></strong></dt>
+<dd>Request parameters as dict</dd>
+<dt><strong><code>context</code></strong></dt>
+<dd>Optional tool context</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Media buy artifacts response, or error response</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.get_media_buy_delivery"><code class="name flex">
+<span>async def <span class="ident">get_media_buy_delivery</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_media_buy_delivery(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(
+        &#34;get_media_buy_delivery is not supported by Content Standards agents.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.get_products"><code class="name flex">
+<span>async def <span class="ident">get_products</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_products(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(
+        &#34;get_products is not supported by Content Standards agents. &#34;
+        &#34;This agent handles content calibration and validation, not product catalog operations.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.get_property_list"><code class="name flex">
+<span>async def <span class="ident">get_property_list</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_property_list(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(
+        &#34;get_property_list is not supported by Content Standards agents.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.get_signals"><code class="name flex">
+<span>async def <span class="ident">get_signals</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_signals(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(
+        &#34;get_signals is not supported by Content Standards agents.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.handle_calibrate_content"><code class="name flex">
+<span>async def <span class="ident">handle_calibrate_content</span></span>(<span>self, request: CalibrateContentRequest, context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse" href="../types/generated_poc/content_standards/calibrate_content_response.html#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse">CalibrateContentResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def handle_calibrate_content(
+    self,
+    request: CalibrateContentRequest,
+    context: ToolContext | None = None,
+) -&gt; CalibrateContentResponse:
+    &#34;&#34;&#34;Handle calibrate content request.
+
+    Must be implemented by Content Standards agents.
+
+    Args:
+        request: Validated calibration request with content to evaluate
+        context: Optional tool context
+
+    Returns:
+        Calibration response with scores and feedback
+    &#34;&#34;&#34;
+    ...</code></pre>
+</details>
+<div class="desc"><p>Handle calibrate content request.</p>
+<p>Must be implemented by Content Standards agents.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Validated calibration request with content to evaluate</dd>
+<dt><strong><code>context</code></strong></dt>
+<dd>Optional tool context</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Calibration response with scores and feedback</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.handle_create_content_standards"><code class="name flex">
+<span>async def <span class="ident">handle_create_content_standards</span></span>(<span>self,<br>request: CreateContentStandardsRequest,<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse" href="../types/generated_poc/content_standards/create_content_standards_response.html#adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse">CreateContentStandardsResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def handle_create_content_standards(
+    self,
+    request: CreateContentStandardsRequest,
+    context: ToolContext | None = None,
+) -&gt; CreateContentStandardsResponse:
+    &#34;&#34;&#34;Handle create content standards request.
+
+    Must be implemented by Content Standards agents.
+
+    Args:
+        request: Validated content standards creation request
+        context: Optional tool context
+
+    Returns:
+        Content standards creation response
+    &#34;&#34;&#34;
+    ...</code></pre>
+</details>
+<div class="desc"><p>Handle create content standards request.</p>
+<p>Must be implemented by Content Standards agents.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Validated content standards creation request</dd>
+<dt><strong><code>context</code></strong></dt>
+<dd>Optional tool context</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Content standards creation response</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.handle_get_content_standards"><code class="name flex">
+<span>async def <span class="ident">handle_get_content_standards</span></span>(<span>self, request: GetContentStandardsRequest, context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.get_content_standards_response.GetContentStandardsResponse" href="../types/generated_poc/content_standards/get_content_standards_response.html#adcp.types.generated_poc.content_standards.get_content_standards_response.GetContentStandardsResponse">GetContentStandardsResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def handle_get_content_standards(
+    self,
+    request: GetContentStandardsRequest,
+    context: ToolContext | None = None,
+) -&gt; GetContentStandardsResponse:
+    &#34;&#34;&#34;Handle get content standards request.
+
+    Must be implemented by Content Standards agents.
+
+    Args:
+        request: Validated content standards retrieval request
+        context: Optional tool context
+
+    Returns:
+        Content standards response
+    &#34;&#34;&#34;
+    ...</code></pre>
+</details>
+<div class="desc"><p>Handle get content standards request.</p>
+<p>Must be implemented by Content Standards agents.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Validated content standards retrieval request</dd>
+<dt><strong><code>context</code></strong></dt>
+<dd>Optional tool context</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Content standards response</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.handle_get_media_buy_artifacts"><code class="name flex">
+<span>async def <span class="ident">handle_get_media_buy_artifacts</span></span>(<span>self, request: GetMediaBuyArtifactsRequest, context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse" href="../types/generated_poc/content_standards/get_media_buy_artifacts_response.html#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse">GetMediaBuyArtifactsResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def handle_get_media_buy_artifacts(
+    self,
+    request: GetMediaBuyArtifactsRequest,
+    context: ToolContext | None = None,
+) -&gt; GetMediaBuyArtifactsResponse:
+    &#34;&#34;&#34;Handle get media buy artifacts request.
+
+    Must be implemented by Content Standards agents.
+
+    Args:
+        request: Validated artifacts retrieval request
+        context: Optional tool context
+
+    Returns:
+        Media buy artifacts response
+    &#34;&#34;&#34;
+    ...</code></pre>
+</details>
+<div class="desc"><p>Handle get media buy artifacts request.</p>
+<p>Must be implemented by Content Standards agents.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Validated artifacts retrieval request</dd>
+<dt><strong><code>context</code></strong></dt>
+<dd>Optional tool context</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Media buy artifacts response</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.handle_list_content_standards"><code class="name flex">
+<span>async def <span class="ident">handle_list_content_standards</span></span>(<span>self, request: ListContentStandardsRequest, context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse" href="../types/generated_poc/content_standards/list_content_standards_response.html#adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse">ListContentStandardsResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def handle_list_content_standards(
+    self,
+    request: ListContentStandardsRequest,
+    context: ToolContext | None = None,
+) -&gt; ListContentStandardsResponse:
+    &#34;&#34;&#34;Handle list content standards request.
+
+    Must be implemented by Content Standards agents.
+
+    Args:
+        request: Validated list content standards request
+        context: Optional tool context
+
+    Returns:
+        List of content standards
+    &#34;&#34;&#34;
+    ...</code></pre>
+</details>
+<div class="desc"><p>Handle list content standards request.</p>
+<p>Must be implemented by Content Standards agents.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Validated list content standards request</dd>
+<dt><strong><code>context</code></strong></dt>
+<dd>Optional tool context</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>List of content standards</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.handle_update_content_standards"><code class="name flex">
+<span>async def <span class="ident">handle_update_content_standards</span></span>(<span>self,<br>request: UpdateContentStandardsRequest,<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.update_content_standards_response.UpdateContentStandardsResponse" href="../types/generated_poc/content_standards/update_content_standards_response.html#adcp.types.generated_poc.content_standards.update_content_standards_response.UpdateContentStandardsResponse">UpdateContentStandardsResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def handle_update_content_standards(
+    self,
+    request: UpdateContentStandardsRequest,
+    context: ToolContext | None = None,
+) -&gt; UpdateContentStandardsResponse:
+    &#34;&#34;&#34;Handle update content standards request.
+
+    Must be implemented by Content Standards agents.
+
+    Args:
+        request: Validated content standards update request
+        context: Optional tool context
+
+    Returns:
+        Updated content standards response
+    &#34;&#34;&#34;
+    ...</code></pre>
+</details>
+<div class="desc"><p>Handle update content standards request.</p>
+<p>Must be implemented by Content Standards agents.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Validated content standards update request</dd>
+<dt><strong><code>context</code></strong></dt>
+<dd>Optional tool context</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Updated content standards response</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.handle_validate_content_delivery"><code class="name flex">
+<span>async def <span class="ident">handle_validate_content_delivery</span></span>(<span>self,<br>request: ValidateContentDeliveryRequest,<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse" href="../types/generated_poc/content_standards/validate_content_delivery_response.html#adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse">ValidateContentDeliveryResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def handle_validate_content_delivery(
+    self,
+    request: ValidateContentDeliveryRequest,
+    context: ToolContext | None = None,
+) -&gt; ValidateContentDeliveryResponse:
+    &#34;&#34;&#34;Handle validate content delivery request.
+
+    Must be implemented by Content Standards agents.
+
+    Args:
+        request: Validated request with delivery data
+        context: Optional tool context
+
+    Returns:
+        Validation response
+    &#34;&#34;&#34;
+    ...</code></pre>
+</details>
+<div class="desc"><p>Handle validate content delivery request.</p>
+<p>Must be implemented by Content Standards agents.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Validated request with delivery data</dd>
+<dt><strong><code>context</code></strong></dt>
+<dd>Optional tool context</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Validation response</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.list_authorized_properties"><code class="name flex">
+<span>async def <span class="ident">list_authorized_properties</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_authorized_properties(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(
+        &#34;list_authorized_properties is not supported by Content Standards agents.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.list_content_standards"><code class="name flex">
+<span>async def <span class="ident">list_content_standards</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse" href="../types/generated_poc/content_standards/list_content_standards_response.html#adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse">ListContentStandardsResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_content_standards(
+    self,
+    params: dict[str, Any],
+    context: ToolContext | None = None,
+) -&gt; ListContentStandardsResponse | NotImplementedResponse:
+    &#34;&#34;&#34;List content standards configurations.
+
+    Validates params and delegates to handle_list_content_standards.
+
+    Args:
+        params: Request parameters as dict
+        context: Optional tool context
+
+    Returns:
+        List of content standards, or error response
+    &#34;&#34;&#34;
+    try:
+        request = ListContentStandardsRequest.model_validate(params)
+    except ValidationError as e:
+        return NotImplementedResponse(
+            supported=False,
+            reason=f&#34;Invalid request: {e}&#34;,
+            error=Error(code=&#34;VALIDATION_ERROR&#34;, message=str(e)),
+        )
+    return await self.handle_list_content_standards(request, context)</code></pre>
+</details>
+<div class="desc"><p>List content standards configurations.</p>
+<p>Validates params and delegates to handle_list_content_standards.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>params</code></strong></dt>
+<dd>Request parameters as dict</dd>
+<dt><strong><code>context</code></strong></dt>
+<dd>Optional tool context</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>List of content standards, or error response</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.list_creative_formats"><code class="name flex">
+<span>async def <span class="ident">list_creative_formats</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_creative_formats(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(
+        &#34;list_creative_formats is not supported by Content Standards agents.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.list_creatives"><code class="name flex">
+<span>async def <span class="ident">list_creatives</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_creatives(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(
+        &#34;list_creatives is not supported by Content Standards agents.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.list_property_lists"><code class="name flex">
+<span>async def <span class="ident">list_property_lists</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_property_lists(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(
+        &#34;list_property_lists is not supported by Content Standards agents.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.provide_performance_feedback"><code class="name flex">
+<span>async def <span class="ident">provide_performance_feedback</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def provide_performance_feedback(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(
+        &#34;provide_performance_feedback is not supported by Content Standards agents.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.si_get_offering"><code class="name flex">
+<span>async def <span class="ident">si_get_offering</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def si_get_offering(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(
+        &#34;si_get_offering is not supported by Content Standards agents. &#34;
+        &#34;Use a Sponsored Intelligence agent for SI operations.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.si_initiate_session"><code class="name flex">
+<span>async def <span class="ident">si_initiate_session</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def si_initiate_session(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(
+        &#34;si_initiate_session is not supported by Content Standards agents.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.si_send_message"><code class="name flex">
+<span>async def <span class="ident">si_send_message</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def si_send_message(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(
+        &#34;si_send_message is not supported by Content Standards agents.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.si_terminate_session"><code class="name flex">
+<span>async def <span class="ident">si_terminate_session</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def si_terminate_session(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(
+        &#34;si_terminate_session is not supported by Content Standards agents.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.sync_creatives"><code class="name flex">
+<span>async def <span class="ident">sync_creatives</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def sync_creatives(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(
+        &#34;sync_creatives is not supported by Content Standards agents.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.update_content_standards"><code class="name flex">
+<span>async def <span class="ident">update_content_standards</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.update_content_standards_response.UpdateContentStandardsResponse" href="../types/generated_poc/content_standards/update_content_standards_response.html#adcp.types.generated_poc.content_standards.update_content_standards_response.UpdateContentStandardsResponse">UpdateContentStandardsResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def update_content_standards(
+    self,
+    params: dict[str, Any],
+    context: ToolContext | None = None,
+) -&gt; UpdateContentStandardsResponse | NotImplementedResponse:
+    &#34;&#34;&#34;Update content standards configuration.
+
+    Validates params and delegates to handle_update_content_standards.
+
+    Args:
+        params: Request parameters as dict
+        context: Optional tool context
+
+    Returns:
+        Updated content standards response, or error response
+    &#34;&#34;&#34;
+    try:
+        request = UpdateContentStandardsRequest.model_validate(params)
+    except ValidationError as e:
+        return NotImplementedResponse(
+            supported=False,
+            reason=f&#34;Invalid request: {e}&#34;,
+            error=Error(code=&#34;VALIDATION_ERROR&#34;, message=str(e)),
+        )
+    return await self.handle_update_content_standards(request, context)</code></pre>
+</details>
+<div class="desc"><p>Update content standards configuration.</p>
+<p>Validates params and delegates to handle_update_content_standards.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>params</code></strong></dt>
+<dd>Request parameters as dict</dd>
+<dt><strong><code>context</code></strong></dt>
+<dd>Optional tool context</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Updated content standards response, or error response</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.update_media_buy"><code class="name flex">
+<span>async def <span class="ident">update_media_buy</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def update_media_buy(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(
+        &#34;update_media_buy is not supported by Content Standards agents.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.update_property_list"><code class="name flex">
+<span>async def <span class="ident">update_property_list</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def update_property_list(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(
+        &#34;update_property_list is not supported by Content Standards agents.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.validate_content_delivery"><code class="name flex">
+<span>async def <span class="ident">validate_content_delivery</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse" href="../types/generated_poc/content_standards/validate_content_delivery_response.html#adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse">ValidateContentDeliveryResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def validate_content_delivery(
+    self,
+    params: dict[str, Any],
+    context: ToolContext | None = None,
+) -&gt; ValidateContentDeliveryResponse | NotImplementedResponse:
+    &#34;&#34;&#34;Validate content delivery against standards.
+
+    Validates params and delegates to handle_validate_content_delivery.
+
+    Args:
+        params: Request parameters as dict
+        context: Optional tool context
+
+    Returns:
+        Validation response, or error response
+    &#34;&#34;&#34;
+    try:
+        request = ValidateContentDeliveryRequest.model_validate(params)
+    except ValidationError as e:
+        return NotImplementedResponse(
+            supported=False,
+            reason=f&#34;Invalid request: {e}&#34;,
+            error=Error(code=&#34;VALIDATION_ERROR&#34;, message=str(e)),
+        )
+    return await self.handle_validate_content_delivery(request, context)</code></pre>
+</details>
+<div class="desc"><p>Validate content delivery against standards.</p>
+<p>Validates params and delegates to handle_validate_content_delivery.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>params</code></strong></dt>
+<dd>Request parameters as dict</dd>
+<dt><strong><code>context</code></strong></dt>
+<dd>Optional tool context</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Validation response, or error response</p></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.server.base.ADCPHandler" href="base.html#adcp.server.base.ADCPHandler">ADCPHandler</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.server.base.ADCPHandler.get_adcp_capabilities" href="base.html#adcp.server.base.ADCPHandler.get_adcp_capabilities">get_adcp_capabilities</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.server" href="index.html">adcp.server</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.server.content_standards.ContentStandardsHandler" href="#adcp.server.content_standards.ContentStandardsHandler">ContentStandardsHandler</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.activate_signal" href="#adcp.server.content_standards.ContentStandardsHandler.activate_signal">activate_signal</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.build_creative" href="#adcp.server.content_standards.ContentStandardsHandler.build_creative">build_creative</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.calibrate_content" href="#adcp.server.content_standards.ContentStandardsHandler.calibrate_content">calibrate_content</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.create_content_standards" href="#adcp.server.content_standards.ContentStandardsHandler.create_content_standards">create_content_standards</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.create_media_buy" href="#adcp.server.content_standards.ContentStandardsHandler.create_media_buy">create_media_buy</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.create_property_list" href="#adcp.server.content_standards.ContentStandardsHandler.create_property_list">create_property_list</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.delete_property_list" href="#adcp.server.content_standards.ContentStandardsHandler.delete_property_list">delete_property_list</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.get_content_standards" href="#adcp.server.content_standards.ContentStandardsHandler.get_content_standards">get_content_standards</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.get_media_buy_artifacts" href="#adcp.server.content_standards.ContentStandardsHandler.get_media_buy_artifacts">get_media_buy_artifacts</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.get_media_buy_delivery" href="#adcp.server.content_standards.ContentStandardsHandler.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.get_products" href="#adcp.server.content_standards.ContentStandardsHandler.get_products">get_products</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.get_property_list" href="#adcp.server.content_standards.ContentStandardsHandler.get_property_list">get_property_list</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.get_signals" href="#adcp.server.content_standards.ContentStandardsHandler.get_signals">get_signals</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.handle_calibrate_content" href="#adcp.server.content_standards.ContentStandardsHandler.handle_calibrate_content">handle_calibrate_content</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.handle_create_content_standards" href="#adcp.server.content_standards.ContentStandardsHandler.handle_create_content_standards">handle_create_content_standards</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.handle_get_content_standards" href="#adcp.server.content_standards.ContentStandardsHandler.handle_get_content_standards">handle_get_content_standards</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.handle_get_media_buy_artifacts" href="#adcp.server.content_standards.ContentStandardsHandler.handle_get_media_buy_artifacts">handle_get_media_buy_artifacts</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.handle_list_content_standards" href="#adcp.server.content_standards.ContentStandardsHandler.handle_list_content_standards">handle_list_content_standards</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.handle_update_content_standards" href="#adcp.server.content_standards.ContentStandardsHandler.handle_update_content_standards">handle_update_content_standards</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.handle_validate_content_delivery" href="#adcp.server.content_standards.ContentStandardsHandler.handle_validate_content_delivery">handle_validate_content_delivery</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.list_authorized_properties" href="#adcp.server.content_standards.ContentStandardsHandler.list_authorized_properties">list_authorized_properties</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.list_content_standards" href="#adcp.server.content_standards.ContentStandardsHandler.list_content_standards">list_content_standards</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.list_creative_formats" href="#adcp.server.content_standards.ContentStandardsHandler.list_creative_formats">list_creative_formats</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.list_creatives" href="#adcp.server.content_standards.ContentStandardsHandler.list_creatives">list_creatives</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.list_property_lists" href="#adcp.server.content_standards.ContentStandardsHandler.list_property_lists">list_property_lists</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.provide_performance_feedback" href="#adcp.server.content_standards.ContentStandardsHandler.provide_performance_feedback">provide_performance_feedback</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.si_get_offering" href="#adcp.server.content_standards.ContentStandardsHandler.si_get_offering">si_get_offering</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.si_initiate_session" href="#adcp.server.content_standards.ContentStandardsHandler.si_initiate_session">si_initiate_session</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.si_send_message" href="#adcp.server.content_standards.ContentStandardsHandler.si_send_message">si_send_message</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.si_terminate_session" href="#adcp.server.content_standards.ContentStandardsHandler.si_terminate_session">si_terminate_session</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.sync_creatives" href="#adcp.server.content_standards.ContentStandardsHandler.sync_creatives">sync_creatives</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.update_content_standards" href="#adcp.server.content_standards.ContentStandardsHandler.update_content_standards">update_content_standards</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.update_media_buy" href="#adcp.server.content_standards.ContentStandardsHandler.update_media_buy">update_media_buy</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.update_property_list" href="#adcp.server.content_standards.ContentStandardsHandler.update_property_list">update_property_list</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.validate_content_delivery" href="#adcp.server.content_standards.ContentStandardsHandler.validate_content_delivery">validate_content_delivery</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

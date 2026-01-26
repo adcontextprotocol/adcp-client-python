@@ -57,16 +57,16 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class BudgetRange(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     currency: Annotated[
         str,
         Field(
-            description=&#34;ISO 4217 currency code (e.g., &#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;)&#34;, pattern=&#34;^[A-Z]{3}$&#34;
+            description=&#34;ISO 4217 currency code (e.g., &#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;)&#34;, pattern=&#39;^[A-Z]{3}$&#39;
         ),
     ]
-    max: Annotated[float | None, Field(description=&#34;Maximum budget amount&#34;, ge=0.0)] = None
-    min: Annotated[float, Field(description=&#34;Minimum budget amount&#34;, ge=0.0)]</code></pre>
+    max: Annotated[float | None, Field(description=&#39;Maximum budget amount&#39;, ge=0.0)] = None
+    min: Annotated[float, Field(description=&#39;Minimum budget amount&#39;, ge=0.0)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -106,7 +106,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -122,16 +122,16 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BudgetRange1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     currency: Annotated[
         str,
         Field(
-            description=&#34;ISO 4217 currency code (e.g., &#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;)&#34;, pattern=&#34;^[A-Z]{3}$&#34;
+            description=&#34;ISO 4217 currency code (e.g., &#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;)&#34;, pattern=&#39;^[A-Z]{3}$&#39;
         ),
     ]
-    max: Annotated[float, Field(description=&#34;Maximum budget amount&#34;, ge=0.0)]
-    min: Annotated[float | None, Field(description=&#34;Minimum budget amount&#34;, ge=0.0)] = None</code></pre>
+    max: Annotated[float, Field(description=&#39;Maximum budget amount&#39;, ge=0.0)]
+    min: Annotated[float | None, Field(description=&#39;Minimum budget amount&#39;, ge=0.0)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -171,7 +171,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -186,7 +186,7 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Country(RootModel[str]):
-    root: Annotated[str, Field(pattern=&#34;^[A-Z]{2}$&#34;)]</code></pre>
+    root: Annotated[str, Field(pattern=&#39;^[A-Z]{2}$&#39;)]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -227,6 +227,65 @@ validated to form a valid model.</p>
 </dd>
 </dl>
 </dd>
+<dt id="adcp.types.generated_poc.core.product_filters.Metro"><code class="flex name class">
+<span>class <span class="ident">Metro</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Metro(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    code: Annotated[
+        str, Field(description=&#34;Metro code within the system (e.g., &#39;501&#39; for NYC DMA)&#34;)
+    ]
+    system: Annotated[
+        metro_system.MetroAreaSystem, Field(description=&#39;Metro classification system&#39;)
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.product_filters.Metro.code"><code class="name">var <span class="ident">code</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.Metro.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.Metro.system"><code class="name">var <span class="ident">system</span> : <a title="adcp.types.generated_poc.enums.metro_system.MetroAreaSystem" href="../enums/metro_system.html#adcp.types.generated_poc.enums.metro_system.MetroAreaSystem">MetroAreaSystem</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.core.product_filters.ProductFilters"><code class="flex name class">
 <span>class <span class="ident">ProductFilters</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -238,49 +297,82 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ProductFilters(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     budget_range: Annotated[
         BudgetRange | BudgetRange1 | None,
-        Field(description=&#34;Budget range to filter appropriate products&#34;),
+        Field(description=&#39;Budget range to filter appropriate products&#39;),
     ] = None
     channels: Annotated[
-        list[channels_1.AdvertisingChannels] | None,
+        list[channels_1.MediaChannel] | None,
         Field(description=&#34;Filter by advertising channels (e.g., [&#39;display&#39;, &#39;video&#39;, &#39;dooh&#39;])&#34;),
     ] = None
     countries: Annotated[
         list[Country] | None,
         Field(
-            description=&#34;Filter by target countries using ISO 3166-1 alpha-2 country codes (e.g., [&#39;US&#39;, &#39;CA&#39;, &#39;GB&#39;])&#34;
+            description=&#34;Filter by country coverage using ISO 3166-1 alpha-2 codes (e.g., [&#39;US&#39;, &#39;CA&#39;, &#39;GB&#39;]). Works for all inventory types.&#34;
         ),
     ] = None
     delivery_type: delivery_type_1.DeliveryType | None = None
     end_date: Annotated[
         date | None,
         Field(
-            description=&#34;Campaign end date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#34;
+            description=&#39;Campaign end date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#39;
         ),
     ] = None
     format_ids: Annotated[
-        list[format_id.FormatId] | None, Field(description=&#34;Filter by specific format IDs&#34;)
+        list[format_id.FormatId] | None, Field(description=&#39;Filter by specific format IDs&#39;)
     ] = None
     format_types: Annotated[
-        list[format_category.FormatCategory] | None, Field(description=&#34;Filter by format types&#34;)
+        list[format_category.FormatCategory] | None, Field(description=&#39;Filter by format types&#39;)
     ] = None
     is_fixed_price: Annotated[
-        bool | None, Field(description=&#34;Filter for fixed price vs auction products&#34;)
+        bool | None,
+        Field(
+            description=&#39;Filter by pricing availability: true = products offering fixed pricing (at least one option with fixed_price), false = products offering auction pricing (at least one option without fixed_price). Products with both fixed and auction options match both true and false.&#39;
+        ),
+    ] = None
+    metros: Annotated[
+        list[Metro] | None,
+        Field(
+            description=&#39;Filter by metro coverage for locally-bound inventory (radio, DOOH, local TV). Use when products have DMA/metro-specific coverage. For digital inventory where products have broad coverage, use required_geo_targeting instead to filter by seller capability.&#39;
+        ),
     ] = None
     min_exposures: Annotated[
         int | None,
-        Field(description=&#34;Minimum exposures/impressions needed for measurement validity&#34;, ge=1),
+        Field(description=&#39;Minimum exposures/impressions needed for measurement validity&#39;, ge=1),
+    ] = None
+    regions: Annotated[
+        list[Region] | None,
+        Field(
+            description=&#34;Filter by region coverage using ISO 3166-2 codes (e.g., [&#39;US-NY&#39;, &#39;US-CA&#39;, &#39;GB-SCT&#39;]). Use for locally-bound inventory (regional OOH, local TV) where products have region-specific coverage.&#34;
+        ),
+    ] = None
+    required_axe_integrations: Annotated[
+        list[AnyUrl] | None,
+        Field(
+            description=&#39;Filter to products executable through specific agentic ad exchanges. URLs are canonical identifiers.&#39;
+        ),
+    ] = None
+    required_features: Annotated[
+        media_buy_features.MediaBuyFeatures | None,
+        Field(
+            description=&#39;Filter to products from sellers supporting specific protocol features. Only features set to true are used for filtering.&#39;
+        ),
+    ] = None
+    required_geo_targeting: Annotated[
+        list[RequiredGeoTargetingItem] | None,
+        Field(
+            description=&#39;Filter to products from sellers supporting specific geo targeting capabilities. Each entry specifies a targeting level (country, region, metro, postal_area) and optionally a system for levels that have multiple classification systems.&#39;
+        ),
     ] = None
     standard_formats_only: Annotated[
-        bool | None, Field(description=&#34;Only return products accepting IAB standard formats&#34;)
+        bool | None, Field(description=&#39;Only return products accepting IAB standard formats&#39;)
     ] = None
     start_date: Annotated[
         date | None,
         Field(
-            description=&#34;Campaign start date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#34;
+            description=&#39;Campaign start date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -303,7 +395,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.ProductFilters.channels"><code class="name">var <span class="ident">channels</span> : list[<a title="adcp.types.generated_poc.enums.channels.AdvertisingChannels" href="../enums/channels.html#adcp.types.generated_poc.enums.channels.AdvertisingChannels">AdvertisingChannels</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.ProductFilters.channels"><code class="name">var <span class="ident">channels</span> : list[<a title="adcp.types.generated_poc.enums.channels.MediaChannel" href="../enums/channels.html#adcp.types.generated_poc.enums.channels.MediaChannel">MediaChannel</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -331,11 +423,31 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.product_filters.ProductFilters.metros"><code class="name">var <span class="ident">metros</span> : list[<a title="adcp.types.generated_poc.core.product_filters.Metro" href="#adcp.types.generated_poc.core.product_filters.Metro">Metro</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.product_filters.ProductFilters.min_exposures"><code class="name">var <span class="ident">min_exposures</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.product_filters.ProductFilters.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.ProductFilters.regions"><code class="name">var <span class="ident">regions</span> : list[<a title="adcp.types.generated_poc.core.product_filters.Region" href="#adcp.types.generated_poc.core.product_filters.Region">Region</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.ProductFilters.required_axe_integrations"><code class="name">var <span class="ident">required_axe_integrations</span> : list[pydantic.networks.AnyUrl] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.ProductFilters.required_features"><code class="name">var <span class="ident">required_features</span> : <a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures" href="media_buy_features.html#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures">MediaBuyFeatures</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.ProductFilters.required_geo_targeting"><code class="name">var <span class="ident">required_geo_targeting</span> : list[<a title="adcp.types.generated_poc.core.product_filters.RequiredGeoTargetingItem" href="#adcp.types.generated_poc.core.product_filters.RequiredGeoTargetingItem">RequiredGeoTargetingItem</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -354,7 +466,121 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.Region"><code class="flex name class">
+<span>class <span class="ident">Region</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Region(RootModel[str]):
+    root: Annotated[str, Field(pattern=&#39;^[A-Z]{2}-[A-Z0-9]+$&#39;)]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[str]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.product_filters.Region.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.Region.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.RequiredGeoTargetingItem"><code class="flex name class">
+<span>class <span class="ident">RequiredGeoTargetingItem</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class RequiredGeoTargetingItem(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    level: Annotated[
+        geo_level.GeographicTargetingLevel,
+        Field(description=&#39;Geographic targeting level (country, region, metro, postal_area)&#39;),
+    ]
+    system: Annotated[
+        str | None,
+        Field(
+            description=&#34;Classification system within the level. Required for metro (e.g., &#39;nielsen_dma&#39;) and postal_area (e.g., &#39;us_zip&#39;). Not applicable for country/region which use ISO standards.&#34;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.product_filters.RequiredGeoTargetingItem.level"><code class="name">var <span class="ident">level</span> : <a title="adcp.types.generated_poc.enums.geo_level.GeographicTargetingLevel" href="../enums/geo_level.html#adcp.types.generated_poc.enums.geo_level.GeographicTargetingLevel">GeographicTargetingLevel</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.RequiredGeoTargetingItem.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.RequiredGeoTargetingItem.system"><code class="name">var <span class="ident">system</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -400,6 +626,14 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.generated_poc.core.product_filters.Metro" href="#adcp.types.generated_poc.core.product_filters.Metro">Metro</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.product_filters.Metro.code" href="#adcp.types.generated_poc.core.product_filters.Metro.code">code</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.Metro.model_config" href="#adcp.types.generated_poc.core.product_filters.Metro.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.Metro.system" href="#adcp.types.generated_poc.core.product_filters.Metro.system">system</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters" href="#adcp.types.generated_poc.core.product_filters.ProductFilters">ProductFilters</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.budget_range" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.budget_range">budget_range</a></code></li>
@@ -410,10 +644,30 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.format_ids" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.format_ids">format_ids</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.format_types" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.format_types">format_types</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.is_fixed_price" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.is_fixed_price">is_fixed_price</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.metros" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.metros">metros</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.min_exposures" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.min_exposures">min_exposures</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.model_config" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.regions" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.regions">regions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.required_axe_integrations" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.required_axe_integrations">required_axe_integrations</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.required_features" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.required_features">required_features</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.required_geo_targeting" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.required_geo_targeting">required_geo_targeting</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.standard_formats_only" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.standard_formats_only">standard_formats_only</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.start_date" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.start_date">start_date</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.product_filters.Region" href="#adcp.types.generated_poc.core.product_filters.Region">Region</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.product_filters.Region.model_config" href="#adcp.types.generated_poc.core.product_filters.Region.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.Region.root" href="#adcp.types.generated_poc.core.product_filters.Region.root">root</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.product_filters.RequiredGeoTargetingItem" href="#adcp.types.generated_poc.core.product_filters.RequiredGeoTargetingItem">RequiredGeoTargetingItem</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.product_filters.RequiredGeoTargetingItem.level" href="#adcp.types.generated_poc.core.product_filters.RequiredGeoTargetingItem.level">level</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.RequiredGeoTargetingItem.model_config" href="#adcp.types.generated_poc.core.product_filters.RequiredGeoTargetingItem.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.RequiredGeoTargetingItem.system" href="#adcp.types.generated_poc.core.product_filters.RequiredGeoTargetingItem.system">system</a></code></li>
 </ul>
 </li>
 </ul>

@@ -57,12 +57,12 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class GetPropertyListResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;forbid&#39;,
     )
     cache_valid_until: Annotated[
         AwareDatetime | None,
         Field(
-            description=&#34;Cache expiration timestamp. Re-fetch the list after this time to get updated identifiers.&#34;
+            description=&#39;Cache expiration timestamp. Re-fetch the list after this time to get updated identifiers.&#39;
         ),
     ] = None
     coverage_gaps: Annotated[
@@ -75,22 +75,22 @@ el.replaceWith(d);
     identifiers: Annotated[
         list[identifier.Identifier] | None,
         Field(
-            description=&#34;Resolved identifiers that passed filters (if resolve=true). Cache these locally for real-time use.&#34;
+            description=&#39;Resolved identifiers that passed filters (if resolve=true). Cache these locally for real-time use.&#39;
         ),
     ] = None
     list: Annotated[
         property_list.PropertyList,
-        Field(description=&#34;The property list metadata (always returned)&#34;),
+        Field(description=&#39;The property list metadata (always returned)&#39;),
     ]
-    pagination: Annotated[Pagination | None, Field(description=&#34;Pagination information&#34;)] = None
+    pagination: Annotated[Pagination | None, Field(description=&#39;Pagination information&#39;)] = None
     resolved_at: Annotated[
-        AwareDatetime | None, Field(description=&#34;When the list was resolved&#34;)
+        AwareDatetime | None, Field(description=&#39;When the list was resolved&#39;)
     ] = None
     returned_count: Annotated[
-        int | None, Field(description=&#34;Number of identifiers returned in this response&#34;)
+        int | None, Field(description=&#39;Number of identifiers returned in this response&#39;)
     ] = None
     total_count: Annotated[
-        int | None, Field(description=&#34;Total number of identifiers in resolved list&#34;)
+        int | None, Field(description=&#39;Total number of identifiers in resolved list&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -155,7 +155,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -171,10 +171,10 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Pagination(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;forbid&#39;,
     )
-    cursor: Annotated[str | None, Field(description=&#34;Cursor for next page&#34;)] = None
-    has_more: Annotated[bool | None, Field(description=&#34;Whether more results are available&#34;)] = None</code></pre>
+    cursor: Annotated[str | None, Field(description=&#39;Cursor for next page&#39;)] = None
+    has_more: Annotated[bool | None, Field(description=&#39;Whether more results are available&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -210,7 +210,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>

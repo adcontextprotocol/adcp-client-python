@@ -331,8 +331,8 @@ el.replaceWith(d);
                 first_render = preview.renders[0] if preview.renders else None
 
                 if first_render:
-                    # PreviewRender is a RootModel, access attributes via .root
-                    render = first_render.root
+                    # PreviewRender is a RootModel - access .root for the actual data
+                    render = getattr(first_render, &#34;root&#34;, first_render)
                     has_url = hasattr(render, &#34;preview_url&#34;)
                     preview_url = str(render.preview_url) if has_url else None
                     preview_data = {
@@ -629,8 +629,8 @@ el.replaceWith(d);
             first_render = preview.renders[0] if preview.renders else None
 
             if first_render:
-                # PreviewRender is a RootModel, access attributes via .root
-                render = first_render.root
+                # PreviewRender is a RootModel - access .root for the actual data
+                render = getattr(first_render, &#34;root&#34;, first_render)
                 has_url = hasattr(render, &#34;preview_url&#34;)
                 preview_url = str(render.preview_url) if has_url else None
                 preview_data = {

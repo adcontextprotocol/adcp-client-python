@@ -57,14 +57,8 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class CreativeAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    approved: Annotated[
-        bool | None,
-        Field(
-            description=&#34;For generative creatives: set to true to approve and finalize, false to request regeneration with updated assets/message. Omit for non-generative creatives.&#34;
-        ),
-    ] = None
     assets: Annotated[
         dict[
             str,
@@ -80,22 +74,22 @@ el.replaceWith(d);
             | promoted_offerings.PromotedOfferings
             | url_asset.UrlAsset,
         ],
-        Field(description=&#34;Assets required by the format, keyed by asset_role&#34;),
+        Field(description=&#39;Assets required by the format, keyed by asset_role&#39;),
     ]
-    creative_id: Annotated[str, Field(description=&#34;Unique identifier for the creative&#34;)]
+    creative_id: Annotated[str, Field(description=&#39;Unique identifier for the creative&#39;)]
     format_id: Annotated[
         format_id_1.FormatId,
         Field(
-            description=&#34;Format identifier specifying which format this creative conforms to. Can be: (1) concrete format_id referencing a format with fixed dimensions, (2) template format_id referencing a template format, or (3) parameterized format_id with dimensions/duration parameters for template formats.&#34;
+            description=&#39;Format identifier specifying which format this creative conforms to. Can be: (1) concrete format_id referencing a format with fixed dimensions, (2) template format_id referencing a template format, or (3) parameterized format_id with dimensions/duration parameters for template formats.&#39;
         ),
     ]
     inputs: Annotated[
         list[Input] | None,
         Field(
-            description=&#34;Preview contexts for generative formats - defines what scenarios to generate previews for&#34;
+            description=&#39;Preview contexts for generative formats - defines what scenarios to generate previews for&#39;
         ),
     ] = None
-    name: Annotated[str, Field(description=&#34;Human-readable creative name&#34;)]
+    name: Annotated[str, Field(description=&#39;Human-readable creative name&#39;)]
     placement_ids: Annotated[
         list[str] | None,
         Field(
@@ -103,13 +97,19 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
+    status: Annotated[
+        creative_status.CreativeStatus | None,
+        Field(
+            description=&#34;For generative creatives: set to &#39;approved&#39; to finalize, &#39;rejected&#39; to request regeneration with updated assets/message. Omit for non-generative creatives (system will set based on processing state).&#34;
+        ),
+    ] = None
     tags: Annotated[
-        list[str] | None, Field(description=&#34;User-defined tags for organization and searchability&#34;)
+        list[str] | None, Field(description=&#39;User-defined tags for organization and searchability&#39;)
     ] = None
     weight: Annotated[
         float | None,
         Field(
-            description=&#34;Optional delivery weight for creative rotation when uploading via create_media_buy or update_media_buy (0-100). If omitted, platform determines rotation. Only used during upload to media buy - not stored in creative library.&#34;,
+            description=&#39;Optional delivery weight for creative rotation when uploading via create_media_buy or update_media_buy (0-100). If omitted, platform determines rotation. Only used during upload to media buy - not stored in creative library.&#39;,
             ge=0.0,
             le=100.0,
         ),
@@ -130,10 +130,6 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.creative_asset.CreativeAsset.approved"><code class="name">var <span class="ident">approved</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="adcp.types.generated_poc.core.creative_asset.CreativeAsset.assets"><code class="name">var <span class="ident">assets</span> : dict[str, <a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset" href="assets/image_asset.html#adcp.types.generated_poc.core.assets.image_asset.ImageAsset">ImageAsset</a> | <a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset" href="assets/video_asset.html#adcp.types.generated_poc.core.assets.video_asset.VideoAsset">VideoAsset</a> | <a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset" href="assets/audio_asset.html#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset">AudioAsset</a> | <a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset" href="assets/text_asset.html#adcp.types.generated_poc.core.assets.text_asset.TextAsset">TextAsset</a> | <a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset" href="assets/html_asset.html#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset">HtmlAsset</a> | <a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset" href="assets/css_asset.html#adcp.types.generated_poc.core.assets.css_asset.CssAsset">CssAsset</a> | <a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset" href="assets/javascript_asset.html#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset">JavascriptAsset</a> | <a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset" href="assets/vast_asset.html#adcp.types.generated_poc.core.assets.vast_asset.VastAsset">VastAsset</a> | <a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset" href="assets/daast_asset.html#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset">DaastAsset</a> | <a title="adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings" href="promoted_offerings.html#adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings">PromotedOfferings</a> | <a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset" href="assets/url_asset.html#adcp.types.generated_poc.core.assets.url_asset.UrlAsset">UrlAsset</a>]</code></dt>
 <dd>
 <div class="desc"></div>
@@ -162,6 +158,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.creative_asset.CreativeAsset.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.enums.creative_status.CreativeStatus" href="../enums/creative_status.html#adcp.types.generated_poc.enums.creative_status.CreativeStatus">CreativeStatus</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.creative_asset.CreativeAsset.tags"><code class="name">var <span class="ident">tags</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -177,7 +177,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -193,16 +193,16 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Input(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context_description: Annotated[
         str | None,
-        Field(description=&#34;Natural language description of the context for AI-generated content&#34;),
+        Field(description=&#39;Natural language description of the context for AI-generated content&#39;),
     ] = None
     macros: Annotated[
-        dict[str, str] | None, Field(description=&#34;Macro values to apply for this preview&#34;)
+        dict[str, str] | None, Field(description=&#39;Macro values to apply for this preview&#39;)
     ] = None
-    name: Annotated[str, Field(description=&#34;Human-readable name for this preview variant&#34;)]</code></pre>
+    name: Annotated[str, Field(description=&#39;Human-readable name for this preview variant&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -242,7 +242,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -265,7 +265,6 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset">CreativeAsset</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.approved" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.approved">approved</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.assets" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.assets">assets</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.creative_id" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.creative_id">creative_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.format_id" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.format_id">format_id</a></code></li>
@@ -273,6 +272,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.model_config" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.name" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.name">name</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.placement_ids" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.placement_ids">placement_ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.status" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.status">status</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.tags" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.tags">tags</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.weight" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.weight">weight</a></code></li>
 </ul>

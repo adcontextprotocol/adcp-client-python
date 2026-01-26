@@ -57,21 +57,21 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Error(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    code: Annotated[str, Field(description=&#34;Error code for programmatic handling&#34;)]
+    code: Annotated[str, Field(description=&#39;Error code for programmatic handling&#39;)]
     details: Annotated[
-        dict[str, Any] | None, Field(description=&#34;Additional task-specific error details&#34;)
+        dict[str, Any] | None, Field(description=&#39;Additional task-specific error details&#39;)
     ] = None
     field: Annotated[
         str | None,
         Field(description=&#34;Field path associated with the error (e.g., &#39;packages[0].targeting&#39;)&#34;),
     ] = None
-    message: Annotated[str, Field(description=&#34;Human-readable error message&#34;)]
+    message: Annotated[str, Field(description=&#39;Human-readable error message&#39;)]
     retry_after: Annotated[
-        float | None, Field(description=&#34;Seconds to wait before retrying the operation&#34;, ge=0.0)
+        float | None, Field(description=&#39;Seconds to wait before retrying the operation&#39;, ge=0.0)
     ] = None
-    suggestion: Annotated[str | None, Field(description=&#34;Suggested fix for the error&#34;)] = None</code></pre>
+    suggestion: Annotated[str | None, Field(description=&#39;Suggested fix for the error&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -123,7 +123,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>

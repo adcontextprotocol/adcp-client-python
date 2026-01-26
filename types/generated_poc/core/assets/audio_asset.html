@@ -57,18 +57,18 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class AudioAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     bitrate_kbps: Annotated[
-        int | None, Field(description=&#34;Audio bitrate in kilobits per second&#34;, ge=1)
+        int | None, Field(description=&#39;Audio bitrate in kilobits per second&#39;, ge=1)
     ] = None
     duration_ms: Annotated[
-        int | None, Field(description=&#34;Audio duration in milliseconds&#34;, ge=0)
+        int | None, Field(description=&#39;Audio duration in milliseconds&#39;, ge=0)
     ] = None
-    format: Annotated[str | None, Field(description=&#34;Audio file format (mp3, wav, aac, etc.)&#34;)] = (
+    format: Annotated[str | None, Field(description=&#39;Audio file format (mp3, wav, aac, etc.)&#39;)] = (
         None
     )
-    url: Annotated[AnyUrl, Field(description=&#34;URL to the audio asset&#34;)]</code></pre>
+    url: Annotated[AnyUrl, Field(description=&#39;URL to the audio asset&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -112,7 +112,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>

@@ -46,8 +46,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.enums.channels.AdvertisingChannels"><code class="flex name class">
-<span>class <span class="ident">AdvertisingChannels</span></span>
+<dt id="adcp.types.generated_poc.enums.channels.MediaChannel"><code class="flex name class">
+<span>class <span class="ident">MediaChannel</span></span>
 <span>(</span><span>*args, **kwds)</span>
 </code></dt>
 <dd>
@@ -55,16 +55,26 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class AdvertisingChannels(Enum):
-    display = &#34;display&#34;
-    video = &#34;video&#34;
-    audio = &#34;audio&#34;
-    native = &#34;native&#34;
-    dooh = &#34;dooh&#34;
-    ctv = &#34;ctv&#34;
-    podcast = &#34;podcast&#34;
-    retail = &#34;retail&#34;
-    social = &#34;social&#34;</code></pre>
+<pre><code class="python">class MediaChannel(Enum):
+    display = &#39;display&#39;
+    olv = &#39;olv&#39;
+    social = &#39;social&#39;
+    search = &#39;search&#39;
+    ctv = &#39;ctv&#39;
+    linear_tv = &#39;linear_tv&#39;
+    radio = &#39;radio&#39;
+    streaming_audio = &#39;streaming_audio&#39;
+    podcast = &#39;podcast&#39;
+    dooh = &#39;dooh&#39;
+    ooh = &#39;ooh&#39;
+    print = &#39;print&#39;
+    cinema = &#39;cinema&#39;
+    email = &#39;email&#39;
+    gaming = &#39;gaming&#39;
+    retail_media = &#39;retail_media&#39;
+    influencer = &#39;influencer&#39;
+    affiliate = &#39;affiliate&#39;
+    product_placement = &#39;product_placement&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -107,39 +117,79 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.enums.channels.AdvertisingChannels.audio"><code class="name">var <span class="ident">audio</span></code></dt>
+<dt id="adcp.types.generated_poc.enums.channels.MediaChannel.affiliate"><code class="name">var <span class="ident">affiliate</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.enums.channels.AdvertisingChannels.ctv"><code class="name">var <span class="ident">ctv</span></code></dt>
+<dt id="adcp.types.generated_poc.enums.channels.MediaChannel.cinema"><code class="name">var <span class="ident">cinema</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.enums.channels.AdvertisingChannels.display"><code class="name">var <span class="ident">display</span></code></dt>
+<dt id="adcp.types.generated_poc.enums.channels.MediaChannel.ctv"><code class="name">var <span class="ident">ctv</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.enums.channels.AdvertisingChannels.dooh"><code class="name">var <span class="ident">dooh</span></code></dt>
+<dt id="adcp.types.generated_poc.enums.channels.MediaChannel.display"><code class="name">var <span class="ident">display</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.enums.channels.AdvertisingChannels.native"><code class="name">var <span class="ident">native</span></code></dt>
+<dt id="adcp.types.generated_poc.enums.channels.MediaChannel.dooh"><code class="name">var <span class="ident">dooh</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.enums.channels.AdvertisingChannels.podcast"><code class="name">var <span class="ident">podcast</span></code></dt>
+<dt id="adcp.types.generated_poc.enums.channels.MediaChannel.email"><code class="name">var <span class="ident">email</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.enums.channels.AdvertisingChannels.retail"><code class="name">var <span class="ident">retail</span></code></dt>
+<dt id="adcp.types.generated_poc.enums.channels.MediaChannel.gaming"><code class="name">var <span class="ident">gaming</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.enums.channels.AdvertisingChannels.social"><code class="name">var <span class="ident">social</span></code></dt>
+<dt id="adcp.types.generated_poc.enums.channels.MediaChannel.influencer"><code class="name">var <span class="ident">influencer</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.enums.channels.AdvertisingChannels.video"><code class="name">var <span class="ident">video</span></code></dt>
+<dt id="adcp.types.generated_poc.enums.channels.MediaChannel.linear_tv"><code class="name">var <span class="ident">linear_tv</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.channels.MediaChannel.olv"><code class="name">var <span class="ident">olv</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.channels.MediaChannel.ooh"><code class="name">var <span class="ident">ooh</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.channels.MediaChannel.podcast"><code class="name">var <span class="ident">podcast</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.channels.MediaChannel.print"><code class="name">var <span class="ident">print</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.channels.MediaChannel.product_placement"><code class="name">var <span class="ident">product_placement</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.channels.MediaChannel.radio"><code class="name">var <span class="ident">radio</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.channels.MediaChannel.retail_media"><code class="name">var <span class="ident">retail_media</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.channels.MediaChannel.search"><code class="name">var <span class="ident">search</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.channels.MediaChannel.social"><code class="name">var <span class="ident">social</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.channels.MediaChannel.streaming_audio"><code class="name">var <span class="ident">streaming_audio</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -161,17 +211,27 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.enums.channels.AdvertisingChannels" href="#adcp.types.generated_poc.enums.channels.AdvertisingChannels">AdvertisingChannels</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.enums.channels.MediaChannel" href="#adcp.types.generated_poc.enums.channels.MediaChannel">MediaChannel</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.enums.channels.AdvertisingChannels.audio" href="#adcp.types.generated_poc.enums.channels.AdvertisingChannels.audio">audio</a></code></li>
-<li><code><a title="adcp.types.generated_poc.enums.channels.AdvertisingChannels.ctv" href="#adcp.types.generated_poc.enums.channels.AdvertisingChannels.ctv">ctv</a></code></li>
-<li><code><a title="adcp.types.generated_poc.enums.channels.AdvertisingChannels.display" href="#adcp.types.generated_poc.enums.channels.AdvertisingChannels.display">display</a></code></li>
-<li><code><a title="adcp.types.generated_poc.enums.channels.AdvertisingChannels.dooh" href="#adcp.types.generated_poc.enums.channels.AdvertisingChannels.dooh">dooh</a></code></li>
-<li><code><a title="adcp.types.generated_poc.enums.channels.AdvertisingChannels.native" href="#adcp.types.generated_poc.enums.channels.AdvertisingChannels.native">native</a></code></li>
-<li><code><a title="adcp.types.generated_poc.enums.channels.AdvertisingChannels.podcast" href="#adcp.types.generated_poc.enums.channels.AdvertisingChannels.podcast">podcast</a></code></li>
-<li><code><a title="adcp.types.generated_poc.enums.channels.AdvertisingChannels.retail" href="#adcp.types.generated_poc.enums.channels.AdvertisingChannels.retail">retail</a></code></li>
-<li><code><a title="adcp.types.generated_poc.enums.channels.AdvertisingChannels.social" href="#adcp.types.generated_poc.enums.channels.AdvertisingChannels.social">social</a></code></li>
-<li><code><a title="adcp.types.generated_poc.enums.channels.AdvertisingChannels.video" href="#adcp.types.generated_poc.enums.channels.AdvertisingChannels.video">video</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.channels.MediaChannel.affiliate" href="#adcp.types.generated_poc.enums.channels.MediaChannel.affiliate">affiliate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.channels.MediaChannel.cinema" href="#adcp.types.generated_poc.enums.channels.MediaChannel.cinema">cinema</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.channels.MediaChannel.ctv" href="#adcp.types.generated_poc.enums.channels.MediaChannel.ctv">ctv</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.channels.MediaChannel.display" href="#adcp.types.generated_poc.enums.channels.MediaChannel.display">display</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.channels.MediaChannel.dooh" href="#adcp.types.generated_poc.enums.channels.MediaChannel.dooh">dooh</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.channels.MediaChannel.email" href="#adcp.types.generated_poc.enums.channels.MediaChannel.email">email</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.channels.MediaChannel.gaming" href="#adcp.types.generated_poc.enums.channels.MediaChannel.gaming">gaming</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.channels.MediaChannel.influencer" href="#adcp.types.generated_poc.enums.channels.MediaChannel.influencer">influencer</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.channels.MediaChannel.linear_tv" href="#adcp.types.generated_poc.enums.channels.MediaChannel.linear_tv">linear_tv</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.channels.MediaChannel.olv" href="#adcp.types.generated_poc.enums.channels.MediaChannel.olv">olv</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.channels.MediaChannel.ooh" href="#adcp.types.generated_poc.enums.channels.MediaChannel.ooh">ooh</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.channels.MediaChannel.podcast" href="#adcp.types.generated_poc.enums.channels.MediaChannel.podcast">podcast</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.channels.MediaChannel.print" href="#adcp.types.generated_poc.enums.channels.MediaChannel.print">print</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.channels.MediaChannel.product_placement" href="#adcp.types.generated_poc.enums.channels.MediaChannel.product_placement">product_placement</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.channels.MediaChannel.radio" href="#adcp.types.generated_poc.enums.channels.MediaChannel.radio">radio</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.channels.MediaChannel.retail_media" href="#adcp.types.generated_poc.enums.channels.MediaChannel.retail_media">retail_media</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.channels.MediaChannel.search" href="#adcp.types.generated_poc.enums.channels.MediaChannel.search">search</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.channels.MediaChannel.social" href="#adcp.types.generated_poc.enums.channels.MediaChannel.social">social</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.channels.MediaChannel.streaming_audio" href="#adcp.types.generated_poc.enums.channels.MediaChannel.streaming_audio">streaming_audio</a></code></li>
 </ul>
 </li>
 </ul>

@@ -767,6 +767,761 @@ el.replaceWith(d);
 
         return self.adapter._parse_response(raw_result, BuildCreativeResponse)
 
+    # ========================================================================
+    # V3 Protocol Methods - Protocol Discovery
+    # ========================================================================
+
+    async def get_adcp_capabilities(
+        self,
+        request: GetAdcpCapabilitiesRequest,
+    ) -&gt; TaskResult[GetAdcpCapabilitiesResponse]:
+        &#34;&#34;&#34;
+        Get AdCP capabilities from the agent.
+
+        Queries the agent&#39;s supported AdCP features, protocol versions, and
+        domain-specific capabilities (media_buy, signals, sponsored_intelligence).
+
+        Args:
+            request: Request parameters including optional protocol filters
+
+        Returns:
+            TaskResult containing GetAdcpCapabilitiesResponse with:
+                - adcp: Core protocol version information
+                - supported_protocols: List of supported domain protocols
+                - media_buy: Media buy capabilities (if supported)
+                - sponsored_intelligence: SI capabilities (if supported)
+                - signals: Signals capabilities (if supported)
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_adcp_capabilities&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.get_adcp_capabilities(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_adcp_capabilities&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, GetAdcpCapabilitiesResponse)
+
+    # ========================================================================
+    # V3 Protocol Methods - Content Standards
+    # ========================================================================
+
+    async def create_content_standards(
+        self,
+        request: CreateContentStandardsRequest,
+    ) -&gt; TaskResult[CreateContentStandardsResponse]:
+        &#34;&#34;&#34;
+        Create a new content standards configuration.
+
+        Defines acceptable content contexts for ad placement using natural
+        language policy and optional calibration exemplars.
+
+        Args:
+            request: Request parameters including policy and scope
+
+        Returns:
+            TaskResult containing CreateContentStandardsResponse with standards_id
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;create_content_standards&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.create_content_standards(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;create_content_standards&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, CreateContentStandardsResponse)
+
+    async def get_content_standards(
+        self,
+        request: GetContentStandardsRequest,
+    ) -&gt; TaskResult[GetContentStandardsResponse]:
+        &#34;&#34;&#34;
+        Get a content standards configuration by ID.
+
+        Args:
+            request: Request parameters including standards_id
+
+        Returns:
+            TaskResult containing GetContentStandardsResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_content_standards&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.get_content_standards(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_content_standards&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, GetContentStandardsResponse)
+
+    async def list_content_standards(
+        self,
+        request: ListContentStandardsRequest,
+    ) -&gt; TaskResult[ListContentStandardsResponse]:
+        &#34;&#34;&#34;
+        List content standards configurations.
+
+        Args:
+            request: Request parameters including optional filters
+
+        Returns:
+            TaskResult containing ListContentStandardsResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;list_content_standards&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.list_content_standards(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;list_content_standards&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, ListContentStandardsResponse)
+
+    async def update_content_standards(
+        self,
+        request: UpdateContentStandardsRequest,
+    ) -&gt; TaskResult[UpdateContentStandardsResponse]:
+        &#34;&#34;&#34;
+        Update a content standards configuration.
+
+        Args:
+            request: Request parameters including standards_id and updates
+
+        Returns:
+            TaskResult containing UpdateContentStandardsResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;update_content_standards&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.update_content_standards(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;update_content_standards&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, UpdateContentStandardsResponse)
+
+    async def calibrate_content(
+        self,
+        request: CalibrateContentRequest,
+    ) -&gt; TaskResult[CalibrateContentResponse]:
+        &#34;&#34;&#34;
+        Calibrate content against standards.
+
+        Evaluates content (artifact or URL) against configured standards to
+        determine suitability for ad placement.
+
+        Args:
+            request: Request parameters including content to evaluate
+
+        Returns:
+            TaskResult containing CalibrateContentResponse with verdict
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;calibrate_content&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.calibrate_content(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;calibrate_content&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, CalibrateContentResponse)
+
+    async def validate_content_delivery(
+        self,
+        request: ValidateContentDeliveryRequest,
+    ) -&gt; TaskResult[ValidateContentDeliveryResponse]:
+        &#34;&#34;&#34;
+        Validate content delivery against standards.
+
+        Validates that ad delivery records comply with content standards.
+
+        Args:
+            request: Request parameters including delivery records
+
+        Returns:
+            TaskResult containing ValidateContentDeliveryResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;validate_content_delivery&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.validate_content_delivery(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;validate_content_delivery&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, ValidateContentDeliveryResponse)
+
+    async def get_media_buy_artifacts(
+        self,
+        request: GetMediaBuyArtifactsRequest,
+    ) -&gt; TaskResult[GetMediaBuyArtifactsResponse]:
+        &#34;&#34;&#34;
+        Get artifacts associated with a media buy.
+
+        Retrieves content artifacts where ads were delivered for a media buy.
+
+        Args:
+            request: Request parameters including media_buy_id
+
+        Returns:
+            TaskResult containing GetMediaBuyArtifactsResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_media_buy_artifacts&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.get_media_buy_artifacts(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_media_buy_artifacts&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, GetMediaBuyArtifactsResponse)
+
+    # ========================================================================
+    # V3 Protocol Methods - Sponsored Intelligence
+    # ========================================================================
+
+    async def si_get_offering(
+        self,
+        request: SiGetOfferingRequest,
+    ) -&gt; TaskResult[SiGetOfferingResponse]:
+        &#34;&#34;&#34;
+        Get sponsored intelligence offering.
+
+        Retrieves product/service offerings that can be presented in a
+        sponsored intelligence session.
+
+        Args:
+            request: Request parameters including brand context
+
+        Returns:
+            TaskResult containing SiGetOfferingResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;si_get_offering&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.si_get_offering(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;si_get_offering&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, SiGetOfferingResponse)
+
+    async def si_initiate_session(
+        self,
+        request: SiInitiateSessionRequest,
+    ) -&gt; TaskResult[SiInitiateSessionResponse]:
+        &#34;&#34;&#34;
+        Initiate a sponsored intelligence session.
+
+        Starts a conversational brand experience session with a user.
+
+        Args:
+            request: Request parameters including identity and context
+
+        Returns:
+            TaskResult containing SiInitiateSessionResponse with session_id
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;si_initiate_session&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.si_initiate_session(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;si_initiate_session&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, SiInitiateSessionResponse)
+
+    async def si_send_message(
+        self,
+        request: SiSendMessageRequest,
+    ) -&gt; TaskResult[SiSendMessageResponse]:
+        &#34;&#34;&#34;
+        Send a message in a sponsored intelligence session.
+
+        Continues the conversation in an active SI session.
+
+        Args:
+            request: Request parameters including session_id and message
+
+        Returns:
+            TaskResult containing SiSendMessageResponse with brand response
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;si_send_message&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.si_send_message(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;si_send_message&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, SiSendMessageResponse)
+
+    async def si_terminate_session(
+        self,
+        request: SiTerminateSessionRequest,
+    ) -&gt; TaskResult[SiTerminateSessionResponse]:
+        &#34;&#34;&#34;
+        Terminate a sponsored intelligence session.
+
+        Ends an active SI session, optionally with follow-up actions.
+
+        Args:
+            request: Request parameters including session_id and termination context
+
+        Returns:
+            TaskResult containing SiTerminateSessionResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;si_terminate_session&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.si_terminate_session(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;si_terminate_session&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, SiTerminateSessionResponse)
+
+    # ========================================================================
+    # V3 Governance (Property Lists) Methods
+    # ========================================================================
+
+    async def create_property_list(
+        self,
+        request: CreatePropertyListRequest,
+    ) -&gt; TaskResult[CreatePropertyListResponse]:
+        &#34;&#34;&#34;
+        Create a property list for governance filtering.
+
+        Property lists define dynamic sets of properties based on filters,
+        brand manifests, and feature requirements.
+
+        Args:
+            request: Request parameters for creating the property list
+
+        Returns:
+            TaskResult containing CreatePropertyListResponse with list_id
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;create_property_list&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.create_property_list(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;create_property_list&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, CreatePropertyListResponse)
+
+    async def get_property_list(
+        self,
+        request: GetPropertyListRequest,
+    ) -&gt; TaskResult[GetPropertyListResponse]:
+        &#34;&#34;&#34;
+        Get a property list with optional resolution.
+
+        When resolve=true, returns the list of resolved property identifiers.
+        Use this to get the actual properties that match the list&#39;s filters.
+
+        Args:
+            request: Request parameters including list_id and resolve flag
+
+        Returns:
+            TaskResult containing GetPropertyListResponse with identifiers
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_property_list&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.get_property_list(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_property_list&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, GetPropertyListResponse)
+
+    async def list_property_lists(
+        self,
+        request: ListPropertyListsRequest,
+    ) -&gt; TaskResult[ListPropertyListsResponse]:
+        &#34;&#34;&#34;
+        List property lists owned by a principal.
+
+        Retrieves metadata for all property lists, optionally filtered
+        by principal or pagination parameters.
+
+        Args:
+            request: Request parameters with optional filtering
+
+        Returns:
+            TaskResult containing ListPropertyListsResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;list_property_lists&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.list_property_lists(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;list_property_lists&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, ListPropertyListsResponse)
+
+    async def update_property_list(
+        self,
+        request: UpdatePropertyListRequest,
+    ) -&gt; TaskResult[UpdatePropertyListResponse]:
+        &#34;&#34;&#34;
+        Update a property list.
+
+        Modifies the filters, brand manifest, or other parameters
+        of an existing property list.
+
+        Args:
+            request: Request parameters with list_id and updates
+
+        Returns:
+            TaskResult containing UpdatePropertyListResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;update_property_list&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.update_property_list(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;update_property_list&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, UpdatePropertyListResponse)
+
+    async def delete_property_list(
+        self,
+        request: DeletePropertyListRequest,
+    ) -&gt; TaskResult[DeletePropertyListResponse]:
+        &#34;&#34;&#34;
+        Delete a property list.
+
+        Removes a property list. Any active subscriptions to this list
+        will be terminated.
+
+        Args:
+            request: Request parameters with list_id
+
+        Returns:
+            TaskResult containing DeletePropertyListResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;delete_property_list&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.delete_property_list(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;delete_property_list&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, DeletePropertyListResponse)
+
     async def list_tools(self) -&gt; list[str]:
         &#34;&#34;&#34;
         List available tools from the agent.
@@ -1439,6 +2194,69 @@ and approving a creative manifest.</p>
 ...     vast_url = result.data.assets[0].url
 </code></pre></div>
 </dd>
+<dt id="adcp.client.ADCPClient.calibrate_content"><code class="name flex">
+<span>async def <span class="ident">calibrate_content</span></span>(<span>self, request: CalibrateContentRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[CalibrateContentResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def calibrate_content(
+    self,
+    request: CalibrateContentRequest,
+) -&gt; TaskResult[CalibrateContentResponse]:
+    &#34;&#34;&#34;
+    Calibrate content against standards.
+
+    Evaluates content (artifact or URL) against configured standards to
+    determine suitability for ad placement.
+
+    Args:
+        request: Request parameters including content to evaluate
+
+    Returns:
+        TaskResult containing CalibrateContentResponse with verdict
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;calibrate_content&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.calibrate_content(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;calibrate_content&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, CalibrateContentResponse)</code></pre>
+</details>
+<div class="desc"><p>Calibrate content against standards.</p>
+<p>Evaluates content (artifact or URL) against configured standards to
+determine suitability for ad placement.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters including content to evaluate</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing CalibrateContentResponse with verdict</p></div>
+</dd>
 <dt id="adcp.client.ADCPClient.close"><code class="name flex">
 <span>async def <span class="ident">close</span></span>(<span>self) ‑> None</span>
 </code></dt>
@@ -1454,6 +2272,69 @@ and approving a creative manifest.</p>
         await self.adapter.close()</code></pre>
 </details>
 <div class="desc"><p>Close the adapter and clean up resources.</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.create_content_standards"><code class="name flex">
+<span>async def <span class="ident">create_content_standards</span></span>(<span>self, request: CreateContentStandardsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[CreateContentStandardsResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def create_content_standards(
+    self,
+    request: CreateContentStandardsRequest,
+) -&gt; TaskResult[CreateContentStandardsResponse]:
+    &#34;&#34;&#34;
+    Create a new content standards configuration.
+
+    Defines acceptable content contexts for ad placement using natural
+    language policy and optional calibration exemplars.
+
+    Args:
+        request: Request parameters including policy and scope
+
+    Returns:
+        TaskResult containing CreateContentStandardsResponse with standards_id
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;create_content_standards&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.create_content_standards(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;create_content_standards&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, CreateContentStandardsResponse)</code></pre>
+</details>
+<div class="desc"><p>Create a new content standards configuration.</p>
+<p>Defines acceptable content contexts for ad placement using natural
+language policy and optional calibration exemplars.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters including policy and scope</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing CreateContentStandardsResponse with standards_id</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.create_media_buy"><code class="name flex">
 <span>async def <span class="ident">create_media_buy</span></span>(<span>self, request: CreateMediaBuyRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[CreateMediaBuyResponse]</span>
@@ -1560,6 +2441,263 @@ media_buy_id that tracks this reservation and can be used for updates.</p>
 ...     media_buy_id = result.data.media_buy_id
 </code></pre></div>
 </dd>
+<dt id="adcp.client.ADCPClient.create_property_list"><code class="name flex">
+<span>async def <span class="ident">create_property_list</span></span>(<span>self, request: CreatePropertyListRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[CreatePropertyListResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def create_property_list(
+    self,
+    request: CreatePropertyListRequest,
+) -&gt; TaskResult[CreatePropertyListResponse]:
+    &#34;&#34;&#34;
+    Create a property list for governance filtering.
+
+    Property lists define dynamic sets of properties based on filters,
+    brand manifests, and feature requirements.
+
+    Args:
+        request: Request parameters for creating the property list
+
+    Returns:
+        TaskResult containing CreatePropertyListResponse with list_id
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;create_property_list&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.create_property_list(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;create_property_list&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, CreatePropertyListResponse)</code></pre>
+</details>
+<div class="desc"><p>Create a property list for governance filtering.</p>
+<p>Property lists define dynamic sets of properties based on filters,
+brand manifests, and feature requirements.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters for creating the property list</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing CreatePropertyListResponse with list_id</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.delete_property_list"><code class="name flex">
+<span>async def <span class="ident">delete_property_list</span></span>(<span>self, request: DeletePropertyListRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[DeletePropertyListResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def delete_property_list(
+    self,
+    request: DeletePropertyListRequest,
+) -&gt; TaskResult[DeletePropertyListResponse]:
+    &#34;&#34;&#34;
+    Delete a property list.
+
+    Removes a property list. Any active subscriptions to this list
+    will be terminated.
+
+    Args:
+        request: Request parameters with list_id
+
+    Returns:
+        TaskResult containing DeletePropertyListResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;delete_property_list&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.delete_property_list(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;delete_property_list&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, DeletePropertyListResponse)</code></pre>
+</details>
+<div class="desc"><p>Delete a property list.</p>
+<p>Removes a property list. Any active subscriptions to this list
+will be terminated.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters with list_id</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing DeletePropertyListResponse</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.get_adcp_capabilities"><code class="name flex">
+<span>async def <span class="ident">get_adcp_capabilities</span></span>(<span>self, request: GetAdcpCapabilitiesRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[GetAdcpCapabilitiesResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_adcp_capabilities(
+    self,
+    request: GetAdcpCapabilitiesRequest,
+) -&gt; TaskResult[GetAdcpCapabilitiesResponse]:
+    &#34;&#34;&#34;
+    Get AdCP capabilities from the agent.
+
+    Queries the agent&#39;s supported AdCP features, protocol versions, and
+    domain-specific capabilities (media_buy, signals, sponsored_intelligence).
+
+    Args:
+        request: Request parameters including optional protocol filters
+
+    Returns:
+        TaskResult containing GetAdcpCapabilitiesResponse with:
+            - adcp: Core protocol version information
+            - supported_protocols: List of supported domain protocols
+            - media_buy: Media buy capabilities (if supported)
+            - sponsored_intelligence: SI capabilities (if supported)
+            - signals: Signals capabilities (if supported)
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_adcp_capabilities&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.get_adcp_capabilities(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_adcp_capabilities&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, GetAdcpCapabilitiesResponse)</code></pre>
+</details>
+<div class="desc"><p>Get AdCP capabilities from the agent.</p>
+<p>Queries the agent's supported AdCP features, protocol versions, and
+domain-specific capabilities (media_buy, signals, sponsored_intelligence).</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters including optional protocol filters</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing GetAdcpCapabilitiesResponse with:
+- adcp: Core protocol version information
+- supported_protocols: List of supported domain protocols
+- media_buy: Media buy capabilities (if supported)
+- sponsored_intelligence: SI capabilities (if supported)
+- signals: Signals capabilities (if supported)</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.get_content_standards"><code class="name flex">
+<span>async def <span class="ident">get_content_standards</span></span>(<span>self, request: GetContentStandardsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[GetContentStandardsResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_content_standards(
+    self,
+    request: GetContentStandardsRequest,
+) -&gt; TaskResult[GetContentStandardsResponse]:
+    &#34;&#34;&#34;
+    Get a content standards configuration by ID.
+
+    Args:
+        request: Request parameters including standards_id
+
+    Returns:
+        TaskResult containing GetContentStandardsResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_content_standards&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.get_content_standards(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_content_standards&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, GetContentStandardsResponse)</code></pre>
+</details>
+<div class="desc"><p>Get a content standards configuration by ID.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters including standards_id</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing GetContentStandardsResponse</p></div>
+</dd>
 <dt id="adcp.client.ADCPClient.get_info"><code class="name flex">
 <span>async def <span class="ident">get_info</span></span>(<span>self) ‑> dict[str, typing.Any]</span>
 </code></dt>
@@ -1593,6 +2731,67 @@ media_buy_id that tracks this reservation and can be used for updates.</p>
 - Available tools/skills</p>
 <h2 id="returns">Returns</h2>
 <p>Dictionary with agent metadata</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.get_media_buy_artifacts"><code class="name flex">
+<span>async def <span class="ident">get_media_buy_artifacts</span></span>(<span>self, request: GetMediaBuyArtifactsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[GetMediaBuyArtifactsResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_media_buy_artifacts(
+    self,
+    request: GetMediaBuyArtifactsRequest,
+) -&gt; TaskResult[GetMediaBuyArtifactsResponse]:
+    &#34;&#34;&#34;
+    Get artifacts associated with a media buy.
+
+    Retrieves content artifacts where ads were delivered for a media buy.
+
+    Args:
+        request: Request parameters including media_buy_id
+
+    Returns:
+        TaskResult containing GetMediaBuyArtifactsResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_media_buy_artifacts&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.get_media_buy_artifacts(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_media_buy_artifacts&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, GetMediaBuyArtifactsResponse)</code></pre>
+</details>
+<div class="desc"><p>Get artifacts associated with a media buy.</p>
+<p>Retrieves content artifacts where ads were delivered for a media buy.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters including media_buy_id</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing GetMediaBuyArtifactsResponse</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.get_media_buy_delivery"><code class="name flex">
 <span>async def <span class="ident">get_media_buy_delivery</span></span>(<span>self, request: GetMediaBuyDeliveryRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[GetMediaBuyDeliveryResponse]</span>
@@ -1754,6 +2953,69 @@ fetch_previews=True)</dd>
 <dt><code>ValueError</code></dt>
 <dd>If fetch_previews=True but creative_agent_client is not provided</dd>
 </dl></div>
+</dd>
+<dt id="adcp.client.ADCPClient.get_property_list"><code class="name flex">
+<span>async def <span class="ident">get_property_list</span></span>(<span>self, request: GetPropertyListRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[GetPropertyListResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_property_list(
+    self,
+    request: GetPropertyListRequest,
+) -&gt; TaskResult[GetPropertyListResponse]:
+    &#34;&#34;&#34;
+    Get a property list with optional resolution.
+
+    When resolve=true, returns the list of resolved property identifiers.
+    Use this to get the actual properties that match the list&#39;s filters.
+
+    Args:
+        request: Request parameters including list_id and resolve flag
+
+    Returns:
+        TaskResult containing GetPropertyListResponse with identifiers
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_property_list&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.get_property_list(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_property_list&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, GetPropertyListResponse)</code></pre>
+</details>
+<div class="desc"><p>Get a property list with optional resolution.</p>
+<p>When resolve=true, returns the list of resolved property identifiers.
+Use this to get the actual properties that match the list's filters.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters including list_id and resolve flag</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing GetPropertyListResponse with identifiers</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.get_signals"><code class="name flex">
 <span>async def <span class="ident">get_signals</span></span>(<span>self, request: GetSignalsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[GetSignalsResponse]</span>
@@ -2077,6 +3339,64 @@ routing and pass them explicitly.</p>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing ListAuthorizedPropertiesResponse</p></div>
 </dd>
+<dt id="adcp.client.ADCPClient.list_content_standards"><code class="name flex">
+<span>async def <span class="ident">list_content_standards</span></span>(<span>self, request: ListContentStandardsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[ListContentStandardsResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_content_standards(
+    self,
+    request: ListContentStandardsRequest,
+) -&gt; TaskResult[ListContentStandardsResponse]:
+    &#34;&#34;&#34;
+    List content standards configurations.
+
+    Args:
+        request: Request parameters including optional filters
+
+    Returns:
+        TaskResult containing ListContentStandardsResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;list_content_standards&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.list_content_standards(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;list_content_standards&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, ListContentStandardsResponse)</code></pre>
+</details>
+<div class="desc"><p>List content standards configurations.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters including optional filters</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing ListContentStandardsResponse</p></div>
+</dd>
 <dt id="adcp.client.ADCPClient.list_creative_formats"><code class="name flex">
 <span>async def <span class="ident">list_creative_formats</span></span>(<span>self,<br>request: ListCreativeFormatsRequest,<br>fetch_previews: bool = False,<br>preview_output_format: str = 'url') ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[ListCreativeFormatsResponse]</span>
 </code></dt>
@@ -2221,6 +3541,69 @@ embedding (2-3x faster, no iframe overhead)</dd>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing ListCreativesResponse</p></div>
 </dd>
+<dt id="adcp.client.ADCPClient.list_property_lists"><code class="name flex">
+<span>async def <span class="ident">list_property_lists</span></span>(<span>self, request: ListPropertyListsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[ListPropertyListsResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_property_lists(
+    self,
+    request: ListPropertyListsRequest,
+) -&gt; TaskResult[ListPropertyListsResponse]:
+    &#34;&#34;&#34;
+    List property lists owned by a principal.
+
+    Retrieves metadata for all property lists, optionally filtered
+    by principal or pagination parameters.
+
+    Args:
+        request: Request parameters with optional filtering
+
+    Returns:
+        TaskResult containing ListPropertyListsResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;list_property_lists&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.list_property_lists(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;list_property_lists&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, ListPropertyListsResponse)</code></pre>
+</details>
+<div class="desc"><p>List property lists owned by a principal.</p>
+<p>Retrieves metadata for all property lists, optionally filtered
+by principal or pagination parameters.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters with optional filtering</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing ListPropertyListsResponse</p></div>
+</dd>
 <dt id="adcp.client.ADCPClient.list_tools"><code class="name flex">
 <span>async def <span class="ident">list_tools</span></span>(<span>self) ‑> list[str]</span>
 </code></dt>
@@ -2358,6 +3741,252 @@ embedding (2-3x faster, no iframe overhead)</dd>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing ProvidePerformanceFeedbackResponse</p></div>
 </dd>
+<dt id="adcp.client.ADCPClient.si_get_offering"><code class="name flex">
+<span>async def <span class="ident">si_get_offering</span></span>(<span>self, request: SiGetOfferingRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[SiGetOfferingResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def si_get_offering(
+    self,
+    request: SiGetOfferingRequest,
+) -&gt; TaskResult[SiGetOfferingResponse]:
+    &#34;&#34;&#34;
+    Get sponsored intelligence offering.
+
+    Retrieves product/service offerings that can be presented in a
+    sponsored intelligence session.
+
+    Args:
+        request: Request parameters including brand context
+
+    Returns:
+        TaskResult containing SiGetOfferingResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;si_get_offering&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.si_get_offering(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;si_get_offering&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, SiGetOfferingResponse)</code></pre>
+</details>
+<div class="desc"><p>Get sponsored intelligence offering.</p>
+<p>Retrieves product/service offerings that can be presented in a
+sponsored intelligence session.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters including brand context</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing SiGetOfferingResponse</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.si_initiate_session"><code class="name flex">
+<span>async def <span class="ident">si_initiate_session</span></span>(<span>self, request: SiInitiateSessionRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[SiInitiateSessionResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def si_initiate_session(
+    self,
+    request: SiInitiateSessionRequest,
+) -&gt; TaskResult[SiInitiateSessionResponse]:
+    &#34;&#34;&#34;
+    Initiate a sponsored intelligence session.
+
+    Starts a conversational brand experience session with a user.
+
+    Args:
+        request: Request parameters including identity and context
+
+    Returns:
+        TaskResult containing SiInitiateSessionResponse with session_id
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;si_initiate_session&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.si_initiate_session(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;si_initiate_session&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, SiInitiateSessionResponse)</code></pre>
+</details>
+<div class="desc"><p>Initiate a sponsored intelligence session.</p>
+<p>Starts a conversational brand experience session with a user.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters including identity and context</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing SiInitiateSessionResponse with session_id</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.si_send_message"><code class="name flex">
+<span>async def <span class="ident">si_send_message</span></span>(<span>self, request: SiSendMessageRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[SiSendMessageResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def si_send_message(
+    self,
+    request: SiSendMessageRequest,
+) -&gt; TaskResult[SiSendMessageResponse]:
+    &#34;&#34;&#34;
+    Send a message in a sponsored intelligence session.
+
+    Continues the conversation in an active SI session.
+
+    Args:
+        request: Request parameters including session_id and message
+
+    Returns:
+        TaskResult containing SiSendMessageResponse with brand response
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;si_send_message&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.si_send_message(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;si_send_message&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, SiSendMessageResponse)</code></pre>
+</details>
+<div class="desc"><p>Send a message in a sponsored intelligence session.</p>
+<p>Continues the conversation in an active SI session.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters including session_id and message</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing SiSendMessageResponse with brand response</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.si_terminate_session"><code class="name flex">
+<span>async def <span class="ident">si_terminate_session</span></span>(<span>self, request: SiTerminateSessionRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[SiTerminateSessionResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def si_terminate_session(
+    self,
+    request: SiTerminateSessionRequest,
+) -&gt; TaskResult[SiTerminateSessionResponse]:
+    &#34;&#34;&#34;
+    Terminate a sponsored intelligence session.
+
+    Ends an active SI session, optionally with follow-up actions.
+
+    Args:
+        request: Request parameters including session_id and termination context
+
+    Returns:
+        TaskResult containing SiTerminateSessionResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;si_terminate_session&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.si_terminate_session(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;si_terminate_session&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, SiTerminateSessionResponse)</code></pre>
+</details>
+<div class="desc"><p>Terminate a sponsored intelligence session.</p>
+<p>Ends an active SI session, optionally with follow-up actions.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters including session_id and termination context</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing SiTerminateSessionResponse</p></div>
+</dd>
 <dt id="adcp.client.ADCPClient.sync_creatives"><code class="name flex">
 <span>async def <span class="ident">sync_creatives</span></span>(<span>self, request: SyncCreativesRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[SyncCreativesResponse]</span>
 </code></dt>
@@ -2415,6 +4044,64 @@ embedding (2-3x faster, no iframe overhead)</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing SyncCreativesResponse</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.update_content_standards"><code class="name flex">
+<span>async def <span class="ident">update_content_standards</span></span>(<span>self, request: UpdateContentStandardsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[UpdateContentStandardsResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def update_content_standards(
+    self,
+    request: UpdateContentStandardsRequest,
+) -&gt; TaskResult[UpdateContentStandardsResponse]:
+    &#34;&#34;&#34;
+    Update a content standards configuration.
+
+    Args:
+        request: Request parameters including standards_id and updates
+
+    Returns:
+        TaskResult containing UpdateContentStandardsResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;update_content_standards&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.update_content_standards(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;update_content_standards&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, UpdateContentStandardsResponse)</code></pre>
+</details>
+<div class="desc"><p>Update a content standards configuration.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters including standards_id and updates</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing UpdateContentStandardsResponse</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.update_media_buy"><code class="name flex">
 <span>async def <span class="ident">update_media_buy</span></span>(<span>self, request: UpdateMediaBuyRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[UpdateMediaBuyResponse]</span>
@@ -2518,6 +4205,130 @@ to change - either package details or targeting properties.</p>
 &gt;&gt;&gt; if result.success:
 ...     updated_packages = result.data.packages
 </code></pre></div>
+</dd>
+<dt id="adcp.client.ADCPClient.update_property_list"><code class="name flex">
+<span>async def <span class="ident">update_property_list</span></span>(<span>self, request: UpdatePropertyListRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[UpdatePropertyListResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def update_property_list(
+    self,
+    request: UpdatePropertyListRequest,
+) -&gt; TaskResult[UpdatePropertyListResponse]:
+    &#34;&#34;&#34;
+    Update a property list.
+
+    Modifies the filters, brand manifest, or other parameters
+    of an existing property list.
+
+    Args:
+        request: Request parameters with list_id and updates
+
+    Returns:
+        TaskResult containing UpdatePropertyListResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;update_property_list&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.update_property_list(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;update_property_list&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, UpdatePropertyListResponse)</code></pre>
+</details>
+<div class="desc"><p>Update a property list.</p>
+<p>Modifies the filters, brand manifest, or other parameters
+of an existing property list.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters with list_id and updates</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing UpdatePropertyListResponse</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.validate_content_delivery"><code class="name flex">
+<span>async def <span class="ident">validate_content_delivery</span></span>(<span>self, request: ValidateContentDeliveryRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[ValidateContentDeliveryResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def validate_content_delivery(
+    self,
+    request: ValidateContentDeliveryRequest,
+) -&gt; TaskResult[ValidateContentDeliveryResponse]:
+    &#34;&#34;&#34;
+    Validate content delivery against standards.
+
+    Validates that ad delivery records comply with content standards.
+
+    Args:
+        request: Request parameters including delivery records
+
+    Returns:
+        TaskResult containing ValidateContentDeliveryResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;validate_content_delivery&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.validate_content_delivery(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;validate_content_delivery&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, ValidateContentDeliveryResponse)</code></pre>
+</details>
+<div class="desc"><p>Validate content delivery against standards.</p>
+<p>Validates that ad delivery records comply with content standards.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters including delivery records</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing ValidateContentDeliveryResponse</p></div>
 </dd>
 </dl>
 </dd>
@@ -2756,22 +4567,39 @@ def agent_ids(self) -&gt; list[str]:
 <ul class="">
 <li><code><a title="adcp.client.ADCPClient.activate_signal" href="#adcp.client.ADCPClient.activate_signal">activate_signal</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.build_creative" href="#adcp.client.ADCPClient.build_creative">build_creative</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.calibrate_content" href="#adcp.client.ADCPClient.calibrate_content">calibrate_content</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.close" href="#adcp.client.ADCPClient.close">close</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.create_content_standards" href="#adcp.client.ADCPClient.create_content_standards">create_content_standards</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.create_media_buy" href="#adcp.client.ADCPClient.create_media_buy">create_media_buy</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.create_property_list" href="#adcp.client.ADCPClient.create_property_list">create_property_list</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.delete_property_list" href="#adcp.client.ADCPClient.delete_property_list">delete_property_list</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.get_adcp_capabilities" href="#adcp.client.ADCPClient.get_adcp_capabilities">get_adcp_capabilities</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.get_content_standards" href="#adcp.client.ADCPClient.get_content_standards">get_content_standards</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_info" href="#adcp.client.ADCPClient.get_info">get_info</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.get_media_buy_artifacts" href="#adcp.client.ADCPClient.get_media_buy_artifacts">get_media_buy_artifacts</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_media_buy_delivery" href="#adcp.client.ADCPClient.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_products" href="#adcp.client.ADCPClient.get_products">get_products</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.get_property_list" href="#adcp.client.ADCPClient.get_property_list">get_property_list</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_signals" href="#adcp.client.ADCPClient.get_signals">get_signals</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_webhook_url" href="#adcp.client.ADCPClient.get_webhook_url">get_webhook_url</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.handle_webhook" href="#adcp.client.ADCPClient.handle_webhook">handle_webhook</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.list_authorized_properties" href="#adcp.client.ADCPClient.list_authorized_properties">list_authorized_properties</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.list_content_standards" href="#adcp.client.ADCPClient.list_content_standards">list_content_standards</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.list_creative_formats" href="#adcp.client.ADCPClient.list_creative_formats">list_creative_formats</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.list_creatives" href="#adcp.client.ADCPClient.list_creatives">list_creatives</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.list_property_lists" href="#adcp.client.ADCPClient.list_property_lists">list_property_lists</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.list_tools" href="#adcp.client.ADCPClient.list_tools">list_tools</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.preview_creative" href="#adcp.client.ADCPClient.preview_creative">preview_creative</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.provide_performance_feedback" href="#adcp.client.ADCPClient.provide_performance_feedback">provide_performance_feedback</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.si_get_offering" href="#adcp.client.ADCPClient.si_get_offering">si_get_offering</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.si_initiate_session" href="#adcp.client.ADCPClient.si_initiate_session">si_initiate_session</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.si_send_message" href="#adcp.client.ADCPClient.si_send_message">si_send_message</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.si_terminate_session" href="#adcp.client.ADCPClient.si_terminate_session">si_terminate_session</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.sync_creatives" href="#adcp.client.ADCPClient.sync_creatives">sync_creatives</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.update_content_standards" href="#adcp.client.ADCPClient.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.update_media_buy" href="#adcp.client.ADCPClient.update_media_buy">update_media_buy</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.update_property_list" href="#adcp.client.ADCPClient.update_property_list">update_property_list</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.validate_content_delivery" href="#adcp.client.ADCPClient.validate_content_delivery">validate_content_delivery</a></code></li>
 </ul>
 </li>
 <li>

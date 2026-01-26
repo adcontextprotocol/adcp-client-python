@@ -57,17 +57,17 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class GetSignalsResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error] | None,
         Field(
-            description=&#34;Task-specific errors and warnings (e.g., signal discovery or pricing issues)&#34;
+            description=&#39;Task-specific errors and warnings (e.g., signal discovery or pricing issues)&#39;
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
-    signals: Annotated[list[Signal], Field(description=&#34;Array of matching signals&#34;)]</code></pre>
+    signals: Annotated[list[Signal], Field(description=&#39;Array of matching signals&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -111,7 +111,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -127,10 +127,10 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Pricing(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    cpm: Annotated[float, Field(description=&#34;Cost per thousand impressions&#34;, ge=0.0)]
-    currency: Annotated[str, Field(description=&#34;Currency code&#34;, pattern=&#34;^[A-Z]{3}$&#34;)]</code></pre>
+    cpm: Annotated[float, Field(description=&#39;Cost per thousand impressions&#39;, ge=0.0)]
+    currency: Annotated[str, Field(description=&#39;Currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -166,7 +166,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -182,21 +182,21 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Signal(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     coverage_percentage: Annotated[
-        float, Field(description=&#34;Percentage of audience coverage&#34;, ge=0.0, le=100.0)
+        float, Field(description=&#39;Percentage of audience coverage&#39;, ge=0.0, le=100.0)
     ]
-    data_provider: Annotated[str, Field(description=&#34;Name of the data provider&#34;)]
+    data_provider: Annotated[str, Field(description=&#39;Name of the data provider&#39;)]
     deployments: Annotated[
-        list[deployment.Deployment], Field(description=&#34;Array of deployment targets&#34;)
+        list[deployment.Deployment], Field(description=&#39;Array of deployment targets&#39;)
     ]
-    description: Annotated[str, Field(description=&#34;Detailed signal description&#34;)]
-    name: Annotated[str, Field(description=&#34;Human-readable signal name&#34;)]
-    pricing: Annotated[Pricing, Field(description=&#34;Pricing information&#34;)]
-    signal_agent_segment_id: Annotated[str, Field(description=&#34;Unique identifier for the signal&#34;)]
+    description: Annotated[str, Field(description=&#39;Detailed signal description&#39;)]
+    name: Annotated[str, Field(description=&#39;Human-readable signal name&#39;)]
+    pricing: Annotated[Pricing, Field(description=&#39;Pricing information&#39;)]
+    signal_agent_segment_id: Annotated[str, Field(description=&#39;Unique identifier for the signal&#39;)]
     signal_type: Annotated[
-        signal_catalog_type.SignalCatalogType, Field(description=&#34;Type of signal&#34;)
+        signal_catalog_type.SignalCatalogType, Field(description=&#39;Type of signal&#39;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -257,7 +257,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>

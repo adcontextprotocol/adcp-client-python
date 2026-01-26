@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.pricing_options.cpm_fixed_option API documentation</title>
+<title>adcp.types.generated_poc.core.offering API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.pricing_options.cpm_fixed_option</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.core.offering</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,8 +46,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption"><code class="flex name class">
-<span>class <span class="ident">CpmFixedRatePricingOption</span></span>
+<dt id="adcp.types.generated_poc.core.offering.Offering"><code class="flex name class">
+<span>class <span class="ident">Offering</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -55,37 +55,72 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class CpmFixedRatePricingOption(AdCPBaseModel):
+<pre><code class="python">class Offering(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    currency: Annotated[
-        str,
+    assets: Annotated[
+        list[dict[str, Any]] | None,
+        Field(description=&#39;Assets specific to this offering (images, videos, copy)&#39;),
+    ] = None
+    categories: Annotated[
+        list[str] | None,
         Field(
-            description=&#34;ISO 4217 currency code&#34;,
-            examples=[&#34;USD&#34;, &#34;EUR&#34;, &#34;GBP&#34;, &#34;JPY&#34;],
-            pattern=&#34;^[A-Z]{3}$&#34;,
-        ),
-    ]
-    is_fixed: Annotated[
-        Literal[True],
-        Field(description=&#34;Whether this is a fixed rate (true) or auction-based (false)&#34;),
-    ]
-    min_spend_per_package: Annotated[
-        float | None,
-        Field(
-            description=&#34;Minimum spend requirement per package using this pricing option, in the specified currency&#34;,
-            ge=0.0,
+            description=&#34;Categories this offering belongs to (e.g., &#39;measurement&#39;, &#39;identity&#39;, &#39;programmatic&#39;)&#34;
         ),
     ] = None
-    pricing_model: Annotated[Literal[&#34;cpm&#34;], Field(description=&#34;Cost per 1,000 impressions&#34;)]
-    pricing_option_id: Annotated[
+    checkout_url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#34;URL for checkout/purchase flow when the brand doesn&#39;t support agentic checkout.&#34;
+        ),
+    ] = None
+    description: Annotated[str | None, Field(description=&#34;Description of what&#39;s being offered&#34;)] = (
+        None
+    )
+    ext: ext_1.ExtensionObject | None = None
+    keywords: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Keywords for matching this offering to user intent. Hosts use these for retrieval/relevance scoring.&#39;
+        ),
+    ] = None
+    landing_url: Annotated[
+        AnyUrl | None, Field(description=&#39;Landing page URL for this offering.&#39;)
+    ] = None
+    name: Annotated[
         str,
         Field(
-            description=&#34;Unique identifier for this pricing option within the product (e.g., &#39;cpm_usd_guaranteed&#39;)&#34;
+            description=&#34;Human-readable offering name (e.g., &#39;Winter Sale&#39;, &#39;Free Trial&#39;, &#39;Enterprise Platform&#39;)&#34;
         ),
     ]
-    rate: Annotated[float, Field(description=&#34;Fixed CPM rate (cost per 1,000 impressions)&#34;, ge=0.0)]</code></pre>
+    offering_id: Annotated[
+        str,
+        Field(
+            description=&#39;Unique identifier for this offering. Used by hosts to reference specific offerings in si_get_offering calls.&#39;
+        ),
+    ]
+    portfolio_ref: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#39;Reference to a creative portfolio for this offering. Portfolios contain organized creative assets across formats, enabling consistent ad delivery for this specific offering.&#39;
+        ),
+    ] = None
+    tagline: Annotated[
+        str | None, Field(description=&#39;Short promotional tagline for the offering&#39;)
+    ] = None
+    valid_from: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;When the offering becomes available. If not specified, offering is immediately available.&#39;
+        ),
+    ] = None
+    valid_to: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;When the offering expires. If not specified, offering has no expiration.&#39;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -102,31 +137,59 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.core.offering.Offering.assets"><code class="name">var <span class="ident">assets</span> : list[dict[str, typing.Any]] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption.is_fixed"><code class="name">var <span class="ident">is_fixed</span> : Literal[True]</code></dt>
+<dt id="adcp.types.generated_poc.core.offering.Offering.categories"><code class="name">var <span class="ident">categories</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption.min_spend_per_package"><code class="name">var <span class="ident">min_spend_per_package</span> : float | None</code></dt>
+<dt id="adcp.types.generated_poc.core.offering.Offering.checkout_url"><code class="name">var <span class="ident">checkout_url</span> : pydantic.networks.AnyUrl | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.offering.Offering.description"><code class="name">var <span class="ident">description</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption.pricing_model"><code class="name">var <span class="ident">pricing_model</span> : Literal['cpm']</code></dt>
+<dt id="adcp.types.generated_poc.core.offering.Offering.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption.pricing_option_id"><code class="name">var <span class="ident">pricing_option_id</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.core.offering.Offering.keywords"><code class="name">var <span class="ident">keywords</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption.rate"><code class="name">var <span class="ident">rate</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.core.offering.Offering.landing_url"><code class="name">var <span class="ident">landing_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.offering.Offering.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.offering.Offering.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.offering.Offering.offering_id"><code class="name">var <span class="ident">offering_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.offering.Offering.portfolio_ref"><code class="name">var <span class="ident">portfolio_ref</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.offering.Offering.tagline"><code class="name">var <span class="ident">tagline</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.offering.Offering.valid_from"><code class="name">var <span class="ident">valid_from</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.offering.Offering.valid_to"><code class="name">var <span class="ident">valid_to</span> : pydantic.types.AwareDatetime | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -137,7 +200,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -152,21 +215,28 @@ validated to form a valid model.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.pricing_options" href="index.html">adcp.types.generated_poc.pricing_options</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core" href="index.html">adcp.types.generated_poc.core</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption" href="#adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption">CpmFixedRatePricingOption</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption.currency" href="#adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption.currency">currency</a></code></li>
-<li><code><a title="adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption.is_fixed" href="#adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption.is_fixed">is_fixed</a></code></li>
-<li><code><a title="adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption.min_spend_per_package" href="#adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption.min_spend_per_package">min_spend_per_package</a></code></li>
-<li><code><a title="adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption.model_config" href="#adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption.pricing_model" href="#adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption.pricing_model">pricing_model</a></code></li>
-<li><code><a title="adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption.pricing_option_id" href="#adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption.pricing_option_id">pricing_option_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption.rate" href="#adcp.types.generated_poc.pricing_options.cpm_fixed_option.CpmFixedRatePricingOption.rate">rate</a></code></li>
+<h4><code><a title="adcp.types.generated_poc.core.offering.Offering" href="#adcp.types.generated_poc.core.offering.Offering">Offering</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.offering.Offering.assets" href="#adcp.types.generated_poc.core.offering.Offering.assets">assets</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.offering.Offering.categories" href="#adcp.types.generated_poc.core.offering.Offering.categories">categories</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.offering.Offering.checkout_url" href="#adcp.types.generated_poc.core.offering.Offering.checkout_url">checkout_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.offering.Offering.description" href="#adcp.types.generated_poc.core.offering.Offering.description">description</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.offering.Offering.ext" href="#adcp.types.generated_poc.core.offering.Offering.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.offering.Offering.keywords" href="#adcp.types.generated_poc.core.offering.Offering.keywords">keywords</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.offering.Offering.landing_url" href="#adcp.types.generated_poc.core.offering.Offering.landing_url">landing_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.offering.Offering.model_config" href="#adcp.types.generated_poc.core.offering.Offering.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.offering.Offering.name" href="#adcp.types.generated_poc.core.offering.Offering.name">name</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.offering.Offering.offering_id" href="#adcp.types.generated_poc.core.offering.Offering.offering_id">offering_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.offering.Offering.portfolio_ref" href="#adcp.types.generated_poc.core.offering.Offering.portfolio_ref">portfolio_ref</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.offering.Offering.tagline" href="#adcp.types.generated_poc.core.offering.Offering.tagline">tagline</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.offering.Offering.valid_from" href="#adcp.types.generated_poc.core.offering.Offering.valid_from">valid_from</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.offering.Offering.valid_to" href="#adcp.types.generated_poc.core.offering.Offering.valid_to">valid_to</a></code></li>
 </ul>
 </li>
 </ul>

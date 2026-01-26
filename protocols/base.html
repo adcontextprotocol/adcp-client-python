@@ -229,6 +229,107 @@ el.replaceWith(d);
 
         Implementations should close any open connections, clients, or other resources.
         &#34;&#34;&#34;
+        pass
+
+    # ========================================================================
+    # V3 Protocol Methods - Protocol Discovery
+    # ========================================================================
+
+    @abstractmethod
+    async def get_adcp_capabilities(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get AdCP capabilities from the agent.&#34;&#34;&#34;
+        pass
+
+    # ========================================================================
+    # V3 Protocol Methods - Content Standards
+    # ========================================================================
+
+    @abstractmethod
+    async def create_content_standards(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Create content standards configuration.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def get_content_standards(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get content standards configuration.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def list_content_standards(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;List content standards configurations.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def update_content_standards(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Update content standards configuration.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def calibrate_content(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Calibrate content against standards.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def validate_content_delivery(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Validate content delivery against standards.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def get_media_buy_artifacts(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get artifacts associated with a media buy.&#34;&#34;&#34;
+        pass
+
+    # ========================================================================
+    # V3 Protocol Methods - Sponsored Intelligence
+    # ========================================================================
+
+    @abstractmethod
+    async def si_get_offering(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get sponsored intelligence offering.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def si_initiate_session(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Initiate sponsored intelligence session.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def si_send_message(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Send message in sponsored intelligence session.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def si_terminate_session(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Terminate sponsored intelligence session.&#34;&#34;&#34;
+        pass
+
+    # ========================================================================
+    # V3 Protocol Methods - Governance (Property Lists)
+    # ========================================================================
+
+    @abstractmethod
+    async def create_property_list(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Create a property list for governance.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def get_property_list(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get a property list with optional resolution.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def list_property_lists(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;List property lists.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def update_property_list(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Update a property list.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def delete_property_list(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Delete a property list.&#34;&#34;&#34;
         pass</code></pre>
 </details>
 <div class="desc"><p>Base class for protocol adapters.</p>
@@ -277,6 +378,21 @@ async def build_creative(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
 </details>
 <div class="desc"><p>Build creative.</p></div>
 </dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.calibrate_content"><code class="name flex">
+<span>async def <span class="ident">calibrate_content</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def calibrate_content(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Calibrate content against standards.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Calibrate content against standards.</p></div>
+</dd>
 <dt id="adcp.protocols.base.ProtocolAdapter.close"><code class="name flex">
 <span>async def <span class="ident">close</span></span>(<span>self) ‑> None</span>
 </code></dt>
@@ -297,6 +413,21 @@ async def close(self) -&gt; None:
 <div class="desc"><p>Close the adapter and clean up resources.</p>
 <p>Implementations should close any open connections, clients, or other resources.</p></div>
 </dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.create_content_standards"><code class="name flex">
+<span>async def <span class="ident">create_content_standards</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def create_content_standards(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Create content standards configuration.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Create content standards configuration.</p></div>
+</dd>
 <dt id="adcp.protocols.base.ProtocolAdapter.create_media_buy"><code class="name flex">
 <span>async def <span class="ident">create_media_buy</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
 </code></dt>
@@ -311,6 +442,51 @@ async def create_media_buy(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
     pass</code></pre>
 </details>
 <div class="desc"><p>Create media buy.</p></div>
+</dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.create_property_list"><code class="name flex">
+<span>async def <span class="ident">create_property_list</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def create_property_list(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Create a property list for governance.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Create a property list for governance.</p></div>
+</dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.delete_property_list"><code class="name flex">
+<span>async def <span class="ident">delete_property_list</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def delete_property_list(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Delete a property list.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Delete a property list.</p></div>
+</dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.get_adcp_capabilities"><code class="name flex">
+<span>async def <span class="ident">get_adcp_capabilities</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def get_adcp_capabilities(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Get AdCP capabilities from the agent.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Get AdCP capabilities from the agent.</p></div>
 </dd>
 <dt id="adcp.protocols.base.ProtocolAdapter.get_agent_info"><code class="name flex">
 <span>async def <span class="ident">get_agent_info</span></span>(<span>self) ‑> dict[str, typing.Any]</span>
@@ -345,6 +521,36 @@ async def get_agent_info(self) -&gt; dict[str, Any]:
 <h2 id="returns">Returns</h2>
 <p>Dictionary with agent metadata including AdCP extension fields</p></div>
 </dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.get_content_standards"><code class="name flex">
+<span>async def <span class="ident">get_content_standards</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def get_content_standards(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Get content standards configuration.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Get content standards configuration.</p></div>
+</dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.get_media_buy_artifacts"><code class="name flex">
+<span>async def <span class="ident">get_media_buy_artifacts</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def get_media_buy_artifacts(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Get artifacts associated with a media buy.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Get artifacts associated with a media buy.</p></div>
+</dd>
 <dt id="adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery"><code class="name flex">
 <span>async def <span class="ident">get_media_buy_delivery</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
 </code></dt>
@@ -374,6 +580,21 @@ async def get_products(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
     pass</code></pre>
 </details>
 <div class="desc"><p>Get advertising products.</p></div>
+</dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.get_property_list"><code class="name flex">
+<span>async def <span class="ident">get_property_list</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def get_property_list(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Get a property list with optional resolution.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Get a property list with optional resolution.</p></div>
 </dd>
 <dt id="adcp.protocols.base.ProtocolAdapter.get_signals"><code class="name flex">
 <span>async def <span class="ident">get_signals</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
@@ -405,6 +626,21 @@ async def list_authorized_properties(self, params: dict[str, Any]) -&gt; TaskRes
 </details>
 <div class="desc"><p>List authorized properties.</p></div>
 </dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.list_content_standards"><code class="name flex">
+<span>async def <span class="ident">list_content_standards</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def list_content_standards(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;List content standards configurations.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>List content standards configurations.</p></div>
+</dd>
 <dt id="adcp.protocols.base.ProtocolAdapter.list_creative_formats"><code class="name flex">
 <span>async def <span class="ident">list_creative_formats</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
 </code></dt>
@@ -434,6 +670,21 @@ async def list_creatives(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
     pass</code></pre>
 </details>
 <div class="desc"><p>List creatives.</p></div>
+</dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.list_property_lists"><code class="name flex">
+<span>async def <span class="ident">list_property_lists</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def list_property_lists(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;List property lists.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>List property lists.</p></div>
 </dd>
 <dt id="adcp.protocols.base.ProtocolAdapter.list_tools"><code class="name flex">
 <span>async def <span class="ident">list_tools</span></span>(<span>self) ‑> list[str]</span>
@@ -472,6 +723,66 @@ async def provide_performance_feedback(self, params: dict[str, Any]) -&gt; TaskR
 </details>
 <div class="desc"><p>Provide performance feedback.</p></div>
 </dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.si_get_offering"><code class="name flex">
+<span>async def <span class="ident">si_get_offering</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def si_get_offering(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Get sponsored intelligence offering.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Get sponsored intelligence offering.</p></div>
+</dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.si_initiate_session"><code class="name flex">
+<span>async def <span class="ident">si_initiate_session</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def si_initiate_session(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Initiate sponsored intelligence session.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Initiate sponsored intelligence session.</p></div>
+</dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.si_send_message"><code class="name flex">
+<span>async def <span class="ident">si_send_message</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def si_send_message(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Send message in sponsored intelligence session.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Send message in sponsored intelligence session.</p></div>
+</dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.si_terminate_session"><code class="name flex">
+<span>async def <span class="ident">si_terminate_session</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def si_terminate_session(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Terminate sponsored intelligence session.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Terminate sponsored intelligence session.</p></div>
+</dd>
 <dt id="adcp.protocols.base.ProtocolAdapter.sync_creatives"><code class="name flex">
 <span>async def <span class="ident">sync_creatives</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
 </code></dt>
@@ -487,6 +798,21 @@ async def sync_creatives(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
 </details>
 <div class="desc"><p>Sync creatives.</p></div>
 </dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.update_content_standards"><code class="name flex">
+<span>async def <span class="ident">update_content_standards</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def update_content_standards(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Update content standards configuration.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Update content standards configuration.</p></div>
+</dd>
 <dt id="adcp.protocols.base.ProtocolAdapter.update_media_buy"><code class="name flex">
 <span>async def <span class="ident">update_media_buy</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
 </code></dt>
@@ -501,6 +827,36 @@ async def update_media_buy(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
     pass</code></pre>
 </details>
 <div class="desc"><p>Update media buy.</p></div>
+</dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.update_property_list"><code class="name flex">
+<span>async def <span class="ident">update_property_list</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def update_property_list(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Update a property list.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Update a property list.</p></div>
+</dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.validate_content_delivery"><code class="name flex">
+<span>async def <span class="ident">validate_content_delivery</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def validate_content_delivery(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Validate content delivery against standards.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Validate content delivery against standards.</p></div>
 </dd>
 </dl>
 </dd>
@@ -524,19 +880,36 @@ async def update_media_buy(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
 <ul class="">
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.activate_signal" href="#adcp.protocols.base.ProtocolAdapter.activate_signal">activate_signal</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.build_creative" href="#adcp.protocols.base.ProtocolAdapter.build_creative">build_creative</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.calibrate_content" href="#adcp.protocols.base.ProtocolAdapter.calibrate_content">calibrate_content</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.close" href="#adcp.protocols.base.ProtocolAdapter.close">close</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.create_content_standards" href="#adcp.protocols.base.ProtocolAdapter.create_content_standards">create_content_standards</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.create_media_buy" href="#adcp.protocols.base.ProtocolAdapter.create_media_buy">create_media_buy</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.create_property_list" href="#adcp.protocols.base.ProtocolAdapter.create_property_list">create_property_list</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.delete_property_list" href="#adcp.protocols.base.ProtocolAdapter.delete_property_list">delete_property_list</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_adcp_capabilities" href="#adcp.protocols.base.ProtocolAdapter.get_adcp_capabilities">get_adcp_capabilities</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_agent_info" href="#adcp.protocols.base.ProtocolAdapter.get_agent_info">get_agent_info</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_content_standards" href="#adcp.protocols.base.ProtocolAdapter.get_content_standards">get_content_standards</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_media_buy_artifacts" href="#adcp.protocols.base.ProtocolAdapter.get_media_buy_artifacts">get_media_buy_artifacts</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery" href="#adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_products" href="#adcp.protocols.base.ProtocolAdapter.get_products">get_products</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_property_list" href="#adcp.protocols.base.ProtocolAdapter.get_property_list">get_property_list</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_signals" href="#adcp.protocols.base.ProtocolAdapter.get_signals">get_signals</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_authorized_properties" href="#adcp.protocols.base.ProtocolAdapter.list_authorized_properties">list_authorized_properties</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.list_content_standards" href="#adcp.protocols.base.ProtocolAdapter.list_content_standards">list_content_standards</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_creative_formats" href="#adcp.protocols.base.ProtocolAdapter.list_creative_formats">list_creative_formats</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_creatives" href="#adcp.protocols.base.ProtocolAdapter.list_creatives">list_creatives</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.list_property_lists" href="#adcp.protocols.base.ProtocolAdapter.list_property_lists">list_property_lists</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_tools" href="#adcp.protocols.base.ProtocolAdapter.list_tools">list_tools</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.provide_performance_feedback" href="#adcp.protocols.base.ProtocolAdapter.provide_performance_feedback">provide_performance_feedback</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.si_get_offering" href="#adcp.protocols.base.ProtocolAdapter.si_get_offering">si_get_offering</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.si_initiate_session" href="#adcp.protocols.base.ProtocolAdapter.si_initiate_session">si_initiate_session</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.si_send_message" href="#adcp.protocols.base.ProtocolAdapter.si_send_message">si_send_message</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.si_terminate_session" href="#adcp.protocols.base.ProtocolAdapter.si_terminate_session">si_terminate_session</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.sync_creatives" href="#adcp.protocols.base.ProtocolAdapter.sync_creatives">sync_creatives</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.update_content_standards" href="#adcp.protocols.base.ProtocolAdapter.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.update_media_buy" href="#adcp.protocols.base.ProtocolAdapter.update_media_buy">update_media_buy</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.update_property_list" href="#adcp.protocols.base.ProtocolAdapter.update_property_list">update_property_list</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.validate_content_delivery" href="#adcp.protocols.base.ProtocolAdapter.validate_content_delivery">validate_content_delivery</a></code></li>
 </ul>
 </li>
 </ul>

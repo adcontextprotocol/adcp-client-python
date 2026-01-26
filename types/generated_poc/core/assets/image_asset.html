@@ -57,15 +57,15 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class ImageAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    alt_text: Annotated[str | None, Field(description=&#34;Alternative text for accessibility&#34;)] = None
+    alt_text: Annotated[str | None, Field(description=&#39;Alternative text for accessibility&#39;)] = None
     format: Annotated[
-        str | None, Field(description=&#34;Image file format (jpg, png, gif, webp, etc.)&#34;)
+        str | None, Field(description=&#39;Image file format (jpg, png, gif, webp, etc.)&#39;)
     ] = None
-    height: Annotated[int, Field(description=&#34;Height in pixels&#34;, ge=1)]
-    url: Annotated[AnyUrl, Field(description=&#34;URL to the image asset&#34;)]
-    width: Annotated[int, Field(description=&#34;Width in pixels&#34;, ge=1)]</code></pre>
+    height: Annotated[int, Field(description=&#39;Height in pixels&#39;, ge=1)]
+    url: Annotated[AnyUrl, Field(description=&#39;URL to the image asset&#39;)]
+    width: Annotated[int, Field(description=&#39;Width in pixels&#39;, ge=1)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -113,7 +113,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>

@@ -57,12 +57,12 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class PackageRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     bid_price: Annotated[
         float | None,
         Field(
-            description=&#34;Bid price for auction-based CPM pricing (required if using cpm-auction-option)&#34;,
+            description=&#39;Bid price for auction-based CPM pricing (required if using cpm-auction-option)&#39;,
             ge=0.0,
         ),
     ] = None
@@ -71,16 +71,16 @@ el.replaceWith(d);
         Field(description=&#34;Budget allocation for this package in the media buy&#39;s currency&#34;, ge=0.0),
     ]
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this package&#34;)]
-    creative_ids: Annotated[
-        list[str] | None,
+    creative_assignments: Annotated[
+        list[creative_assignment.CreativeAssignment] | None,
         Field(
-            description=&#34;Creative IDs to assign to this package at creation time (references existing library creatives)&#34;
+            description=&#39;Assign existing library creatives to this package with optional weights and placement targeting&#39;
         ),
     ] = None
     creatives: Annotated[
         list[creative_asset.CreativeAsset] | None,
         Field(
-            description=&#34;Full creative objects to upload and assign to this package at creation time (alternative to creative_ids - creatives will be added to library). Supports both static and generative creatives.&#34;,
+            description=&#39;Upload new creative assets and assign to this package (creatives will be added to library). Use creative_assignments instead for existing library creatives.&#39;,
             max_length=100,
         ),
     ] = None
@@ -88,18 +88,18 @@ el.replaceWith(d);
     format_ids: Annotated[
         list[format_id.FormatId] | None,
         Field(
-            description=&#34;Array of format IDs that will be used for this package - must be supported by the product. If omitted, defaults to all formats supported by the product.&#34;,
+            description=&#39;Array of format IDs that will be used for this package - must be supported by the product. If omitted, defaults to all formats supported by the product.&#39;,
             min_length=1,
         ),
     ] = None
     impressions: Annotated[
-        float | None, Field(description=&#34;Impression goal for this package&#34;, ge=0.0)
+        float | None, Field(description=&#39;Impression goal for this package&#39;, ge=0.0)
     ] = None
     pacing: pacing_1.Pacing | None = None
     paused: Annotated[
         bool | None,
         Field(
-            description=&#34;Whether this package should be created in a paused state. Paused packages do not deliver impressions. Defaults to false.&#34;
+            description=&#39;Whether this package should be created in a paused state. Paused packages do not deliver impressions. Defaults to false.&#39;
         ),
     ] = False
     pricing_option_id: Annotated[
@@ -108,7 +108,7 @@ el.replaceWith(d);
             description=&#34;ID of the selected pricing option from the product&#39;s pricing_options array&#34;
         ),
     ]
-    product_id: Annotated[str, Field(description=&#34;Product ID for this package&#34;)]
+    product_id: Annotated[str, Field(description=&#39;Product ID for this package&#39;)]
     targeting_overlay: targeting.TargetingOverlay | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -138,7 +138,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.package_request.PackageRequest.creative_ids"><code class="name">var <span class="ident">creative_ids</span> : list[str] | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.package_request.PackageRequest.creative_assignments"><code class="name">var <span class="ident">creative_assignments</span> : list[<a title="adcp.types.generated_poc.core.creative_assignment.CreativeAssignment" href="../core/creative_assignment.html#adcp.types.generated_poc.core.creative_assignment.CreativeAssignment">CreativeAssignment</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -189,7 +189,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -211,11 +211,11 @@ validated to form a valid model.</p>
 <ul>
 <li>
 <h4><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest">PackageRequest</a></code></h4>
-<ul class="two-column">
+<ul class="">
 <li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.bid_price" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.bid_price">bid_price</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.budget" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.budget">budget</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.buyer_ref" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.buyer_ref">buyer_ref</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.creative_ids" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.creative_ids">creative_ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.creative_assignments" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.creative_assignments">creative_assignments</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.creatives" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.creatives">creatives</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.ext" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.format_ids" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.format_ids">format_ids</a></code></li>

@@ -57,14 +57,14 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class PropertyFeature(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;forbid&#39;,
     )
-    feature_id: Annotated[str, Field(description=&#34;Identifier for the feature being assessed&#34;)]
+    feature_id: Annotated[str, Field(description=&#39;Identifier for the feature being assessed&#39;)]
     source: Annotated[
         str | None,
-        Field(description=&#34;Source of the feature data (e.g., app_store_privacy_label, tcf_string)&#34;),
+        Field(description=&#39;Source of the feature data (e.g., app_store_privacy_label, tcf_string)&#39;),
     ] = None
-    value: Annotated[str, Field(description=&#34;The feature value&#34;)]</code></pre>
+    value: Annotated[str, Field(description=&#39;The feature value&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -104,7 +104,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>

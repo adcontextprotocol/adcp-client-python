@@ -62,8 +62,8 @@ el.replaceWith(d);
             description=&#34;Error code (e.g., &#39;invalid_manifest&#39;, &#39;unsupported_format&#39;, &#39;missing_assets&#39;)&#34;
         ),
     ]
-    details: Annotated[dict[str, Any] | None, Field(description=&#34;Additional error context&#34;)] = None
-    message: Annotated[str, Field(description=&#34;Human-readable error message&#34;)]</code></pre>
+    details: Annotated[dict[str, Any] | None, Field(description=&#39;Additional error context&#39;)] = None
+    message: Annotated[str, Field(description=&#39;Human-readable error message&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -103,7 +103,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -119,12 +119,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Input(AdCPBaseModel):
     context_description: Annotated[
-        str | None, Field(description=&#34;Context description applied to this variant&#34;)
+        str | None, Field(description=&#39;Context description applied to this variant&#39;)
     ] = None
     macros: Annotated[
-        dict[str, str] | None, Field(description=&#34;Macro values applied to this variant&#34;)
+        dict[str, str] | None, Field(description=&#39;Macro values applied to this variant&#39;)
     ] = None
-    name: Annotated[str, Field(description=&#34;Human-readable name for this variant&#34;)]</code></pre>
+    name: Annotated[str, Field(description=&#39;Human-readable name for this variant&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -164,7 +164,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -221,7 +221,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -239,14 +239,14 @@ validated to form a valid model.</p>
     input: Annotated[
         Input,
         Field(
-            description=&#34;The input parameters that generated this preview variant. Echoes back the request input or shows defaults used.&#34;
+            description=&#39;The input parameters that generated this preview variant. Echoes back the request input or shows defaults used.&#39;
         ),
     ]
-    preview_id: Annotated[str, Field(description=&#34;Unique identifier for this preview variant&#34;)]
+    preview_id: Annotated[str, Field(description=&#39;Unique identifier for this preview variant&#39;)]
     renders: Annotated[
         list[preview_render.PreviewRender],
         Field(
-            description=&#34;Array of rendered pieces for this preview variant. Most formats render as a single piece. Companion ad formats (video + banner), multi-placement formats, and adaptive formats render as multiple pieces.&#34;,
+            description=&#39;Array of rendered pieces for this preview variant. Most formats render as a single piece. Companion ad formats (video + banner), multi-placement formats, and adaptive formats render as multiple pieces.&#39;,
             min_length=1,
         ),
     ]</code></pre>
@@ -289,7 +289,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -350,7 +350,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -394,7 +394,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -412,8 +412,8 @@ validated to form a valid model.</p>
     root: Annotated[
         PreviewCreativeResponse1 | PreviewCreativeResponse2,
         Field(
-            description=&#34;Response containing preview links for one or more creatives. Format matches the request: single preview response for single requests, batch results for batch requests.&#34;,
-            title=&#34;Preview Creative Response&#34;,
+            description=&#39;Response containing preview links for one or more creatives. Format matches the request: single preview response for single requests, batch results for batch requests.&#39;,
+            title=&#39;Preview Creative Response&#39;,
         ),
     ]</code></pre>
 </details>
@@ -467,29 +467,29 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewCreativeResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     expires_at: Annotated[
-        AwareDatetime, Field(description=&#34;ISO 8601 timestamp when preview links expire&#34;)
+        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when preview links expire&#39;)
     ]
     ext: ext_1.ExtensionObject | None = None
     interactive_url: Annotated[
         AnyUrl | None,
         Field(
-            description=&#34;Optional URL to an interactive testing page that shows all preview variants with controls to switch between them, modify macro values, and test different scenarios.&#34;
+            description=&#39;Optional URL to an interactive testing page that shows all preview variants with controls to switch between them, modify macro values, and test different scenarios.&#39;
         ),
     ] = None
     previews: Annotated[
         list[Preview],
         Field(
-            description=&#34;Array of preview variants. Each preview corresponds to an input set from the request. If no inputs were provided, returns a single default preview.&#34;,
+            description=&#39;Array of preview variants. Each preview corresponds to an input set from the request. If no inputs were provided, returns a single default preview.&#39;,
             min_length=1,
         ),
     ]
     response_type: Annotated[
-        Literal[&#34;single&#34;],
-        Field(description=&#34;Discriminator indicating this is a single preview response&#34;),
+        Literal[&#39;single&#39;],
+        Field(description=&#39;Discriminator indicating this is a single preview response&#39;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -542,7 +542,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -558,18 +558,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewCreativeResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     response_type: Annotated[
-        Literal[&#34;batch&#34;],
-        Field(description=&#34;Discriminator indicating this is a batch preview response&#34;),
+        Literal[&#39;batch&#39;],
+        Field(description=&#39;Discriminator indicating this is a batch preview response&#39;),
     ]
     results: Annotated[
         list[Results | Results1],
         Field(
-            description=&#34;Array of preview results corresponding to each request in the same order. results[0] is the result for requests[0], results[1] for requests[1], etc. Order is guaranteed even when some requests fail. Each result contains either a successful preview response or an error.&#34;,
+            description=&#39;Array of preview results corresponding to each request in the same order. results[0] is the result for requests[0], results[1] for requests[1], etc. Order is guaranteed even when some requests fail. Each result contains either a successful preview response or an error.&#39;,
             min_length=1,
         ),
     ]</code></pre>
@@ -616,7 +616,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -635,7 +635,7 @@ validated to form a valid model.</p>
     interactive_url: AnyUrl | None = None
     previews: Annotated[
         list[Preview1],
-        Field(description=&#34;Array of preview variants for this creative&#34;, min_length=1),
+        Field(description=&#39;Array of preview variants for this creative&#39;, min_length=1),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -676,7 +676,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -695,7 +695,7 @@ validated to form a valid model.</p>
     interactive_url: AnyUrl | None = None
     previews: Annotated[
         list[Preview2],
-        Field(description=&#34;Array of preview variants for this creative&#34;, min_length=1),
+        Field(description=&#39;Array of preview variants for this creative&#39;, min_length=1),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -736,7 +736,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -751,11 +751,11 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Results(AdCPBaseModel):
-    error: Annotated[Error | None, Field(description=&#34;Error information for failed requests&#34;)] = (
+    error: Annotated[Error | None, Field(description=&#39;Error information for failed requests&#39;)] = (
         None
     )
-    response: Annotated[Response, Field(description=&#34;Preview response for successful requests&#34;)]
-    success: Annotated[Literal[True], Field(description=&#34;Whether this preview request succeeded&#34;)]</code></pre>
+    response: Annotated[Response, Field(description=&#39;Preview response for successful requests&#39;)]
+    success: Annotated[Literal[True], Field(description=&#39;Whether this preview request succeeded&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -795,7 +795,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -810,11 +810,11 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Results1(AdCPBaseModel):
-    error: Annotated[Error, Field(description=&#34;Error information for failed requests&#34;)]
+    error: Annotated[Error, Field(description=&#39;Error information for failed requests&#39;)]
     response: Annotated[
-        Response1 | None, Field(description=&#34;Preview response for successful requests&#34;)
+        Response1 | None, Field(description=&#39;Preview response for successful requests&#39;)
     ] = None
-    success: Annotated[Literal[False], Field(description=&#34;Whether this preview request succeeded&#34;)]</code></pre>
+    success: Annotated[Literal[False], Field(description=&#39;Whether this preview request succeeded&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -854,7 +854,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>

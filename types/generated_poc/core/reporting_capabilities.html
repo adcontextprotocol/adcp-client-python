@@ -57,39 +57,39 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class ReportingCapabilities(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     available_metrics: Annotated[
         list[available_metric.AvailableMetric],
         Field(
-            description=&#34;Metrics available in reporting. Impressions and spend are always implicitly included.&#34;,
+            description=&#39;Metrics available in reporting. Impressions and spend are always implicitly included.&#39;,
             examples=[
-                [&#34;impressions&#34;, &#34;spend&#34;, &#34;clicks&#34;, &#34;video_completions&#34;],
-                [&#34;impressions&#34;, &#34;spend&#34;, &#34;conversions&#34;],
+                [&#39;impressions&#39;, &#39;spend&#39;, &#39;clicks&#39;, &#39;video_completions&#39;],
+                [&#39;impressions&#39;, &#39;spend&#39;, &#39;conversions&#39;],
             ],
         ),
     ]
     available_reporting_frequencies: Annotated[
         list[reporting_frequency.ReportingFrequency],
-        Field(description=&#34;Supported reporting frequency options&#34;, min_length=1),
+        Field(description=&#39;Supported reporting frequency options&#39;, min_length=1),
     ]
     expected_delay_minutes: Annotated[
         int,
         Field(
-            description=&#34;Expected delay in minutes before reporting data becomes available (e.g., 240 for 4-hour delay)&#34;,
+            description=&#39;Expected delay in minutes before reporting data becomes available (e.g., 240 for 4-hour delay)&#39;,
             examples=[240, 300, 1440],
             ge=0,
         ),
     ]
     supports_webhooks: Annotated[
         bool,
-        Field(description=&#34;Whether this product supports webhook-based reporting notifications&#34;),
+        Field(description=&#39;Whether this product supports webhook-based reporting notifications&#39;),
     ]
     timezone: Annotated[
         str,
         Field(
             description=&#34;Timezone for reporting periods. Use &#39;UTC&#39; or IANA timezone (e.g., &#39;America/New_York&#39;). Critical for daily/monthly frequency alignment.&#34;,
-            examples=[&#34;UTC&#34;, &#34;America/New_York&#34;, &#34;Europe/London&#34;, &#34;America/Los_Angeles&#34;],
+            examples=[&#39;UTC&#39;, &#39;America/New_York&#39;, &#39;Europe/London&#39;, &#39;America/Los_Angeles&#39;],
         ),
     ]</code></pre>
 </details>
@@ -139,7 +139,7 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.summary" href="../../base.html#adcp.types.base.AdCPBaseModel.summary">summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
