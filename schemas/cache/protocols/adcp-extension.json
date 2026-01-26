@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/latest/protocols/adcp-extension.json",
+  "$id": "/schemas/3.0.0-beta.1/protocols/adcp-extension.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "deprecated": true,

@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/latest/pricing-options/cpp-option.json",
+  "$id": "/schemas/3.0.0-beta.1/pricing-options/cpp-option.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Cost Per Point (Gross Rating Point) pricing for TV and audio campaigns. If fixed_price is present, it's fixed pricing. If absent, it's auction-based.",

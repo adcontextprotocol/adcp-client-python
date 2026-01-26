@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/latest/media-buy/create-media-buy-request.json",
+  "$id": "/schemas/3.0.0-beta.1/media-buy/create-media-buy-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "dependencies": {
@@ -26,7 +26,7 @@
             "schemes": {
               "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for signature verification (recommended for production)",
               "items": {
-                "$ref": "/schemas/latest/enums/auth-scheme.json"
+                "$ref": "/schemas/3.0.0-beta.1/enums/auth-scheme.json"
               },
               "maxItems": 1,
               "minItems": 1,
@@ -80,7 +80,7 @@
       "type": "object"
     },
     "brand_manifest": {
-      "$ref": "/schemas/latest/core/brand-manifest-ref.json",
+      "$ref": "/schemas/3.0.0-beta.1/core/brand-manifest-ref.json",
       "description": "Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests."
     },
     "buyer_ref": {
@@ -88,7 +88,7 @@
       "type": "string"
     },
     "context": {
-      "$ref": "/schemas/latest/core/context.json"
+      "$ref": "/schemas/3.0.0-beta.1/core/context.json"
     },
     "end_time": {
       "description": "Campaign end date/time in ISO 8601 format",
@@ -96,12 +96,12 @@
       "type": "string"
     },
     "ext": {
-      "$ref": "/schemas/latest/core/ext.json"
+      "$ref": "/schemas/3.0.0-beta.1/core/ext.json"
     },
     "packages": {
       "description": "Array of package configurations. Required when not using proposal_id. When executing a proposal, this can be omitted and packages will be derived from the proposal's allocations.",
       "items": {
-        "$ref": "/schemas/latest/media-buy/package-request.json"
+        "$ref": "/schemas/3.0.0-beta.1/media-buy/package-request.json"
       },
       "type": "array"
     },
@@ -114,11 +114,11 @@
       "type": "string"
     },
     "reporting_webhook": {
-      "$ref": "/schemas/latest/core/reporting-webhook.json",
+      "$ref": "/schemas/3.0.0-beta.1/core/reporting-webhook.json",
       "description": "Optional webhook configuration for automated reporting delivery"
     },
     "start_time": {
-      "$ref": "/schemas/latest/core/start-timing.json"
+      "$ref": "/schemas/3.0.0-beta.1/core/start-timing.json"
     },
     "total_budget": {
       "additionalProperties": false,

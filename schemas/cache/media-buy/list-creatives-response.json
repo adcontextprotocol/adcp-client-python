@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/latest/media-buy/list-creatives-response.json",
+  "$id": "/schemas/3.0.0-beta.1/media-buy/list-creatives-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Response from creative library query with filtered results, metadata, and optional enriched data",
@@ -109,7 +109,7 @@
   ],
   "properties": {
     "context": {
-      "$ref": "/schemas/latest/core/context.json"
+      "$ref": "/schemas/3.0.0-beta.1/core/context.json"
     },
     "creatives": {
       "description": "Array of creative assets matching the query",
@@ -122,37 +122,37 @@
               "^[a-zA-Z0-9_-]+$": {
                 "oneOf": [
                   {
-                    "$ref": "/schemas/latest/core/assets/image-asset.json"
+                    "$ref": "/schemas/3.0.0-beta.1/core/assets/image-asset.json"
                   },
                   {
-                    "$ref": "/schemas/latest/core/assets/video-asset.json"
+                    "$ref": "/schemas/3.0.0-beta.1/core/assets/video-asset.json"
                   },
                   {
-                    "$ref": "/schemas/latest/core/assets/audio-asset.json"
+                    "$ref": "/schemas/3.0.0-beta.1/core/assets/audio-asset.json"
                   },
                   {
-                    "$ref": "/schemas/latest/core/assets/text-asset.json"
+                    "$ref": "/schemas/3.0.0-beta.1/core/assets/text-asset.json"
                   },
                   {
-                    "$ref": "/schemas/latest/core/assets/html-asset.json"
+                    "$ref": "/schemas/3.0.0-beta.1/core/assets/html-asset.json"
                   },
                   {
-                    "$ref": "/schemas/latest/core/assets/css-asset.json"
+                    "$ref": "/schemas/3.0.0-beta.1/core/assets/css-asset.json"
                   },
                   {
-                    "$ref": "/schemas/latest/core/assets/javascript-asset.json"
+                    "$ref": "/schemas/3.0.0-beta.1/core/assets/javascript-asset.json"
                   },
                   {
-                    "$ref": "/schemas/latest/core/assets/vast-asset.json"
+                    "$ref": "/schemas/3.0.0-beta.1/core/assets/vast-asset.json"
                   },
                   {
-                    "$ref": "/schemas/latest/core/assets/daast-asset.json"
+                    "$ref": "/schemas/3.0.0-beta.1/core/assets/daast-asset.json"
                   },
                   {
-                    "$ref": "/schemas/latest/core/promoted-offerings.json"
+                    "$ref": "/schemas/3.0.0-beta.1/core/promoted-offerings.json"
                   },
                   {
-                    "$ref": "/schemas/latest/core/assets/url-asset.json"
+                    "$ref": "/schemas/3.0.0-beta.1/core/assets/url-asset.json"
                   }
                 ]
               }
@@ -211,7 +211,7 @@
             "type": "string"
           },
           "format_id": {
-            "$ref": "/schemas/latest/core/format-id.json",
+            "$ref": "/schemas/3.0.0-beta.1/core/format-id.json",
             "description": "Format identifier specifying which format this creative conforms to"
           },
           "name": {
@@ -262,13 +262,13 @@
             "type": "object"
           },
           "status": {
-            "$ref": "/schemas/latest/enums/creative-status.json",
+            "$ref": "/schemas/3.0.0-beta.1/enums/creative-status.json",
             "description": "Current approval status of the creative"
           },
           "sub_assets": {
             "description": "Sub-assets for multi-asset formats (included when include_sub_assets=true)",
             "items": {
-              "$ref": "/schemas/latest/core/sub-asset.json"
+              "$ref": "/schemas/3.0.0-beta.1/core/sub-asset.json"
             },
             "type": "array"
           },
@@ -298,7 +298,7 @@
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/latest/core/ext.json"
+      "$ref": "/schemas/3.0.0-beta.1/core/ext.json"
     },
     "format_summary": {
       "additionalProperties": true,
@@ -368,7 +368,7 @@
           "description": "Sort order that was applied",
           "properties": {
             "direction": {
-              "$ref": "/schemas/latest/enums/sort-direction.json"
+              "$ref": "/schemas/3.0.0-beta.1/enums/sort-direction.json"
             },
             "field": {
               "type": "string"

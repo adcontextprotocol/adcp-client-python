@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/latest/pricing-options/cpcv-option.json",
+  "$id": "/schemas/3.0.0-beta.1/pricing-options/cpcv-option.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Cost Per Completed View (100% video/audio completion) pricing. If fixed_price is present, it's fixed pricing. If absent, it's auction-based.",

@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/latest/media-buy/list-authorized-properties-response.json",
+  "$id": "/schemas/3.0.0-beta.1/media-buy/list-authorized-properties-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Response payload for list_authorized_properties task. Lists publisher domains and authorization scope (property_ids or property_tags). Buyers fetch actual property definitions from each publisher's canonical adagents.json file.",
@@ -11,17 +11,17 @@
       "type": "string"
     },
     "context": {
-      "$ref": "/schemas/latest/core/context.json"
+      "$ref": "/schemas/3.0.0-beta.1/core/context.json"
     },
     "errors": {
       "description": "Task-specific errors and warnings (e.g., property availability issues)",
       "items": {
-        "$ref": "/schemas/latest/core/error.json"
+        "$ref": "/schemas/3.0.0-beta.1/core/error.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/latest/core/ext.json"
+      "$ref": "/schemas/3.0.0-beta.1/core/ext.json"
     },
     "last_updated": {
       "description": "ISO 8601 timestamp of when the agent's publisher authorization list was last updated. Buyers can use this to determine if their cached publisher adagents.json files might be stale.",
@@ -37,7 +37,7 @@
     "primary_channels": {
       "description": "Primary advertising channels represented in this property portfolio. Helps buying agents quickly filter relevance.",
       "items": {
-        "$ref": "/schemas/latest/enums/channels.json"
+        "$ref": "/schemas/3.0.0-beta.1/enums/channels.json"
       },
       "minItems": 1,
       "type": "array"

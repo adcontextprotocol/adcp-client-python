@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/latest/core/property.json",
+  "$id": "/schemas/3.0.0-beta.1/core/property.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "An advertising property that can be validated via adagents.json",
@@ -10,7 +10,7 @@
         "additionalProperties": true,
         "properties": {
           "type": {
-            "$ref": "/schemas/latest/enums/identifier-types.json",
+            "$ref": "/schemas/3.0.0-beta.1/enums/identifier-types.json",
             "description": "Type of identifier for this property"
           },
           "value": {
@@ -32,11 +32,11 @@
       "type": "string"
     },
     "property_id": {
-      "$ref": "/schemas/latest/core/property-id.json",
+      "$ref": "/schemas/3.0.0-beta.1/core/property-id.json",
       "description": "Unique identifier for this property (optional). Enables referencing properties by ID instead of repeating full objects."
     },
     "property_type": {
-      "$ref": "/schemas/latest/enums/property-type.json",
+      "$ref": "/schemas/3.0.0-beta.1/enums/property-type.json",
       "description": "Type of advertising property"
     },
     "publisher_domain": {
@@ -46,7 +46,7 @@
     "tags": {
       "description": "Tags for categorization and grouping (e.g., network membership, content categories)",
       "items": {
-        "$ref": "/schemas/latest/core/property-tag.json"
+        "$ref": "/schemas/3.0.0-beta.1/core/property-tag.json"
       },
       "type": "array",
       "uniqueItems": true

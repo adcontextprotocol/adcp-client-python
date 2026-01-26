@@ -36,11 +36,13 @@ def rewrite_refs(obj, current_schema_rel_path: Path):
         if "$ref" in obj:
             ref_path = obj["$ref"]
 
-            # Convert absolute /schemas/latest/ paths to relative paths
-            if ref_path.startswith("/schemas/latest/"):
-                # Extract the path after /schemas/latest/
-                # e.g., "/schemas/latest/core/context.json" -> "core/context.json"
-                target_rel_path = ref_path[len("/schemas/latest/") :]
+            # Convert absolute /schemas/<version>/ paths to relative paths
+            # Matches /schemas/latest/, /schemas/3.0.0-beta.1/, etc.
+            version_match = re.match(r"/schemas/[^/]+/(.+)", ref_path)
+            if version_match:
+                # Extract the path after /schemas/<version>/
+                # e.g., "/schemas/3.0.0-beta.1/core/context.json" -> "core/context.json"
+                target_rel_path = version_match.group(1)
 
                 # Compute relative path from current schema to target
                 # current_schema_rel_path is like "signals/get-signals-request.json"

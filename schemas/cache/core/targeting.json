@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/latest/core/targeting.json",
+  "$id": "/schemas/3.0.0-beta.1/core/targeting.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Optional geographic refinements for media buys. Most targeting should be expressed in the brief and handled by the publisher. These fields are primarily for geographic restrictions (RCT testing, regulatory compliance).",
@@ -13,7 +13,7 @@
       "type": "string"
     },
     "frequency_cap": {
-      "$ref": "/schemas/latest/core/frequency-cap.json"
+      "$ref": "/schemas/3.0.0-beta.1/core/frequency-cap.json"
     },
     "geo_countries": {
       "description": "Restrict delivery to specific countries. ISO 3166-1 alpha-2 codes (e.g., 'US', 'GB', 'DE').",
@@ -29,7 +29,7 @@
         "additionalProperties": false,
         "properties": {
           "system": {
-            "$ref": "/schemas/latest/enums/metro-system.json",
+            "$ref": "/schemas/3.0.0-beta.1/enums/metro-system.json",
             "description": "Metro area classification system (e.g., 'nielsen_dma', 'uk_itl2')"
           },
           "values": {
@@ -55,7 +55,7 @@
         "additionalProperties": false,
         "properties": {
           "system": {
-            "$ref": "/schemas/latest/enums/postal-system.json",
+            "$ref": "/schemas/3.0.0-beta.1/enums/postal-system.json",
             "description": "Postal code system (e.g., 'us_zip', 'gb_outward'). System name encodes country and precision."
           },
           "values": {
