@@ -76,9 +76,10 @@ def test_get_products_response_deserializes_from_protocol_json():
           ],
           "pricing_options": [
             {
-              "model": "cpm_fixed_rate",
-              "is_fixed": true,
-              "cpm": 5.50
+              "pricing_model": "cpm",
+              "pricing_option_id": "po-premium-1",
+              "currency": "USD",
+              "fixed_price": 5.50
             }
           ]
         }
@@ -191,7 +192,12 @@ async def test_buyer_discovers_products_for_coffee_campaign(mocker):
                     }
                 ],
                 "pricing_options": [
-                    {"model": "cpm_fixed_rate", "is_fixed": True, "cpm": 4.50}
+                    {
+                        "pricing_model": "cpm",
+                        "pricing_option_id": "po-breakfast-1",
+                        "currency": "USD",
+                        "fixed_price": 4.50,
+                    }
                 ],
             }
         ]
@@ -221,7 +227,9 @@ async def test_buyer_discovers_products_for_coffee_campaign(mocker):
 
     # Assert: Can plan budget from pricing
     pricing = product.pricing_options[0]
-    assert pricing.model in ["cpm_fixed_rate", "cpm_auction"]
+    assert pricing.pricing_model == "cpm"
+    # Fixed pricing has fixed_price, auction pricing has floor_price
+    assert pricing.fixed_price is not None or pricing.floor_price is not None
 ```
 
 ### Example: Handle Empty Results
@@ -410,7 +418,12 @@ def sample_product_json():
             }
         ],
         "pricing_options": [
-            {"model": "cpm_fixed_rate", "is_fixed": True, "cpm": 5.50}
+            {
+                "pricing_model": "cpm",
+                "pricing_option_id": "po-premium-1",
+                "currency": "USD",
+                "fixed_price": 5.50,
+            }
         ],
     }
 ```
@@ -440,7 +453,12 @@ product_json = {
         "property_ids": ["site1"],
     }],
     "pricing_options": [
-        {"model": "cpm_fixed_rate", "is_fixed": True, "cpm": 5.0}
+        {
+            "pricing_model": "cpm",
+            "pricing_option_id": "po-test-1",
+            "currency": "USD",
+            "fixed_price": 5.0,
+        }
     ],
 }
 

@@ -68,9 +68,10 @@ class TestWireFormatCompatibility:
               ],
               "pricing_options": [
                 {
-                  "model": "cpm_fixed_rate",
-                  "is_fixed": true,
-                  "cpm": 5.50
+                  "pricing_model": "cpm",
+                  "pricing_option_id": "po-premium-1",
+                  "currency": "USD",
+                  "fixed_price": 5.50
                 }
               ]
             }
@@ -182,7 +183,14 @@ class TestProductDiscoveryWorkflow:
                             "property_tags": ["morning", "lifestyle"],
                         }
                     ],
-                    "pricing_options": [{"model": "cpm_fixed_rate", "is_fixed": True, "cpm": 4.50}],
+                    "pricing_options": [
+                        {
+                            "pricing_model": "cpm",
+                            "pricing_option_id": "po-breakfast-1",
+                            "currency": "USD",
+                            "fixed_price": 4.50,
+                        }
+                    ],
                 }
             ]
         }
@@ -207,7 +215,9 @@ class TestProductDiscoveryWorkflow:
 
         # Assert: Can plan budget from pricing
         pricing = product.pricing_options[0]
-        assert pricing.model in ["cpm_fixed_rate", "cpm_auction"]
+        assert pricing.pricing_model == "cpm"
+        # Fixed pricing has fixed_price, auction pricing has floor_price
+        assert pricing.fixed_price is not None or pricing.floor_price is not None
 
     @pytest.mark.asyncio
     async def test_buyer_handles_no_products_available(self, mocker):
@@ -412,7 +422,14 @@ class AntiPatterns:
                     "property_ids": ["site1"],
                 }
             ],
-            "pricing_options": [{"model": "cpm_fixed_rate", "is_fixed": True, "cpm": 5.0}],
+            "pricing_options": [
+                {
+                    "pricing_model": "cpm",
+                    "pricing_option_id": "po-test-1",
+                    "currency": "USD",
+                    "fixed_price": 5.0,
+                }
+            ],
         }
 
         product = Product.model_validate(product_json)
@@ -510,7 +527,14 @@ def sample_product_json():
                 "property_ids": ["homepage", "mobile_app"],
             }
         ],
-        "pricing_options": [{"model": "cpm_fixed_rate", "is_fixed": True, "cpm": 5.50}],
+        "pricing_options": [
+            {
+                "pricing_model": "cpm",
+                "pricing_option_id": "po-premium-1",
+                "currency": "USD",
+                "fixed_price": 5.50,
+            }
+        ],
     }
 
 
