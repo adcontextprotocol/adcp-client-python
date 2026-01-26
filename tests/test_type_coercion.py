@@ -537,7 +537,7 @@ class TestResponseTypeCoercion:
         from pydantic import Field
 
         from adcp.types import (
-            CpmFixedRatePricingOption,
+            CpmPricingOption,
             DeliveryType,
             FormatId,
             GetProductsResponse,
@@ -559,11 +559,10 @@ class TestResponseTypeCoercion:
             delivery_measurement=DeliveryMeasurement(provider="Test Provider"),
             format_ids=[FormatId(agent_url="https://example.com", id="banner-300x250")],
             pricing_options=[
-                CpmFixedRatePricingOption(
+                CpmPricingOption(
                     currency="USD",
                     pricing_option_id="opt-1",
-                    rate=5.0,
-                    is_fixed=True,
+                    fixed_price=5.0,
                     pricing_model="cpm",
                 )
             ],

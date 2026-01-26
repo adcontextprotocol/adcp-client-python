@@ -520,67 +520,39 @@ class TestProductValidation:
         assert mixed_props[1].selection_type == "by_tag"
 
 
-class TestPreviewRenderDiscriminators:
-    """Test PreviewRender discriminator field values match semantic aliases."""
+class TestPreviewRenderUnifiedType:
+    """Test PreviewRender unified type after schema consolidation.
 
-    def test_url_preview_render_has_url_discriminator(self):
-        """UrlPreviewRender has output_format='url'."""
+    Note: The old schema had separate UrlPreviewRender, HtmlPreviewRender, and BothPreviewRender
+    variants discriminated by output_format. The new schema consolidates these into a single
+    PreviewRender type where preview_url is the only required field. All aliases now point
+    to the same underlying type for backwards compatibility.
+    """
+
+    def test_preview_render_accepts_url_only(self):
+        """PreviewRender accepts preview_url as the only required field."""
         render = UrlPreviewRender(
-            render_id="render_1",
-            role="primary",
-            output_format="url",
             preview_url="https://preview.example.com/creative",
         )
-        assert render.output_format == "url"
-        assert hasattr(render, "preview_url")
-        assert not hasattr(render, "preview_html")
+        assert str(render.preview_url) == "https://preview.example.com/creative"
 
-    def test_html_preview_render_has_html_discriminator(self):
-        """HtmlPreviewRender has output_format='html'."""
-        render = HtmlPreviewRender(
-            render_id="render_1",
-            role="primary",
-            output_format="html",
-            preview_html="<div>Preview HTML</div>",
-        )
-        assert render.output_format == "html"
-        assert hasattr(render, "preview_html")
-        assert not hasattr(render, "preview_url")
-
-    def test_both_preview_render_has_both_discriminator(self):
-        """BothPreviewRender has output_format='both'."""
+    def test_preview_render_accepts_all_fields(self):
+        """PreviewRender accepts all optional fields."""
         render = BothPreviewRender(
             render_id="render_1",
-            role="primary",
-            output_format="both",
             preview_url="https://preview.example.com/creative",
-            preview_html="<div>Preview HTML</div>",
+            placement_hint="main",
+            media_type="text/html",
         )
-        assert render.output_format == "both"
-        assert hasattr(render, "preview_url")
-        assert hasattr(render, "preview_html")
+        assert str(render.preview_url) == "https://preview.example.com/creative"
+        assert render.render_id == "render_1"
+        assert render.placement_hint == "main"
+        assert render.media_type == "text/html"
 
-    def test_url_preview_render_rejects_wrong_discriminator(self):
-        """UrlPreviewRender rejects output_format='html'."""
-        with pytest.raises(ValidationError) as exc_info:
-            UrlPreviewRender(
-                render_id="render_1",
-                role="primary",
-                output_format="html",  # Wrong discriminator value
-                preview_url="https://preview.example.com/creative",
-            )
-        assert "output_format" in str(exc_info.value).lower()
-
-    def test_html_preview_render_rejects_wrong_discriminator(self):
-        """HtmlPreviewRender rejects output_format='url'."""
-        with pytest.raises(ValidationError) as exc_info:
-            HtmlPreviewRender(
-                render_id="render_1",
-                role="primary",
-                output_format="url",  # Wrong discriminator value
-                preview_html="<div>Preview HTML</div>",
-            )
-        assert "output_format" in str(exc_info.value).lower()
+    def test_all_preview_render_aliases_are_same_type(self):
+        """All preview render aliases point to the same unified type."""
+        assert UrlPreviewRender is HtmlPreviewRender
+        assert HtmlPreviewRender is BothPreviewRender
 
 
 class TestVastAssetDiscriminators:

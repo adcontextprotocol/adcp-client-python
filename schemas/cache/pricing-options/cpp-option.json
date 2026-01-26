@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
-  "description": "Cost Per Point (Gross Rating Point) fixed-rate pricing for TV and audio campaigns requiring demographic measurement",
+  "description": "Cost Per Point (Gross Rating Point) pricing for TV and audio campaigns. If fixed_price is present, it's fixed pricing. If absent, it's auction-based.",
   "properties": {
     "currency": {
       "description": "ISO 4217 currency code",
@@ -14,10 +14,15 @@
       "pattern": "^[A-Z]{3}$",
       "type": "string"
     },
-    "is_fixed": {
-      "const": true,
-      "description": "Whether this is a fixed rate (true) or auction-based (false)",
-      "type": "boolean"
+    "fixed_price": {
+      "description": "Fixed price per rating point. If present, this is fixed pricing. If absent, auction-based.",
+      "minimum": 0,
+      "type": "number"
+    },
+    "floor_price": {
+      "description": "Minimum acceptable bid for auction pricing (mutually exclusive with fixed_price). Bids below this value will be rejected.",
+      "minimum": 0,
+      "type": "number"
     },
     "min_spend_per_package": {
       "description": "Minimum spend requirement per package using this pricing option, in the specified currency",
@@ -26,15 +31,15 @@
     },
     "parameters": {
       "additionalProperties": true,
-      "description": "CPP-specific parameters for demographic targeting and GRP requirements",
+      "description": "CPP-specific parameters for demographic targeting",
       "properties": {
         "demographic": {
-          "description": "Target demographic in Nielsen format: P/M/W/A/C + age range. Examples: P18-49 (Persons 18-49), M25-54 (Men 25-54), W35+ (Women 35+), A18-34 (Adults 18-34), C2-11 (Children 2-11)",
+          "description": "Target demographic in Nielsen format (P18-49, M25-54, W35+, etc.)",
           "pattern": "^[PMWAC][0-9]{2}(-[0-9]{2}|\\+)$",
           "type": "string"
         },
         "min_points": {
-          "description": "Minimum GRPs/TRPs required for this pricing option",
+          "description": "Minimum GRPs/TRPs required",
           "minimum": 0,
           "type": "number"
         }
@@ -44,27 +49,46 @@
       ],
       "type": "object"
     },
+    "price_guidance": {
+      "description": "Optional pricing guidance for auction-based bidding. Helps buyers calibrate bids with historical percentiles.",
+      "properties": {
+        "p25": {
+          "description": "25th percentile of recent winning bids",
+          "minimum": 0,
+          "type": "number"
+        },
+        "p50": {
+          "description": "Median of recent winning bids",
+          "minimum": 0,
+          "type": "number"
+        },
+        "p75": {
+          "description": "75th percentile of recent winning bids",
+          "minimum": 0,
+          "type": "number"
+        },
+        "p90": {
+          "description": "90th percentile of recent winning bids",
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
     "pricing_model": {
       "const": "cpp",
       "description": "Cost per Gross Rating Point",
       "type": "string"
     },
     "pricing_option_id": {
-      "description": "Unique identifier for this pricing option within the product (e.g., 'cpp_usd_p18-49')",
+      "description": "Unique identifier for this pricing option within the product",
       "type": "string"
-    },
-    "rate": {
-      "description": "Fixed CPP rate (cost per rating point)",
-      "minimum": 0,
-      "type": "number"
     }
   },
   "required": [
     "pricing_option_id",
     "pricing_model",
-    "rate",
     "currency",
-    "is_fixed",
     "parameters"
   ],
   "title": "CPP Pricing Option",

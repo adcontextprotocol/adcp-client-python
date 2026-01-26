@@ -50,13 +50,11 @@ def test_pricing_option_types_are_exported():
     pricing_types = [
         "CpcPricingOption",
         "CpcvPricingOption",
-        "CpmAuctionPricingOption",
-        "CpmFixedRatePricingOption",
+        "CpmPricingOption",
         "CppPricingOption",
         "CpvPricingOption",
         "FlatRatePricingOption",
-        "VcpmAuctionPricingOption",
-        "VcpmFixedRatePricingOption",
+        "VcpmPricingOption",
     ]
 
     for type_name in pricing_types:
@@ -167,21 +165,21 @@ def test_format_has_new_assets_field():
     # Note: assets_required is deprecated and may be removed in future versions
 
 
-def test_pricing_options_are_discriminated_by_is_fixed():
-    """Pricing option types have is_fixed discriminator field."""
-    from adcp import CpcPricingOption, CpmAuctionPricingOption, CpmFixedRatePricingOption
+def test_pricing_options_have_required_fields():
+    """Pricing option types have required fields for pricing."""
+    from adcp import CpcPricingOption, CpmPricingOption
 
-    # Fixed-rate options should have is_fixed discriminator
-    fixed_types = [CpmFixedRatePricingOption, CpcPricingOption]
-    for pricing_type in fixed_types:
+    # All pricing options should have pricing_model and pricing_option_id
+    pricing_types = [CpmPricingOption, CpcPricingOption]
+    for pricing_type in pricing_types:
         name = pricing_type.__name__
-        assert "is_fixed" in pricing_type.model_fields, f"{name} missing is_fixed discriminator"
+        assert "pricing_model" in pricing_type.model_fields, f"{name} missing pricing_model"
+        assert "pricing_option_id" in pricing_type.model_fields, f"{name} missing pricing_option_id"
+        assert "currency" in pricing_type.model_fields, f"{name} missing currency"
 
-    # Auction options should have is_fixed discriminator
-    auction_types = [CpmAuctionPricingOption]
-    for pricing_type in auction_types:
-        name = pricing_type.__name__
-        assert "is_fixed" in pricing_type.model_fields, f"{name} missing is_fixed discriminator"
+    # CPM pricing option should support both fixed and auction pricing via optional fields
+    assert "fixed_price" in CpmPricingOption.model_fields, "CpmPricingOption missing fixed_price"
+    assert "floor_price" in CpmPricingOption.model_fields, "CpmPricingOption missing floor_price"
 
 
 def test_semantic_aliases_point_to_discriminated_variants():
@@ -193,23 +191,20 @@ def test_semantic_aliases_point_to_discriminated_variants():
         UrlPreviewRender,
     )
 
-    # URL preview render should accept url output format
+    # URL preview render accepts preview_url (now the only required field)
     url_render = UrlPreviewRender(
         render_id="r1",
-        role="primary",
-        output_format="url",
         preview_url="https://example.com/preview",
+        media_type="text/html",
     )
-    assert url_render.output_format == "url"
+    assert str(url_render.preview_url) == "https://example.com/preview"
 
-    # HTML preview render should accept html output format
+    # HTML preview render is now same as URL (unified PreviewRender type)
     html_render = HtmlPreviewRender(
         render_id="r2",
-        role="primary",
-        output_format="html",
-        preview_html="<div>Test</div>",
+        preview_url="https://example.com/preview2",
     )
-    assert html_render.output_format == "html"
+    assert str(html_render.preview_url) == "https://example.com/preview2"
 
     # Success response should accept success fields
     success = CreateMediaBuySuccessResponse(

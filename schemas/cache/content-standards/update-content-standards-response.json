@@ -13,21 +13,7 @@
     "errors": {
       "description": "Errors that occurred during the update",
       "items": {
-        "properties": {
-          "code": {
-            "description": "Error code (e.g., STANDARDS_NOT_FOUND, SCOPE_CONFLICT)",
-            "type": "string"
-          },
-          "message": {
-            "description": "Human-readable error message",
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "message"
-        ],
-        "type": "object"
+        "$ref": "../core/error.json"
       },
       "type": "array"
     },
