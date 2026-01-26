@@ -35,7 +35,9 @@ class NotImplementedResponse(BaseModel):
     error: Error | None = None
 
 
-def not_supported(reason: str = "This operation is not supported by this agent") -> NotImplementedResponse:
+def not_supported(
+    reason: str = "This operation is not supported by this agent",
+) -> NotImplementedResponse:
     """Create a standard 'not supported' response.
 
     Use this to return from operations that your agent does not implement.
