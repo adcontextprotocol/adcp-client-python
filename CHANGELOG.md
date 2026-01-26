@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v3.0.0...v3.1.0) (2026-01-26)
+
+
+### Features
+
+* export PricingOption and other union type aliases from main package ([#121](https://github.com/adcontextprotocol/adcp-client-python/issues/121)) ([a1c61e7](https://github.com/adcontextprotocol/adcp-client-python/commit/a1c61e7e5be8d79353c532c710586598fc562bc8)), closes [#120](https://github.com/adcontextprotocol/adcp-client-python/issues/120)
+
 ## [3.0.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.19.0...v3.0.0) (2026-01-26)
 
 
