@@ -572,3 +572,236 @@ def test_deployment_destination_aliases_in_exports():
     assert "AgentDeployment" in aliases_module.__all__
     assert "PlatformDestination" in aliases_module.__all__
     assert "AgentDestination" in aliases_module.__all__
+
+
+# ============================================================================
+# UNION TYPE ALIASES TESTS
+# ============================================================================
+
+
+def test_pricing_option_union_import():
+    """Test that PricingOption union type can be imported."""
+    from adcp import PricingOption
+    from adcp.types.aliases import PricingOption as AliasPricingOption
+
+    # Verify all import paths work
+    assert PricingOption is AliasPricingOption
+
+
+def test_pricing_option_union_is_union_type():
+    """Test that PricingOption is a union type, not a RootModel."""
+    import types
+
+    from adcp import PricingOption
+
+    # Should be a Union type, not a class
+    # In Python 3.10+, unions created with | are types.UnionType
+    assert isinstance(PricingOption, types.UnionType)
+
+
+def test_pricing_option_union_contains_all_variants():
+    """Test that PricingOption union contains all pricing variants."""
+    from typing import get_args
+
+    from adcp import (
+        CpcPricingOption,
+        CpcvPricingOption,
+        CpmPricingOption,
+        CppPricingOption,
+        CpvPricingOption,
+        FlatRatePricingOption,
+        PricingOption,
+        VcpmPricingOption,
+    )
+
+    # Get all types in the union
+    union_args = set(get_args(PricingOption))
+
+    # Verify all pricing option variants are in the union
+    expected_variants = {
+        CpmPricingOption,
+        VcpmPricingOption,
+        CpcPricingOption,
+        CpcvPricingOption,
+        CpvPricingOption,
+        CppPricingOption,
+        FlatRatePricingOption,
+    }
+
+    assert union_args == expected_variants
+
+
+def test_pricing_option_union_exported():
+    """Test that PricingOption union is properly exported."""
+    import adcp
+    import adcp.types.aliases as aliases_module
+
+    # Check main package exports
+    assert hasattr(adcp, "PricingOption")
+    assert "PricingOption" in adcp.__all__
+
+    # Check aliases module exports
+    assert hasattr(aliases_module, "PricingOption")
+    assert "PricingOption" in aliases_module.__all__
+
+
+def test_pricing_option_variants_type_compatible():
+    """Test that pricing option variants are type-compatible with the union.
+
+    This is the key test from issue #120 - verifying that individual pricing
+    option types can be used where PricingOption is expected without mypy errors.
+    """
+    from adcp import CpmPricingOption, PricingOption, VcpmPricingOption
+
+    # Create instances of variants (pricing_option_id is required)
+    cpm = CpmPricingOption(
+        pricing_option_id="cpm-1",
+        pricing_model="cpm",
+        floor_price=1.50,
+        currency="USD",
+    )
+    vcpm = VcpmPricingOption(
+        pricing_option_id="vcpm-1",
+        pricing_model="vcpm",
+        floor_price=2.00,
+        currency="USD",
+    )
+
+    # These should be type-compatible with PricingOption union
+    # (mypy will verify this at type-check time, but we can verify instances at runtime)
+    options: list[PricingOption] = [cpm, vcpm]
+
+    assert len(options) == 2
+    assert options[0].pricing_model == "cpm"
+    assert options[1].pricing_model == "vcpm"
+
+
+def test_publisher_properties_union_import():
+    """Test that PublisherProperties union type can be imported."""
+    from adcp import PublisherProperties
+    from adcp.types.aliases import PublisherProperties as AliasPublisherProperties
+
+    # Verify all import paths work
+    assert PublisherProperties is AliasPublisherProperties
+
+
+def test_publisher_properties_union_is_union_type():
+    """Test that PublisherProperties is a union type, not a RootModel."""
+    import types
+
+    from adcp import PublisherProperties
+
+    # Should be a Union type, not a class
+    assert isinstance(PublisherProperties, types.UnionType)
+
+
+def test_publisher_properties_union_contains_all_variants():
+    """Test that PublisherProperties union contains all property selector variants."""
+    from typing import get_args
+
+    from adcp import (
+        PublisherProperties,
+        PublisherPropertiesAll,
+        PublisherPropertiesById,
+        PublisherPropertiesByTag,
+    )
+
+    # Get all types in the union
+    union_args = set(get_args(PublisherProperties))
+
+    # Verify all publisher properties variants are in the union
+    expected_variants = {
+        PublisherPropertiesAll,
+        PublisherPropertiesById,
+        PublisherPropertiesByTag,
+    }
+
+    assert union_args == expected_variants
+
+
+def test_publisher_properties_union_exported():
+    """Test that PublisherProperties union is properly exported."""
+    import adcp
+    import adcp.types.aliases as aliases_module
+
+    # Check main package exports
+    assert hasattr(adcp, "PublisherProperties")
+    assert "PublisherProperties" in adcp.__all__
+
+    # Check aliases module exports
+    assert hasattr(aliases_module, "PublisherProperties")
+    assert "PublisherProperties" in aliases_module.__all__
+
+
+def test_deployment_union_import():
+    """Test that Deployment union type can be imported."""
+    from adcp import Deployment
+    from adcp.types.aliases import Deployment as AliasDeployment
+
+    # Verify all import paths work
+    assert Deployment is AliasDeployment
+
+
+def test_deployment_union_is_union_type():
+    """Test that Deployment is a union type, not a RootModel."""
+    import types
+
+    from adcp import Deployment
+
+    # Should be a Union type, not a class
+    assert isinstance(Deployment, types.UnionType)
+
+
+def test_deployment_union_contains_all_variants():
+    """Test that Deployment union contains all deployment variants."""
+    from typing import get_args
+
+    from adcp import AgentDeployment, Deployment, PlatformDeployment
+
+    # Get all types in the union
+    union_args = set(get_args(Deployment))
+
+    # Verify all deployment variants are in the union
+    expected_variants = {
+        PlatformDeployment,
+        AgentDeployment,
+    }
+
+    assert union_args == expected_variants
+
+
+def test_destination_union_import():
+    """Test that Destination union type can be imported."""
+    from adcp import Destination
+    from adcp.types.aliases import Destination as AliasDestination
+
+    # Verify all import paths work
+    assert Destination is AliasDestination
+
+
+def test_destination_union_is_union_type():
+    """Test that Destination is a union type, not a RootModel."""
+    import types
+
+    from adcp import Destination
+
+    # Should be a Union type, not a class
+    assert isinstance(Destination, types.UnionType)
+
+
+def test_destination_union_contains_all_variants():
+    """Test that Destination union contains all destination variants."""
+    from typing import get_args
+
+    from adcp import AgentDestination, Destination, PlatformDestination
+
+    # Get all types in the union
+    union_args = set(get_args(Destination))
+
+    # Verify all destination variants are in the union
+    expected_variants = {
+        PlatformDestination,
+        AgentDestination,
+    }
+
+    assert union_args == expected_variants

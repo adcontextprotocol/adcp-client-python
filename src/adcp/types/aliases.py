@@ -43,6 +43,11 @@ from adcp.types._generated import (
     # Build creative responses
     BuildCreativeResponse1,
     BuildCreativeResponse2,
+    CpcPricingOption,
+    CpcvPricingOption,
+    CpmPricingOption,
+    CppPricingOption,
+    CpvPricingOption,
     # Create media buy responses
     CreateMediaBuyResponse1,
     CreateMediaBuyResponse2,
@@ -55,6 +60,7 @@ from adcp.types._generated import (
     # Destination types
     Destination1,
     Destination2,
+    FlatRatePricingOption,
     # Preview creative requests
     PreviewCreativeRequest1,
     PreviewCreativeRequest2,
@@ -86,6 +92,7 @@ from adcp.types._generated import (
     # VAST assets
     VastAsset1,
     VastAsset2,
+    VcpmPricingOption,
 )
 from adcp.types._generated import (
     PublisherPropertySelector1 as PublisherPropertiesInternal,
@@ -689,6 +696,52 @@ Example:
 """
 
 # ============================================================================
+# PRICING OPTION UNION TYPE - For Type Hints Without RootModel Wrapper
+# ============================================================================
+# The generated PricingOption is a RootModel wrapper that mypy doesn't recognize
+# as compatible with the individual variant types. This union alias provides a
+# way to type-hint pricing options without the wrapper, fixing mypy list-item errors.
+
+PricingOption = (
+    CpmPricingOption
+    | VcpmPricingOption
+    | CpcPricingOption
+    | CpcvPricingOption
+    | CpvPricingOption
+    | CppPricingOption
+    | FlatRatePricingOption
+)
+"""Union type for all pricing option variants.
+
+Use this for type hints when constructing Product.pricing_options or any field
+that accepts pricing options. This fixes mypy list-item errors that occur when
+using the individual variant types.
+
+Example:
+    ```python
+    from adcp.types import Product, CpmPricingOption, PricingOption
+
+    # Type hint for a list of pricing options
+    def get_pricing(options: list[PricingOption]) -> None:
+        for opt in options:
+            print(f"Model: {opt.pricing_model}")
+
+    # Use in Product construction (no more mypy errors!)
+    product = Product(
+        product_id="test",
+        name="Test Product",
+        pricing_options=[
+            CpmPricingOption(
+                pricing_model="cpm",
+                floor_price=1.50,
+                currency="USD"
+            )
+        ]
+    )
+    ```
+"""
+
+# ============================================================================
 # EXPORTS
 # ============================================================================
 
@@ -759,4 +812,6 @@ __all__ = [
     "AgentDestination",
     # Destination union
     "Destination",
+    # Pricing option union
+    "PricingOption",
 ]
