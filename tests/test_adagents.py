@@ -400,6 +400,124 @@ class TestFetchAdagents:
         call_args = mock_client.get.call_args
         assert "https://example.com/.well-known/adagents.json" in str(call_args)
 
+    @pytest.mark.asyncio
+    async def test_fetch_follows_authoritative_location(self):
+        """Should follow authoritative_location redirect and return resolved data."""
+        from adcp.adagents import fetch_adagents
+
+        # Initial response has authoritative_location redirect
+        redirect_response_data = {
+            "$schema": "/schemas/2.6.0/adagents.json",
+            "authoritative_location": "https://cdn.example.com/adagents/v2/adagents.json",
+            "last_updated": "2025-01-15T10:00:00Z",
+        }
+
+        # Final resolved data at the authoritative location
+        resolved_data = {
+            "$schema": "/schemas/2.6.0/adagents.json",
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example.com",
+                    "authorized_for": "All properties",
+                    "authorization_type": "property_tags",
+                    "property_tags": ["all"],
+                }
+            ],
+            "last_updated": "2025-01-15T10:00:00Z",
+        }
+
+        # Mock client that returns different responses based on URL
+        called_urls: list[str] = []
+        responses = [redirect_response_data, resolved_data]
+
+        async def mock_get(url, **kwargs):
+            called_urls.append(url)
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = responses[len(called_urls) - 1]
+            return mock_response
+
+        mock_client = MagicMock()
+        mock_client.get = mock_get
+
+        result = await fetch_adagents("example.com", client=mock_client)
+
+        assert result == resolved_data
+        assert called_urls == [
+            "https://example.com/.well-known/adagents.json",
+            "https://cdn.example.com/adagents/v2/adagents.json",
+        ]
+
+    @pytest.mark.asyncio
+    async def test_fetch_rejects_non_https_authoritative_location(self):
+        """Should reject authoritative_location that uses HTTP instead of HTTPS."""
+        from adcp.adagents import fetch_adagents
+
+        redirect_response_data = {
+            "$schema": "/schemas/2.6.0/adagents.json",
+            "authoritative_location": "http://cdn.example.com/adagents.json",  # HTTP not HTTPS
+            "last_updated": "2025-01-15T10:00:00Z",
+        }
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = redirect_response_data
+
+        mock_client = create_mock_httpx_client(mock_response)
+
+        with pytest.raises(AdagentsValidationError, match="HTTPS"):
+            await fetch_adagents("example.com", client=mock_client)
+
+    @pytest.mark.asyncio
+    async def test_fetch_prevents_redirect_loop(self):
+        """Should detect and prevent circular redirect loops."""
+        from adcp.adagents import fetch_adagents
+
+        # Circular redirect: A -> B -> A
+        redirect_data = {
+            "$schema": "/schemas/2.6.0/adagents.json",
+            "authoritative_location": "https://example.com/.well-known/adagents.json",
+            "last_updated": "2025-01-15T10:00:00Z",
+        }
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = redirect_data
+
+        mock_client = create_mock_httpx_client(mock_response)
+
+        with pytest.raises(AdagentsValidationError, match="redirect loop|already visited"):
+            await fetch_adagents("example.com", client=mock_client)
+
+    @pytest.mark.asyncio
+    async def test_fetch_enforces_max_redirect_depth(self):
+        """Should enforce maximum redirect depth to prevent abuse."""
+        from adcp.adagents import fetch_adagents
+
+        # Create a long chain of redirects
+        call_count = [0]
+
+        async def mock_get(url, **kwargs):
+            call_count[0] += 1
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            # Always return a redirect to a new URL
+            mock_response.json.return_value = {
+                "$schema": "/schemas/2.6.0/adagents.json",
+                "authoritative_location": f"https://cdn{call_count[0]}.example.com/adagents.json",
+                "last_updated": "2025-01-15T10:00:00Z",
+            }
+            return mock_response
+
+        mock_client = MagicMock()
+        mock_client.get = mock_get
+
+        with pytest.raises(AdagentsValidationError, match="redirect|depth"):
+            await fetch_adagents("example.com", client=mock_client)
+
+        # Should stop after reasonable number of redirects (not go forever)
+        assert call_count[0] <= 10
+
 
 class TestVerifyAgentForProperty:
     """Test convenience wrapper for fetching and verifying in one call."""
