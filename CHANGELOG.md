@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.0.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.19.0...v3.0.0) (2026-01-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* CpmAuctionPricingOption, CpmFixedRatePricingOption, VcpmAuctionPricingOption, VcpmFixedRatePricingOption have been consolidated into CpmPricingOption and VcpmPricingOption respectively.
+
+### Features
+
+* add V3 protocol support (Governance, Content Standards, SI, CLI) ([#117](https://github.com/adcontextprotocol/adcp-client-python/issues/117)) ([dfec179](https://github.com/adcontextprotocol/adcp-client-python/commit/dfec179ac58eb14f9a69ce939d4d5fe048bb6b04))
+
 ## [2.19.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v2.18.0...v2.19.0) (2026-01-14)
 
 
