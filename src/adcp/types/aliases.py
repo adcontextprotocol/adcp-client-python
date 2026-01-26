@@ -62,7 +62,6 @@ from adcp.types._generated import (
     PreviewCreativeResponse1,
     PreviewCreativeResponse2,
     # Preview renders (discriminated union by output_format)
-    PreviewRender,
     PreviewRender1,  # output_format='url'
     PreviewRender2,  # output_format='html'
     PreviewRender3,  # output_format='both'

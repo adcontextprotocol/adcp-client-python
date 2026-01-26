@@ -9,12 +9,15 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import Any
 
+from pydantic import ValidationError
+
 from adcp.server.base import ADCPHandler, NotImplementedResponse, ToolContext, not_supported
 from adcp.types import (
     CalibrateContentRequest,
     CalibrateContentResponse,
     CreateContentStandardsRequest,
     CreateContentStandardsResponse,
+    Error,
     GetContentStandardsRequest,
     GetContentStandardsResponse,
     GetMediaBuyArtifactsRequest,
@@ -32,12 +35,16 @@ class ContentStandardsHandler(ADCPHandler):
     """Handler for Content Standards protocol.
 
     Subclass this to implement a Content Standards agent. All Content Standards
-    operations are abstract and must be implemented. Non-Content-Standards
-    operations (get_products, create_media_buy, etc.) return 'not supported'.
+    operations must be implemented via the handle_* methods.
+    The public methods (create_content_standards, etc.) handle validation and
+    error handling automatically.
+
+    Non-Content-Standards operations (get_products, create_media_buy, etc.)
+    return 'not supported'.
 
     Example:
         class MyContentStandardsHandler(ContentStandardsHandler):
-            async def create_content_standards(
+            async def handle_create_content_standards(
                 self,
                 request: CreateContentStandardsRequest,
                 context: ToolContext | None = None
@@ -47,21 +54,207 @@ class ContentStandardsHandler(ADCPHandler):
     """
 
     # ========================================================================
-    # Content Standards Operations - MUST be implemented
+    # Content Standards Operations - Override base class with validation
+    # ========================================================================
+
+    async def create_content_standards(
+        self,
+        params: dict[str, Any],
+        context: ToolContext | None = None,
+    ) -> CreateContentStandardsResponse | NotImplementedResponse:
+        """Create content standards configuration.
+
+        Validates params and delegates to handle_create_content_standards.
+
+        Args:
+            params: Request parameters as dict
+            context: Optional tool context
+
+        Returns:
+            Content standards creation response, or error response
+        """
+        try:
+            request = CreateContentStandardsRequest.model_validate(params)
+        except ValidationError as e:
+            return NotImplementedResponse(
+                supported=False,
+                reason=f"Invalid request: {e}",
+                error=Error(code="VALIDATION_ERROR", message=str(e)),
+            )
+        return await self.handle_create_content_standards(request, context)
+
+    async def get_content_standards(
+        self,
+        params: dict[str, Any],
+        context: ToolContext | None = None,
+    ) -> GetContentStandardsResponse | NotImplementedResponse:
+        """Get content standards configuration.
+
+        Validates params and delegates to handle_get_content_standards.
+
+        Args:
+            params: Request parameters as dict
+            context: Optional tool context
+
+        Returns:
+            Content standards response, or error response
+        """
+        try:
+            request = GetContentStandardsRequest.model_validate(params)
+        except ValidationError as e:
+            return NotImplementedResponse(
+                supported=False,
+                reason=f"Invalid request: {e}",
+                error=Error(code="VALIDATION_ERROR", message=str(e)),
+            )
+        return await self.handle_get_content_standards(request, context)
+
+    async def list_content_standards(
+        self,
+        params: dict[str, Any],
+        context: ToolContext | None = None,
+    ) -> ListContentStandardsResponse | NotImplementedResponse:
+        """List content standards configurations.
+
+        Validates params and delegates to handle_list_content_standards.
+
+        Args:
+            params: Request parameters as dict
+            context: Optional tool context
+
+        Returns:
+            List of content standards, or error response
+        """
+        try:
+            request = ListContentStandardsRequest.model_validate(params)
+        except ValidationError as e:
+            return NotImplementedResponse(
+                supported=False,
+                reason=f"Invalid request: {e}",
+                error=Error(code="VALIDATION_ERROR", message=str(e)),
+            )
+        return await self.handle_list_content_standards(request, context)
+
+    async def update_content_standards(
+        self,
+        params: dict[str, Any],
+        context: ToolContext | None = None,
+    ) -> UpdateContentStandardsResponse | NotImplementedResponse:
+        """Update content standards configuration.
+
+        Validates params and delegates to handle_update_content_standards.
+
+        Args:
+            params: Request parameters as dict
+            context: Optional tool context
+
+        Returns:
+            Updated content standards response, or error response
+        """
+        try:
+            request = UpdateContentStandardsRequest.model_validate(params)
+        except ValidationError as e:
+            return NotImplementedResponse(
+                supported=False,
+                reason=f"Invalid request: {e}",
+                error=Error(code="VALIDATION_ERROR", message=str(e)),
+            )
+        return await self.handle_update_content_standards(request, context)
+
+    async def calibrate_content(
+        self,
+        params: dict[str, Any],
+        context: ToolContext | None = None,
+    ) -> CalibrateContentResponse | NotImplementedResponse:
+        """Calibrate content against standards.
+
+        Validates params and delegates to handle_calibrate_content.
+
+        Args:
+            params: Request parameters as dict
+            context: Optional tool context
+
+        Returns:
+            Calibration response with scores and feedback, or error response
+        """
+        try:
+            request = CalibrateContentRequest.model_validate(params)
+        except ValidationError as e:
+            return NotImplementedResponse(
+                supported=False,
+                reason=f"Invalid request: {e}",
+                error=Error(code="VALIDATION_ERROR", message=str(e)),
+            )
+        return await self.handle_calibrate_content(request, context)
+
+    async def validate_content_delivery(
+        self,
+        params: dict[str, Any],
+        context: ToolContext | None = None,
+    ) -> ValidateContentDeliveryResponse | NotImplementedResponse:
+        """Validate content delivery against standards.
+
+        Validates params and delegates to handle_validate_content_delivery.
+
+        Args:
+            params: Request parameters as dict
+            context: Optional tool context
+
+        Returns:
+            Validation response, or error response
+        """
+        try:
+            request = ValidateContentDeliveryRequest.model_validate(params)
+        except ValidationError as e:
+            return NotImplementedResponse(
+                supported=False,
+                reason=f"Invalid request: {e}",
+                error=Error(code="VALIDATION_ERROR", message=str(e)),
+            )
+        return await self.handle_validate_content_delivery(request, context)
+
+    async def get_media_buy_artifacts(
+        self,
+        params: dict[str, Any],
+        context: ToolContext | None = None,
+    ) -> GetMediaBuyArtifactsResponse | NotImplementedResponse:
+        """Get artifacts associated with a media buy.
+
+        Validates params and delegates to handle_get_media_buy_artifacts.
+
+        Args:
+            params: Request parameters as dict
+            context: Optional tool context
+
+        Returns:
+            Media buy artifacts response, or error response
+        """
+        try:
+            request = GetMediaBuyArtifactsRequest.model_validate(params)
+        except ValidationError as e:
+            return NotImplementedResponse(
+                supported=False,
+                reason=f"Invalid request: {e}",
+                error=Error(code="VALIDATION_ERROR", message=str(e)),
+            )
+        return await self.handle_get_media_buy_artifacts(request, context)
+
+    # ========================================================================
+    # Abstract handlers - Implement these in subclasses
     # ========================================================================
 
     @abstractmethod
-    async def create_content_standards(
+    async def handle_create_content_standards(
         self,
         request: CreateContentStandardsRequest,
         context: ToolContext | None = None,
     ) -> CreateContentStandardsResponse:
-        """Create content standards configuration.
+        """Handle create content standards request.
 
         Must be implemented by Content Standards agents.
 
         Args:
-            request: Content standards creation request
+            request: Validated content standards creation request
             context: Optional tool context
 
         Returns:
@@ -70,17 +263,17 @@ class ContentStandardsHandler(ADCPHandler):
         ...
 
     @abstractmethod
-    async def get_content_standards(
+    async def handle_get_content_standards(
         self,
         request: GetContentStandardsRequest,
         context: ToolContext | None = None,
     ) -> GetContentStandardsResponse:
-        """Get content standards configuration.
+        """Handle get content standards request.
 
         Must be implemented by Content Standards agents.
 
         Args:
-            request: Content standards retrieval request
+            request: Validated content standards retrieval request
             context: Optional tool context
 
         Returns:
@@ -89,17 +282,17 @@ class ContentStandardsHandler(ADCPHandler):
         ...
 
     @abstractmethod
-    async def list_content_standards(
+    async def handle_list_content_standards(
         self,
         request: ListContentStandardsRequest,
         context: ToolContext | None = None,
     ) -> ListContentStandardsResponse:
-        """List content standards configurations.
+        """Handle list content standards request.
 
         Must be implemented by Content Standards agents.
 
         Args:
-            request: List content standards request
+            request: Validated list content standards request
             context: Optional tool context
 
         Returns:
@@ -108,17 +301,17 @@ class ContentStandardsHandler(ADCPHandler):
         ...
 
     @abstractmethod
-    async def update_content_standards(
+    async def handle_update_content_standards(
         self,
         request: UpdateContentStandardsRequest,
         context: ToolContext | None = None,
     ) -> UpdateContentStandardsResponse:
-        """Update content standards configuration.
+        """Handle update content standards request.
 
         Must be implemented by Content Standards agents.
 
         Args:
-            request: Content standards update request
+            request: Validated content standards update request
             context: Optional tool context
 
         Returns:
@@ -127,17 +320,17 @@ class ContentStandardsHandler(ADCPHandler):
         ...
 
     @abstractmethod
-    async def calibrate_content(
+    async def handle_calibrate_content(
         self,
         request: CalibrateContentRequest,
         context: ToolContext | None = None,
     ) -> CalibrateContentResponse:
-        """Calibrate content against standards.
+        """Handle calibrate content request.
 
         Must be implemented by Content Standards agents.
 
         Args:
-            request: Calibration request with content to evaluate
+            request: Validated calibration request with content to evaluate
             context: Optional tool context
 
         Returns:
@@ -146,17 +339,17 @@ class ContentStandardsHandler(ADCPHandler):
         ...
 
     @abstractmethod
-    async def validate_content_delivery(
+    async def handle_validate_content_delivery(
         self,
         request: ValidateContentDeliveryRequest,
         context: ToolContext | None = None,
     ) -> ValidateContentDeliveryResponse:
-        """Validate content delivery against standards.
+        """Handle validate content delivery request.
 
         Must be implemented by Content Standards agents.
 
         Args:
-            request: Validation request with delivery data
+            request: Validated request with delivery data
             context: Optional tool context
 
         Returns:
@@ -165,17 +358,17 @@ class ContentStandardsHandler(ADCPHandler):
         ...
 
     @abstractmethod
-    async def get_media_buy_artifacts(
+    async def handle_get_media_buy_artifacts(
         self,
         request: GetMediaBuyArtifactsRequest,
         context: ToolContext | None = None,
     ) -> GetMediaBuyArtifactsResponse:
-        """Get artifacts associated with a media buy.
+        """Handle get media buy artifacts request.
 
         Must be implemented by Content Standards agents.
 
         Args:
-            request: Artifacts retrieval request
+            request: Validated artifacts retrieval request
             context: Optional tool context
 
         Returns:

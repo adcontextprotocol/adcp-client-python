@@ -9,12 +9,15 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import Any
 
+from pydantic import ValidationError
+
 from adcp.server.base import ADCPHandler, NotImplementedResponse, ToolContext, not_supported
 from adcp.types import (
     CreatePropertyListRequest,
     CreatePropertyListResponse,
     DeletePropertyListRequest,
     DeletePropertyListResponse,
+    Error,
     GetPropertyListRequest,
     GetPropertyListResponse,
     ListPropertyListsRequest,
@@ -30,13 +33,16 @@ class GovernanceHandler(ADCPHandler):
     Subclass this to implement a Governance agent that manages property lists
     for brand safety, compliance scoring, and quality filtering.
 
-    All property list operations are abstract and must be implemented.
+    All property list operations must be implemented via the handle_* methods.
+    The public methods (create_property_list, etc.) handle validation and
+    error handling automatically.
+
     Non-governance operations (get_products, create_media_buy, etc.)
     return 'not supported'.
 
     Example:
         class MyGovernanceHandler(GovernanceHandler):
-            async def create_property_list(
+            async def handle_create_property_list(
                 self,
                 request: CreatePropertyListRequest,
                 context: ToolContext | None = None
@@ -48,21 +54,155 @@ class GovernanceHandler(ADCPHandler):
     """
 
     # ========================================================================
-    # Governance Operations - MUST be implemented
+    # Governance Operations - Override base class with validation
+    # ========================================================================
+
+    async def create_property_list(
+        self,
+        params: dict[str, Any],
+        context: ToolContext | None = None,
+    ) -> CreatePropertyListResponse | NotImplementedResponse:
+        """Create a property list for governance filtering.
+
+        Validates params and delegates to handle_create_property_list.
+
+        Args:
+            params: Request parameters as dict
+            context: Optional tool context
+
+        Returns:
+            Response with created property list metadata, or error response
+        """
+        try:
+            request = CreatePropertyListRequest.model_validate(params)
+        except ValidationError as e:
+            return NotImplementedResponse(
+                supported=False,
+                reason=f"Invalid request: {e}",
+                error=Error(code="VALIDATION_ERROR", message=str(e)),
+            )
+        return await self.handle_create_property_list(request, context)
+
+    async def get_property_list(
+        self,
+        params: dict[str, Any],
+        context: ToolContext | None = None,
+    ) -> GetPropertyListResponse | NotImplementedResponse:
+        """Get a property list with optional resolution.
+
+        Validates params and delegates to handle_get_property_list.
+
+        Args:
+            params: Request parameters as dict
+            context: Optional tool context
+
+        Returns:
+            Response with list metadata and optionally resolved identifiers
+        """
+        try:
+            request = GetPropertyListRequest.model_validate(params)
+        except ValidationError as e:
+            return NotImplementedResponse(
+                supported=False,
+                reason=f"Invalid request: {e}",
+                error=Error(code="VALIDATION_ERROR", message=str(e)),
+            )
+        return await self.handle_get_property_list(request, context)
+
+    async def list_property_lists(
+        self,
+        params: dict[str, Any],
+        context: ToolContext | None = None,
+    ) -> ListPropertyListsResponse | NotImplementedResponse:
+        """List property lists.
+
+        Validates params and delegates to handle_list_property_lists.
+
+        Args:
+            params: Request parameters as dict
+            context: Optional tool context
+
+        Returns:
+            Response with array of property list metadata
+        """
+        try:
+            request = ListPropertyListsRequest.model_validate(params)
+        except ValidationError as e:
+            return NotImplementedResponse(
+                supported=False,
+                reason=f"Invalid request: {e}",
+                error=Error(code="VALIDATION_ERROR", message=str(e)),
+            )
+        return await self.handle_list_property_lists(request, context)
+
+    async def update_property_list(
+        self,
+        params: dict[str, Any],
+        context: ToolContext | None = None,
+    ) -> UpdatePropertyListResponse | NotImplementedResponse:
+        """Update a property list.
+
+        Validates params and delegates to handle_update_property_list.
+
+        Args:
+            params: Request parameters as dict
+            context: Optional tool context
+
+        Returns:
+            Response with updated property list
+        """
+        try:
+            request = UpdatePropertyListRequest.model_validate(params)
+        except ValidationError as e:
+            return NotImplementedResponse(
+                supported=False,
+                reason=f"Invalid request: {e}",
+                error=Error(code="VALIDATION_ERROR", message=str(e)),
+            )
+        return await self.handle_update_property_list(request, context)
+
+    async def delete_property_list(
+        self,
+        params: dict[str, Any],
+        context: ToolContext | None = None,
+    ) -> DeletePropertyListResponse | NotImplementedResponse:
+        """Delete a property list.
+
+        Validates params and delegates to handle_delete_property_list.
+
+        Args:
+            params: Request parameters as dict
+            context: Optional tool context
+
+        Returns:
+            Response confirming deletion
+        """
+        try:
+            request = DeletePropertyListRequest.model_validate(params)
+        except ValidationError as e:
+            return NotImplementedResponse(
+                supported=False,
+                reason=f"Invalid request: {e}",
+                error=Error(code="VALIDATION_ERROR", message=str(e)),
+            )
+        return await self.handle_delete_property_list(request, context)
+
+    # ========================================================================
+    # Abstract handlers - Implement these in subclasses
     # ========================================================================
 
     @abstractmethod
-    async def create_property_list(
+    async def handle_create_property_list(
         self,
         request: CreatePropertyListRequest,
         context: ToolContext | None = None,
     ) -> CreatePropertyListResponse:
-        """Create a property list for governance filtering.
+        """Handle create property list request.
 
         Must be implemented by Governance agents.
 
         Args:
-            request: Property list creation request with filters and brand manifest
+            request: Validated property list creation request
             context: Optional tool context
 
         Returns:
@@ -71,12 +211,12 @@ class GovernanceHandler(ADCPHandler):
         ...
 
     @abstractmethod
-    async def get_property_list(
+    async def handle_get_property_list(
         self,
         request: GetPropertyListRequest,
         context: ToolContext | None = None,
     ) -> GetPropertyListResponse:
-        """Get a property list with optional resolution.
+        """Handle get property list request.
 
         Must be implemented by Governance agents.
 
@@ -84,7 +224,7 @@ class GovernanceHandler(ADCPHandler):
         identifiers. Otherwise returns only metadata.
 
         Args:
-            request: Request with list_id and optional resolve flag
+            request: Validated request with list_id and optional resolve flag
             context: Optional tool context
 
         Returns:
@@ -93,17 +233,17 @@ class GovernanceHandler(ADCPHandler):
         ...
 
     @abstractmethod
-    async def list_property_lists(
+    async def handle_list_property_lists(
         self,
         request: ListPropertyListsRequest,
         context: ToolContext | None = None,
     ) -> ListPropertyListsResponse:
-        """List property lists.
+        """Handle list property lists request.
 
         Must be implemented by Governance agents.
 
         Args:
-            request: Request with optional filtering and pagination
+            request: Validated request with optional filtering and pagination
             context: Optional tool context
 
         Returns:
@@ -112,17 +252,17 @@ class GovernanceHandler(ADCPHandler):
         ...
 
     @abstractmethod
-    async def update_property_list(
+    async def handle_update_property_list(
         self,
         request: UpdatePropertyListRequest,
         context: ToolContext | None = None,
     ) -> UpdatePropertyListResponse:
-        """Update a property list.
+        """Handle update property list request.
 
         Must be implemented by Governance agents.
 
         Args:
-            request: Request with list_id and updates
+            request: Validated request with list_id and updates
             context: Optional tool context
 
         Returns:
@@ -131,17 +271,17 @@ class GovernanceHandler(ADCPHandler):
         ...
 
     @abstractmethod
-    async def delete_property_list(
+    async def handle_delete_property_list(
         self,
         request: DeletePropertyListRequest,
         context: ToolContext | None = None,
     ) -> DeletePropertyListResponse:
-        """Delete a property list.
+        """Handle delete property list request.
 
         Must be implemented by Governance agents.
 
         Args:
-            request: Request with list_id
+            request: Validated request with list_id
             context: Optional tool context
 
         Returns:

@@ -280,38 +280,40 @@ class TestCLIIntegration:
     """Integration tests for CLI (with mocked network calls)."""
 
     def test_tool_dispatch_includes_all_v3_operations(self):
-        """Test that TOOL_DISPATCH includes all V3 protocol operations."""
-        from adcp.__main__ import TOOL_DISPATCH
+        """Test that dispatch table includes all V3 protocol operations."""
+        from adcp.__main__ import _get_dispatch_table
+
+        dispatch_table = _get_dispatch_table()
 
         # Core operations
-        assert "get_products" in TOOL_DISPATCH
-        assert "create_media_buy" in TOOL_DISPATCH
-        assert "list_tools" in TOOL_DISPATCH
+        assert "get_products" in dispatch_table
+        assert "create_media_buy" in dispatch_table
+        assert "list_tools" in dispatch_table
 
         # V3 Protocol Discovery
-        assert "get_adcp_capabilities" in TOOL_DISPATCH
+        assert "get_adcp_capabilities" in dispatch_table
 
         # V3 Content Standards
-        assert "create_content_standards" in TOOL_DISPATCH
-        assert "get_content_standards" in TOOL_DISPATCH
-        assert "list_content_standards" in TOOL_DISPATCH
-        assert "update_content_standards" in TOOL_DISPATCH
-        assert "calibrate_content" in TOOL_DISPATCH
-        assert "validate_content_delivery" in TOOL_DISPATCH
-        assert "get_media_buy_artifacts" in TOOL_DISPATCH
+        assert "create_content_standards" in dispatch_table
+        assert "get_content_standards" in dispatch_table
+        assert "list_content_standards" in dispatch_table
+        assert "update_content_standards" in dispatch_table
+        assert "calibrate_content" in dispatch_table
+        assert "validate_content_delivery" in dispatch_table
+        assert "get_media_buy_artifacts" in dispatch_table
 
         # V3 Sponsored Intelligence
-        assert "si_get_offering" in TOOL_DISPATCH
-        assert "si_initiate_session" in TOOL_DISPATCH
-        assert "si_send_message" in TOOL_DISPATCH
-        assert "si_terminate_session" in TOOL_DISPATCH
+        assert "si_get_offering" in dispatch_table
+        assert "si_initiate_session" in dispatch_table
+        assert "si_send_message" in dispatch_table
+        assert "si_terminate_session" in dispatch_table
 
         # V3 Governance (Property Lists)
-        assert "create_property_list" in TOOL_DISPATCH
-        assert "get_property_list" in TOOL_DISPATCH
-        assert "list_property_lists" in TOOL_DISPATCH
-        assert "update_property_list" in TOOL_DISPATCH
-        assert "delete_property_list" in TOOL_DISPATCH
+        assert "create_property_list" in dispatch_table
+        assert "get_property_list" in dispatch_table
+        assert "list_property_lists" in dispatch_table
+        assert "update_property_list" in dispatch_table
+        assert "delete_property_list" in dispatch_table
 
     @pytest.mark.asyncio
     async def test_list_tools_dispatch(self):

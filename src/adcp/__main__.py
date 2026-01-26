@@ -153,51 +153,90 @@ async def execute_tool(
         print_result(result, json_output)
 
 
-# Tool dispatch mapping - single source of truth for ADCP methods
-# Types are filled at runtime to avoid circular imports
-# Special case: list_tools and get_info take no parameters (None means no request type)
-TOOL_DISPATCH: dict[str, tuple[str, type | None]] = {
-    # Protocol introspection
-    "list_tools": ("list_tools", None),  # Protocol introspection - no request type
-    "get_info": ("get_info", None),  # Agent info - no request type
-    # Core catalog
-    "get_products": ("get_products", None),
-    "list_creative_formats": ("list_creative_formats", None),
-    "preview_creative": ("preview_creative", None),
-    "build_creative": ("build_creative", None),
-    "sync_creatives": ("sync_creatives", None),
-    "list_creatives": ("list_creatives", None),
-    # Media buy
-    "create_media_buy": ("create_media_buy", None),
-    "update_media_buy": ("update_media_buy", None),
-    "get_media_buy_delivery": ("get_media_buy_delivery", None),
-    "list_authorized_properties": ("list_authorized_properties", None),
-    # Signals
-    "get_signals": ("get_signals", None),
-    "activate_signal": ("activate_signal", None),
-    "provide_performance_feedback": ("provide_performance_feedback", None),
-    # V3 Protocol Discovery
-    "get_adcp_capabilities": ("get_adcp_capabilities", None),
-    # V3 Content Standards
-    "create_content_standards": ("create_content_standards", None),
-    "get_content_standards": ("get_content_standards", None),
-    "list_content_standards": ("list_content_standards", None),
-    "update_content_standards": ("update_content_standards", None),
-    "calibrate_content": ("calibrate_content", None),
-    "validate_content_delivery": ("validate_content_delivery", None),
-    "get_media_buy_artifacts": ("get_media_buy_artifacts", None),
-    # V3 Sponsored Intelligence
-    "si_get_offering": ("si_get_offering", None),
-    "si_initiate_session": ("si_initiate_session", None),
-    "si_send_message": ("si_send_message", None),
-    "si_terminate_session": ("si_terminate_session", None),
-    # V3 Governance (Property Lists)
-    "create_property_list": ("create_property_list", None),
-    "get_property_list": ("get_property_list", None),
-    "list_property_lists": ("list_property_lists", None),
-    "update_property_list": ("update_property_list", None),
-    "delete_property_list": ("delete_property_list", None),
-}
+# Tool names that don't require request types (protocol introspection)
+_NO_REQUEST_TOOLS = frozenset({"list_tools", "get_info"})
+
+# Cached dispatch table (initialized on first use)
+_dispatch_table: dict[str, tuple[str, type | None]] | None = None
+
+
+def _get_dispatch_table() -> dict[str, tuple[str, type | None]]:
+    """Get the tool dispatch table, initializing types on first access.
+
+    This function fails fast with a clear error if types can't be imported.
+    """
+    global _dispatch_table
+
+    if _dispatch_table is not None:
+        return _dispatch_table
+
+    try:
+        from adcp.types import _generated as gen
+    except ImportError as e:
+        raise ImportError(
+            f"Failed to load ADCP types. This may indicate a code generation issue. "
+            f"Try running 'scripts/generate_types.py' to regenerate types. Error: {e}"
+        ) from e
+
+    _dispatch_table = {
+        # Protocol introspection (no request type needed)
+        "list_tools": ("list_tools", None),
+        "get_info": ("get_info", None),
+        # Core catalog
+        "get_products": ("get_products", gen.GetProductsRequest),
+        "list_creative_formats": ("list_creative_formats", gen.ListCreativeFormatsRequest),
+        "preview_creative": ("preview_creative", gen.PreviewCreativeRequest),
+        "build_creative": ("build_creative", gen.BuildCreativeRequest),
+        "sync_creatives": ("sync_creatives", gen.SyncCreativesRequest),
+        "list_creatives": ("list_creatives", gen.ListCreativesRequest),
+        # Media buy
+        "create_media_buy": ("create_media_buy", gen.CreateMediaBuyRequest),
+        "update_media_buy": ("update_media_buy", gen.UpdateMediaBuyRequest),
+        "get_media_buy_delivery": ("get_media_buy_delivery", gen.GetMediaBuyDeliveryRequest),
+        "list_authorized_properties": (
+            "list_authorized_properties",
+            gen.ListAuthorizedPropertiesRequest,
+        ),
+        # Signals
+        "get_signals": ("get_signals", gen.GetSignalsRequest),
+        "activate_signal": ("activate_signal", gen.ActivateSignalRequest),
+        "provide_performance_feedback": (
+            "provide_performance_feedback",
+            gen.ProvidePerformanceFeedbackRequest,
+        ),
+        # V3 Protocol Discovery
+        "get_adcp_capabilities": ("get_adcp_capabilities", gen.GetAdcpCapabilitiesRequest),
+        # V3 Content Standards
+        "create_content_standards": (
+            "create_content_standards",
+            gen.CreateContentStandardsRequest,
+        ),
+        "get_content_standards": ("get_content_standards", gen.GetContentStandardsRequest),
+        "list_content_standards": ("list_content_standards", gen.ListContentStandardsRequest),
+        "update_content_standards": (
+            "update_content_standards",
+            gen.UpdateContentStandardsRequest,
+        ),
+        "calibrate_content": ("calibrate_content", gen.CalibrateContentRequest),
+        "validate_content_delivery": (
+            "validate_content_delivery",
+            gen.ValidateContentDeliveryRequest,
+        ),
+        "get_media_buy_artifacts": ("get_media_buy_artifacts", gen.GetMediaBuyArtifactsRequest),
+        # V3 Sponsored Intelligence
+        "si_get_offering": ("si_get_offering", gen.SiGetOfferingRequest),
+        "si_initiate_session": ("si_initiate_session", gen.SiInitiateSessionRequest),
+        "si_send_message": ("si_send_message", gen.SiSendMessageRequest),
+        "si_terminate_session": ("si_terminate_session", gen.SiTerminateSessionRequest),
+        # V3 Governance (Property Lists)
+        "create_property_list": ("create_property_list", gen.CreatePropertyListRequest),
+        "get_property_list": ("get_property_list", gen.GetPropertyListRequest),
+        "list_property_lists": ("list_property_lists", gen.ListPropertyListsRequest),
+        "update_property_list": ("update_property_list", gen.UpdatePropertyListRequest),
+        "delete_property_list": ("delete_property_list", gen.DeletePropertyListRequest),
+    }
+
+    return _dispatch_table
 
 
 async def _dispatch_tool(client: ADCPClient, tool_name: str, payload: dict[str, Any]) -> Any:
@@ -216,100 +255,14 @@ async def _dispatch_tool(client: ADCPClient, tool_name: str, payload: dict[str, 
     """
     from pydantic import ValidationError
 
-    from adcp.types import _generated as gen
     from adcp.types.core import TaskResult, TaskStatus
 
-    # Lazy initialization of request types (avoid circular imports)
-    if TOOL_DISPATCH["get_products"][1] is None:
-        TOOL_DISPATCH["get_products"] = ("get_products", gen.GetProductsRequest)
-        TOOL_DISPATCH["list_creative_formats"] = (
-            "list_creative_formats",
-            gen.ListCreativeFormatsRequest,
-        )
-        TOOL_DISPATCH["preview_creative"] = ("preview_creative", gen.PreviewCreativeRequest)
-        TOOL_DISPATCH["build_creative"] = ("build_creative", gen.BuildCreativeRequest)
-        TOOL_DISPATCH["sync_creatives"] = ("sync_creatives", gen.SyncCreativesRequest)
-        TOOL_DISPATCH["list_creatives"] = ("list_creatives", gen.ListCreativesRequest)
-        TOOL_DISPATCH["create_media_buy"] = ("create_media_buy", gen.CreateMediaBuyRequest)
-        TOOL_DISPATCH["update_media_buy"] = ("update_media_buy", gen.UpdateMediaBuyRequest)
-        TOOL_DISPATCH["get_media_buy_delivery"] = (
-            "get_media_buy_delivery",
-            gen.GetMediaBuyDeliveryRequest,
-        )
-        TOOL_DISPATCH["list_authorized_properties"] = (
-            "list_authorized_properties",
-            gen.ListAuthorizedPropertiesRequest,
-        )
-        TOOL_DISPATCH["get_signals"] = ("get_signals", gen.GetSignalsRequest)
-        TOOL_DISPATCH["activate_signal"] = ("activate_signal", gen.ActivateSignalRequest)
-        TOOL_DISPATCH["provide_performance_feedback"] = (
-            "provide_performance_feedback",
-            gen.ProvidePerformanceFeedbackRequest,
-        )
-        # V3 Protocol Discovery
-        TOOL_DISPATCH["get_adcp_capabilities"] = (
-            "get_adcp_capabilities",
-            gen.GetAdcpCapabilitiesRequest,
-        )
-        # V3 Content Standards
-        TOOL_DISPATCH["create_content_standards"] = (
-            "create_content_standards",
-            gen.CreateContentStandardsRequest,
-        )
-        TOOL_DISPATCH["get_content_standards"] = (
-            "get_content_standards",
-            gen.GetContentStandardsRequest,
-        )
-        TOOL_DISPATCH["list_content_standards"] = (
-            "list_content_standards",
-            gen.ListContentStandardsRequest,
-        )
-        TOOL_DISPATCH["update_content_standards"] = (
-            "update_content_standards",
-            gen.UpdateContentStandardsRequest,
-        )
-        TOOL_DISPATCH["calibrate_content"] = ("calibrate_content", gen.CalibrateContentRequest)
-        TOOL_DISPATCH["validate_content_delivery"] = (
-            "validate_content_delivery",
-            gen.ValidateContentDeliveryRequest,
-        )
-        TOOL_DISPATCH["get_media_buy_artifacts"] = (
-            "get_media_buy_artifacts",
-            gen.GetMediaBuyArtifactsRequest,
-        )
-        # V3 Sponsored Intelligence
-        TOOL_DISPATCH["si_get_offering"] = ("si_get_offering", gen.SiGetOfferingRequest)
-        TOOL_DISPATCH["si_initiate_session"] = (
-            "si_initiate_session",
-            gen.SiInitiateSessionRequest,
-        )
-        TOOL_DISPATCH["si_send_message"] = ("si_send_message", gen.SiSendMessageRequest)
-        TOOL_DISPATCH["si_terminate_session"] = (
-            "si_terminate_session",
-            gen.SiTerminateSessionRequest,
-        )
-        # V3 Governance (Property Lists)
-        TOOL_DISPATCH["create_property_list"] = (
-            "create_property_list",
-            gen.CreatePropertyListRequest,
-        )
-        TOOL_DISPATCH["get_property_list"] = ("get_property_list", gen.GetPropertyListRequest)
-        TOOL_DISPATCH["list_property_lists"] = (
-            "list_property_lists",
-            gen.ListPropertyListsRequest,
-        )
-        TOOL_DISPATCH["update_property_list"] = (
-            "update_property_list",
-            gen.UpdatePropertyListRequest,
-        )
-        TOOL_DISPATCH["delete_property_list"] = (
-            "delete_property_list",
-            gen.DeletePropertyListRequest,
-        )
+    # Get dispatch table (initializes types on first access, fails fast on import errors)
+    dispatch_table = _get_dispatch_table()
 
     # Check if tool exists
-    if tool_name not in TOOL_DISPATCH:
-        available = ", ".join(sorted(TOOL_DISPATCH.keys()))
+    if tool_name not in dispatch_table:
+        available = ", ".join(sorted(dispatch_table.keys()))
         return TaskResult(
             status=TaskStatus.FAILED,
             success=False,
@@ -317,7 +270,7 @@ async def _dispatch_tool(client: ADCPClient, tool_name: str, payload: dict[str, 
         )
 
     # Get method and request type
-    method_name, request_type = TOOL_DISPATCH[tool_name]
+    method_name, request_type = dispatch_table[tool_name]
     method = getattr(client, method_name)
 
     # Special case: list_tools and get_info take no parameters and return

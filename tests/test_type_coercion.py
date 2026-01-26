@@ -590,6 +590,7 @@ class TestResponseTypeCoercion:
         from pydantic import Field
 
         from adcp.types import GetProductsResponse
+
         # Import Error from core.error - the type used in ergonomic coercion
         # (adcp.types.Error exports a different Error from content_standards)
         from adcp.types.generated_poc.core.error import Error as CoreError

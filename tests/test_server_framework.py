@@ -17,32 +17,21 @@ from adcp.server import (
 )
 from adcp.server.proposal import proposals_not_supported
 from adcp.types import (
-    CalibrateContentRequest,
     CalibrateContentResponse,
-    CreateContentStandardsRequest,
     CreateContentStandardsResponse,
     CreatePropertyListResponse,
     DeletePropertyListResponse,
-    GetContentStandardsRequest,
     GetContentStandardsResponse,
-    GetMediaBuyArtifactsRequest,
     GetMediaBuyArtifactsResponse,
     GetPropertyListResponse,
-    ListContentStandardsRequest,
     ListContentStandardsResponse,
     ListPropertyListsResponse,
-    SiGetOfferingRequest,
     SiGetOfferingResponse,
-    SiInitiateSessionRequest,
     SiInitiateSessionResponse,
-    SiSendMessageRequest,
     SiSendMessageResponse,
-    SiTerminateSessionRequest,
     SiTerminateSessionResponse,
-    UpdateContentStandardsRequest,
     UpdateContentStandardsResponse,
     UpdatePropertyListResponse,
-    ValidateContentDeliveryRequest,
     ValidateContentDeliveryResponse,
 )
 
@@ -137,25 +126,25 @@ class TestContentStandardsHandler:
         """Create a concrete handler for testing."""
 
         class ConcreteCSHandler(ContentStandardsHandler):
-            async def create_content_standards(self, request, context=None):
+            async def handle_create_content_standards(self, request, context=None):
                 return CreateContentStandardsResponse()
 
-            async def get_content_standards(self, request, context=None):
+            async def handle_get_content_standards(self, request, context=None):
                 return GetContentStandardsResponse()
 
-            async def list_content_standards(self, request, context=None):
+            async def handle_list_content_standards(self, request, context=None):
                 return ListContentStandardsResponse()
 
-            async def update_content_standards(self, request, context=None):
+            async def handle_update_content_standards(self, request, context=None):
                 return UpdateContentStandardsResponse()
 
-            async def calibrate_content(self, request, context=None):
+            async def handle_calibrate_content(self, request, context=None):
                 return CalibrateContentResponse()
 
-            async def validate_content_delivery(self, request, context=None):
+            async def handle_validate_content_delivery(self, request, context=None):
                 return ValidateContentDeliveryResponse()
 
-            async def get_media_buy_artifacts(self, request, context=None):
+            async def handle_get_media_buy_artifacts(self, request, context=None):
                 return GetMediaBuyArtifactsResponse()
 
         return ConcreteCSHandler()
@@ -217,16 +206,16 @@ class TestSponsoredIntelligenceHandler:
         """Create a concrete handler for testing."""
 
         class ConcreteSIHandler(SponsoredIntelligenceHandler):
-            async def si_get_offering(self, request, context=None):
+            async def handle_si_get_offering(self, request, context=None):
                 return SiGetOfferingResponse()
 
-            async def si_initiate_session(self, request, context=None):
+            async def handle_si_initiate_session(self, request, context=None):
                 return SiInitiateSessionResponse()
 
-            async def si_send_message(self, request, context=None):
+            async def handle_si_send_message(self, request, context=None):
                 return SiSendMessageResponse()
 
-            async def si_terminate_session(self, request, context=None):
+            async def handle_si_terminate_session(self, request, context=None):
                 return SiTerminateSessionResponse()
 
         return ConcreteSIHandler()
@@ -246,7 +235,10 @@ class TestSponsoredIntelligenceHandler:
         handler = self.create_concrete_handler()
         result = await handler.create_media_buy({})
         assert isinstance(result, NotImplementedResponse)
-        assert "si_initiate_session" in result.reason.lower() or "Sponsored Intelligence" in result.reason
+        assert (
+            "si_initiate_session" in result.reason.lower()
+            or "Sponsored Intelligence" in result.reason
+        )
 
     @pytest.mark.asyncio
     async def test_content_standards_returns_not_supported(self):
@@ -280,19 +272,19 @@ class TestGovernanceHandler:
         """Create a concrete handler for testing."""
 
         class ConcreteGovHandler(GovernanceHandler):
-            async def create_property_list(self, request, context=None):
+            async def handle_create_property_list(self, request, context=None):
                 return CreatePropertyListResponse()
 
-            async def get_property_list(self, request, context=None):
+            async def handle_get_property_list(self, request, context=None):
                 return GetPropertyListResponse()
 
-            async def list_property_lists(self, request, context=None):
+            async def handle_list_property_lists(self, request, context=None):
                 return ListPropertyListsResponse(lists=[])
 
-            async def update_property_list(self, request, context=None):
+            async def handle_update_property_list(self, request, context=None):
                 return UpdatePropertyListResponse()
 
-            async def delete_property_list(self, request, context=None):
+            async def handle_delete_property_list(self, request, context=None):
                 return DeletePropertyListResponse()
 
         return ConcreteGovHandler()
