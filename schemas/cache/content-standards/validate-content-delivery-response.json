@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/content-standards/validate-content-delivery-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Response payload with per-record verdicts and optional feature breakdown",
   "oneOf": [
@@ -6,14 +7,14 @@
       "description": "Success response",
       "properties": {
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/latest/core/context.json"
         },
         "errors": {
           "description": "Field must not be present in success response",
           "not": {}
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/latest/core/ext.json"
         },
         "results": {
           "description": "Per-record evaluation results",
@@ -104,16 +105,16 @@
       "description": "Error response",
       "properties": {
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/latest/core/context.json"
         },
         "errors": {
           "items": {
-            "$ref": "../core/error.json"
+            "$ref": "/schemas/latest/core/error.json"
           },
           "type": "array"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/latest/core/ext.json"
         },
         "summary": {
           "description": "Field must not be present in error response",

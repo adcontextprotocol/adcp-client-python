@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/property/property-error.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Error information for a property that could not be evaluated",
@@ -20,7 +21,7 @@
       "type": "string"
     },
     "property": {
-      "$ref": "../core/property.json",
+      "$ref": "/schemas/latest/core/property.json",
       "description": "The property that caused the error"
     }
   },

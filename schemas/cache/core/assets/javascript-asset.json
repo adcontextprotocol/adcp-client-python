@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/core/assets/javascript-asset.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "JavaScript code asset",
@@ -8,7 +9,7 @@
       "type": "string"
     },
     "module_type": {
-      "$ref": "../../enums/javascript-module-type.json",
+      "$ref": "/schemas/latest/enums/javascript-module-type.json",
       "description": "JavaScript module type"
     }
   },

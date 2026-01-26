@@ -1,17 +1,18 @@
 {
+  "$id": "/schemas/latest/property/list-property-lists-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Request parameters for listing property lists",
   "properties": {
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/latest/core/context.json"
     },
     "cursor": {
       "description": "Pagination cursor",
       "type": "string"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/latest/core/ext.json"
     },
     "max_results": {
       "default": 100,

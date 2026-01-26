@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/media-buy/get-media-buy-delivery-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Response payload for get_media_buy_delivery task",
@@ -41,7 +42,7 @@
       "type": "object"
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/latest/core/context.json"
     },
     "currency": {
       "description": "ISO 4217 currency code",
@@ -51,12 +52,12 @@
     "errors": {
       "description": "Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)",
       "items": {
-        "$ref": "../core/error.json"
+        "$ref": "/schemas/latest/core/error.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/latest/core/ext.json"
     },
     "media_buy_deliveries": {
       "description": "Array of delivery data for media buys. When used in webhook notifications, may contain multiple media buys aggregated by publisher. When used in get_media_buy_delivery API responses, typically contains requested media buys.",
@@ -72,7 +73,7 @@
             "items": {
               "allOf": [
                 {
-                  "$ref": "../core/delivery-metrics.json"
+                  "$ref": "/schemas/latest/core/delivery-metrics.json"
                 },
                 {
                   "properties": {
@@ -110,7 +111,7 @@
                       "type": "boolean"
                     },
                     "pricing_model": {
-                      "$ref": "../enums/pricing-model.json",
+                      "$ref": "/schemas/latest/enums/pricing-model.json",
                       "description": "The pricing model used for this package (e.g., cpm, cpcv, cpp). Indicates how the package is billed and which metrics are most relevant for optimization."
                     },
                     "rate": {
@@ -176,7 +177,7 @@
             "type": "string"
           },
           "pricing_model": {
-            "$ref": "../enums/pricing-model.json",
+            "$ref": "/schemas/latest/enums/pricing-model.json",
             "description": "Pricing model used for this media buy"
           },
           "status": {
@@ -194,7 +195,7 @@
           "totals": {
             "allOf": [
               {
-                "$ref": "../core/delivery-metrics.json"
+                "$ref": "/schemas/latest/core/delivery-metrics.json"
               },
               {
                 "description": "Aggregate metrics for this media buy across all packages",

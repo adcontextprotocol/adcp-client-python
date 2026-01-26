@@ -1,20 +1,21 @@
 {
+  "$id": "/schemas/latest/signals/get-signals-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Response payload for get_signals task",
   "properties": {
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/latest/core/context.json"
     },
     "errors": {
       "description": "Task-specific errors and warnings (e.g., signal discovery or pricing issues)",
       "items": {
-        "$ref": "../core/error.json"
+        "$ref": "/schemas/latest/core/error.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/latest/core/ext.json"
     },
     "signals": {
       "description": "Array of matching signals",
@@ -34,7 +35,7 @@
           "deployments": {
             "description": "Array of deployment targets",
             "items": {
-              "$ref": "../core/deployment.json"
+              "$ref": "/schemas/latest/core/deployment.json"
             },
             "type": "array"
           },
@@ -72,7 +73,7 @@
             "type": "string"
           },
           "signal_type": {
-            "$ref": "../enums/signal-catalog-type.json",
+            "$ref": "/schemas/latest/enums/signal-catalog-type.json",
             "description": "Type of signal"
           }
         },

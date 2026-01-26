@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/core/brand-manifest-ref.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Brand manifest provided either as an inline object or a URL string pointing to a hosted manifest",
   "examples": [
@@ -19,7 +20,7 @@
   ],
   "oneOf": [
     {
-      "$ref": "brand-manifest.json",
+      "$ref": "/schemas/latest/core/brand-manifest.json",
       "description": "Inline brand manifest object"
     },
     {

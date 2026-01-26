@@ -219,17 +219,19 @@ def test_discriminated_union_aliases_point_to_correct_types():
     from adcp.types._generated import (
         DaastAsset1,
         DaastAsset2,
-        PreviewRender,
+        PreviewRender1,
+        PreviewRender2,
+        PreviewRender3,
         SubAsset1,
         SubAsset2,
         VastAsset1,
         VastAsset2,
     )
 
-    # Preview renders - now all point to the same unified type
-    assert UrlPreviewRender is PreviewRender
-    assert HtmlPreviewRender is PreviewRender
-    assert BothPreviewRender is PreviewRender
+    # Preview renders - point to specific variants discriminated by output_format
+    assert UrlPreviewRender is PreviewRender1  # output_format='url'
+    assert HtmlPreviewRender is PreviewRender2  # output_format='html'
+    assert BothPreviewRender is PreviewRender3  # output_format='both'
 
     # VAST assets
     assert UrlVastAsset is VastAsset1

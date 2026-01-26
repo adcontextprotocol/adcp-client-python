@@ -191,20 +191,25 @@ def test_semantic_aliases_point_to_discriminated_variants():
         UrlPreviewRender,
     )
 
-    # URL preview render accepts preview_url (now the only required field)
+    # URL preview render requires render_id, output_format='url', preview_url, role
     url_render = UrlPreviewRender(
         render_id="r1",
+        output_format="url",
         preview_url="https://example.com/preview",
-        media_type="text/html",
+        role="primary",
     )
     assert str(url_render.preview_url) == "https://example.com/preview"
+    assert url_render.output_format == "url"
 
-    # HTML preview render is now same as URL (unified PreviewRender type)
+    # HTML preview render requires render_id, output_format='html', preview_html, role
     html_render = HtmlPreviewRender(
         render_id="r2",
-        preview_url="https://example.com/preview2",
+        output_format="html",
+        preview_html="<div>Preview content</div>",
+        role="primary",
     )
-    assert str(html_render.preview_url) == "https://example.com/preview2"
+    assert html_render.preview_html == "<div>Preview content</div>"
+    assert html_render.output_format == "html"
 
     # Success response should accept success fields
     success = CreateMediaBuySuccessResponse(

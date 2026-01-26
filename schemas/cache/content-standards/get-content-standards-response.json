@@ -1,17 +1,18 @@
 {
+  "$id": "/schemas/latest/content-standards/get-content-standards-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Response payload with content safety policies",
   "oneOf": [
     {
       "allOf": [
         {
-          "$ref": "content-standards.json"
+          "$ref": "/schemas/latest/content-standards/content-standards.json"
         }
       ],
       "description": "Success response - returns the content standards configuration",
       "properties": {
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/latest/core/context.json"
         },
         "errors": {
           "description": "Field must not be present in success response",
@@ -24,16 +25,16 @@
       "description": "Error response",
       "properties": {
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/latest/core/context.json"
         },
         "errors": {
           "items": {
-            "$ref": "../core/error.json"
+            "$ref": "/schemas/latest/core/error.json"
           },
           "type": "array"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/latest/core/ext.json"
         },
         "standards_id": {
           "description": "Field must not be present in error response",

@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/pricing-options/cpv-option.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Cost Per View (at publisher-defined threshold) pricing for video/audio. If fixed_price is present, it's fixed pricing. If absent, it's auction-based.",

@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/enums/pacing.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Budget pacing strategy",
   "enum": [

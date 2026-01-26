@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/sponsored-intelligence/si-terminate-session-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Confirmation of session termination",
@@ -25,12 +26,12 @@
     },
     "errors": {
       "items": {
-        "$ref": "../core/error.json"
+        "$ref": "/schemas/latest/core/error.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/latest/core/ext.json"
     },
     "follow_up": {
       "additionalProperties": true,

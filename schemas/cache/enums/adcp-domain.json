@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/enums/adcp-domain.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "AdCP protocol domains for task categorization",
   "enum": [

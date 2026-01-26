@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/enums/markdown-flavor.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Markdown specification flavors supported for text assets",
   "enum": [

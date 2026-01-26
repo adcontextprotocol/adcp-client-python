@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/core/product-filters.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Structured filters for product discovery",
@@ -43,7 +44,7 @@
     "channels": {
       "description": "Filter by advertising channels (e.g., ['display', 'video', 'dooh'])",
       "items": {
-        "$ref": "../enums/channels.json"
+        "$ref": "/schemas/latest/enums/channels.json"
       },
       "type": "array"
     },
@@ -56,7 +57,7 @@
       "type": "array"
     },
     "delivery_type": {
-      "$ref": "../enums/delivery-type.json"
+      "$ref": "/schemas/latest/enums/delivery-type.json"
     },
     "end_date": {
       "description": "Campaign end date (ISO 8601 date format: YYYY-MM-DD) for availability checks",
@@ -66,14 +67,14 @@
     "format_ids": {
       "description": "Filter by specific format IDs",
       "items": {
-        "$ref": "format-id.json"
+        "$ref": "/schemas/latest/core/format-id.json"
       },
       "type": "array"
     },
     "format_types": {
       "description": "Filter by format types",
       "items": {
-        "$ref": "../enums/format-category.json"
+        "$ref": "/schemas/latest/enums/format-category.json"
       },
       "type": "array"
     },
@@ -91,7 +92,7 @@
             "type": "string"
           },
           "system": {
-            "$ref": "../enums/metro-system.json",
+            "$ref": "/schemas/latest/enums/metro-system.json",
             "description": "Metro classification system"
           }
         },
@@ -125,7 +126,7 @@
       "type": "array"
     },
     "required_features": {
-      "$ref": "media-buy-features.json",
+      "$ref": "/schemas/latest/core/media-buy-features.json",
       "description": "Filter to products from sellers supporting specific protocol features. Only features set to true are used for filtering."
     },
     "required_geo_targeting": {
@@ -134,7 +135,7 @@
         "additionalProperties": false,
         "properties": {
           "level": {
-            "$ref": "../enums/geo-level.json",
+            "$ref": "/schemas/latest/enums/geo-level.json",
             "description": "Geographic targeting level (country, region, metro, postal_area)"
           },
           "system": {

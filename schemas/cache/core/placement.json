@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/core/placement.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Represents a specific ad placement within a product's inventory",
@@ -10,7 +11,7 @@
     "format_ids": {
       "description": "Format IDs supported by this specific placement. Can include: (1) concrete format_ids (fixed dimensions), (2) template format_ids without parameters (accepts any dimensions/duration), or (3) parameterized format_ids (specific dimension/duration constraints).",
       "items": {
-        "$ref": "format-id.json"
+        "$ref": "/schemas/latest/core/format-id.json"
       },
       "minItems": 1,
       "type": "array"

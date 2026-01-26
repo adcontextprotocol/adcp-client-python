@@ -1,54 +1,225 @@
 {
+  "$id": "/schemas/latest/creative/preview-render.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Preview Render",
-  "description": "A single rendered piece of a preview. Most formats render as a single piece, but companion ad formats, multi-placement formats, and adaptive formats may render as multiple pieces.",
-  "type": "object",
-  "additionalProperties": true,
-  "properties": {
-    "render_id": {
-      "type": "string",
-      "description": "Unique identifier for this render piece"
-    },
-    "preview_url": {
-      "type": "string",
-      "format": "uri",
-      "description": "URL to the rendered preview HTML page that can be embedded in an iframe"
-    },
-    "dimensions": {
-      "type": "object",
-      "description": "Dimensions of this render piece",
+  "description": "A single rendered piece of a creative preview with discriminated output format",
+  "oneOf": [
+    {
+      "additionalProperties": true,
+      "description": "URL-only preview format",
       "properties": {
-        "width": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Width in pixels"
+        "dimensions": {
+          "description": "Dimensions for this rendered piece",
+          "properties": {
+            "height": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "width": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          "required": [
+            "width",
+            "height"
+          ],
+          "type": "object"
         },
-        "height": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Height in pixels"
+        "embedding": {
+          "description": "Optional security and embedding metadata for safe iframe integration",
+          "properties": {
+            "csp_policy": {
+              "description": "Content Security Policy requirements for embedding",
+              "type": "string"
+            },
+            "recommended_sandbox": {
+              "description": "Recommended iframe sandbox attribute value (e.g., 'allow-scripts allow-same-origin')",
+              "type": "string"
+            },
+            "requires_https": {
+              "description": "Whether this output requires HTTPS for secure embedding",
+              "type": "boolean"
+            },
+            "supports_fullscreen": {
+              "description": "Whether this output supports fullscreen mode",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "output_format": {
+          "const": "url",
+          "description": "Discriminator indicating preview_url is provided",
+          "type": "string"
+        },
+        "preview_url": {
+          "description": "URL to an HTML page that renders this piece. Can be embedded in an iframe.",
+          "format": "uri",
+          "type": "string"
+        },
+        "render_id": {
+          "description": "Unique identifier for this rendered piece within the variant",
+          "type": "string"
+        },
+        "role": {
+          "description": "Semantic role of this rendered piece. Use 'primary' for main content, 'companion' for associated banners, descriptive strings for device variants or custom roles.",
+          "type": "string"
         }
       },
       "required": [
-        "width",
-        "height"
-      ]
+        "render_id",
+        "output_format",
+        "preview_url",
+        "role"
+      ],
+      "type": "object"
     },
-    "placement_hint": {
-      "type": "string",
-      "description": "Optional hint about where this piece should be placed (e.g., 'main', 'companion', 'banner')"
+    {
+      "additionalProperties": true,
+      "description": "HTML-only preview format",
+      "properties": {
+        "dimensions": {
+          "description": "Dimensions for this rendered piece",
+          "properties": {
+            "height": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "width": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          "required": [
+            "width",
+            "height"
+          ],
+          "type": "object"
+        },
+        "embedding": {
+          "description": "Optional security and embedding metadata",
+          "properties": {
+            "csp_policy": {
+              "description": "Content Security Policy requirements for embedding",
+              "type": "string"
+            },
+            "recommended_sandbox": {
+              "description": "Recommended iframe sandbox attribute value (e.g., 'allow-scripts allow-same-origin')",
+              "type": "string"
+            },
+            "requires_https": {
+              "description": "Whether this output requires HTTPS for secure embedding",
+              "type": "boolean"
+            },
+            "supports_fullscreen": {
+              "description": "Whether this output supports fullscreen mode",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "output_format": {
+          "const": "html",
+          "description": "Discriminator indicating preview_html is provided",
+          "type": "string"
+        },
+        "preview_html": {
+          "description": "Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.",
+          "type": "string"
+        },
+        "render_id": {
+          "description": "Unique identifier for this rendered piece within the variant",
+          "type": "string"
+        },
+        "role": {
+          "description": "Semantic role of this rendered piece. Use 'primary' for main content, 'companion' for associated banners, descriptive strings for device variants or custom roles.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "render_id",
+        "output_format",
+        "preview_html",
+        "role"
+      ],
+      "type": "object"
     },
-    "media_type": {
-      "type": "string",
-      "description": "MIME type of the preview content",
-      "examples": [
-        "text/html",
-        "image/png",
-        "video/mp4"
-      ]
+    {
+      "additionalProperties": true,
+      "description": "Both URL and HTML preview format",
+      "properties": {
+        "dimensions": {
+          "description": "Dimensions for this rendered piece",
+          "properties": {
+            "height": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "width": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          "required": [
+            "width",
+            "height"
+          ],
+          "type": "object"
+        },
+        "embedding": {
+          "description": "Optional security and embedding metadata for safe iframe integration",
+          "properties": {
+            "csp_policy": {
+              "description": "Content Security Policy requirements for embedding",
+              "type": "string"
+            },
+            "recommended_sandbox": {
+              "description": "Recommended iframe sandbox attribute value (e.g., 'allow-scripts allow-same-origin')",
+              "type": "string"
+            },
+            "requires_https": {
+              "description": "Whether this output requires HTTPS for secure embedding",
+              "type": "boolean"
+            },
+            "supports_fullscreen": {
+              "description": "Whether this output supports fullscreen mode",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "output_format": {
+          "const": "both",
+          "description": "Discriminator indicating both preview_url and preview_html are provided",
+          "type": "string"
+        },
+        "preview_html": {
+          "description": "Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.",
+          "type": "string"
+        },
+        "preview_url": {
+          "description": "URL to an HTML page that renders this piece. Can be embedded in an iframe.",
+          "format": "uri",
+          "type": "string"
+        },
+        "render_id": {
+          "description": "Unique identifier for this rendered piece within the variant",
+          "type": "string"
+        },
+        "role": {
+          "description": "Semantic role of this rendered piece. Use 'primary' for main content, 'companion' for associated banners, descriptive strings for device variants or custom roles.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "render_id",
+        "output_format",
+        "preview_url",
+        "preview_html",
+        "role"
+      ],
+      "type": "object"
     }
-  },
-  "required": [
-    "preview_url"
-  ]
+  ],
+  "title": "Preview Render"
 }

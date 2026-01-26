@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/sponsored-intelligence/si-initiate-session-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Host initiates a session with a brand agent",
@@ -8,10 +9,10 @@
       "type": "string"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/latest/core/ext.json"
     },
     "identity": {
-      "$ref": "si-identity.json"
+      "$ref": "/schemas/latest/sponsored-intelligence/si-identity.json"
     },
     "media_buy_id": {
       "description": "AdCP media buy ID if session was triggered by advertising",
@@ -30,7 +31,7 @@
       "type": "string"
     },
     "supported_capabilities": {
-      "$ref": "si-capabilities.json",
+      "$ref": "/schemas/latest/sponsored-intelligence/si-capabilities.json",
       "description": "What capabilities the host supports"
     }
   },

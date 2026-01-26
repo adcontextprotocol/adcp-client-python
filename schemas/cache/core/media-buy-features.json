@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/core/media-buy-features.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": {
     "type": "boolean"

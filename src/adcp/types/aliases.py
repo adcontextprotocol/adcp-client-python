@@ -61,8 +61,11 @@ from adcp.types._generated import (
     # Preview creative responses
     PreviewCreativeResponse1,
     PreviewCreativeResponse2,
-    # Preview renders (single type after schema consolidation)
+    # Preview renders (discriminated union by output_format)
     PreviewRender,
+    PreviewRender1,  # output_format='url'
+    PreviewRender2,  # output_format='html'
+    PreviewRender3,  # output_format='both'
     # Publisher properties types
     PropertyId,
     PropertyTag,
@@ -210,16 +213,15 @@ PreviewCreativeStaticResponse = PreviewCreativeResponse1
 PreviewCreativeInteractiveResponse = PreviewCreativeResponse2
 """Preview response with interactive renders (iframe embedding)."""
 
-# Preview Render Aliases (schema consolidated to single type)
-# These aliases are kept for backwards compatibility but all point to the same type.
-UrlPreviewRender = PreviewRender
-"""Preview render with preview_url for iframe embedding."""
+# Preview Render Aliases (discriminated union by output_format)
+UrlPreviewRender = PreviewRender1
+"""Preview render with output_format='url' and preview_url for iframe embedding."""
 
-HtmlPreviewRender = PreviewRender
-"""Preview render with preview_html for direct embedding."""
+HtmlPreviewRender = PreviewRender2
+"""Preview render with output_format='html' and preview_html for direct embedding."""
 
-BothPreviewRender = PreviewRender
-"""Preview render with both preview_url and preview_html."""
+BothPreviewRender = PreviewRender3
+"""Preview render with output_format='both' and both preview_url and preview_html."""
 
 # ============================================================================
 # ASSET TYPE ALIASES - Delivery & Kind Discriminated Unions

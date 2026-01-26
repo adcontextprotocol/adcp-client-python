@@ -22,27 +22,48 @@ OUTPUT_DIR = REPO_ROOT / "src" / "adcp" / "types" / "generated_poc"
 TEMP_DIR = REPO_ROOT / ".schema_temp"
 
 
-def rewrite_refs_for_underscores(obj):
+def rewrite_refs(obj, current_schema_rel_path: Path):
     """
-    Recursively rewrite $ref paths to use underscores instead of hyphens.
+    Recursively rewrite $ref paths:
+    1. Convert absolute /schemas/latest/... paths to relative paths
+    2. Replace hyphens with underscores for valid Python module names
 
-    This is needed because Python module names cannot contain hyphens,
-    so we rename directories from media-buy to media_buy, but the refs
-    still point to the hyphenated versions.
+    Args:
+        obj: The JSON schema object to rewrite
+        current_schema_rel_path: Relative path of current schema (e.g., signals/get-signals-request.json)
     """
     if isinstance(obj, dict):
         if "$ref" in obj:
             ref_path = obj["$ref"]
+
+            # Convert absolute /schemas/latest/ paths to relative paths
+            if ref_path.startswith("/schemas/latest/"):
+                # Extract the path after /schemas/latest/
+                # e.g., "/schemas/latest/core/context.json" -> "core/context.json"
+                target_rel_path = ref_path[len("/schemas/latest/") :]
+
+                # Compute relative path from current schema to target
+                # current_schema_rel_path is like "signals/get-signals-request.json"
+                # We need to go up to the root and then to the target
+                current_dir = current_schema_rel_path.parent
+                if current_dir == Path("."):
+                    # Schema is at root level
+                    ref_path = target_rel_path
+                else:
+                    # Need to go up from current directory
+                    up_levels = len(current_dir.parts)
+                    ref_path = "../" * up_levels + target_rel_path
+
             # Replace hyphens with underscores in each path segment
             parts = ref_path.split("/")
             parts = [part.replace("-", "_") for part in parts]
             obj["$ref"] = "/".join(parts)
 
         for value in obj.values():
-            rewrite_refs_for_underscores(value)
+            rewrite_refs(value, current_schema_rel_path)
     elif isinstance(obj, list):
         for item in obj:
-            rewrite_refs_for_underscores(item)
+            rewrite_refs(item, current_schema_rel_path)
 
     return obj
 
@@ -87,8 +108,8 @@ def flatten_schemas():
         with open(schema_file) as f:
             schema = json.load(f)
 
-        # Rewrite $ref paths to use underscores instead of hyphens
-        schema = rewrite_refs_for_underscores(schema)
+        # Rewrite $ref paths: convert absolute paths to relative, hyphens to underscores
+        schema = rewrite_refs(schema, rel_path)
 
         with open(output_file, "w") as f:
             json.dump(schema, f, indent=2)

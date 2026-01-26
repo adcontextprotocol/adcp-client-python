@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/core/error.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Standard error structure for task-specific errors and warnings",

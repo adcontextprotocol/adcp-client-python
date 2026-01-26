@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/core/assets/text-asset.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Text content asset",

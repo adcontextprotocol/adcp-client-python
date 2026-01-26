@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/content-standards/update-content-standards-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Response from updating a content standards configuration",
@@ -8,17 +9,17 @@
       "type": "string"
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/latest/core/context.json"
     },
     "errors": {
       "description": "Errors that occurred during the update",
       "items": {
-        "$ref": "../core/error.json"
+        "$ref": "/schemas/latest/core/error.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/latest/core/ext.json"
     },
     "standards_id": {
       "description": "ID of the updated standards configuration",

@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/property/property-feature-definition.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Defines a feature that a governance agent can evaluate for properties. Used in list_property_features to advertise agent capabilities.",
@@ -36,7 +37,7 @@
       "type": "string"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/latest/core/ext.json"
     },
     "feature_id": {
       "description": "Unique identifier for this feature (e.g., 'consent_quality', 'carbon_score', 'coppa_certified')",

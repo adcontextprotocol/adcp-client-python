@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/media-buy/update-media-buy-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Request parameters for updating campaign and package settings",
@@ -20,7 +21,7 @@
       "type": "string"
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/latest/core/context.json"
     },
     "end_time": {
       "description": "New end date/time in ISO 8601 format",
@@ -28,7 +29,7 @@
       "type": "string"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/latest/core/ext.json"
     },
     "media_buy_id": {
       "description": "Publisher's ID of the media buy to update",
@@ -37,7 +38,7 @@
     "packages": {
       "description": "Package-specific updates",
       "items": {
-        "$ref": "package-update.json"
+        "$ref": "/schemas/latest/media-buy/package-update.json"
       },
       "type": "array"
     },
@@ -46,15 +47,15 @@
       "type": "boolean"
     },
     "push_notification_config": {
-      "$ref": "../core/push-notification-config.json",
+      "$ref": "/schemas/latest/core/push-notification-config.json",
       "description": "Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time. This is separate from reporting_webhook which configures ongoing campaign reporting."
     },
     "reporting_webhook": {
-      "$ref": "../core/reporting-webhook.json",
+      "$ref": "/schemas/latest/core/reporting-webhook.json",
       "description": "Optional webhook configuration for automated reporting delivery. Updates the reporting configuration for this media buy."
     },
     "start_time": {
-      "$ref": "../core/start-timing.json"
+      "$ref": "/schemas/latest/core/start-timing.json"
     }
   },
   "title": "Update Media Buy Request",

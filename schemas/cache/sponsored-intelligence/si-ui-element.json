@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/sponsored-intelligence/si-ui-element.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "allOf": [

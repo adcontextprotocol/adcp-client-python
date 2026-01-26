@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/content-standards/update-content-standards-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Request parameters for updating an existing content standards configuration. Creates a new version.",
@@ -35,7 +36,7 @@
                 "type": "object"
               },
               {
-                "$ref": "artifact.json",
+                "$ref": "/schemas/latest/content-standards/artifact.json",
                 "description": "Full artifact with pre-extracted content (text, images, video, audio)"
               }
             ]
@@ -71,7 +72,7 @@
                 "type": "object"
               },
               {
-                "$ref": "artifact.json",
+                "$ref": "/schemas/latest/content-standards/artifact.json",
                 "description": "Full artifact with pre-extracted content (text, images, video, audio)"
               }
             ]
@@ -82,10 +83,10 @@
       "type": "object"
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/latest/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/latest/core/ext.json"
     },
     "policy": {
       "description": "Updated natural language policy describing acceptable and unacceptable content contexts.",
@@ -97,7 +98,7 @@
         "channels_any": {
           "description": "Advertising channels. Standards apply to ANY of the listed channels (OR logic).",
           "items": {
-            "$ref": "../enums/channels.json"
+            "$ref": "/schemas/latest/enums/channels.json"
           },
           "type": "array"
         },

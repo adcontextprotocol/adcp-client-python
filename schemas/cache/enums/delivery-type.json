@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/enums/delivery-type.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Type of inventory delivery",
   "enum": [

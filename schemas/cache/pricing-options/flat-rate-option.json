@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/pricing-options/flat-rate-option.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Flat rate pricing for DOOH, sponsorships, and time-based campaigns. If fixed_price is present, it's fixed pricing. If absent, it's auction-based.",

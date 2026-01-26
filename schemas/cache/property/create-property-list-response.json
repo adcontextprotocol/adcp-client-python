@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/property/create-property-list-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Response payload for create_property_list task",
@@ -8,10 +9,10 @@
       "type": "string"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/latest/core/ext.json"
     },
     "list": {
-      "$ref": "property-list.json",
+      "$ref": "/schemas/latest/property/property-list.json",
       "description": "The created property list"
     }
   },

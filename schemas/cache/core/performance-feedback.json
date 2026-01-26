@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/core/performance-feedback.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Represents performance feedback data for a media buy or package",
@@ -17,7 +18,7 @@
       "type": "string"
     },
     "feedback_source": {
-      "$ref": "../enums/feedback-source.json",
+      "$ref": "/schemas/latest/enums/feedback-source.json",
       "description": "Source of the performance data"
     },
     "measurement_period": {
@@ -46,7 +47,7 @@
       "type": "string"
     },
     "metric_type": {
-      "$ref": "../enums/metric-type.json",
+      "$ref": "/schemas/latest/enums/metric-type.json",
       "description": "The business metric being measured"
     },
     "package_id": {

@@ -1,12 +1,13 @@
 {
+  "$id": "/schemas/latest/content-standards/validate-content-delivery-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Request parameters for batch validating delivery records against content safety policies",
   "properties": {
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/latest/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/latest/core/ext.json"
     },
     "feature_ids": {
       "description": "Specific features to evaluate (defaults to all)",
@@ -25,7 +26,7 @@
       "items": {
         "properties": {
           "artifact": {
-            "$ref": "artifact.json",
+            "$ref": "/schemas/latest/content-standards/artifact.json",
             "description": "Artifact where ad was delivered"
           },
           "brand_context": {

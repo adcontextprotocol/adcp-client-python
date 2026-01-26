@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/core/creative-manifest.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Complete specification of a creative with all assets needed for rendering in a specific format. Each asset is typed according to its asset_role from the format specification and contains the actual content/URL that fulfills the format requirements.",
@@ -10,40 +11,40 @@
         "^[a-z0-9_]+$": {
           "oneOf": [
             {
-              "$ref": "assets/image-asset.json"
+              "$ref": "/schemas/latest/core/assets/image-asset.json"
             },
             {
-              "$ref": "assets/video-asset.json"
+              "$ref": "/schemas/latest/core/assets/video-asset.json"
             },
             {
-              "$ref": "assets/audio-asset.json"
+              "$ref": "/schemas/latest/core/assets/audio-asset.json"
             },
             {
-              "$ref": "assets/vast-asset.json"
+              "$ref": "/schemas/latest/core/assets/vast-asset.json"
             },
             {
-              "$ref": "assets/text-asset.json"
+              "$ref": "/schemas/latest/core/assets/text-asset.json"
             },
             {
-              "$ref": "assets/url-asset.json"
+              "$ref": "/schemas/latest/core/assets/url-asset.json"
             },
             {
-              "$ref": "assets/html-asset.json"
+              "$ref": "/schemas/latest/core/assets/html-asset.json"
             },
             {
-              "$ref": "assets/javascript-asset.json"
+              "$ref": "/schemas/latest/core/assets/javascript-asset.json"
             },
             {
-              "$ref": "assets/webhook-asset.json"
+              "$ref": "/schemas/latest/core/assets/webhook-asset.json"
             },
             {
-              "$ref": "assets/css-asset.json"
+              "$ref": "/schemas/latest/core/assets/css-asset.json"
             },
             {
-              "$ref": "assets/daast-asset.json"
+              "$ref": "/schemas/latest/core/assets/daast-asset.json"
             },
             {
-              "$ref": "promoted-offerings.json"
+              "$ref": "/schemas/latest/core/promoted-offerings.json"
             }
           ]
         }
@@ -51,10 +52,10 @@
       "type": "object"
     },
     "ext": {
-      "$ref": "ext.json"
+      "$ref": "/schemas/latest/core/ext.json"
     },
     "format_id": {
-      "$ref": "format-id.json",
+      "$ref": "/schemas/latest/core/format-id.json",
       "description": "Format identifier this manifest is for. Can be a template format (id only) or a deterministic format (id + dimensions/duration). For dimension-specific creatives, include width/height/unit in the format_id to create a unique identifier (e.g., {id: 'display_static', width: 300, height: 250, unit: 'px'})."
     },
     "promoted_offering": {

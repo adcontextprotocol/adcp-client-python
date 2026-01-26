@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/sponsored-intelligence/si-initiate-session-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Brand agent's response to session initiation",
@@ -6,15 +7,15 @@
     "errors": {
       "description": "Errors during session initiation",
       "items": {
-        "$ref": "../core/error.json"
+        "$ref": "/schemas/latest/core/error.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/latest/core/ext.json"
     },
     "negotiated_capabilities": {
-      "$ref": "si-capabilities.json",
+      "$ref": "/schemas/latest/sponsored-intelligence/si-capabilities.json",
       "description": "Intersection of brand and host capabilities for this session"
     },
     "response": {
@@ -28,7 +29,7 @@
         "ui_elements": {
           "description": "Visual components to render",
           "items": {
-            "$ref": "si-ui-element.json"
+            "$ref": "/schemas/latest/sponsored-intelligence/si-ui-element.json"
           },
           "type": "array"
         }

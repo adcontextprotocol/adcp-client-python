@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/enums/publisher-identifier-types.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Valid identifier types for publisher/legal entity identification",
   "enum": [

@@ -520,39 +520,57 @@ class TestProductValidation:
         assert mixed_props[1].selection_type == "by_tag"
 
 
-class TestPreviewRenderUnifiedType:
-    """Test PreviewRender unified type after schema consolidation.
+class TestPreviewRenderDiscriminatedUnion:
+    """Test PreviewRender discriminated union by output_format.
 
-    Note: The old schema had separate UrlPreviewRender, HtmlPreviewRender, and BothPreviewRender
-    variants discriminated by output_format. The new schema consolidates these into a single
-    PreviewRender type where preview_url is the only required field. All aliases now point
-    to the same underlying type for backwards compatibility.
+    The schema has three variants discriminated by output_format:
+    - PreviewRender1/UrlPreviewRender (output_format='url') - requires preview_url
+    - PreviewRender2/HtmlPreviewRender (output_format='html') - requires preview_html
+    - PreviewRender3/BothPreviewRender (output_format='both') - requires both
     """
 
-    def test_preview_render_accepts_url_only(self):
-        """PreviewRender accepts preview_url as the only required field."""
+    def test_url_preview_render_requires_preview_url(self):
+        """UrlPreviewRender requires output_format='url' and preview_url."""
         render = UrlPreviewRender(
-            preview_url="https://preview.example.com/creative",
-        )
-        assert str(render.preview_url) == "https://preview.example.com/creative"
-
-    def test_preview_render_accepts_all_fields(self):
-        """PreviewRender accepts all optional fields."""
-        render = BothPreviewRender(
             render_id="render_1",
+            output_format="url",
             preview_url="https://preview.example.com/creative",
-            placement_hint="main",
-            media_type="text/html",
+            role="primary",
         )
+        assert render.output_format == "url"
         assert str(render.preview_url) == "https://preview.example.com/creative"
-        assert render.render_id == "render_1"
-        assert render.placement_hint == "main"
-        assert render.media_type == "text/html"
+        assert render.role == "primary"
 
-    def test_all_preview_render_aliases_are_same_type(self):
-        """All preview render aliases point to the same unified type."""
-        assert UrlPreviewRender is HtmlPreviewRender
-        assert HtmlPreviewRender is BothPreviewRender
+    def test_html_preview_render_requires_preview_html(self):
+        """HtmlPreviewRender requires output_format='html' and preview_html."""
+        render = HtmlPreviewRender(
+            render_id="render_2",
+            output_format="html",
+            preview_html="<div>Preview content</div>",
+            role="primary",
+        )
+        assert render.output_format == "html"
+        assert render.preview_html == "<div>Preview content</div>"
+        assert render.role == "primary"
+
+    def test_both_preview_render_requires_both_fields(self):
+        """BothPreviewRender requires output_format='both' and both preview_url and preview_html."""
+        render = BothPreviewRender(
+            render_id="render_3",
+            output_format="both",
+            preview_url="https://preview.example.com/creative",
+            preview_html="<div>Preview content</div>",
+            role="primary",
+        )
+        assert render.output_format == "both"
+        assert str(render.preview_url) == "https://preview.example.com/creative"
+        assert render.preview_html == "<div>Preview content</div>"
+
+    def test_preview_render_aliases_are_distinct_types(self):
+        """Each preview render alias points to a distinct variant type."""
+        assert UrlPreviewRender is not HtmlPreviewRender
+        assert HtmlPreviewRender is not BothPreviewRender
+        assert UrlPreviewRender is not BothPreviewRender
 
 
 class TestVastAssetDiscriminators:

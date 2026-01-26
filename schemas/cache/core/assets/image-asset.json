@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/core/assets/image-asset.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Image asset with URL and dimensions",

@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/core/creative-filters.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Filter criteria for querying creative assets from the centralized library. By default, archived creatives are excluded from results. To include archived creatives, explicitly filter by status='archived' or include 'archived' in the statuses array.",
@@ -60,7 +61,7 @@
     "statuses": {
       "description": "Filter by creative approval statuses",
       "items": {
-        "$ref": "../enums/creative-status.json"
+        "$ref": "/schemas/latest/enums/creative-status.json"
       },
       "type": "array"
     },

@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/enums/format-id-parameter.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Types of parameters that template formats accept in format_id objects to create parameterized format identifiers",
   "enum": [

@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/enums/webhook-security-method.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Security methods for authenticating webhook requests",
   "enum": [

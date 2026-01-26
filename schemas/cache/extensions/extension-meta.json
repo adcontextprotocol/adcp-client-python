@@ -1,7 +1,13 @@
 {
+  "$id": "/schemas/3.0.0-beta.1/extensions/extension-meta.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Schema that all extension files must follow. Combines metadata (valid_from, docs_url) with the actual extension data schema. Extensions are auto-discovered from /schemas/extensions/*.json and included in versioned builds based on valid_from/valid_until.",
   "properties": {
+    "$id": {
+      "description": "Extension ID following pattern /schemas/extensions/{namespace}.json",
+      "pattern": "^/schemas/extensions/[a-z][a-z0-9_]*\\.json$",
+      "type": "string"
+    },
     "$schema": {
       "const": "http://json-schema.org/draft-07/schema#",
       "type": "string"

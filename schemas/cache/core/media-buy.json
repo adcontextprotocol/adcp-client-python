@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/core/media-buy.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Represents a purchased advertising campaign",
@@ -18,7 +19,7 @@
       "type": "string"
     },
     "ext": {
-      "$ref": "ext.json"
+      "$ref": "/schemas/latest/core/ext.json"
     },
     "media_buy_id": {
       "description": "Publisher's unique identifier for the media buy",
@@ -27,7 +28,7 @@
     "packages": {
       "description": "Array of packages within this media buy",
       "items": {
-        "$ref": "package.json"
+        "$ref": "/schemas/latest/core/package.json"
       },
       "type": "array"
     },
@@ -36,7 +37,7 @@
       "type": "string"
     },
     "status": {
-      "$ref": "../enums/media-buy-status.json"
+      "$ref": "/schemas/latest/enums/media-buy-status.json"
     },
     "total_budget": {
       "description": "Total budget amount",

@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/core/deployment.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "A signal deployment to a specific deployment target with activation status and key",
   "oneOf": [
@@ -10,7 +11,7 @@
           "type": "string"
         },
         "activation_key": {
-          "$ref": "activation-key.json",
+          "$ref": "/schemas/latest/core/activation-key.json",
           "description": "The key to use for targeting. Only present if is_live=true AND requester has access to this deployment."
         },
         "deployed_at": {
@@ -52,7 +53,7 @@
           "type": "string"
         },
         "activation_key": {
-          "$ref": "activation-key.json",
+          "$ref": "/schemas/latest/core/activation-key.json",
           "description": "The key to use for targeting. Only present if is_live=true AND requester has access to this deployment."
         },
         "agent_url": {
