@@ -106,13 +106,30 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
+      - name: Check ADCP version
+        id: version-check
+        run: |
+          VERSION=$(cat src/adcp/ADCP_VERSION)
+          echo "ADCP_VERSION=$VERSION"
+          # Check if version contains pre-release identifiers (alpha, beta, rc)
+          if echo "$VERSION" | grep -qE '(alpha|beta|rc)'; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "Pre-release version detected - will skip schema sync (may not be publicly accessible)"
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            echo "Stable version - will sync schemas from upstream"
+          fi
+
       - name: Download latest schemas
+        if: steps.version-check.outputs.is_prerelease != 'true'
         run: python scripts/sync_schemas.py
 
       - name: Fix schema references
+        if: steps.version-check.outputs.is_prerelease != 'true'
         run: python scripts/fix_schema_refs.py
 
       - name: Generate models
+        if: steps.version-check.outputs.is_prerelease != 'true'
         run: python scripts/generate_types.py
 
       - name: Validate generated code syntax
@@ -132,6 +149,7 @@ jobs:
           pytest tests/test_code_generation.py -v --tb=short
 
       - name: Check for schema drift
+        if: steps.version-check.outputs.is_prerelease != 'true'
         run: |
           # Check if only generation timestamp changed (expected when CI regenerates)
           if git diff --exit-code src/adcp/types/_generated.py schemas/cache/ | grep -v "^[-+]Generation date:"; then
