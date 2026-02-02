@@ -15,20 +15,20 @@ from ..core import ext as ext_1
 
 class GetPropertyListRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     context: context_1.ContextObject | None = None
-    cursor: Annotated[str | None, Field(description='Pagination cursor for large result sets')] = (
+    cursor: Annotated[str | None, Field(description="Pagination cursor for large result sets")] = (
         None
     )
     ext: ext_1.ExtensionObject | None = None
-    list_id: Annotated[str, Field(description='ID of the property list to retrieve')]
+    list_id: Annotated[str, Field(description="ID of the property list to retrieve")]
     max_results: Annotated[
-        int | None, Field(description='Maximum identifiers to return (for large lists)', ge=1)
+        int | None, Field(description="Maximum identifiers to return (for large lists)", ge=1)
     ] = None
     resolve: Annotated[
         bool | None,
         Field(
-            description='Whether to apply filters and return resolved identifiers (default: true)'
+            description="Whether to apply filters and return resolved identifiers (default: true)"
         ),
     ] = True

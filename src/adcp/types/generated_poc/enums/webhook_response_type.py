@@ -8,7 +8,7 @@ from enum import Enum
 
 
 class WebhookResponseType(Enum):
-    html = 'html'
-    json = 'json'
-    xml = 'xml'
-    javascript = 'javascript'
+    html = "html"
+    json = "json"
+    xml = "xml"
+    javascript = "javascript"

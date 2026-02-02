@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/enums/channels.json",
+  "$id": "/schemas/3.0.0-beta.2/enums/channels.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Standardized advertising media channels describing how buyers allocate budget. Channels are planning abstractions, not technical substrates. See the Media Channel Taxonomy specification for detailed definitions.",
   "enum": [

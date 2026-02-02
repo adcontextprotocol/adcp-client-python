@@ -17,24 +17,24 @@ from ..core import product, proposal
 
 class GetProductsResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error] | None,
-        Field(description='Task-specific errors and warnings (e.g., product filtering issues)'),
+        Field(description="Task-specific errors and warnings (e.g., product filtering issues)"),
     ] = None
     ext: ext_1.ExtensionObject | None = None
-    products: Annotated[list[product.Product], Field(description='Array of matching products')]
+    products: Annotated[list[product.Product], Field(description="Array of matching products")]
     property_list_applied: Annotated[
         bool | None,
         Field(
-            description='[AdCP 3.0] Indicates whether property_list filtering was applied. True if the agent filtered products based on the provided property_list. Absent or false if property_list was not provided or not supported by this agent.'
+            description="[AdCP 3.0] Indicates whether property_list filtering was applied. True if the agent filtered products based on the provided property_list. Absent or false if property_list was not provided or not supported by this agent."
         ),
     ] = None
     proposals: Annotated[
         list[proposal.Proposal] | None,
         Field(
-            description='Optional array of proposed media plans with budget allocations across products. Publishers include proposals when they can provide strategic guidance based on the brief. Proposals are actionable - buyers can refine them via subsequent get_products calls or execute them directly via create_media_buy.'
+            description="Optional array of proposed media plans with budget allocations across products. Publishers include proposals when they can provide strategic guidance based on the brief. Proposals are actionable - buyers can refine them via subsequent get_products calls or execute them directly via create_media_buy."
         ),
     ] = None

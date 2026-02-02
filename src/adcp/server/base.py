@@ -74,9 +74,7 @@ class ADCPHandler(ABC):
     # Core Catalog Operations
     # ========================================================================
 
-    async def get_products(
-        self, params: dict[str, Any], context: ToolContext | None = None
-    ) -> Any:
+    async def get_products(self, params: dict[str, Any], context: ToolContext | None = None) -> Any:
         """Get advertising products.
 
         Override this to provide product catalog functionality.
@@ -92,14 +90,14 @@ class ADCPHandler(ABC):
         """
         return not_supported("list_creative_formats is not implemented by this agent")
 
-    async def list_authorized_properties(
+    async def list_accounts(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> Any:
-        """List authorized properties.
+        """List billing accounts accessible to the authenticated agent.
 
-        Override this to provide property authorization information.
+        Override this to provide account information.
         """
-        return not_supported("list_authorized_properties is not implemented by this agent")
+        return not_supported("list_accounts is not implemented by this agent")
 
     # ========================================================================
     # Creative Operations
@@ -167,9 +165,7 @@ class ADCPHandler(ABC):
     # Signal Operations
     # ========================================================================
 
-    async def get_signals(
-        self, params: dict[str, Any], context: ToolContext | None = None
-    ) -> Any:
+    async def get_signals(self, params: dict[str, Any], context: ToolContext | None = None) -> Any:
         """Get available signals.
 
         Override this to provide signal catalog.

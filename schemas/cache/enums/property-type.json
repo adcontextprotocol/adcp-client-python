@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/enums/property-type.json",
+  "$id": "/schemas/3.0.0-beta.2/enums/property-type.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Types of addressable advertising properties with verifiable ownership. Property types are a subset of media channels - they represent inventory surfaces that can be validated via adagents.json.",
   "enum": [

@@ -16,7 +16,7 @@ from adcp.types._generated import (
     GetMediaBuyDeliveryResponse,
     GetProductsResponse,
     GetSignalsResponse,
-    ListAuthorizedPropertiesResponse,
+    ListAccountsResponse,
     ListCreativeFormatsResponse,
     ListCreativesResponse,
     PreviewCreativeResponse1,
@@ -94,22 +94,20 @@ class TestGetSignalsResponseMessage:
         assert response.model_summary() == "Found 2 signals available for targeting."
 
 
-class TestListAuthorizedPropertiesResponseMessage:
-    """Tests for ListAuthorizedPropertiesResponse.model_summary()."""
+class TestListAccountsResponseMessage:
+    """Tests for ListAccountsResponse.model_summary()."""
 
-    def test_singular_domain(self):
-        """Single domain uses singular form."""
-        response = ListAuthorizedPropertiesResponse.model_construct(
-            publisher_domains=["example.com"]
-        )
-        assert response.model_summary() == "Authorized to represent 1 publisher domain."
+    def test_singular_account(self):
+        """Single account uses singular form."""
+        response = ListAccountsResponse.model_construct(accounts=[{"account_id": "acc_1"}])
+        assert response.model_summary() == "Found 1 accessible account."
 
-    def test_multiple_domains(self):
-        """Multiple domains uses plural form."""
-        response = ListAuthorizedPropertiesResponse.model_construct(
-            publisher_domains=["example.com", "test.com", "demo.com"]
+    def test_multiple_accounts(self):
+        """Multiple accounts uses plural form."""
+        response = ListAccountsResponse.model_construct(
+            accounts=[{"account_id": "acc_1"}, {"account_id": "acc_2"}, {"account_id": "acc_3"}]
         )
-        assert response.model_summary() == "Authorized to represent 3 publisher domains."
+        assert response.model_summary() == "Found 3 accessible accounts."
 
 
 class TestListCreativesResponseMessage:

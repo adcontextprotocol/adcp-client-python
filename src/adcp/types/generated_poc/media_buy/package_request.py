@@ -17,12 +17,12 @@ from ..enums import pacing as pacing_1
 
 class PackageRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     bid_price: Annotated[
         float | None,
         Field(
-            description='Bid price for auction-based CPM pricing (required if using cpm-auction-option)',
+            description="Bid price for auction-based CPM pricing (required if using cpm-auction-option)",
             ge=0.0,
         ),
     ] = None
@@ -34,13 +34,13 @@ class PackageRequest(AdCPBaseModel):
     creative_assignments: Annotated[
         list[creative_assignment.CreativeAssignment] | None,
         Field(
-            description='Assign existing library creatives to this package with optional weights and placement targeting'
+            description="Assign existing library creatives to this package with optional weights and placement targeting"
         ),
     ] = None
     creatives: Annotated[
         list[creative_asset.CreativeAsset] | None,
         Field(
-            description='Upload new creative assets and assign to this package (creatives will be added to library). Use creative_assignments instead for existing library creatives.',
+            description="Upload new creative assets and assign to this package (creatives will be added to library). Use creative_assignments instead for existing library creatives.",
             max_length=100,
         ),
     ] = None
@@ -48,18 +48,18 @@ class PackageRequest(AdCPBaseModel):
     format_ids: Annotated[
         list[format_id.FormatId] | None,
         Field(
-            description='Array of format IDs that will be used for this package - must be supported by the product. If omitted, defaults to all formats supported by the product.',
+            description="Array of format IDs that will be used for this package - must be supported by the product. If omitted, defaults to all formats supported by the product.",
             min_length=1,
         ),
     ] = None
     impressions: Annotated[
-        float | None, Field(description='Impression goal for this package', ge=0.0)
+        float | None, Field(description="Impression goal for this package", ge=0.0)
     ] = None
     pacing: pacing_1.Pacing | None = None
     paused: Annotated[
         bool | None,
         Field(
-            description='Whether this package should be created in a paused state. Paused packages do not deliver impressions. Defaults to false.'
+            description="Whether this package should be created in a paused state. Paused packages do not deliver impressions. Defaults to false."
         ),
     ] = False
     pricing_option_id: Annotated[
@@ -68,5 +68,5 @@ class PackageRequest(AdCPBaseModel):
             description="ID of the selected pricing option from the product's pricing_options array"
         ),
     ]
-    product_id: Annotated[str, Field(description='Product ID for this package')]
+    product_id: Annotated[str, Field(description="Product ID for this package")]
     targeting_overlay: targeting.TargetingOverlay | None = None

@@ -1,0 +1,39 @@
+{
+  "$id": "/schemas/3.0.0-beta.2/a2ui/surface.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "A contiguous UI region containing components",
+  "properties": {
+    "catalogId": {
+      "default": "standard",
+      "description": "Component catalog to use for rendering",
+      "type": "string"
+    },
+    "components": {
+      "description": "Flat list of components (adjacency list structure)",
+      "items": {
+        "$ref": "/schemas/3.0.0-beta.2/a2ui/component.json"
+      },
+      "type": "array"
+    },
+    "dataModel": {
+      "additionalProperties": true,
+      "description": "Application data that components can bind to",
+      "type": "object"
+    },
+    "rootId": {
+      "description": "ID of the root component (if not specified, first component is root)",
+      "type": "string"
+    },
+    "surfaceId": {
+      "description": "Unique identifier for this surface",
+      "type": "string"
+    }
+  },
+  "required": [
+    "surfaceId",
+    "components"
+  ],
+  "title": "A2UI Surface",
+  "type": "object"
+}

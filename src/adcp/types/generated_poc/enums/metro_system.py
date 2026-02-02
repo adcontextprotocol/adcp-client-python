@@ -8,8 +8,8 @@ from enum import Enum
 
 
 class MetroAreaSystem(Enum):
-    nielsen_dma = 'nielsen_dma'
-    uk_itl1 = 'uk_itl1'
-    uk_itl2 = 'uk_itl2'
-    eurostat_nuts2 = 'eurostat_nuts2'
-    custom = 'custom'
+    nielsen_dma = "nielsen_dma"
+    uk_itl1 = "uk_itl1"
+    uk_itl2 = "uk_itl2"
+    eurostat_nuts2 = "eurostat_nuts2"
+    custom = "custom"

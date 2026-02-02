@@ -66,7 +66,7 @@ class AdcpAsyncResponseData(
         | sync_creatives_async_response_input_required.SyncCreativesInputRequired
         | sync_creatives_async_response_submitted.SyncCreativesSubmitted,
         Field(
-            description='Union of all possible data payloads for async task webhook responses. For completed/failed statuses, use the main task response schema. For working/input-required/submitted, use the status-specific schemas.',
-            title='AdCP Async Response Data',
+            description="Union of all possible data payloads for async task webhook responses. For completed/failed statuses, use the main task response schema. For working/input-required/submitted, use the status-specific schemas.",
+            title="AdCP Async Response Data",
         ),
     ]

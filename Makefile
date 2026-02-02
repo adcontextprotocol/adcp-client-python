@@ -19,7 +19,7 @@ install-dev: ## Install package in development mode with dev dependencies
 
 format: ## Format code with black (excludes generated files)
 	$(BLACK) src/ tests/ scripts/
-	@echo "✓ Code formatted successfully (generated.py excluded via pyproject.toml)"
+	@echo "✓ Code formatted successfully (_generated.py excluded via pyproject.toml)"
 
 lint: ## Run linter (ruff) on source code
 	$(RUFF) check src/ tests/
@@ -52,7 +52,7 @@ regenerate-schemas: ## Download latest schemas and regenerate models
 
 validate-generated: ## Validate generated code (syntax and imports)
 	@echo "Validating generated code..."
-	@$(PYTHON) -m py_compile src/adcp/types/generated.py
+	@$(PYTHON) -m py_compile src/adcp/types/_generated.py
 	@echo "✓ Generated code validation passed"
 
 pre-push: format lint typecheck test validate-generated ## Run all checks before pushing (format, lint, typecheck, test, validate)
@@ -100,12 +100,12 @@ check-schema-drift: ## Check if schemas are out of sync with upstream
 	@$(PYTHON) scripts/sync_schemas.py
 	@$(PYTHON) scripts/fix_schema_refs.py
 	@$(PYTHON) scripts/generate_types.py
-	@if git diff --exit-code src/adcp/types/generated.py schemas/cache/; then \
+	@if git diff --exit-code src/adcp/types/_generated.py schemas/cache/; then \
 		echo "✓ Schemas are up-to-date"; \
 	else \
 		echo "✗ Schemas are out of date!"; \
 		echo "Run: make regenerate-schemas"; \
-		git diff src/adcp/types/generated.py; \
+		git diff src/adcp/types/_generated.py; \
 		exit 1; \
 	fi
 

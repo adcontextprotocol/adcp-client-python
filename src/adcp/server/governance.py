@@ -306,42 +306,31 @@ class GovernanceHandler(ADCPHandler):
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Governance agents."""
-        return not_supported(
-            "list_creative_formats is not supported by Governance agents."
-        )
+        return not_supported("list_creative_formats is not supported by Governance agents.")
 
-    async def list_authorized_properties(
+    async def list_accounts(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Governance agents."""
-        return not_supported(
-            "list_authorized_properties is not supported by Governance agents. "
-            "Use get_property_list with resolve=true instead."
-        )
+        return not_supported("list_accounts is not supported by Governance agents.")
 
     async def sync_creatives(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Governance agents."""
-        return not_supported(
-            "sync_creatives is not supported by Governance agents."
-        )
+        return not_supported("sync_creatives is not supported by Governance agents.")
 
     async def list_creatives(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Governance agents."""
-        return not_supported(
-            "list_creatives is not supported by Governance agents."
-        )
+        return not_supported("list_creatives is not supported by Governance agents.")
 
     async def build_creative(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Governance agents."""
-        return not_supported(
-            "build_creative is not supported by Governance agents."
-        )
+        return not_supported("build_creative is not supported by Governance agents.")
 
     async def create_media_buy(
         self, params: dict[str, Any], context: ToolContext | None = None
@@ -356,41 +345,31 @@ class GovernanceHandler(ADCPHandler):
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Governance agents."""
-        return not_supported(
-            "update_media_buy is not supported by Governance agents."
-        )
+        return not_supported("update_media_buy is not supported by Governance agents.")
 
     async def get_media_buy_delivery(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Governance agents."""
-        return not_supported(
-            "get_media_buy_delivery is not supported by Governance agents."
-        )
+        return not_supported("get_media_buy_delivery is not supported by Governance agents.")
 
     async def get_signals(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Governance agents."""
-        return not_supported(
-            "get_signals is not supported by Governance agents."
-        )
+        return not_supported("get_signals is not supported by Governance agents.")
 
     async def activate_signal(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Governance agents."""
-        return not_supported(
-            "activate_signal is not supported by Governance agents."
-        )
+        return not_supported("activate_signal is not supported by Governance agents.")
 
     async def provide_performance_feedback(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Governance agents."""
-        return not_supported(
-            "provide_performance_feedback is not supported by Governance agents."
-        )
+        return not_supported("provide_performance_feedback is not supported by Governance agents.")
 
     # ========================================================================
     # V3 Content Standards - Not supported
@@ -409,49 +388,37 @@ class GovernanceHandler(ADCPHandler):
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Governance agents."""
-        return not_supported(
-            "get_content_standards is not supported by Governance agents."
-        )
+        return not_supported("get_content_standards is not supported by Governance agents.")
 
     async def list_content_standards(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Governance agents."""
-        return not_supported(
-            "list_content_standards is not supported by Governance agents."
-        )
+        return not_supported("list_content_standards is not supported by Governance agents.")
 
     async def update_content_standards(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Governance agents."""
-        return not_supported(
-            "update_content_standards is not supported by Governance agents."
-        )
+        return not_supported("update_content_standards is not supported by Governance agents.")
 
     async def calibrate_content(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Governance agents."""
-        return not_supported(
-            "calibrate_content is not supported by Governance agents."
-        )
+        return not_supported("calibrate_content is not supported by Governance agents.")
 
     async def validate_content_delivery(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Governance agents."""
-        return not_supported(
-            "validate_content_delivery is not supported by Governance agents."
-        )
+        return not_supported("validate_content_delivery is not supported by Governance agents.")
 
     async def get_media_buy_artifacts(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Governance agents."""
-        return not_supported(
-            "get_media_buy_artifacts is not supported by Governance agents."
-        )
+        return not_supported("get_media_buy_artifacts is not supported by Governance agents.")
 
     # ========================================================================
     # V3 Sponsored Intelligence - Not supported
@@ -470,22 +437,16 @@ class GovernanceHandler(ADCPHandler):
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Governance agents."""
-        return not_supported(
-            "si_initiate_session is not supported by Governance agents."
-        )
+        return not_supported("si_initiate_session is not supported by Governance agents.")
 
     async def si_send_message(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Governance agents."""
-        return not_supported(
-            "si_send_message is not supported by Governance agents."
-        )
+        return not_supported("si_send_message is not supported by Governance agents.")
 
     async def si_terminate_session(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Governance agents."""
-        return not_supported(
-            "si_terminate_session is not supported by Governance agents."
-        )
+        return not_supported("si_terminate_session is not supported by Governance agents.")

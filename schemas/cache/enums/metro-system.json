@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/enums/metro-system.json",
+  "$id": "/schemas/3.0.0-beta.2/enums/metro-system.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Metro area classification systems for geographic targeting",
   "enum": [

@@ -17,19 +17,19 @@ from ..enums import pacing as pacing_1
 
 class PackageUpdate1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     bid_price: Annotated[
         float | None,
         Field(
-            description='Updated bid price for auction-based pricing options (only applies when pricing_option is auction-based)',
+            description="Updated bid price for auction-based pricing options (only applies when pricing_option is auction-based)",
             ge=0.0,
         ),
     ] = None
     budget: Annotated[
         float | None,
         Field(
-            description='Updated budget allocation for this package in the currency specified by the pricing option',
+            description="Updated budget allocation for this package in the currency specified by the pricing option",
             ge=0.0,
         ),
     ] = None
@@ -39,44 +39,44 @@ class PackageUpdate1(AdCPBaseModel):
     creative_assignments: Annotated[
         list[creative_assignment.CreativeAssignment] | None,
         Field(
-            description='Replace creative assignments for this package with optional weights and placement targeting. Uses replacement semantics - omit to leave assignments unchanged.'
+            description="Replace creative assignments for this package with optional weights and placement targeting. Uses replacement semantics - omit to leave assignments unchanged."
         ),
     ] = None
     creatives: Annotated[
         list[creative_asset.CreativeAsset] | None,
         Field(
-            description='Upload new creative assets and assign to this package (creatives will be added to library). Use creative_assignments instead for existing library creatives.',
+            description="Upload new creative assets and assign to this package (creatives will be added to library). Use creative_assignments instead for existing library creatives.",
             max_length=100,
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     impressions: Annotated[
-        float | None, Field(description='Updated impression goal for this package', ge=0.0)
+        float | None, Field(description="Updated impression goal for this package", ge=0.0)
     ] = None
     pacing: pacing_1.Pacing | None = None
     package_id: Annotated[str, Field(description="Publisher's ID of package to update")]
     paused: Annotated[
         bool | None,
-        Field(description='Pause/resume specific package (true = paused, false = active)'),
+        Field(description="Pause/resume specific package (true = paused, false = active)"),
     ] = None
     targeting_overlay: targeting.TargetingOverlay | None = None
 
 
 class PackageUpdate2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     bid_price: Annotated[
         float | None,
         Field(
-            description='Updated bid price for auction-based pricing options (only applies when pricing_option is auction-based)',
+            description="Updated bid price for auction-based pricing options (only applies when pricing_option is auction-based)",
             ge=0.0,
         ),
     ] = None
     budget: Annotated[
         float | None,
         Field(
-            description='Updated budget allocation for this package in the currency specified by the pricing option',
+            description="Updated budget allocation for this package in the currency specified by the pricing option",
             ge=0.0,
         ),
     ] = None
@@ -84,19 +84,19 @@ class PackageUpdate2(AdCPBaseModel):
     creative_assignments: Annotated[
         list[creative_assignment.CreativeAssignment] | None,
         Field(
-            description='Replace creative assignments for this package with optional weights and placement targeting. Uses replacement semantics - omit to leave assignments unchanged.'
+            description="Replace creative assignments for this package with optional weights and placement targeting. Uses replacement semantics - omit to leave assignments unchanged."
         ),
     ] = None
     creatives: Annotated[
         list[creative_asset.CreativeAsset] | None,
         Field(
-            description='Upload new creative assets and assign to this package (creatives will be added to library). Use creative_assignments instead for existing library creatives.',
+            description="Upload new creative assets and assign to this package (creatives will be added to library). Use creative_assignments instead for existing library creatives.",
             max_length=100,
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     impressions: Annotated[
-        float | None, Field(description='Updated impression goal for this package', ge=0.0)
+        float | None, Field(description="Updated impression goal for this package", ge=0.0)
     ] = None
     pacing: pacing_1.Pacing | None = None
     package_id: Annotated[str | None, Field(description="Publisher's ID of package to update")] = (
@@ -104,7 +104,7 @@ class PackageUpdate2(AdCPBaseModel):
     )
     paused: Annotated[
         bool | None,
-        Field(description='Pause/resume specific package (true = paused, false = active)'),
+        Field(description="Pause/resume specific package (true = paused, false = active)"),
     ] = None
     targeting_overlay: targeting.TargetingOverlay | None = None
 
@@ -113,7 +113,7 @@ class PackageUpdate(RootModel[PackageUpdate1 | PackageUpdate2]):
     root: Annotated[
         PackageUpdate1 | PackageUpdate2,
         Field(
-            description='Package update configuration for update_media_buy. Identifies package by package_id or buyer_ref and specifies fields to modify. Fields not present are left unchanged. Note: product_id, format_ids, and pricing_option_id cannot be changed after creation.',
-            title='Package Update',
+            description="Package update configuration for update_media_buy. Identifies package by package_id or buyer_ref and specifies fields to modify. Fields not present are left unchanged. Note: product_id, format_ids, and pricing_option_id cannot be changed after creation.",
+            title="Package Update",
         ),
     ]

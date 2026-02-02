@@ -17,5 +17,5 @@ class GetContentStandardsRequest(AdCPBaseModel):
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     standards_id: Annotated[
-        str, Field(description='Identifier for the standards configuration to retrieve')
+        str, Field(description="Identifier for the standards configuration to retrieve")
     ]

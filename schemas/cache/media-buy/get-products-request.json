@@ -1,11 +1,15 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/media-buy/get-products-request.json",
+  "$id": "/schemas/3.0.0-beta.2/media-buy/get-products-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Request parameters for discovering available advertising products",
   "properties": {
+    "account_id": {
+      "description": "Account context for product lookup. When provided, returns products with pricing specific to this account's rate card. Optional if the agent has a single account.",
+      "type": "string"
+    },
     "brand_manifest": {
-      "$ref": "/schemas/3.0.0-beta.1/core/brand-manifest-ref.json",
+      "$ref": "/schemas/3.0.0-beta.2/core/brand-manifest-ref.json",
       "description": "Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest."
     },
     "brief": {
@@ -13,16 +17,16 @@
       "type": "string"
     },
     "context": {
-      "$ref": "/schemas/3.0.0-beta.1/core/context.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.1/core/ext.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
     },
     "filters": {
-      "$ref": "/schemas/3.0.0-beta.1/core/product-filters.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/product-filters.json"
     },
     "property_list": {
-      "$ref": "/schemas/3.0.0-beta.1/core/property-list-ref.json",
+      "$ref": "/schemas/3.0.0-beta.2/core/property-list-ref.json",
       "description": "[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list."
     },
     "proposal_id": {

@@ -14,15 +14,15 @@ from ..enums import co_branding_requirement, landing_page_requirement
 
 class CreativePolicy(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     co_branding: Annotated[
-        co_branding_requirement.CoBrandingRequirement, Field(description='Co-branding requirement')
+        co_branding_requirement.CoBrandingRequirement, Field(description="Co-branding requirement")
     ]
     landing_page: Annotated[
         landing_page_requirement.LandingPageRequirement,
-        Field(description='Landing page requirements'),
+        Field(description="Landing page requirements"),
     ]
     templates_available: Annotated[
-        bool, Field(description='Whether creative templates are provided')
+        bool, Field(description="Whether creative templates are provided")
     ]

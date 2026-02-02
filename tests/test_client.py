@@ -137,7 +137,7 @@ async def test_all_client_methods():
     assert hasattr(client, "sync_creatives")
     assert hasattr(client, "list_creatives")
     assert hasattr(client, "get_media_buy_delivery")
-    assert hasattr(client, "list_authorized_properties")
+    assert hasattr(client, "list_accounts")
     assert hasattr(client, "get_signals")
     assert hasattr(client, "activate_signal")
     assert hasattr(client, "provide_performance_feedback")
@@ -155,7 +155,7 @@ async def test_all_client_methods():
         ("sync_creatives", "SyncCreativesRequest", {"creatives": []}),
         ("list_creatives", "ListCreativesRequest", {}),
         ("get_media_buy_delivery", "GetMediaBuyDeliveryRequest", {}),
-        ("list_authorized_properties", "ListAuthorizedPropertiesRequest", {}),
+        ("list_accounts", "ListAccountsRequest", {}),
         (
             "get_signals",
             "GetSignalsRequest",

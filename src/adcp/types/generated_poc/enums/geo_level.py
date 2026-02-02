@@ -8,7 +8,7 @@ from enum import Enum
 
 
 class GeographicTargetingLevel(Enum):
-    country = 'country'
-    region = 'region'
-    metro = 'metro'
-    postal_area = 'postal_area'
+    country = "country"
+    region = "region"
+    metro = "metro"
+    postal_area = "postal_area"

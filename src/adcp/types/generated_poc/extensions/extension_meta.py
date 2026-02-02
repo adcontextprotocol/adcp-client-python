@@ -14,45 +14,45 @@ class AdcpExtensionFileSchema(AdCPBaseModel):
     field_id: Annotated[
         str,
         Field(
-            alias='$id',
-            description='Extension ID following pattern /schemas/extensions/{namespace}.json',
-            pattern='^/schemas/extensions/[a-z][a-z0-9_]*\\.json$',
+            alias="$id",
+            description="Extension ID following pattern /schemas/extensions/{namespace}.json",
+            pattern="^/schemas/extensions/[a-z][a-z0-9_]*\\.json$",
         ),
     ]
     field_schema: Annotated[
-        Literal['http://json-schema.org/draft-07/schema#'], Field(alias='$schema')
+        Literal["http://json-schema.org/draft-07/schema#"], Field(alias="$schema")
     ]
     additionalProperties: Annotated[
         Any | None,
-        Field(description='Whether additional properties are allowed in the extension data'),
+        Field(description="Whether additional properties are allowed in the extension data"),
     ] = None
-    description: Annotated[str, Field(description='Description of what this extension provides')]
+    description: Annotated[str, Field(description="Description of what this extension provides")]
     docs_url: Annotated[
-        AnyUrl | None, Field(description='URL to documentation for implementors of this extension')
+        AnyUrl | None, Field(description="URL to documentation for implementors of this extension")
     ] = None
     properties: Annotated[
         dict[str, Any],
-        Field(description='Schema properties defining the structure of ext.{namespace} data'),
+        Field(description="Schema properties defining the structure of ext.{namespace} data"),
     ]
     required: Annotated[
-        list[str] | None, Field(description='Required properties within the extension data')
+        list[str] | None, Field(description="Required properties within the extension data")
     ] = None
-    title: Annotated[str, Field(description='Human-readable title for the extension')]
+    title: Annotated[str, Field(description="Human-readable title for the extension")]
     type: Annotated[
-        Literal['object'],
-        Field(description='Extensions must be objects (data within ext.{namespace})'),
+        Literal["object"],
+        Field(description="Extensions must be objects (data within ext.{namespace})"),
     ]
     valid_from: Annotated[
         str,
         Field(
             description="Minimum AdCP version this extension is compatible with (e.g., '2.5'). Extension will be included in all versioned schema builds >= this version.",
-            pattern='^\\d+\\.\\d+$',
+            pattern="^\\d+\\.\\d+$",
         ),
     ]
     valid_until: Annotated[
         str | None,
         Field(
             description="Last AdCP version this extension is compatible with (e.g., '3.0'). Omit if extension is still valid for current and future versions.",
-            pattern='^\\d+\\.\\d+$',
+            pattern="^\\d+\\.\\d+$",
         ),
     ] = None

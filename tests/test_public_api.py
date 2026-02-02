@@ -146,7 +146,7 @@ def test_format_has_expected_public_fields():
         "format_id",
         "name",
         "description",
-        "assets_required",
+        "assets",
         "delivery",
     ]
 

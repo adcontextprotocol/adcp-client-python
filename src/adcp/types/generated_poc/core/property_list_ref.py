@@ -12,15 +12,15 @@ from pydantic import AnyUrl, ConfigDict, Field
 
 class PropertyListReference(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    agent_url: Annotated[AnyUrl, Field(description='URL of the agent managing the property list')]
+    agent_url: Annotated[AnyUrl, Field(description="URL of the agent managing the property list")]
     auth_token: Annotated[
         str | None,
         Field(
-            description='JWT or other authorization token for accessing the list. Optional if the list is public or caller has implicit access.'
+            description="JWT or other authorization token for accessing the list. Optional if the list is public or caller has implicit access."
         ),
     ] = None
     list_id: Annotated[
-        str, Field(description='Identifier for the property list within the agent', min_length=1)
+        str, Field(description="Identifier for the property list within the agent", min_length=1)
     ]

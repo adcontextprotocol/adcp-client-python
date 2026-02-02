@@ -470,8 +470,11 @@ All AdCP tools with full type safety:
 - `preview_creative()` - Preview creative before building
 - `build_creative()` - Generate production-ready creative assets
 
+**Discovery & Accounts:**
+- `get_adcp_capabilities()` - Discover agent capabilities and authorized publishers
+- `list_accounts()` - List billing accounts
+
 **Audience & Targeting:**
-- `list_authorized_properties()` - Get authorized properties
 - `get_signals()` - Get audience signals
 - `activate_signal()` - Activate audience signals
 - `provide_performance_feedback()` - Send performance feedback
@@ -719,12 +722,14 @@ Discover which publishers have authorized your agent using two approaches:
 
 **1. "Push" Approach** - Ask the agent (recommended, fastest):
 ```python
-from adcp import ADCPClient
+from adcp import ADCPClient, GetAdcpCapabilitiesRequest
 
 async with ADCPClient(agent_config) as client:
     # Single API call to agent
-    response = await client.simple.list_authorized_properties()
-    print(f"Authorized for: {response.publisher_domains}")
+    result = await client.get_adcp_capabilities(GetAdcpCapabilitiesRequest())
+    if result.success and result.data.media_buy:
+        portfolio = result.data.media_buy.portfolio
+        print(f"Authorized for: {portfolio.publisher_domains}")
 ```
 
 **2. "Pull" Approach** - Check publisher adagents.json files (when you need property details):

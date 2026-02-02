@@ -28,21 +28,21 @@ from .assets import (
 
 class Input(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context_description: Annotated[
         str | None,
-        Field(description='Natural language description of the context for AI-generated content'),
+        Field(description="Natural language description of the context for AI-generated content"),
     ] = None
     macros: Annotated[
-        dict[str, str] | None, Field(description='Macro values to apply for this preview')
+        dict[str, str] | None, Field(description="Macro values to apply for this preview")
     ] = None
-    name: Annotated[str, Field(description='Human-readable name for this preview variant')]
+    name: Annotated[str, Field(description="Human-readable name for this preview variant")]
 
 
 class CreativeAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     assets: Annotated[
         dict[
@@ -59,22 +59,22 @@ class CreativeAsset(AdCPBaseModel):
             | promoted_offerings.PromotedOfferings
             | url_asset.UrlAsset,
         ],
-        Field(description='Assets required by the format, keyed by asset_role'),
+        Field(description="Assets required by the format, keyed by asset_role"),
     ]
-    creative_id: Annotated[str, Field(description='Unique identifier for the creative')]
+    creative_id: Annotated[str, Field(description="Unique identifier for the creative")]
     format_id: Annotated[
         format_id_1.FormatId,
         Field(
-            description='Format identifier specifying which format this creative conforms to. Can be: (1) concrete format_id referencing a format with fixed dimensions, (2) template format_id referencing a template format, or (3) parameterized format_id with dimensions/duration parameters for template formats.'
+            description="Format identifier specifying which format this creative conforms to. Can be: (1) concrete format_id referencing a format with fixed dimensions, (2) template format_id referencing a template format, or (3) parameterized format_id with dimensions/duration parameters for template formats."
         ),
     ]
     inputs: Annotated[
         list[Input] | None,
         Field(
-            description='Preview contexts for generative formats - defines what scenarios to generate previews for'
+            description="Preview contexts for generative formats - defines what scenarios to generate previews for"
         ),
     ] = None
-    name: Annotated[str, Field(description='Human-readable creative name')]
+    name: Annotated[str, Field(description="Human-readable creative name")]
     placement_ids: Annotated[
         list[str] | None,
         Field(
@@ -89,12 +89,12 @@ class CreativeAsset(AdCPBaseModel):
         ),
     ] = None
     tags: Annotated[
-        list[str] | None, Field(description='User-defined tags for organization and searchability')
+        list[str] | None, Field(description="User-defined tags for organization and searchability")
     ] = None
     weight: Annotated[
         float | None,
         Field(
-            description='Optional delivery weight for creative rotation when uploading via create_media_buy or update_media_buy (0-100). If omitted, platform determines rotation. Only used during upload to media buy - not stored in creative library.',
+            description="Optional delivery weight for creative rotation when uploading via create_media_buy or update_media_buy (0-100). If omitted, platform determines rotation. Only used during upload to media buy - not stored in creative library.",
             ge=0.0,
             le=100.0,
         ),

@@ -18,7 +18,7 @@ from ..enums import creative_agent_capability
 
 class CreativeAgent(AdCPBaseModel):
     agent_name: Annotated[
-        str | None, Field(description='Human-readable name for the creative agent')
+        str | None, Field(description="Human-readable name for the creative agent")
     ] = None
     agent_url: Annotated[
         AnyUrl,
@@ -28,23 +28,23 @@ class CreativeAgent(AdCPBaseModel):
     ]
     capabilities: Annotated[
         list[creative_agent_capability.CreativeAgentCapability] | None,
-        Field(description='Capabilities this creative agent provides'),
+        Field(description="Capabilities this creative agent provides"),
     ] = None
 
 
 class ListCreativeFormatsResponseCreativeAgent(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     creative_agents: Annotated[
         list[CreativeAgent] | None,
         Field(
-            description='Optional: Creative agents that provide additional formats. Buyers can recursively query these agents to discover more formats. No authentication required for list_creative_formats.'
+            description="Optional: Creative agents that provide additional formats. Buyers can recursively query these agents to discover more formats. No authentication required for list_creative_formats."
         ),
     ] = None
     errors: Annotated[
-        list[error.Error] | None, Field(description='Task-specific errors and warnings')
+        list[error.Error] | None, Field(description="Task-specific errors and warnings")
     ] = None
     ext: ext_1.ExtensionObject | None = None
     formats: Annotated[

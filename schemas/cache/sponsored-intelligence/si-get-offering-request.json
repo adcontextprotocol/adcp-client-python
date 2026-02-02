@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/sponsored-intelligence/si-get-offering-request.json",
+  "$id": "/schemas/3.0.0-beta.2/sponsored-intelligence/si-get-offering-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Get offering details and availability before session handoff. Returns offering information, availability status, and optionally matching products based on context.",
@@ -9,7 +9,7 @@
       "type": "string"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.1/core/ext.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
     },
     "include_products": {
       "default": false,

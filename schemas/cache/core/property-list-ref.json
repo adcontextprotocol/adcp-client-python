@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/core/property-list-ref.json",
+  "$id": "/schemas/3.0.0-beta.2/core/property-list-ref.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Reference to an externally managed property list. Enables passing large property sets (50,000+) without embedding them in requests. The receiving agent fetches and caches the list independently.",

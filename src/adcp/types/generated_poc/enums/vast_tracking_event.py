@@ -8,19 +8,19 @@ from enum import Enum
 
 
 class VastTrackingEvent(Enum):
-    start = 'start'
-    firstQuartile = 'firstQuartile'
-    midpoint = 'midpoint'
-    thirdQuartile = 'thirdQuartile'
-    complete = 'complete'
-    impression = 'impression'
-    click = 'click'
-    pause = 'pause'
-    resume = 'resume'
-    skip = 'skip'
-    mute = 'mute'
-    unmute = 'unmute'
-    fullscreen = 'fullscreen'
-    exitFullscreen = 'exitFullscreen'
-    playerExpand = 'playerExpand'
-    playerCollapse = 'playerCollapse'
+    start = "start"
+    firstQuartile = "firstQuartile"
+    midpoint = "midpoint"
+    thirdQuartile = "thirdQuartile"
+    complete = "complete"
+    impression = "impression"
+    click = "click"
+    pause = "pause"
+    resume = "resume"
+    skip = "skip"
+    mute = "mute"
+    unmute = "unmute"
+    fullscreen = "fullscreen"
+    exitFullscreen = "exitFullscreen"
+    playerExpand = "playerExpand"
+    playerCollapse = "playerCollapse"

@@ -12,19 +12,19 @@ from pydantic import ConfigDict, Field
 
 
 class Type(Enum):
-    text = 'text'
-    link = 'link'
-    image = 'image'
-    product_card = 'product_card'
-    carousel = 'carousel'
-    action_button = 'action_button'
-    app_handoff = 'app_handoff'
-    integration_actions = 'integration_actions'
+    text = "text"
+    link = "link"
+    image = "image"
+    product_card = "product_card"
+    carousel = "carousel"
+    action_button = "action_button"
+    app_handoff = "app_handoff"
+    integration_actions = "integration_actions"
 
 
 class SiUiElement(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    data: Annotated[dict[str, Any] | None, Field(description='Component-specific data')] = None
-    type: Annotated[Type, Field(description='Component type')]
+    data: Annotated[dict[str, Any] | None, Field(description="Component-specific data")] = None
+    type: Annotated[Type, Field(description="Component type")]

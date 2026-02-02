@@ -65,7 +65,7 @@
       "type": "object"
     }
   },
-  "$id": "/schemas/3.0.0-beta.1/content-standards/artifact.json",
+  "$id": "/schemas/3.0.0-beta.2/content-standards/artifact.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Content artifact for safety and suitability evaluation. An artifact represents content adjacent to an ad placement - a news article, podcast segment, video chapter, or social post. Artifacts are collections of assets (text, images, video, audio) plus metadata and signals.",
@@ -250,7 +250,7 @@
       "type": "array"
     },
     "format_id": {
-      "$ref": "/schemas/3.0.0-beta.1/core/format-id.json",
+      "$ref": "/schemas/3.0.0-beta.2/core/format-id.json",
       "description": "Optional reference to a format definition. Uses the same format registry as creative formats."
     },
     "identifiers": {
@@ -324,7 +324,7 @@
       "type": "object"
     },
     "property_id": {
-      "$ref": "/schemas/3.0.0-beta.1/core/identifier.json",
+      "$ref": "/schemas/3.0.0-beta.2/core/identifier.json",
       "description": "Identifier for the property where this artifact appears"
     },
     "published_time": {

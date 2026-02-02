@@ -14,53 +14,53 @@ from ..core import error
 
 
 class Status(Enum):
-    passed = 'passed'
-    failed = 'failed'
-    warning = 'warning'
-    unevaluated = 'unevaluated'
+    passed = "passed"
+    failed = "failed"
+    warning = "warning"
+    unevaluated = "unevaluated"
 
 
 class Feature(AdCPBaseModel):
     explanation: Annotated[
         str | None,
-        Field(description='Human-readable explanation of why this feature passed or failed'),
+        Field(description="Human-readable explanation of why this feature passed or failed"),
     ] = None
     feature_id: Annotated[
         str,
         Field(
-            description='Which feature was evaluated (e.g., brand_safety, brand_suitability, competitor_adjacency)'
+            description="Which feature was evaluated (e.g., brand_safety, brand_suitability, competitor_adjacency)"
         ),
     ]
-    status: Annotated[Status, Field(description='Evaluation status for this feature')]
+    status: Annotated[Status, Field(description="Evaluation status for this feature")]
 
 
 class Verdict(Enum):
-    pass_ = 'pass'
-    fail = 'fail'
+    pass_ = "pass"
+    fail = "fail"
 
 
 class CalibrateContentResponse1(AdCPBaseModel):
     confidence: Annotated[
-        float | None, Field(description='Model confidence in the verdict (0-1)', ge=0.0, le=1.0)
+        float | None, Field(description="Model confidence in the verdict (0-1)", ge=0.0, le=1.0)
     ] = None
     errors: Annotated[
-        Any | None, Field(description='Field must not be present in success response')
+        Any | None, Field(description="Field must not be present in success response")
     ] = None
     explanation: Annotated[
-        str | None, Field(description='Detailed natural language explanation of the decision')
+        str | None, Field(description="Detailed natural language explanation of the decision")
     ] = None
     features: Annotated[
-        list[Feature] | None, Field(description='Per-feature breakdown with explanations')
+        list[Feature] | None, Field(description="Per-feature breakdown with explanations")
     ] = None
     verdict: Annotated[
-        Verdict, Field(description='Overall pass/fail verdict for the content evaluation')
+        Verdict, Field(description="Overall pass/fail verdict for the content evaluation")
     ]
 
 
 class CalibrateContentResponse2(AdCPBaseModel):
     errors: list[error.Error]
     verdict: Annotated[
-        Any | None, Field(description='Field must not be present in error response')
+        Any | None, Field(description="Field must not be present in error response")
     ] = None
 
 
@@ -68,7 +68,7 @@ class CalibrateContentResponse(RootModel[CalibrateContentResponse1 | CalibrateCo
     root: Annotated[
         CalibrateContentResponse1 | CalibrateContentResponse2,
         Field(
-            description='Response payload with verdict and detailed explanations for collaborative calibration',
-            title='Calibrate Content Response',
+            description="Response payload with verdict and detailed explanations for collaborative calibration",
+            title="Calibrate Content Response",
         ),
     ]

@@ -120,8 +120,8 @@ class ProtocolAdapter(ABC):
         pass
 
     @abstractmethod
-    async def list_authorized_properties(self, params: dict[str, Any]) -> TaskResult[Any]:
-        """List authorized properties."""
+    async def list_accounts(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """List billing accounts accessible to the authenticated agent."""
         pass
 
     @abstractmethod

@@ -8,6 +8,6 @@ from enum import Enum
 
 
 class LandingPageRequirement(Enum):
-    any = 'any'
-    retailer_site_only = 'retailer_site_only'
-    must_include_retailer = 'must_include_retailer'
+    any = "any"
+    retailer_site_only = "retailer_site_only"
+    must_include_retailer = "must_include_retailer"

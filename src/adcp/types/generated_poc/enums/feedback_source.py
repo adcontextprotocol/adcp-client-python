@@ -8,7 +8,7 @@ from enum import Enum
 
 
 class FeedbackSource(Enum):
-    buyer_attribution = 'buyer_attribution'
-    third_party_measurement = 'third_party_measurement'
-    platform_analytics = 'platform_analytics'
-    verification_partner = 'verification_partner'
+    buyer_attribution = "buyer_attribution"
+    third_party_measurement = "third_party_measurement"
+    platform_analytics = "platform_analytics"
+    verification_partner = "verification_partner"

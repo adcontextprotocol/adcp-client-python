@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/creative/preview-creative-response.json",
+  "$id": "/schemas/3.0.0-beta.2/creative/preview-creative-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Response containing preview links for one or more creatives. Format matches the request: single preview response for single requests, batch results for batch requests.",
   "oneOf": [
@@ -8,7 +8,7 @@
       "description": "Single preview response - each preview URL returns an HTML page that can be embedded in an iframe",
       "properties": {
         "context": {
-          "$ref": "/schemas/3.0.0-beta.1/core/context.json"
+          "$ref": "/schemas/3.0.0-beta.2/core/context.json"
         },
         "expires_at": {
           "description": "ISO 8601 timestamp when preview links expire",
@@ -16,7 +16,7 @@
           "type": "string"
         },
         "ext": {
-          "$ref": "/schemas/3.0.0-beta.1/core/ext.json"
+          "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
         },
         "interactive_url": {
           "description": "Optional URL to an interactive testing page that shows all preview variants with controls to switch between them, modify macro values, and test different scenarios.",
@@ -58,7 +58,7 @@
               "renders": {
                 "description": "Array of rendered pieces for this preview variant. Most formats render as a single piece. Companion ad formats (video + banner), multi-placement formats, and adaptive formats render as multiple pieces.",
                 "items": {
-                  "$ref": "/schemas/3.0.0-beta.1/creative/preview-render.json"
+                  "$ref": "/schemas/3.0.0-beta.2/creative/preview-render.json"
                 },
                 "minItems": 1,
                 "type": "array"
@@ -93,10 +93,10 @@
       "description": "Batch preview response - contains results for multiple creative requests",
       "properties": {
         "context": {
-          "$ref": "/schemas/3.0.0-beta.1/core/context.json"
+          "$ref": "/schemas/3.0.0-beta.2/core/context.json"
         },
         "ext": {
-          "$ref": "/schemas/3.0.0-beta.1/core/ext.json"
+          "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
         },
         "response_type": {
           "const": "batch",
@@ -196,7 +196,7 @@
                         },
                         "renders": {
                           "items": {
-                            "$ref": "/schemas/3.0.0-beta.1/creative/preview-render.json"
+                            "$ref": "/schemas/3.0.0-beta.2/creative/preview-render.json"
                           },
                           "minItems": 1,
                           "type": "array"

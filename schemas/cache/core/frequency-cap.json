@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/core/frequency-cap.json",
+  "$id": "/schemas/3.0.0-beta.2/core/frequency-cap.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Frequency capping settings for package-level application",

@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/sponsored-intelligence/si-get-offering-response.json",
+  "$id": "/schemas/3.0.0-beta.2/sponsored-intelligence/si-get-offering-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Offering details, availability status, and optionally matching products. Use the offering_token in si_initiate_session for correlation.",
@@ -23,12 +23,12 @@
     "errors": {
       "description": "Errors during offering lookup",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.1/core/error.json"
+        "$ref": "/schemas/3.0.0-beta.2/core/error.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.1/core/ext.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
     },
     "matching_products": {
       "description": "Products matching the request context. Only included if include_products was true.",

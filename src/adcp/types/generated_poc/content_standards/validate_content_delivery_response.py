@@ -16,10 +16,10 @@ from ..core import ext as ext_1
 
 
 class Status(Enum):
-    passed = 'passed'
-    failed = 'failed'
-    warning = 'warning'
-    unevaluated = 'unevaluated'
+    passed = "passed"
+    failed = "failed"
+    warning = "warning"
+    unevaluated = "unevaluated"
 
 
 class Feature(AdCPBaseModel):
@@ -28,7 +28,7 @@ class Feature(AdCPBaseModel):
     rule_id: Annotated[
         str | None,
         Field(
-            description='Which rule triggered this result (e.g., GARM category, Scope3 standard)'
+            description="Which rule triggered this result (e.g., GARM category, Scope3 standard)"
         ),
     ] = None
     status: Status
@@ -36,16 +36,16 @@ class Feature(AdCPBaseModel):
 
 
 class Verdict(Enum):
-    pass_ = 'pass'
-    fail = 'fail'
+    pass_ = "pass"
+    fail = "fail"
 
 
 class Result(AdCPBaseModel):
     features: Annotated[
-        list[Feature] | None, Field(description='Optional feature-level breakdown')
+        list[Feature] | None, Field(description="Optional feature-level breakdown")
     ] = None
-    record_id: Annotated[str, Field(description='Which delivery record was evaluated')]
-    verdict: Annotated[Verdict, Field(description='Overall pass/fail verdict for this record')]
+    record_id: Annotated[str, Field(description="Which delivery record was evaluated")]
+    verdict: Annotated[Verdict, Field(description="Overall pass/fail verdict for this record")]
 
 
 class Summary(AdCPBaseModel):
@@ -57,11 +57,11 @@ class Summary(AdCPBaseModel):
 class ValidateContentDeliveryResponse1(AdCPBaseModel):
     context: context_1.ContextObject | None = None
     errors: Annotated[
-        Any | None, Field(description='Field must not be present in success response')
+        Any | None, Field(description="Field must not be present in success response")
     ] = None
     ext: ext_1.ExtensionObject | None = None
-    results: Annotated[list[Result], Field(description='Per-record evaluation results')]
-    summary: Annotated[Summary, Field(description='Summary counts across all records')]
+    results: Annotated[list[Result], Field(description="Per-record evaluation results")]
+    summary: Annotated[Summary, Field(description="Summary counts across all records")]
 
 
 class ValidateContentDeliveryResponse2(AdCPBaseModel):
@@ -69,7 +69,7 @@ class ValidateContentDeliveryResponse2(AdCPBaseModel):
     errors: list[error.Error]
     ext: ext_1.ExtensionObject | None = None
     summary: Annotated[
-        Any | None, Field(description='Field must not be present in error response')
+        Any | None, Field(description="Field must not be present in error response")
     ] = None
 
 
@@ -79,7 +79,7 @@ class ValidateContentDeliveryResponse(
     root: Annotated[
         ValidateContentDeliveryResponse1 | ValidateContentDeliveryResponse2,
         Field(
-            description='Response payload with per-record verdicts and optional feature breakdown',
-            title='Validate Content Delivery Response',
+            description="Response payload with per-record verdicts and optional feature breakdown",
+            title="Validate Content Delivery Response",
         ),
     ]

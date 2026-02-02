@@ -17,7 +17,7 @@ from . import base_property_source, property_list_filters
 
 class CreatePropertyListRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     base_properties: Annotated[
         list[base_property_source.BasePropertySource] | None,
@@ -28,7 +28,7 @@ class CreatePropertyListRequest(AdCPBaseModel):
     brand_manifest: Annotated[
         brand_manifest_1.BrandManifest | None,
         Field(
-            description='Brand identity and requirements. When provided, the agent automatically applies appropriate rules based on brand characteristics (industry, target_audience, etc.).'
+            description="Brand identity and requirements. When provided, the agent automatically applies appropriate rules based on brand characteristics (industry, target_audience, etc.)."
         ),
     ] = None
     context: context_1.ContextObject | None = None
@@ -38,6 +38,6 @@ class CreatePropertyListRequest(AdCPBaseModel):
     ext: ext_1.ExtensionObject | None = None
     filters: Annotated[
         property_list_filters.PropertyListFilters | None,
-        Field(description='Dynamic filters to apply when resolving the list'),
+        Field(description="Dynamic filters to apply when resolving the list"),
     ] = None
-    name: Annotated[str, Field(description='Human-readable name for the list')]
+    name: Annotated[str, Field(description="Human-readable name for the list")]

@@ -1,9 +1,28 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/sponsored-intelligence/si-capabilities.json",
+  "$id": "/schemas/3.0.0-beta.2/sponsored-intelligence/si-capabilities.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Capabilities that a brand agent declares or a host supports",
   "properties": {
+    "a2ui": {
+      "additionalProperties": true,
+      "description": "A2UI (Agent-to-UI) capabilities",
+      "properties": {
+        "catalogs": {
+          "description": "Supported A2UI component catalogs (e.g., 'si-standard', 'standard')",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "supported": {
+          "default": false,
+          "description": "Supports A2UI surface rendering",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
     "commerce": {
       "additionalProperties": true,
       "description": "Commerce capabilities",
@@ -41,6 +60,11 @@
         }
       },
       "type": "object"
+    },
+    "mcp_apps": {
+      "default": false,
+      "description": "Supports MCP Apps for rendering A2UI surfaces in iframes",
+      "type": "boolean"
     },
     "modalities": {
       "additionalProperties": true,

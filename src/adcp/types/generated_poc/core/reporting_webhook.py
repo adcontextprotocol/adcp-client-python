@@ -15,12 +15,12 @@ from ..enums import auth_scheme, available_metric
 
 class Authentication(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     credentials: Annotated[
         str,
         Field(
-            description='Credentials for authentication. For Bearer: token sent in Authorization header. For HMAC-SHA256: shared secret used to generate signature. Minimum 32 characters. Exchanged out-of-band during onboarding.',
+            description="Credentials for authentication. For Bearer: token sent in Authorization header. For HMAC-SHA256: shared secret used to generate signature. Minimum 32 characters. Exchanged out-of-band during onboarding.",
             min_length=32,
         ),
     ]
@@ -35,23 +35,23 @@ class Authentication(AdCPBaseModel):
 
 
 class ReportingFrequency(Enum):
-    hourly = 'hourly'
-    daily = 'daily'
-    monthly = 'monthly'
+    hourly = "hourly"
+    daily = "daily"
+    monthly = "monthly"
 
 
 class ReportingWebhook(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     authentication: Annotated[
         Authentication,
-        Field(description='Authentication configuration for webhook delivery (A2A-compatible)'),
+        Field(description="Authentication configuration for webhook delivery (A2A-compatible)"),
     ]
     reporting_frequency: Annotated[
         ReportingFrequency,
         Field(
-            description='Frequency for automated reporting delivery. Must be supported by all products in the media buy.'
+            description="Frequency for automated reporting delivery. Must be supported by all products in the media buy."
         ),
     ]
     requested_metrics: Annotated[
@@ -63,8 +63,8 @@ class ReportingWebhook(AdCPBaseModel):
     token: Annotated[
         str | None,
         Field(
-            description='Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.',
+            description="Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.",
             min_length=16,
         ),
     ] = None
-    url: Annotated[AnyUrl, Field(description='Webhook endpoint URL for reporting notifications')]
+    url: Annotated[AnyUrl, Field(description="Webhook endpoint URL for reporting notifications")]

@@ -17,11 +17,11 @@ from ..core import ext as ext_1
 class CreateContentStandardsResponse1(AdCPBaseModel):
     context: context_1.ContextObject | None = None
     errors: Annotated[
-        Any | None, Field(description='Field must not be present in success response')
+        Any | None, Field(description="Field must not be present in success response")
     ] = None
     ext: ext_1.ExtensionObject | None = None
     standards_id: Annotated[
-        str, Field(description='Unique identifier for the created standards configuration')
+        str, Field(description="Unique identifier for the created standards configuration")
     ]
 
 
@@ -29,14 +29,14 @@ class CreateContentStandardsResponse2(AdCPBaseModel):
     conflicting_standards_id: Annotated[
         str | None,
         Field(
-            description='If the error is a scope conflict, the ID of the existing standards that conflict'
+            description="If the error is a scope conflict, the ID of the existing standards that conflict"
         ),
     ] = None
     context: context_1.ContextObject | None = None
     errors: list[error.Error]
     ext: ext_1.ExtensionObject | None = None
     standards_id: Annotated[
-        Any | None, Field(description='Field must not be present in error response')
+        Any | None, Field(description="Field must not be present in error response")
     ] = None
 
 
@@ -46,7 +46,7 @@ class CreateContentStandardsResponse(
     root: Annotated[
         CreateContentStandardsResponse1 | CreateContentStandardsResponse2,
         Field(
-            description='Response payload for creating a content standards configuration',
-            title='Create Content Standards Response',
+            description="Response payload for creating a content standards configuration",
+            title="Create Content Standards Response",
         ),
     ]

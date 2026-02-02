@@ -357,7 +357,14 @@ async def test_list_creative_formats_with_preview_urls():
         name="Display 300x250",
         description="Standard banner",
         type="display",
-        assets_required=[{"asset_id": "image", "asset_type": "image", "item_type": "individual"}],
+        assets=[
+            {
+                "asset_id": "image",
+                "asset_type": "image",
+                "item_type": "individual",
+                "required": True,
+            }
+        ],
     )
 
     # Raw result from adapter (unparsed)
@@ -456,9 +463,19 @@ def test_create_sample_manifest_for_format():
         name="Display 300x250",
         description="Standard banner",
         type="display",
-        assets_required=[
-            {"asset_id": "image", "asset_type": "image", "item_type": "individual"},
-            {"asset_id": "clickthrough_url", "asset_type": "url", "item_type": "individual"},
+        assets=[
+            {
+                "asset_id": "image",
+                "asset_type": "image",
+                "item_type": "individual",
+                "required": True,
+            },
+            {
+                "asset_id": "clickthrough_url",
+                "asset_type": "url",
+                "item_type": "individual",
+                "required": True,
+            },
         ],
     )
 
@@ -471,14 +488,14 @@ def test_create_sample_manifest_for_format():
 
 
 def test_create_sample_manifest_for_format_no_assets():
-    """Test creating sample manifest for a format without assets (backward compat)."""
+    """Test creating sample manifest for a format without assets."""
     format_id = make_format_id("display_300x250")
     fmt = Format(
         format_id=format_id,
         name="Display 300x250",
         description="Standard banner",
         type="display",
-        assets_required=None,
+        assets=None,
     )
 
     manifest = _create_sample_manifest_for_format(fmt)
@@ -527,31 +544,24 @@ def test_create_sample_manifest_for_format_with_new_assets_field():
     assert "logo" not in manifest.assets
 
 
-def test_create_sample_manifest_prefers_assets_over_assets_required():
-    """Test that new assets field takes precedence over deprecated assets_required."""
+def test_create_sample_manifest_uses_assets_field():
+    """Test that sample manifest uses the assets field."""
     format_id = make_format_id("display_300x250")
     fmt = Format(
         format_id=format_id,
         name="Display 300x250",
         description="Standard banner",
         type="display",
-        # Both fields present - should prefer assets
         assets=[
             {
-                "asset_id": "new_image",
+                "asset_id": "hero_image",
                 "asset_type": "image",
                 "item_type": "individual",
                 "required": True,
             },
         ],
-        assets_required=[
-            {"asset_id": "old_image", "asset_type": "image", "item_type": "individual"},
-        ],
     )
 
     manifest = _create_sample_manifest_for_format(fmt)
     assert manifest is not None
-    # Should use new assets field
-    assert "new_image" in manifest.assets
-    # Should NOT use deprecated assets_required
-    assert "old_image" not in manifest.assets
+    assert "hero_image" in manifest.assets

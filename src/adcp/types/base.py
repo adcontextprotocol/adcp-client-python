@@ -61,13 +61,13 @@ def _get_signals_message(self: Any) -> str:
     return f"Found {count} {_pluralize(count, 'signal')} available for targeting."
 
 
-@_register_response_message("ListAuthorizedPropertiesResponse")
-def _list_authorized_properties_message(self: Any) -> str:
-    domains = getattr(self, "publisher_domains", None)
-    if domains is None:
-        return "No authorized properties found."
-    count = len(domains)
-    return f"Authorized to represent {count} publisher {_pluralize(count, 'domain')}."
+@_register_response_message("ListAccountsResponse")
+def _list_accounts_message(self: Any) -> str:
+    accounts = getattr(self, "accounts", None)
+    if accounts is None:
+        return "No accounts found."
+    count = len(accounts)
+    return f"Found {count} accessible {_pluralize(count, 'account')}."
 
 
 @_register_response_message("ListCreativesResponse")

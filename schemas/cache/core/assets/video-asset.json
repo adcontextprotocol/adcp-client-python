@@ -1,21 +1,120 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/core/assets/video-asset.json",
+  "$id": "/schemas/3.0.0-beta.2/core/assets/video-asset.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
-  "description": "Video asset with URL and specifications",
+  "description": "Video asset with URL and technical specifications including audio track properties",
   "properties": {
-    "bitrate_kbps": {
-      "description": "Video bitrate in kilobits per second",
+    "audio_bit_depth": {
+      "description": "Audio bit depth",
+      "enum": [
+        16,
+        24,
+        32
+      ],
+      "type": "integer"
+    },
+    "audio_bitrate_kbps": {
+      "description": "Audio bitrate in kilobits per second",
       "minimum": 1,
       "type": "integer"
+    },
+    "audio_channels": {
+      "description": "Audio channel configuration",
+      "enum": [
+        "mono",
+        "stereo",
+        "5.1",
+        "7.1"
+      ],
+      "type": "string"
+    },
+    "audio_codec": {
+      "description": "Audio codec used (aac, aac_lc, he_aac, pcm, mp3, ac3, eac3, etc.)",
+      "type": "string"
+    },
+    "audio_loudness_lufs": {
+      "description": "Integrated loudness in LUFS",
+      "type": "number"
+    },
+    "audio_sampling_rate_hz": {
+      "description": "Audio sampling rate in Hz (e.g., 44100, 48000)",
+      "type": "integer"
+    },
+    "audio_true_peak_dbfs": {
+      "description": "True peak level in dBFS",
+      "type": "number"
+    },
+    "chroma_subsampling": {
+      "description": "Chroma subsampling format",
+      "enum": [
+        "4:2:0",
+        "4:2:2",
+        "4:4:4"
+      ],
+      "type": "string"
+    },
+    "color_space": {
+      "description": "Color space of the video",
+      "enum": [
+        "rec709",
+        "rec2020",
+        "rec2100",
+        "srgb",
+        "dci_p3"
+      ],
+      "type": "string"
+    },
+    "container_format": {
+      "description": "Video container format (mp4, webm, mov, etc.)",
+      "type": "string"
     },
     "duration_ms": {
       "description": "Video duration in milliseconds",
       "minimum": 1,
       "type": "integer"
     },
-    "format": {
-      "description": "Video file format (mp4, webm, mov, etc.)",
+    "file_size_bytes": {
+      "description": "File size in bytes",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "frame_rate": {
+      "description": "Frame rate as string to preserve precision (e.g., '23.976', '29.97', '30')",
+      "type": "string"
+    },
+    "frame_rate_type": {
+      "description": "Whether the video uses constant (CFR) or variable (VFR) frame rate",
+      "enum": [
+        "constant",
+        "variable"
+      ],
+      "type": "string"
+    },
+    "gop_interval_seconds": {
+      "description": "GOP/keyframe interval in seconds",
+      "type": "number"
+    },
+    "gop_type": {
+      "description": "GOP structure type",
+      "enum": [
+        "closed",
+        "open"
+      ],
+      "type": "string"
+    },
+    "has_audio": {
+      "description": "Whether the video contains an audio track",
+      "type": "boolean"
+    },
+    "hdr_format": {
+      "description": "HDR format if applicable, or 'sdr' for standard dynamic range",
+      "enum": [
+        "sdr",
+        "hdr10",
+        "hdr10_plus",
+        "hlg",
+        "dolby_vision"
+      ],
       "type": "string"
     },
     "height": {
@@ -23,9 +122,43 @@
       "minimum": 1,
       "type": "integer"
     },
+    "moov_atom_position": {
+      "description": "Position of moov atom in MP4 container",
+      "enum": [
+        "start",
+        "end"
+      ],
+      "type": "string"
+    },
+    "scan_type": {
+      "description": "Scan type of the video",
+      "enum": [
+        "progressive",
+        "interlaced"
+      ],
+      "type": "string"
+    },
     "url": {
       "description": "URL to the video asset",
       "format": "uri",
+      "type": "string"
+    },
+    "video_bit_depth": {
+      "description": "Video bit depth",
+      "enum": [
+        8,
+        10,
+        12
+      ],
+      "type": "integer"
+    },
+    "video_bitrate_kbps": {
+      "description": "Video stream bitrate in kilobits per second",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "video_codec": {
+      "description": "Video codec used (h264, h265, vp9, av1, prores, etc.)",
       "type": "string"
     },
     "width": {

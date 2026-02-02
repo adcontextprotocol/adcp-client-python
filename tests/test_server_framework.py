@@ -328,12 +328,12 @@ class TestGovernanceHandler:
         assert "Sponsored Intelligence" in result.reason
 
     @pytest.mark.asyncio
-    async def test_list_authorized_properties_suggests_alternative(self):
-        """Test list_authorized_properties suggests using get_property_list."""
+    async def test_list_accounts_not_supported(self):
+        """Test list_accounts is not supported by Governance agents."""
         handler = self.create_concrete_handler()
-        result = await handler.list_authorized_properties({})
+        result = await handler.list_accounts({})
         assert isinstance(result, NotImplementedResponse)
-        assert "get_property_list" in result.reason
+        assert "not supported" in result.reason
 
 
 class TestProposalBuilder:
@@ -341,11 +341,7 @@ class TestProposalBuilder:
 
     def test_build_simple_proposal(self):
         """Test building a simple proposal."""
-        proposal = (
-            ProposalBuilder("Test Campaign")
-            .add_allocation("product-1", 100)
-            .build()
-        )
+        proposal = ProposalBuilder("Test Campaign").add_allocation("product-1", 100).build()
 
         assert proposal["name"] == "Test Campaign"
         assert "proposal_id" in proposal

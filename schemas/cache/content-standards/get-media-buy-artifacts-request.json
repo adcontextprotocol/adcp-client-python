@@ -1,17 +1,17 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/content-standards/get-media-buy-artifacts-request.json",
+  "$id": "/schemas/3.0.0-beta.2/content-standards/get-media-buy-artifacts-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Request parameters for retrieving content artifacts from a media buy for validation",
   "properties": {
     "context": {
-      "$ref": "/schemas/3.0.0-beta.1/core/context.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/context.json"
     },
     "cursor": {
       "description": "Pagination cursor for fetching subsequent pages",
       "type": "string"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.1/core/ext.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
     },
     "limit": {
       "default": 1000,

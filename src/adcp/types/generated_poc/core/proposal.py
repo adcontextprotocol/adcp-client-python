@@ -15,50 +15,50 @@ from . import product_allocation
 
 class TotalBudgetGuidance(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    currency: Annotated[str | None, Field(description='ISO 4217 currency code')] = None
+    currency: Annotated[str | None, Field(description="ISO 4217 currency code")] = None
     max: Annotated[
-        float | None, Field(description='Maximum budget before diminishing returns', ge=0.0)
+        float | None, Field(description="Maximum budget before diminishing returns", ge=0.0)
     ] = None
-    min: Annotated[float | None, Field(description='Minimum recommended budget', ge=0.0)] = None
+    min: Annotated[float | None, Field(description="Minimum recommended budget", ge=0.0)] = None
     recommended: Annotated[
-        float | None, Field(description='Recommended budget for optimal performance', ge=0.0)
+        float | None, Field(description="Recommended budget for optimal performance", ge=0.0)
     ] = None
 
 
 class Proposal(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     allocations: Annotated[
         list[product_allocation.ProductAllocation],
         Field(
-            description='Budget allocations across products. Allocation percentages MUST sum to 100. Publishers are responsible for ensuring the sum equals 100; buyers SHOULD validate this before execution.',
+            description="Budget allocations across products. Allocation percentages MUST sum to 100. Publishers are responsible for ensuring the sum equals 100; buyers SHOULD validate this before execution.",
             min_length=1,
         ),
     ]
     brief_alignment: Annotated[
         str | None,
-        Field(description='Explanation of how this proposal aligns with the campaign brief'),
+        Field(description="Explanation of how this proposal aligns with the campaign brief"),
     ] = None
     description: Annotated[
-        str | None, Field(description='Explanation of the proposal strategy and what it achieves')
+        str | None, Field(description="Explanation of the proposal strategy and what it achieves")
     ] = None
     expires_at: Annotated[
         AwareDatetime | None,
         Field(
-            description='When this proposal expires and can no longer be executed. After expiration, referenced products or pricing may no longer be available.'
+            description="When this proposal expires and can no longer be executed. After expiration, referenced products or pricing may no longer be available."
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
-    name: Annotated[str, Field(description='Human-readable name for this media plan proposal')]
+    name: Annotated[str, Field(description="Human-readable name for this media plan proposal")]
     proposal_id: Annotated[
         str,
         Field(
-            description='Unique identifier for this proposal. Used to refine the proposal in subsequent get_products calls or to execute it via create_media_buy.'
+            description="Unique identifier for this proposal. Used to refine the proposal in subsequent get_products calls or to execute it via create_media_buy."
         ),
     ]
     total_budget_guidance: Annotated[
-        TotalBudgetGuidance | None, Field(description='Optional budget guidance for this proposal')
+        TotalBudgetGuidance | None, Field(description="Optional budget guidance for this proposal")
     ] = None

@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/content-standards/content-standards.json",
+  "$id": "/schemas/3.0.0-beta.2/content-standards/content-standards.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "A content standards configuration defining brand safety and suitability policies. Standards are scoped by brand, geography, and channel. Multiple standards can be active simultaneously for different scopes.",
   "properties": {
@@ -9,14 +9,14 @@
         "fail": {
           "description": "Artifacts that fail the content standards",
           "items": {
-            "$ref": "/schemas/3.0.0-beta.1/content-standards/artifact.json"
+            "$ref": "/schemas/3.0.0-beta.2/content-standards/artifact.json"
           },
           "type": "array"
         },
         "pass": {
           "description": "Artifacts that pass the content standards",
           "items": {
-            "$ref": "/schemas/3.0.0-beta.1/content-standards/artifact.json"
+            "$ref": "/schemas/3.0.0-beta.2/content-standards/artifact.json"
           },
           "type": "array"
         }
@@ -26,7 +26,7 @@
     "channels_any": {
       "description": "Advertising channels. Standards apply to ANY of the listed channels (OR logic).",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.1/enums/channels.json"
+        "$ref": "/schemas/3.0.0-beta.2/enums/channels.json"
       },
       "type": "array"
     },
@@ -38,7 +38,7 @@
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.1/core/ext.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
     },
     "languages_any": {
       "description": "BCP 47 language tags (e.g., 'en', 'de', 'fr'). Standards apply to content in ANY of these languages (OR logic). Content in unlisted languages is not covered by these standards.",

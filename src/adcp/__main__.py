@@ -193,9 +193,9 @@ def _get_dispatch_table() -> dict[str, tuple[str, type | None]]:
         "create_media_buy": ("create_media_buy", gen.CreateMediaBuyRequest),
         "update_media_buy": ("update_media_buy", gen.UpdateMediaBuyRequest),
         "get_media_buy_delivery": ("get_media_buy_delivery", gen.GetMediaBuyDeliveryRequest),
-        "list_authorized_properties": (
-            "list_authorized_properties",
-            gen.ListAuthorizedPropertiesRequest,
+        "list_accounts": (
+            "list_accounts",
+            gen.ListAccountsRequest,
         ),
         # Signals
         "get_signals": ("get_signals", gen.GetSignalsRequest),
@@ -491,7 +491,7 @@ def main() -> None:
         print("  adcp https://agent.example.com list_tools")
         print("\nV3 Protocol Examples:")
         print("  adcp myagent get_adcp_capabilities")
-        print("  adcp cs-agent calibrate_content '{\"content_standards_id\":\"cs-123\"}'")
+        print('  adcp cs-agent calibrate_content \'{"content_standards_id":"cs-123"}\'')
         print("  adcp si-agent si_get_offering")
         print("  adcp gov-agent list_property_lists")
         sys.exit(0)

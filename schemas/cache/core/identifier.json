@@ -1,11 +1,11 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/core/identifier.json",
+  "$id": "/schemas/3.0.0-beta.2/core/identifier.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "A property identifier with type and value. Used to identify properties across platforms (domains, app store IDs, etc.).",
   "properties": {
     "type": {
-      "$ref": "/schemas/3.0.0-beta.1/enums/identifier-types.json",
+      "$ref": "/schemas/3.0.0-beta.2/enums/identifier-types.json",
       "description": "Type of identifier"
     },
     "value": {

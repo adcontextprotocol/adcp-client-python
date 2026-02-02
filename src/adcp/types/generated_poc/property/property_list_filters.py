@@ -15,33 +15,33 @@ from . import feature_requirement
 
 
 class CountriesAllItem(RootModel[str]):
-    root: Annotated[str, Field(pattern='^[A-Z]{2}$')]
+    root: Annotated[str, Field(pattern="^[A-Z]{2}$")]
 
 
 class PropertyListFilters(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     channels_any: Annotated[
         list[channels.MediaChannel],
-        Field(description='Property must support ANY of the listed channels. Required.'),
+        Field(description="Property must support ANY of the listed channels. Required."),
     ]
     countries_all: Annotated[
         list[CountriesAllItem],
         Field(
-            description='Property must have feature data for ALL listed countries (ISO codes). Required.'
+            description="Property must have feature data for ALL listed countries (ISO codes). Required."
         ),
     ]
     exclude_identifiers: Annotated[
         list[identifier.Identifier] | None,
-        Field(description='Identifiers to always exclude from results'),
+        Field(description="Identifiers to always exclude from results"),
     ] = None
     feature_requirements: Annotated[
         list[feature_requirement.FeatureRequirement] | None,
         Field(
-            description='Feature-based requirements. Property must pass ALL requirements (AND logic).'
+            description="Feature-based requirements. Property must pass ALL requirements (AND logic)."
         ),
     ] = None
     property_types: Annotated[
-        list[property_type.PropertyType] | None, Field(description='Filter to these property types')
+        list[property_type.PropertyType] | None, Field(description="Filter to these property types")
     ] = None

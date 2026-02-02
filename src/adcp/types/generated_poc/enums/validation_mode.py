@@ -8,5 +8,5 @@ from enum import Enum
 
 
 class ValidationMode(Enum):
-    strict = 'strict'
-    lenient = 'lenient'
+    strict = "strict"
+    lenient = "lenient"

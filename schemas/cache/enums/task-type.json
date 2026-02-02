@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/enums/task-type.json",
+  "$id": "/schemas/3.0.0-beta.2/enums/task-type.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Valid AdCP task types across all domains. These represent the complete set of operations that can be tracked via the task management system.",
   "enum": [
@@ -8,7 +8,6 @@
     "sync_creatives",
     "activate_signal",
     "get_signals",
-    "list_property_features",
     "create_property_list",
     "update_property_list",
     "get_property_list",
@@ -22,7 +21,6 @@
     "delete_property_list": "Property domain: Delete a property list",
     "get_property_list": "Property domain: Retrieve a property list with resolved properties",
     "get_signals": "Signals domain: Discover available audience signals based on natural language description",
-    "list_property_features": "Property domain: Discover what features a governance agent can evaluate",
     "list_property_lists": "Property domain: List all accessible property lists",
     "sync_creatives": "Media-buy domain: Sync creative assets to publisher's library with upsert semantics",
     "update_media_buy": "Media-buy domain: Update campaign settings, package configuration, or delivery parameters",

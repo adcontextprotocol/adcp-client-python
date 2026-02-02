@@ -400,30 +400,8 @@ class TestSpecialCharactersInPayload:
 class TestDeprecatedFieldWarnings:
     """Tests for deprecated field warning functionality."""
 
-    def test_check_deprecated_fields_warns_on_assets_required(self, capsys):
-        """Should warn when response contains deprecated assets_required field."""
-        from adcp import Format, FormatCategory
-        from adcp.__main__ import _check_deprecated_fields
-
-        # Use the core FormatId which is a proper format identifier type
-        from adcp.types.generated_poc.core.format_id import FormatId as CoreFormatId
-
-        fmt = Format(
-            format_id=CoreFormatId(agent_url="https://test.com", id="test"),
-            name="Test",
-            type=FormatCategory.display,
-            assets_required=[
-                {"asset_id": "img", "asset_type": "image", "item_type": "individual"},
-            ],
-        )
-
-        _check_deprecated_fields(fmt)
-        captured = capsys.readouterr()
-        assert "deprecated" in captured.err.lower()
-        assert "assets_required" in captured.err
-
-    def test_check_deprecated_fields_no_warning_for_new_assets(self, capsys):
-        """Should not warn when using new assets field."""
+    def test_check_deprecated_fields_no_warning_for_standard_assets(self, capsys):
+        """Should not warn when using standard assets field."""
         from adcp import Format, FormatCategory
         from adcp.__main__ import _check_deprecated_fields
 
@@ -457,7 +435,7 @@ class TestDeprecatedFieldWarnings:
         assert captured.err == ""
 
     def test_check_deprecated_fields_handles_list(self, capsys):
-        """Should check items in a list."""
+        """Should check items in a list without warning for standard fields."""
         from adcp import Format, FormatCategory, FormatId
         from adcp.__main__ import _check_deprecated_fields
 
@@ -466,12 +444,17 @@ class TestDeprecatedFieldWarnings:
                 format_id=FormatId(agent_url="https://test.com", id="test"),
                 name="Test",
                 type=FormatCategory.display,
-                assets_required=[
-                    {"asset_id": "img", "asset_type": "image", "item_type": "individual"},
+                assets=[
+                    {
+                        "asset_id": "img",
+                        "asset_type": "image",
+                        "item_type": "individual",
+                        "required": True,
+                    },
                 ],
             ),
         ]
 
         _check_deprecated_fields(formats)
         captured = capsys.readouterr()
-        assert "assets_required" in captured.err
+        assert "deprecated" not in captured.err.lower()

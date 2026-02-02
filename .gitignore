@@ -151,3 +151,8 @@ uv.lock
 
 # Temporary schema processing directory
 .schema_temp/
+
+# Working/status documents (not for commit)
+IMPLEMENTATION_PLAN.md
+IMPLEMENTATION_SUMMARY.md
+TESTING_STATUS.md

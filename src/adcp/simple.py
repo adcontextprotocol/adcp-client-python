@@ -36,8 +36,8 @@ from adcp.types import (
     GetProductsResponse,
     GetSignalsRequest,
     GetSignalsResponse,
-    ListAuthorizedPropertiesRequest,
-    ListAuthorizedPropertiesResponse,
+    ListAccountsRequest,
+    ListAccountsResponse,
     ListCreativeFormatsRequest,
     ListCreativeFormatsResponse,
     ListCreativesRequest,
@@ -252,26 +252,26 @@ class SimpleAPI:
             )
         return result.data
 
-    async def list_authorized_properties(
+    async def list_accounts(
         self,
         **kwargs: Any,
-    ) -> ListAuthorizedPropertiesResponse:
-        """List authorized properties.
+    ) -> ListAccountsResponse:
+        """List billing accounts accessible to the authenticated agent.
 
         Args:
-            **kwargs: Arguments passed to ListAuthorizedPropertiesRequest
+            **kwargs: Arguments passed to ListAccountsRequest
 
         Returns:
-            ListAuthorizedPropertiesResponse
+            ListAccountsResponse
 
         Raises:
             Exception: If the request fails
         """
-        request = ListAuthorizedPropertiesRequest(**kwargs)
-        result = await self._client.list_authorized_properties(request)
+        request = ListAccountsRequest(**kwargs)
+        result = await self._client.list_accounts(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
-                operation="list_authorized_properties",
+                operation="list_accounts",
                 error_message=result.error,
                 agent_id=self._client.agent_config.id,
             )

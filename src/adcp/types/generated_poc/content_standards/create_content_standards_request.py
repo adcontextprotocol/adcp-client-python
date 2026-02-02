@@ -17,9 +17,9 @@ from . import artifact
 
 class Fail(AdCPBaseModel):
     language: Annotated[
-        str | None, Field(description='BCP 47 language tag for content at this URL')
+        str | None, Field(description="BCP 47 language tag for content at this URL")
     ] = None
-    type: Annotated[Literal['url'], Field(description='Indicates this is a URL reference')]
+    type: Annotated[Literal["url"], Field(description="Indicates this is a URL reference")]
     value: Annotated[
         AnyUrl,
         Field(
@@ -30,9 +30,9 @@ class Fail(AdCPBaseModel):
 
 class Pass(AdCPBaseModel):
     language: Annotated[
-        str | None, Field(description='BCP 47 language tag for content at this URL')
+        str | None, Field(description="BCP 47 language tag for content at this URL")
     ] = None
-    type: Annotated[Literal['url'], Field(description='Indicates this is a URL reference')]
+    type: Annotated[Literal["url"], Field(description="Indicates this is a URL reference")]
     value: Annotated[
         AnyUrl,
         Field(
@@ -45,17 +45,17 @@ class Scope(AdCPBaseModel):
     channels_any: Annotated[
         list[channels.MediaChannel] | None,
         Field(
-            description='Advertising channels. Standards apply to ANY of the listed channels (OR logic).'
+            description="Advertising channels. Standards apply to ANY of the listed channels (OR logic)."
         ),
     ] = None
     countries_all: Annotated[
         list[str] | None,
         Field(
-            description='ISO 3166-1 alpha-2 country codes. Standards apply in ALL listed countries (AND logic).'
+            description="ISO 3166-1 alpha-2 country codes. Standards apply in ALL listed countries (AND logic)."
         ),
     ] = None
     description: Annotated[
-        str | None, Field(description='Human-readable description of this scope')
+        str | None, Field(description="Human-readable description of this scope")
     ] = None
     languages_any: Annotated[
         list[str],
@@ -68,22 +68,22 @@ class Scope(AdCPBaseModel):
 
 class CalibrationExemplars(AdCPBaseModel):
     fail: Annotated[
-        list[Fail | artifact.Artifact] | None, Field(description='Content that fails the standards')
+        list[Fail | artifact.Artifact] | None, Field(description="Content that fails the standards")
     ] = None
     pass_: Annotated[
         list[Pass | artifact.Artifact] | None,
-        Field(alias='pass', description='Content that passes the standards'),
+        Field(alias="pass", description="Content that passes the standards"),
     ] = None
 
 
 class CreateContentStandardsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     calibration_exemplars: Annotated[
         CalibrationExemplars | None,
         Field(
-            description='Training/test set to calibrate policy interpretation. Use URL references for pages to be fetched and analyzed, or full artifacts for pre-extracted content.'
+            description="Training/test set to calibrate policy interpretation. Use URL references for pages to be fetched and analyzed, or full artifacts for pre-extracted content."
         ),
     ] = None
     context: context_1.ContextObject | None = None
@@ -91,7 +91,7 @@ class CreateContentStandardsRequest(AdCPBaseModel):
     policy: Annotated[
         str,
         Field(
-            description='Natural language policy describing acceptable and unacceptable content contexts. Used by LLMs and human reviewers to make judgments.'
+            description="Natural language policy describing acceptable and unacceptable content contexts. Used by LLMs and human reviewers to make judgments."
         ),
     ]
-    scope: Annotated[Scope, Field(description='Where this standards configuration applies')]
+    scope: Annotated[Scope, Field(description="Where this standards configuration applies")]

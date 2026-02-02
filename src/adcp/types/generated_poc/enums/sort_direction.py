@@ -8,5 +8,5 @@ from enum import Enum
 
 
 class SortDirection(Enum):
-    asc = 'asc'
-    desc = 'desc'
+    asc = "asc"
+    desc = "desc"

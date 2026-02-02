@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/content-standards/calibrate-content-response.json",
+  "$id": "/schemas/3.0.0-beta.2/content-standards/calibrate-content-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Response payload with verdict and detailed explanations for collaborative calibration",
   "oneOf": [
@@ -70,7 +70,7 @@
       "properties": {
         "errors": {
           "items": {
-            "$ref": "/schemas/3.0.0-beta.1/core/error.json"
+            "$ref": "/schemas/3.0.0-beta.2/core/error.json"
           },
           "type": "array"
         },

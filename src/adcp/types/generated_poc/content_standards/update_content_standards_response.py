@@ -16,19 +16,19 @@ from ..core import ext as ext_1
 
 class UpdateContentStandardsResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     conflicting_standards_id: Annotated[
         str | None,
         Field(
-            description='If scope change conflicts with another configuration, the ID of the conflicting standards'
+            description="If scope change conflicts with another configuration, the ID of the conflicting standards"
         ),
     ] = None
     context: context_1.ContextObject | None = None
     errors: Annotated[
-        list[error.Error] | None, Field(description='Errors that occurred during the update')
+        list[error.Error] | None, Field(description="Errors that occurred during the update")
     ] = None
     ext: ext_1.ExtensionObject | None = None
     standards_id: Annotated[
-        str | None, Field(description='ID of the updated standards configuration')
+        str | None, Field(description="ID of the updated standards configuration")
     ] = None

@@ -14,12 +14,12 @@ from . import ext as ext_1
 
 class ProductAllocation(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     allocation_percentage: Annotated[
         float,
         Field(
-            description='Percentage of total budget allocated to this product (0-100)',
+            description="Percentage of total budget allocated to this product (0-100)",
             ge=0.0,
             le=100.0,
         ),
@@ -30,15 +30,15 @@ class ProductAllocation(AdCPBaseModel):
         Field(description="Recommended pricing option ID from the product's pricing_options array"),
     ] = None
     product_id: Annotated[
-        str, Field(description='ID of the product (must reference a product in the products array)')
+        str, Field(description="ID of the product (must reference a product in the products array)")
     ]
     rationale: Annotated[
         str | None,
-        Field(description='Explanation of why this product and allocation are recommended'),
+        Field(description="Explanation of why this product and allocation are recommended"),
     ] = None
     sequence: Annotated[
         int | None,
-        Field(description='Optional ordering hint for multi-line-item plans (1-based)', ge=1),
+        Field(description="Optional ordering hint for multi-line-item plans (1-based)", ge=1),
     ] = None
     tags: Annotated[
         list[str] | None,

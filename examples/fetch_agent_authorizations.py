@@ -4,8 +4,8 @@ Example showing how to discover which publishers have authorized your agent.
 This example demonstrates TWO approaches:
 
 1. "Push" approach - Ask the agent what it's authorized for:
-   - Use the agent's list_authorized_properties endpoint
-   - Agent tells you which publisher domains it represents
+   - Use the agent's get_adcp_capabilities endpoint
+   - Agent tells you which publisher domains it represents via media_buy.portfolio
    - Fast and efficient - single API call
 
 2. "Pull" approach - Check publisher adagents.json files:
@@ -17,7 +17,13 @@ This example demonstrates TWO approaches:
 
 import asyncio
 
-from adcp import ADCPClient, AgentConfig, Protocol, fetch_agent_authorizations
+from adcp import (
+    ADCPClient,
+    AgentConfig,
+    GetAdcpCapabilitiesRequest,
+    Protocol,
+    fetch_agent_authorizations,
+)
 
 
 async def approach_1_push():
@@ -37,21 +43,33 @@ async def approach_1_push():
     async with ADCPClient(agent_config) as client:
         # Ask the agent directly what publishers it represents
         # This is fast - just one API call!
-        response = await client.simple.list_authorized_properties()
+        result = await client.get_adcp_capabilities(GetAdcpCapabilitiesRequest())
 
-        print(f"✅ Agent represents {len(response.publisher_domains)} publishers:\n")
+        if not result.success or not result.data:
+            print(f"❌ Failed to get capabilities: {result.error}")
+            return
 
-        for domain in response.publisher_domains:
+        capabilities = result.data
+
+        # Check if media_buy is supported and has portfolio info
+        if not capabilities.media_buy or not capabilities.media_buy.portfolio:
+            print("❌ Agent does not support media_buy or has no portfolio info")
+            return
+
+        portfolio = capabilities.media_buy.portfolio
+        print(f"✅ Agent represents {len(portfolio.publisher_domains)} publishers:\n")
+
+        for domain in portfolio.publisher_domains:
             print(f"  • {domain}")
 
         print()
         print("📊 Portfolio Summary:")
-        if response.primary_channels:
-            print(f"  Primary Channels: {', '.join(response.primary_channels)}")
-        if response.primary_countries:
-            print(f"  Primary Countries: {', '.join(response.primary_countries)}")
-        if response.portfolio_description:
-            print(f"  Description: {response.portfolio_description[:100]}...")
+        if portfolio.primary_channels:
+            print(f"  Primary Channels: {', '.join(portfolio.primary_channels)}")
+        if portfolio.primary_countries:
+            print(f"  Primary Countries: {', '.join(portfolio.primary_countries)}")
+        if portfolio.description:
+            print(f"  Description: {portfolio.description[:100]}...")
 
         print()
         print("💡 TIP: Now fetch each publisher's adagents.json to see property details")

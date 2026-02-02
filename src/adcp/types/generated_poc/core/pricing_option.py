@@ -40,6 +40,6 @@ class PricingOption(
         | flat_rate_option.FlatRatePricingOption,
         Field(
             description="A pricing model option offered by a publisher for a product. Discriminated by pricing_model field. If fixed_price is present, it's fixed pricing. If absent, it's auction-based (floor_price and price_guidance optional).",
-            title='Pricing Option',
+            title="Pricing Option",
         ),
     ]

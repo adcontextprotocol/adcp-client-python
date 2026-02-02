@@ -43,13 +43,17 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
         },
     },
     {
-        "name": "list_authorized_properties",
-        "description": "List properties authorized for ad placement",
+        "name": "list_accounts",
+        "description": "List billing accounts accessible to the authenticated agent",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "filters": {"type": "object"},
-                "pagination": {"type": "object"},
+                "status": {
+                    "type": "string",
+                    "enum": ["active", "suspended", "closed", "all"],
+                    "default": "active",
+                    "description": "Filter accounts by status",
+                },
             },
         },
     },

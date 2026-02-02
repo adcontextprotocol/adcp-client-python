@@ -232,7 +232,7 @@ def test_simple_api_methods():
     assert hasattr(test_agent.simple, "sync_creatives")
     assert hasattr(test_agent.simple, "list_creatives")
     assert hasattr(test_agent.simple, "get_media_buy_delivery")
-    assert hasattr(test_agent.simple, "list_authorized_properties")
+    assert hasattr(test_agent.simple, "list_accounts")
     assert hasattr(test_agent.simple, "get_signals")
     assert hasattr(test_agent.simple, "activate_signal")
     assert hasattr(test_agent.simple, "provide_performance_feedback")

@@ -13,5 +13,5 @@ from . import artifact as artifact_1
 
 
 class CalibrateContentRequest(AdCPBaseModel):
-    artifact: Annotated[artifact_1.Artifact, Field(description='Artifact to evaluate')]
-    standards_id: Annotated[str, Field(description='Standards configuration to calibrate against')]
+    artifact: Annotated[artifact_1.Artifact, Field(description="Artifact to evaluate")]
+    standards_id: Annotated[str, Field(description="Standards configuration to calibrate against")]

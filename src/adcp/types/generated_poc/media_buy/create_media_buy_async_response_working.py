@@ -15,17 +15,17 @@ from ..core import ext as ext_1
 
 class CreateMediaBuyWorking(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     current_step: Annotated[
-        str | None, Field(description='Current step or phase of the operation')
+        str | None, Field(description="Current step or phase of the operation")
     ] = None
     ext: ext_1.ExtensionObject | None = None
     percentage: Annotated[
-        float | None, Field(description='Completion percentage (0-100)', ge=0.0, le=100.0)
+        float | None, Field(description="Completion percentage (0-100)", ge=0.0, le=100.0)
     ] = None
-    step_number: Annotated[int | None, Field(description='Current step number', ge=1)] = None
+    step_number: Annotated[int | None, Field(description="Current step number", ge=1)] = None
     total_steps: Annotated[
-        int | None, Field(description='Total number of steps in the operation', ge=1)
+        int | None, Field(description="Total number of steps in the operation", ge=1)
     ] = None

@@ -15,51 +15,51 @@ from ...enums import vast_version as vast_version_1
 
 class VastAsset1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     delivery_type: Annotated[
-        Literal['url'],
-        Field(description='Discriminator indicating VAST is delivered via URL endpoint'),
+        Literal["url"],
+        Field(description="Discriminator indicating VAST is delivered via URL endpoint"),
     ]
     duration_ms: Annotated[
-        int | None, Field(description='Expected video duration in milliseconds (if known)', ge=0)
+        int | None, Field(description="Expected video duration in milliseconds (if known)", ge=0)
     ] = None
     tracking_events: Annotated[
         list[vast_tracking_event.VastTrackingEvent] | None,
-        Field(description='Tracking events supported by this VAST tag'),
+        Field(description="Tracking events supported by this VAST tag"),
     ] = None
-    url: Annotated[AnyUrl, Field(description='URL endpoint that returns VAST XML')]
+    url: Annotated[AnyUrl, Field(description="URL endpoint that returns VAST XML")]
     vast_version: Annotated[
-        vast_version_1.VastVersion | None, Field(description='VAST specification version')
+        vast_version_1.VastVersion | None, Field(description="VAST specification version")
     ] = None
     vpaid_enabled: Annotated[
         bool | None,
-        Field(description='Whether VPAID (Video Player-Ad Interface Definition) is supported'),
+        Field(description="Whether VPAID (Video Player-Ad Interface Definition) is supported"),
     ] = None
 
 
 class VastAsset2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    content: Annotated[str, Field(description='Inline VAST XML content')]
+    content: Annotated[str, Field(description="Inline VAST XML content")]
     delivery_type: Annotated[
-        Literal['inline'],
-        Field(description='Discriminator indicating VAST is delivered as inline XML content'),
+        Literal["inline"],
+        Field(description="Discriminator indicating VAST is delivered as inline XML content"),
     ]
     duration_ms: Annotated[
-        int | None, Field(description='Expected video duration in milliseconds (if known)', ge=0)
+        int | None, Field(description="Expected video duration in milliseconds (if known)", ge=0)
     ] = None
     tracking_events: Annotated[
         list[vast_tracking_event.VastTrackingEvent] | None,
-        Field(description='Tracking events supported by this VAST tag'),
+        Field(description="Tracking events supported by this VAST tag"),
     ] = None
     vast_version: Annotated[
-        vast_version_1.VastVersion | None, Field(description='VAST specification version')
+        vast_version_1.VastVersion | None, Field(description="VAST specification version")
     ] = None
     vpaid_enabled: Annotated[
         bool | None,
-        Field(description='Whether VPAID (Video Player-Ad Interface Definition) is supported'),
+        Field(description="Whether VPAID (Video Player-Ad Interface Definition) is supported"),
     ] = None
 
 
@@ -67,7 +67,7 @@ class VastAsset(RootModel[VastAsset1 | VastAsset2]):
     root: Annotated[
         VastAsset1 | VastAsset2,
         Field(
-            description='VAST (Video Ad Serving Template) tag for third-party video ad serving',
-            title='VAST Asset',
+            description="VAST (Video Ad Serving Template) tag for third-party video ad serving",
+            title="VAST Asset",
         ),
     ]

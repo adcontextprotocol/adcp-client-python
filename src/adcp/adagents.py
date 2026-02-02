@@ -330,9 +330,7 @@ async def fetch_adagents(
     for depth in range(MAX_REDIRECT_DEPTH + 1):
         # Check for redirect loop
         if url in visited_urls:
-            raise AdagentsValidationError(
-                f"Circular redirect detected: {url} already visited"
-            )
+            raise AdagentsValidationError(f"Circular redirect detected: {url} already visited")
         visited_urls.add(url)
 
         data = await _fetch_adagents_url(url, timeout, user_agent, client)
@@ -427,9 +425,7 @@ async def _fetch_adagents_url(
             try:
                 validate_adagents(data)
             except ValidationError as e:
-                raise AdagentsValidationError(
-                    f"Invalid adagents.json structure: {e}"
-                ) from e
+                raise AdagentsValidationError(f"Invalid adagents.json structure: {e}") from e
         elif "authoritative_location" not in data:
             # Neither authorized_agents nor authoritative_location
             raise AdagentsValidationError(
@@ -693,8 +689,8 @@ async def fetch_agent_authorizations(
     properties your agent can access.
 
     This is the "pull" approach - you query publishers to see if they've authorized you.
-    For the "push" approach where the agent tells you what it's authorized for,
-    use the agent's list_authorized_properties endpoint via ADCPClient.
+    For the "push" approach where the agent tells you what billing accounts you can use,
+    use the agent's list_accounts endpoint via ADCPClient.
 
     Args:
         agent_url: URL of your sales agent
@@ -718,7 +714,7 @@ async def fetch_agent_authorizations(
         ...     print(f"  Tags: {ctx.property_tags}")
 
     See Also:
-        ADCPClient.list_authorized_properties: "Push" approach using the agent's API
+        ADCPClient.list_accounts: "Push" approach using the agent's API to list billing accounts
 
     Notes:
         - Silently skips domains where adagents.json is not found or invalid

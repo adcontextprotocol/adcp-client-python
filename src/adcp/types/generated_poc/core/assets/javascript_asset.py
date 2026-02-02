@@ -14,10 +14,10 @@ from ...enums import javascript_module_type
 
 class JavascriptAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    content: Annotated[str, Field(description='JavaScript content')]
+    content: Annotated[str, Field(description="JavaScript content")]
     module_type: Annotated[
         javascript_module_type.JavascriptModuleType | None,
-        Field(description='JavaScript module type'),
+        Field(description="JavaScript module type"),
     ] = None

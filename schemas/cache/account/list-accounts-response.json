@@ -1,0 +1,76 @@
+{
+  "$id": "/schemas/3.0.0-beta.2/account/list-accounts-response.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Response payload for list_accounts task",
+  "examples": [
+    {
+      "data": {
+        "accounts": [
+          {
+            "account_id": "acc_coke_publicis",
+            "advertiser": "The Coca-Cola Company",
+            "billing_proxy": "Publicis Media",
+            "name": "Coke c/o Publicis",
+            "status": "active"
+          },
+          {
+            "account_id": "acc_pepsi_publicis",
+            "advertiser": "PepsiCo",
+            "billing_proxy": "Publicis Media",
+            "name": "Pepsi c/o Publicis",
+            "status": "active"
+          },
+          {
+            "account_id": "acc_publicis",
+            "advertiser": "Publicis Media",
+            "name": "Publicis",
+            "status": "active"
+          }
+        ]
+      },
+      "description": "Agency with multiple client accounts"
+    },
+    {
+      "data": {
+        "accounts": [
+          {
+            "account_id": "acc_coke_direct",
+            "advertiser": "The Coca-Cola Company",
+            "name": "Coke",
+            "rate_card": "coke_vip_2024",
+            "status": "active"
+          }
+        ]
+      },
+      "description": "Direct advertiser with single account"
+    }
+  ],
+  "properties": {
+    "accounts": {
+      "description": "Array of accounts accessible to the authenticated agent",
+      "items": {
+        "$ref": "/schemas/3.0.0-beta.2/core/account.json"
+      },
+      "type": "array"
+    },
+    "context": {
+      "$ref": "/schemas/3.0.0-beta.2/core/context.json"
+    },
+    "errors": {
+      "description": "Task-specific errors and warnings",
+      "items": {
+        "$ref": "/schemas/3.0.0-beta.2/core/error.json"
+      },
+      "type": "array"
+    },
+    "ext": {
+      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+    }
+  },
+  "required": [
+    "accounts"
+  ],
+  "title": "List Accounts Response",
+  "type": "object"
+}

@@ -40,6 +40,7 @@ from adcp.types import _generated as generated  # noqa: F401
 # V3 Sponsored Intelligence types
 # V3 Governance (Property Lists) types
 from adcp.types._generated import (
+    Account,
     ActivateSignalRequest,
     ActivateSignalResponse,
     AggregatedTotals,
@@ -47,7 +48,6 @@ from adcp.types._generated import (
     Asset,
     AssetContentType,
     AssetSelectors,
-    AssetsRequired,
     AssignedPackage,
     Assignments,
     AudioAsset,
@@ -141,8 +141,8 @@ from adcp.types._generated import (
     JavascriptAsset,
     JavascriptModuleType,
     LandingPageRequirement,
-    ListAuthorizedPropertiesRequest,
-    ListAuthorizedPropertiesResponse,
+    ListAccountsRequest,
+    ListAccountsResponse,
     ListContentStandardsRequest,
     ListContentStandardsResponse,
     ListCreativeFormatsRequest,
@@ -358,8 +358,8 @@ __all__ = [
     "GetProductsResponse",
     "GetSignalsRequest",
     "GetSignalsResponse",
-    "ListAuthorizedPropertiesRequest",
-    "ListAuthorizedPropertiesResponse",
+    "ListAccountsRequest",
+    "ListAccountsResponse",
     "ListCreativeFormatsRequest",
     "ListCreativeFormatsResponse",
     "ListCreativesRequest",
@@ -432,7 +432,7 @@ __all__ = [
     "AssetContentType",
     "AssetType",  # Deprecated
     "FormatCategory",
-    "AssetsRequired",
+    "Account",
     "AssignedPackage",
     "Assignments",
     "BrandManifest",

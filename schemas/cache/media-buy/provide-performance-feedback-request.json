@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/media-buy/provide-performance-feedback-request.json",
+  "$id": "/schemas/3.0.0-beta.2/media-buy/provide-performance-feedback-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Request payload for provide_performance_feedback task",
@@ -26,7 +26,7 @@
       "type": "string"
     },
     "context": {
-      "$ref": "/schemas/3.0.0-beta.1/core/context.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/context.json"
     },
     "creative_id": {
       "description": "Specific creative asset (if feedback is creative-specific)",
@@ -34,10 +34,10 @@
       "type": "string"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.1/core/ext.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
     },
     "feedback_source": {
-      "$ref": "/schemas/3.0.0-beta.1/enums/feedback-source.json",
+      "$ref": "/schemas/3.0.0-beta.2/enums/feedback-source.json",
       "default": "buyer_attribution",
       "description": "Source of the performance data"
     },
@@ -68,7 +68,7 @@
       "type": "string"
     },
     "metric_type": {
-      "$ref": "/schemas/3.0.0-beta.1/enums/metric-type.json",
+      "$ref": "/schemas/3.0.0-beta.2/enums/metric-type.json",
       "default": "overall_performance",
       "description": "The business metric being measured"
     },

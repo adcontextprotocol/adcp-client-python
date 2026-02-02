@@ -1,14 +1,14 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/creative/asset-types/index.json",
+  "$id": "/schemas/3.0.0-beta.2/creative/asset-types/index.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "adcp_version": "3.0.0-beta.1",
+  "adcp_version": "3.0.0-beta.2",
   "architecture": {
     "format_aware_validation": {
       "description": "Creative manifests are validated in the context of their format specification",
       "process": [
         "1. Read format_id from manifest",
         "2. Fetch format specification",
-        "3. For each asset in manifest, look up asset_id in format's assets_required",
+        "3. For each asset in manifest, look up asset_id in format's assets array",
         "4. Validate asset matches the type and requirements defined in the format"
       ]
     },
@@ -90,9 +90,9 @@
       "typical_use": "DCO (Dynamic Creative Optimization), real-time personalization, server-side rendering"
     }
   },
-  "baseUrl": "/schemas/3.0.0-beta.1",
+  "baseUrl": "/schemas/3.0.0-beta.2",
   "description": "Registry of asset types used in AdCP creative manifests. Each asset type defines the structure of actual content payloads (what you send), not requirements or constraints (which belong in format specifications).",
-  "lastUpdated": "2026-01-26",
+  "lastUpdated": "2026-02-02",
   "title": "AdCP Asset Type Registry",
   "usage_notes": {
     "creative_manifests": "Creative manifests provide actual asset content, keyed by asset_id from the format. Asset type is determined by the format specification, not declared in the payload.",
@@ -101,6 +101,6 @@
   },
   "version": "1.0.0",
   "versioning": {
-    "note": "AdCP uses build-time versioning. This directory contains schemas for AdCP 3.0.0-beta.1. Full semantic versions are available at /schemas/{version}/ (e.g., /schemas/2.5.0/). Major version aliases point to the latest release: /schemas/v3/ \u2192 /schemas/3.0.0-beta.1/."
+    "note": "AdCP uses build-time versioning. This directory contains schemas for AdCP 3.0.0-beta.2. Full semantic versions are available at /schemas/{version}/ (e.g., /schemas/2.5.0/). Major version aliases point to the latest release: /schemas/v3/ \u2192 /schemas/3.0.0-beta.2/."
   }
 }

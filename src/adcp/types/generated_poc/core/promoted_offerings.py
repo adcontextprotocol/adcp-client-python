@@ -14,28 +14,28 @@ from . import brand_manifest_ref, offering, promoted_products
 
 
 class AssetType(Enum):
-    image = 'image'
-    video = 'video'
-    audio = 'audio'
-    vast = 'vast'
-    daast = 'daast'
-    text = 'text'
-    url = 'url'
-    html = 'html'
-    css = 'css'
-    javascript = 'javascript'
-    webhook = 'webhook'
+    image = "image"
+    video = "video"
+    audio = "audio"
+    vast = "vast"
+    daast = "daast"
+    text = "text"
+    url = "url"
+    html = "html"
+    css = "css"
+    javascript = "javascript"
+    webhook = "webhook"
 
 
 class AssetSelectors(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     asset_types: Annotated[
         list[AssetType] | None, Field(description="Filter by asset type (e.g., ['image', 'video'])")
     ] = None
     exclude_tags: Annotated[
-        list[str] | None, Field(description='Exclude assets with these tags')
+        list[str] | None, Field(description="Exclude assets with these tags")
     ] = None
     tags: Annotated[
         list[str] | None,
@@ -45,28 +45,28 @@ class AssetSelectors(AdCPBaseModel):
 
 class PromotedOfferings(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     asset_selectors: Annotated[
         AssetSelectors | None,
-        Field(description='Selectors to choose specific assets from the brand manifest'),
+        Field(description="Selectors to choose specific assets from the brand manifest"),
     ] = None
     brand_manifest: Annotated[
         brand_manifest_ref.BrandManifestReference,
         Field(
-            description='Brand information manifest containing assets, themes, and guidelines. Can be provided inline or as a URL reference to a hosted manifest.'
+            description="Brand information manifest containing assets, themes, and guidelines. Can be provided inline or as a URL reference to a hosted manifest."
         ),
     ]
     offerings: Annotated[
         list[offering.Offering] | None,
         Field(
-            description='Offerings available for promotion. Each offering can include creative assets (via portfolio_ref or inline assets) for traditional ads. When si_agent_url is set at the parent level, hosts can offer conversational experiences about any of these offerings.'
+            description="Offerings available for promotion. Each offering can include creative assets (via portfolio_ref or inline assets) for traditional ads. When si_agent_url is set at the parent level, hosts can offer conversational experiences about any of these offerings."
         ),
     ] = None
     product_selectors: Annotated[
         promoted_products.PromotedProducts | None,
         Field(
-            description='Selectors to choose which products/offerings from the brand manifest product catalog to promote'
+            description="Selectors to choose which products/offerings from the brand manifest product catalog to promote"
         ),
     ] = None
     si_agent_url: Annotated[

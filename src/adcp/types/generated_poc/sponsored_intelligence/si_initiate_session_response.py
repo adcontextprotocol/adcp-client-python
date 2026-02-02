@@ -16,29 +16,29 @@ from . import si_capabilities, si_ui_element
 
 class Response(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    message: Annotated[str | None, Field(description='Conversational message from brand agent')] = (
+    message: Annotated[str | None, Field(description="Conversational message from brand agent")] = (
         None
     )
     ui_elements: Annotated[
-        list[si_ui_element.SiUiElement] | None, Field(description='Visual components to render')
+        list[si_ui_element.SiUiElement] | None, Field(description="Visual components to render")
     ] = None
 
 
 class SiInitiateSessionResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     errors: Annotated[
-        list[error.Error] | None, Field(description='Errors during session initiation')
+        list[error.Error] | None, Field(description="Errors during session initiation")
     ] = None
     ext: ext_1.ExtensionObject | None = None
     negotiated_capabilities: Annotated[
         si_capabilities.SiCapabilities | None,
-        Field(description='Intersection of brand and host capabilities for this session'),
+        Field(description="Intersection of brand and host capabilities for this session"),
     ] = None
     response: Annotated[Response | None, Field(description="Brand agent's initial response")] = None
     session_id: Annotated[
-        str, Field(description='Unique session identifier for subsequent messages')
+        str, Field(description="Unique session identifier for subsequent messages")
     ]

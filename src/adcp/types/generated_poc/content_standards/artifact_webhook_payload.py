@@ -14,51 +14,51 @@ from . import artifact as artifact_1
 
 
 class Pagination(AdCPBaseModel):
-    batch_number: Annotated[int | None, Field(description='Current batch number (1-indexed)')] = (
+    batch_number: Annotated[int | None, Field(description="Current batch number (1-indexed)")] = (
         None
     )
     total_artifacts: Annotated[
-        int | None, Field(description='Total artifacts in the delivery period')
+        int | None, Field(description="Total artifacts in the delivery period")
     ] = None
     total_batches: Annotated[
-        int | None, Field(description='Total batches for this delivery period')
+        int | None, Field(description="Total batches for this delivery period")
     ] = None
 
 
 class Artifact(AdCPBaseModel):
-    artifact: Annotated[artifact_1.Artifact, Field(description='The content artifact')]
+    artifact: Annotated[artifact_1.Artifact, Field(description="The content artifact")]
     delivered_at: Annotated[
-        AwareDatetime, Field(description='When the impression was delivered (ISO 8601)')
+        AwareDatetime, Field(description="When the impression was delivered (ISO 8601)")
     ]
     impression_id: Annotated[
         str | None,
-        Field(description='Optional impression identifier for correlation with delivery reports'),
+        Field(description="Optional impression identifier for correlation with delivery reports"),
     ] = None
     package_id: Annotated[
-        str | None, Field(description='Package within the media buy this artifact relates to')
+        str | None, Field(description="Package within the media buy this artifact relates to")
     ] = None
 
 
 class ArtifactWebhookPayload(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     artifacts: Annotated[
-        list[Artifact], Field(description='Content artifacts from delivered impressions')
+        list[Artifact], Field(description="Content artifacts from delivered impressions")
     ]
     batch_id: Annotated[
         str,
         Field(
-            description='Unique identifier for this batch of artifacts. Use for deduplication and acknowledgment.'
+            description="Unique identifier for this batch of artifacts. Use for deduplication and acknowledgment."
         ),
     ]
     ext: ext_1.ExtensionObject | None = None
     media_buy_id: Annotated[
-        str, Field(description='Media buy identifier these artifacts belong to')
+        str, Field(description="Media buy identifier these artifacts belong to")
     ]
     pagination: Annotated[
-        Pagination | None, Field(description='Pagination info when batching large artifact sets')
+        Pagination | None, Field(description="Pagination info when batching large artifact sets")
     ] = None
     timestamp: Annotated[
-        AwareDatetime, Field(description='When this batch was generated (ISO 8601)')
+        AwareDatetime, Field(description="When this batch was generated (ISO 8601)")
     ]

@@ -1,15 +1,15 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/adagents.json",
+  "$id": "/schemas/3.0.0-beta.2/adagents.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Declaration of authorized sales agents for advertising inventory. Hosted at /.well-known/adagents.json on publisher domains. Can either contain the full structure inline or reference an authoritative URL.",
   "examples": [
     {
-      "$schema": "/schemas/3.0.0-beta.1/adagents.json",
+      "$schema": "/schemas/3.0.0-beta.2/adagents.json",
       "authoritative_location": "https://cdn.example.com/adagents/v2/adagents.json",
       "last_updated": "2025-01-15T10:00:00Z"
     },
     {
-      "$schema": "/schemas/3.0.0-beta.1/adagents.json",
+      "$schema": "/schemas/3.0.0-beta.2/adagents.json",
       "authorized_agents": [
         {
           "authorization_type": "property_tags",
@@ -42,7 +42,7 @@
       }
     },
     {
-      "$schema": "/schemas/3.0.0-beta.1/adagents.json",
+      "$schema": "/schemas/3.0.0-beta.2/adagents.json",
       "authorized_agents": [
         {
           "authorization_type": "property_tags",
@@ -137,7 +137,7 @@
       }
     },
     {
-      "$schema": "/schemas/3.0.0-beta.1/adagents.json",
+      "$schema": "/schemas/3.0.0-beta.2/adagents.json",
       "authorized_agents": [
         {
           "authorization_type": "property_tags",
@@ -176,7 +176,7 @@
       }
     },
     {
-      "$schema": "/schemas/3.0.0-beta.1/adagents.json",
+      "$schema": "/schemas/3.0.0-beta.2/adagents.json",
       "authorized_agents": [
         {
           "authorization_type": "publisher_properties",
@@ -222,7 +222,7 @@
       "last_updated": "2025-01-10T17:00:00Z"
     },
     {
-      "$schema": "/schemas/3.0.0-beta.1/adagents.json",
+      "$schema": "/schemas/3.0.0-beta.2/adagents.json",
       "authorized_agents": [
         {
           "authorization_type": "property_tags",
@@ -352,7 +352,7 @@
                   "property_ids": {
                     "description": "Property IDs this agent is authorized for. Resolved against the top-level properties array in this file",
                     "items": {
-                      "$ref": "/schemas/3.0.0-beta.1/core/property-id.json"
+                      "$ref": "/schemas/3.0.0-beta.2/core/property-id.json"
                     },
                     "minItems": 1,
                     "type": "array"
@@ -388,7 +388,7 @@
                   "property_tags": {
                     "description": "Tags identifying which properties this agent is authorized for. Resolved against the top-level properties array in this file using tag matching",
                     "items": {
-                      "$ref": "/schemas/3.0.0-beta.1/core/property-tag.json"
+                      "$ref": "/schemas/3.0.0-beta.2/core/property-tag.json"
                     },
                     "minItems": 1,
                     "type": "array"
@@ -424,7 +424,7 @@
                   "properties": {
                     "description": "Specific properties this agent is authorized for (alternative to property_ids/property_tags)",
                     "items": {
-                      "$ref": "/schemas/3.0.0-beta.1/core/property.json"
+                      "$ref": "/schemas/3.0.0-beta.2/core/property.json"
                     },
                     "minItems": 1,
                     "type": "array"
@@ -460,7 +460,7 @@
                   "publisher_properties": {
                     "description": "Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell",
                     "items": {
-                      "$ref": "/schemas/3.0.0-beta.1/core/publisher-property-selector.json"
+                      "$ref": "/schemas/3.0.0-beta.2/core/publisher-property-selector.json"
                     },
                     "minItems": 1,
                     "type": "array"
@@ -537,7 +537,7 @@
         "properties": {
           "description": "Array of all properties covered by this adagents.json file. Defines the canonical property list that authorized agents reference.",
           "items": {
-            "$ref": "/schemas/3.0.0-beta.1/core/property.json"
+            "$ref": "/schemas/3.0.0-beta.2/core/property.json"
           },
           "minItems": 1,
           "type": "array"
@@ -548,7 +548,7 @@
             "additionalProperties": true,
             "properties": {
               "features": {
-                "description": "Feature IDs this agent provides (e.g., 'carbon_score', 'tag_certified_against_fraud'). Use list_property_features on the agent for full definitions.",
+                "description": "Feature IDs this agent provides (e.g., 'carbon_score', 'tag_certified_against_fraud'). Use get_adcp_capabilities on the agent for full definitions.",
                 "items": {
                   "type": "string"
                 },
@@ -564,7 +564,7 @@
                 "type": "string"
               },
               "url": {
-                "description": "The agent's API endpoint URL (must implement get_property_features)",
+                "description": "The agent's API endpoint URL",
                 "format": "uri",
                 "type": "string"
               }

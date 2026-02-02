@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/media-buy/get-media-buy-delivery-response.json",
+  "$id": "/schemas/3.0.0-beta.2/media-buy/get-media-buy-delivery-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Response payload for get_media_buy_delivery task",
@@ -42,7 +42,7 @@
       "type": "object"
     },
     "context": {
-      "$ref": "/schemas/3.0.0-beta.1/core/context.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/context.json"
     },
     "currency": {
       "description": "ISO 4217 currency code",
@@ -52,12 +52,12 @@
     "errors": {
       "description": "Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.1/core/error.json"
+        "$ref": "/schemas/3.0.0-beta.2/core/error.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.1/core/ext.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
     },
     "media_buy_deliveries": {
       "description": "Array of delivery data for media buys. When used in webhook notifications, may contain multiple media buys aggregated by publisher. When used in get_media_buy_delivery API responses, typically contains requested media buys.",
@@ -73,7 +73,7 @@
             "items": {
               "allOf": [
                 {
-                  "$ref": "/schemas/3.0.0-beta.1/core/delivery-metrics.json"
+                  "$ref": "/schemas/3.0.0-beta.2/core/delivery-metrics.json"
                 },
                 {
                   "properties": {
@@ -111,7 +111,7 @@
                       "type": "boolean"
                     },
                     "pricing_model": {
-                      "$ref": "/schemas/3.0.0-beta.1/enums/pricing-model.json",
+                      "$ref": "/schemas/3.0.0-beta.2/enums/pricing-model.json",
                       "description": "The pricing model used for this package (e.g., cpm, cpcv, cpp). Indicates how the package is billed and which metrics are most relevant for optimization."
                     },
                     "rate": {
@@ -177,7 +177,7 @@
             "type": "string"
           },
           "pricing_model": {
-            "$ref": "/schemas/3.0.0-beta.1/enums/pricing-model.json",
+            "$ref": "/schemas/3.0.0-beta.2/enums/pricing-model.json",
             "description": "Pricing model used for this media buy"
           },
           "status": {
@@ -195,7 +195,7 @@
           "totals": {
             "allOf": [
               {
-                "$ref": "/schemas/3.0.0-beta.1/core/delivery-metrics.json"
+                "$ref": "/schemas/3.0.0-beta.2/core/delivery-metrics.json"
               },
               {
                 "description": "Aggregate metrics for this media buy across all packages",

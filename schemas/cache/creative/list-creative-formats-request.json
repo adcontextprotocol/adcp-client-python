@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/creative/list-creative-formats-request.json",
+  "$id": "/schemas/3.0.0-beta.2/creative/list-creative-formats-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Request parameters for discovering creative formats provided by this creative agent",
@@ -21,15 +21,15 @@
       "type": "array"
     },
     "context": {
-      "$ref": "/schemas/3.0.0-beta.1/core/context.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.1/core/ext.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
     },
     "format_ids": {
       "description": "Return only these specific format IDs",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.1/core/format-id.json"
+        "$ref": "/schemas/3.0.0-beta.2/core/format-id.json"
       },
       "type": "array"
     },

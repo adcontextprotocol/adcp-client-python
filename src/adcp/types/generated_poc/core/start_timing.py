@@ -9,10 +9,10 @@ from typing import Annotated, Literal
 from pydantic import AwareDatetime, Field, RootModel
 
 
-class StartTiming(RootModel[Literal['asap'] | AwareDatetime]):
+class StartTiming(RootModel[Literal["asap"] | AwareDatetime]):
     root: Annotated[
-        Literal['asap'] | AwareDatetime,
+        Literal["asap"] | AwareDatetime,
         Field(
-            description="Campaign start timing: 'asap' or ISO 8601 date-time", title='Start Timing'
+            description="Campaign start timing: 'asap' or ISO 8601 date-time", title="Start Timing"
         ),
     ]

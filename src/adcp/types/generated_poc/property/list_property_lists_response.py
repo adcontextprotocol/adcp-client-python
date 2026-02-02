@@ -15,25 +15,25 @@ from . import property_list
 
 class Pagination(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    cursor: Annotated[str | None, Field(description='Cursor for next page')] = None
-    has_more: Annotated[bool | None, Field(description='Whether more results are available')] = None
+    cursor: Annotated[str | None, Field(description="Cursor for next page")] = None
+    has_more: Annotated[bool | None, Field(description="Whether more results are available")] = None
 
 
 class ListPropertyListsResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     ext: ext_1.ExtensionObject | None = None
     lists: Annotated[
         list[property_list.PropertyList],
-        Field(description='Array of property lists (metadata only, not resolved properties)'),
+        Field(description="Array of property lists (metadata only, not resolved properties)"),
     ]
-    pagination: Annotated[Pagination | None, Field(description='Pagination information')] = None
+    pagination: Annotated[Pagination | None, Field(description="Pagination information")] = None
     returned_count: Annotated[
-        int | None, Field(description='Number of lists returned in this response')
+        int | None, Field(description="Number of lists returned in this response")
     ] = None
     total_count: Annotated[
-        int | None, Field(description='Total number of lists matching criteria')
+        int | None, Field(description="Total number of lists matching criteria")
     ] = None

@@ -16,20 +16,20 @@ from . import property_list
 
 class Pagination(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    cursor: Annotated[str | None, Field(description='Cursor for next page')] = None
-    has_more: Annotated[bool | None, Field(description='Whether more results are available')] = None
+    cursor: Annotated[str | None, Field(description="Cursor for next page")] = None
+    has_more: Annotated[bool | None, Field(description="Whether more results are available")] = None
 
 
 class GetPropertyListResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     cache_valid_until: Annotated[
         AwareDatetime | None,
         Field(
-            description='Cache expiration timestamp. Re-fetch the list after this time to get updated identifiers.'
+            description="Cache expiration timestamp. Re-fetch the list after this time to get updated identifiers."
         ),
     ] = None
     coverage_gaps: Annotated[
@@ -42,20 +42,20 @@ class GetPropertyListResponse(AdCPBaseModel):
     identifiers: Annotated[
         list[identifier.Identifier] | None,
         Field(
-            description='Resolved identifiers that passed filters (if resolve=true). Cache these locally for real-time use.'
+            description="Resolved identifiers that passed filters (if resolve=true). Cache these locally for real-time use."
         ),
     ] = None
     list: Annotated[
         property_list.PropertyList,
-        Field(description='The property list metadata (always returned)'),
+        Field(description="The property list metadata (always returned)"),
     ]
-    pagination: Annotated[Pagination | None, Field(description='Pagination information')] = None
+    pagination: Annotated[Pagination | None, Field(description="Pagination information")] = None
     resolved_at: Annotated[
-        AwareDatetime | None, Field(description='When the list was resolved')
+        AwareDatetime | None, Field(description="When the list was resolved")
     ] = None
     returned_count: Annotated[
-        int | None, Field(description='Number of identifiers returned in this response')
+        int | None, Field(description="Number of identifiers returned in this response")
     ] = None
     total_count: Annotated[
-        int | None, Field(description='Total number of identifiers in resolved list')
+        int | None, Field(description="Total number of identifiers in resolved list")
     ] = None

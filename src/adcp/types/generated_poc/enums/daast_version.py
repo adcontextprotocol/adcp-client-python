@@ -8,5 +8,5 @@ from enum import Enum
 
 
 class DaastVersion(Enum):
-    field_1_0 = '1.0'
-    field_1_1 = '1.1'
+    field_1_0 = "1.0"
+    field_1_1 = "1.1"

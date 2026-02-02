@@ -1,26 +1,26 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/media-buy/get-products-response.json",
+  "$id": "/schemas/3.0.0-beta.2/media-buy/get-products-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Response payload for get_products task",
   "properties": {
     "context": {
-      "$ref": "/schemas/3.0.0-beta.1/core/context.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/context.json"
     },
     "errors": {
       "description": "Task-specific errors and warnings (e.g., product filtering issues)",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.1/core/error.json"
+        "$ref": "/schemas/3.0.0-beta.2/core/error.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.1/core/ext.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
     },
     "products": {
       "description": "Array of matching products",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.1/core/product.json"
+        "$ref": "/schemas/3.0.0-beta.2/core/product.json"
       },
       "type": "array"
     },
@@ -31,7 +31,7 @@
     "proposals": {
       "description": "Optional array of proposed media plans with budget allocations across products. Publishers include proposals when they can provide strategic guidance based on the brief. Proposals are actionable - buyers can refine them via subsequent get_products calls or execute them directly via create_media_buy.",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.1/core/proposal.json"
+        "$ref": "/schemas/3.0.0-beta.2/core/proposal.json"
       },
       "type": "array"
     }

@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/core/signal-filters.json",
+  "$id": "/schemas/3.0.0-beta.2/core/signal-filters.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Filters to refine signal discovery results",
@@ -7,7 +7,7 @@
     "catalog_types": {
       "description": "Filter by catalog type",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.1/enums/signal-catalog-type.json"
+        "$ref": "/schemas/3.0.0-beta.2/enums/signal-catalog-type.json"
       },
       "type": "array"
     },

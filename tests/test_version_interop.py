@@ -16,6 +16,8 @@ from adcp.types.core import TaskStatus
 V3_ONLY_TOOLS = [
     # Protocol Discovery
     "get_adcp_capabilities",
+    # Accounts (added in beta.2)
+    "list_accounts",
     # Content Standards
     "create_content_standards",
     "get_content_standards",
@@ -41,7 +43,6 @@ V3_ONLY_TOOLS = [
 V2_CORE_TOOLS = [
     "get_products",
     "list_creative_formats",
-    "list_authorized_properties",
     "sync_creatives",
     "list_creatives",
     "build_creative",
@@ -209,7 +210,9 @@ class TestVersionNegotiationDesign:
         from adcp.types.core import TaskResult, TaskStatus
 
         # Success case
-        success_result = TaskResult(success=True, status=TaskStatus.COMPLETED, data={"key": "value"})
+        success_result = TaskResult(
+            success=True, status=TaskStatus.COMPLETED, data={"key": "value"}
+        )
         assert success_result.success is True
         assert success_result.status == TaskStatus.COMPLETED
 
@@ -260,7 +263,6 @@ class TestVersionNegotiationDesign:
         3. If success, inspect capabilities to determine supported protocols
         4. Use supported protocols to decide which operations to call
         """
-        from adcp.types import GetAdcpCapabilitiesResponse
         from adcp.types.core import TaskResult, TaskStatus
 
         def detect_server_version(capabilities_result: TaskResult) -> str:
@@ -312,7 +314,12 @@ class TestVersionNegotiationDesign:
         # Agent with full V3 support
         full_v3 = GetAdcpCapabilitiesResponse.model_construct(
             adcp={"major_versions": ["3"]},
-            supported_protocols=["media_buy", "signals", "content_standards", "sponsored_intelligence"],
+            supported_protocols=[
+                "media_buy",
+                "signals",
+                "content_standards",
+                "sponsored_intelligence",
+            ],
         )
         assert supports_content_standards(full_v3) is True
         assert supports_sponsored_intelligence(full_v3) is True

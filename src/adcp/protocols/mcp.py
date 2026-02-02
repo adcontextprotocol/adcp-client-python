@@ -432,9 +432,9 @@ class MCPAdapter(ProtocolAdapter):
         """Get media buy delivery."""
         return await self._call_mcp_tool("get_media_buy_delivery", params)
 
-    async def list_authorized_properties(self, params: dict[str, Any]) -> TaskResult[Any]:
-        """List authorized properties."""
-        return await self._call_mcp_tool("list_authorized_properties", params)
+    async def list_accounts(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """List billing accounts accessible to the authenticated agent."""
+        return await self._call_mcp_tool("list_accounts", params)
 
     async def get_signals(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Get signals."""

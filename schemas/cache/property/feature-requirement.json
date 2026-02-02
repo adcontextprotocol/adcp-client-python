@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/property/feature-requirement.json",
+  "$id": "/schemas/3.0.0-beta.2/property/feature-requirement.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "A feature-based requirement for property filtering. Use min_value/max_value for quantitative features, allowed_values for binary/categorical features.",
@@ -10,7 +10,7 @@
       "type": "array"
     },
     "feature_id": {
-      "description": "Feature to evaluate (discovered via list_property_features)",
+      "description": "Feature to evaluate (discovered via get_adcp_capabilities)",
       "type": "string"
     },
     "if_not_covered": {

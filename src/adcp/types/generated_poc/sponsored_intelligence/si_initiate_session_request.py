@@ -15,18 +15,18 @@ from . import si_capabilities, si_identity
 
 class SiInitiateSessionRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: Annotated[
-        str, Field(description='Conversation handoff from the host describing what the user needs')
+        str, Field(description="Conversation handoff from the host describing what the user needs")
     ]
     ext: ext_1.ExtensionObject | None = None
     identity: si_identity.SiIdentity
     media_buy_id: Annotated[
-        str | None, Field(description='AdCP media buy ID if session was triggered by advertising')
+        str | None, Field(description="AdCP media buy ID if session was triggered by advertising")
     ] = None
     offering_id: Annotated[
-        str | None, Field(description='Brand-specific offering identifier to apply')
+        str | None, Field(description="Brand-specific offering identifier to apply")
     ] = None
     offering_token: Annotated[
         str | None,
@@ -42,5 +42,5 @@ class SiInitiateSessionRequest(AdCPBaseModel):
     ] = None
     supported_capabilities: Annotated[
         si_capabilities.SiCapabilities | None,
-        Field(description='What capabilities the host supports'),
+        Field(description="What capabilities the host supports"),
     ] = None

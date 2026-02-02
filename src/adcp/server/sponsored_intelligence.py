@@ -256,37 +256,29 @@ class SponsoredIntelligenceHandler(ADCPHandler):
             "list_creative_formats is not supported by Sponsored Intelligence agents."
         )
 
-    async def list_authorized_properties(
+    async def list_accounts(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Sponsored Intelligence agents."""
-        return not_supported(
-            "list_authorized_properties is not supported by Sponsored Intelligence agents."
-        )
+        return not_supported("list_accounts is not supported by Sponsored Intelligence agents.")
 
     async def sync_creatives(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Sponsored Intelligence agents."""
-        return not_supported(
-            "sync_creatives is not supported by Sponsored Intelligence agents."
-        )
+        return not_supported("sync_creatives is not supported by Sponsored Intelligence agents.")
 
     async def list_creatives(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Sponsored Intelligence agents."""
-        return not_supported(
-            "list_creatives is not supported by Sponsored Intelligence agents."
-        )
+        return not_supported("list_creatives is not supported by Sponsored Intelligence agents.")
 
     async def build_creative(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Sponsored Intelligence agents."""
-        return not_supported(
-            "build_creative is not supported by Sponsored Intelligence agents."
-        )
+        return not_supported("build_creative is not supported by Sponsored Intelligence agents.")
 
     async def create_media_buy(
         self, params: dict[str, Any], context: ToolContext | None = None
@@ -301,9 +293,7 @@ class SponsoredIntelligenceHandler(ADCPHandler):
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Sponsored Intelligence agents."""
-        return not_supported(
-            "update_media_buy is not supported by Sponsored Intelligence agents."
-        )
+        return not_supported("update_media_buy is not supported by Sponsored Intelligence agents.")
 
     async def get_media_buy_delivery(
         self, params: dict[str, Any], context: ToolContext | None = None
@@ -317,17 +307,13 @@ class SponsoredIntelligenceHandler(ADCPHandler):
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Sponsored Intelligence agents."""
-        return not_supported(
-            "get_signals is not supported by Sponsored Intelligence agents."
-        )
+        return not_supported("get_signals is not supported by Sponsored Intelligence agents.")
 
     async def activate_signal(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Sponsored Intelligence agents."""
-        return not_supported(
-            "activate_signal is not supported by Sponsored Intelligence agents."
-        )
+        return not_supported("activate_signal is not supported by Sponsored Intelligence agents.")
 
     async def provide_performance_feedback(
         self, params: dict[str, Any], context: ToolContext | None = None
@@ -378,9 +364,7 @@ class SponsoredIntelligenceHandler(ADCPHandler):
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Sponsored Intelligence agents."""
-        return not_supported(
-            "calibrate_content is not supported by Sponsored Intelligence agents."
-        )
+        return not_supported("calibrate_content is not supported by Sponsored Intelligence agents.")
 
     async def validate_content_delivery(
         self, params: dict[str, Any], context: ToolContext | None = None
@@ -415,9 +399,7 @@ class SponsoredIntelligenceHandler(ADCPHandler):
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Sponsored Intelligence agents."""
-        return not_supported(
-            "get_property_list is not supported by Sponsored Intelligence agents."
-        )
+        return not_supported("get_property_list is not supported by Sponsored Intelligence agents.")
 
     async def list_property_lists(
         self, params: dict[str, Any], context: ToolContext | None = None

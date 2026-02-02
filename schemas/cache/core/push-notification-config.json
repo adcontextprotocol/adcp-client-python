@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/core/push-notification-config.json",
+  "$id": "/schemas/3.0.0-beta.2/core/push-notification-config.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Webhook configuration for asynchronous task notifications. Uses A2A-compatible PushNotificationConfig structure. Supports Bearer tokens (simple) or HMAC signatures (production-recommended). This schema is designed for composition via allOf - consuming schemas should define their own additionalProperties constraints.",
   "properties": {
@@ -15,7 +15,7 @@
         "schemes": {
           "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for signature verification (recommended for production)",
           "items": {
-            "$ref": "/schemas/3.0.0-beta.1/enums/auth-scheme.json"
+            "$ref": "/schemas/3.0.0-beta.2/enums/auth-scheme.json"
           },
           "maxItems": 1,
           "minItems": 1,

@@ -17,11 +17,11 @@ from . import artifact
 class CalibrationExemplars(AdCPBaseModel):
     fail: Annotated[
         list[artifact.Artifact] | None,
-        Field(description='Artifacts that fail the content standards'),
+        Field(description="Artifacts that fail the content standards"),
     ] = None
     pass_: Annotated[
         list[artifact.Artifact] | None,
-        Field(alias='pass', description='Artifacts that pass the content standards'),
+        Field(alias="pass", description="Artifacts that pass the content standards"),
     ] = None
 
 
@@ -29,19 +29,19 @@ class ContentStandards(AdCPBaseModel):
     calibration_exemplars: Annotated[
         CalibrationExemplars | None,
         Field(
-            description='Training/test set to calibrate policy interpretation. Provides concrete examples of pass/fail decisions.'
+            description="Training/test set to calibrate policy interpretation. Provides concrete examples of pass/fail decisions."
         ),
     ] = None
     channels_any: Annotated[
         list[channels.MediaChannel] | None,
         Field(
-            description='Advertising channels. Standards apply to ANY of the listed channels (OR logic).'
+            description="Advertising channels. Standards apply to ANY of the listed channels (OR logic)."
         ),
     ] = None
     countries_all: Annotated[
         list[str] | None,
         Field(
-            description='ISO 3166-1 alpha-2 country codes. Standards apply in ALL listed countries (AND logic).'
+            description="ISO 3166-1 alpha-2 country codes. Standards apply in ALL listed countries (AND logic)."
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
@@ -53,14 +53,14 @@ class ContentStandards(AdCPBaseModel):
         ),
     ] = None
     name: Annotated[
-        str | None, Field(description='Human-readable name for this standards configuration')
+        str | None, Field(description="Human-readable name for this standards configuration")
     ] = None
     policy: Annotated[
         str | None,
         Field(
-            description='Natural language policy describing acceptable and unacceptable content contexts. Used by LLMs and human reviewers to make judgments.'
+            description="Natural language policy describing acceptable and unacceptable content contexts. Used by LLMs and human reviewers to make judgments."
         ),
     ] = None
     standards_id: Annotated[
-        str, Field(description='Unique identifier for this standards configuration')
+        str, Field(description="Unique identifier for this standards configuration")
     ]

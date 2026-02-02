@@ -81,7 +81,7 @@ def download_schema(url: str) -> dict:
         Schema data as dict
     """
     try:
-        req = Request(url)
+        req = Request(url, headers={"User-Agent": "adcp-python-sdk/3.0"})
         with urlopen(req) as response:
             data = json.loads(response.read().decode())
             return data

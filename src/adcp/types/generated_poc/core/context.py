@@ -10,5 +10,5 @@ from pydantic import ConfigDict
 
 class ContextObject(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )

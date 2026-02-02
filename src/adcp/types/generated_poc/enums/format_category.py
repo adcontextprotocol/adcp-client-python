@@ -8,10 +8,10 @@ from enum import Enum
 
 
 class FormatCategory(Enum):
-    audio = 'audio'
-    video = 'video'
-    display = 'display'
-    native = 'native'
-    dooh = 'dooh'
-    rich_media = 'rich_media'
-    universal = 'universal'
+    audio = "audio"
+    video = "video"
+    display = "display"
+    native = "native"
+    dooh = "dooh"
+    rich_media = "rich_media"
+    universal = "universal"

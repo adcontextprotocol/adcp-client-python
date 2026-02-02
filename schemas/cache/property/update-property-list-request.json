@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/property/update-property-list-request.json",
+  "$id": "/schemas/3.0.0-beta.2/property/update-property-list-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Request parameters for updating an existing property list",
@@ -7,26 +7,26 @@
     "base_properties": {
       "description": "Complete replacement for the base properties list (not a patch). Each entry is a discriminated union: publisher_tags (publisher_domain + tags), publisher_ids (publisher_domain + property_ids), or identifiers (direct identifiers).",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.1/property/base-property-source.json"
+        "$ref": "/schemas/3.0.0-beta.2/property/base-property-source.json"
       },
       "type": "array"
     },
     "brand_manifest": {
-      "$ref": "/schemas/3.0.0-beta.1/core/brand-manifest.json",
+      "$ref": "/schemas/3.0.0-beta.2/core/brand-manifest.json",
       "description": "Update brand identity and requirements"
     },
     "context": {
-      "$ref": "/schemas/3.0.0-beta.1/core/context.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/context.json"
     },
     "description": {
       "description": "New description",
       "type": "string"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.1/core/ext.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
     },
     "filters": {
-      "$ref": "/schemas/3.0.0-beta.1/property/property-list-filters.json",
+      "$ref": "/schemas/3.0.0-beta.2/property/property-list-filters.json",
       "description": "Complete replacement for the filters (not a patch)"
     },
     "list_id": {

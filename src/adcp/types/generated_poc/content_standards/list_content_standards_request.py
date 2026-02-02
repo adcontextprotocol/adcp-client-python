@@ -16,16 +16,16 @@ from ..enums import channels as channels_1
 
 class ListContentStandardsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     channels: Annotated[
-        list[channels_1.MediaChannel] | None, Field(description='Filter by channel')
+        list[channels_1.MediaChannel] | None, Field(description="Filter by channel")
     ] = None
     context: context_1.ContextObject | None = None
     countries: Annotated[
-        list[str] | None, Field(description='Filter by ISO 3166-1 alpha-2 country codes')
+        list[str] | None, Field(description="Filter by ISO 3166-1 alpha-2 country codes")
     ] = None
     ext: ext_1.ExtensionObject | None = None
-    languages: Annotated[list[str] | None, Field(description='Filter by BCP 47 language tags')] = (
+    languages: Annotated[list[str] | None, Field(description="Filter by BCP 47 language tags")] = (
         None
     )

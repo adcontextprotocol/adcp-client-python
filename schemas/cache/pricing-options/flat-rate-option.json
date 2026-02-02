@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/pricing-options/flat-rate-option.json",
+  "$id": "/schemas/3.0.0-beta.2/pricing-options/flat-rate-option.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Flat rate pricing for DOOH, sponsorships, and time-based campaigns. If fixed_price is present, it's fixed pricing. If absent, it's auction-based.",
@@ -72,30 +72,8 @@
       "type": "object"
     },
     "price_guidance": {
-      "description": "Optional pricing guidance for auction-based bidding. Helps buyers calibrate bids with historical percentiles.",
-      "properties": {
-        "p25": {
-          "description": "25th percentile of recent winning bids",
-          "minimum": 0,
-          "type": "number"
-        },
-        "p50": {
-          "description": "Median of recent winning bids",
-          "minimum": 0,
-          "type": "number"
-        },
-        "p75": {
-          "description": "75th percentile of recent winning bids",
-          "minimum": 0,
-          "type": "number"
-        },
-        "p90": {
-          "description": "90th percentile of recent winning bids",
-          "minimum": 0,
-          "type": "number"
-        }
-      },
-      "type": "object"
+      "$ref": "/schemas/3.0.0-beta.2/pricing-options/price-guidance.json",
+      "description": "Optional pricing guidance for auction-based bidding"
     },
     "pricing_model": {
       "const": "flat_rate",

@@ -12,9 +12,9 @@ from pydantic import ConfigDict, Field
 
 class CreativeAssignment(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    creative_id: Annotated[str, Field(description='Unique identifier for the creative')]
+    creative_id: Annotated[str, Field(description="Unique identifier for the creative")]
     placement_ids: Annotated[
         list[str] | None,
         Field(
@@ -23,5 +23,5 @@ class CreativeAssignment(AdCPBaseModel):
         ),
     ] = None
     weight: Annotated[
-        float | None, Field(description='Delivery weight for this creative', ge=0.0, le=100.0)
+        float | None, Field(description="Delivery weight for this creative", ge=0.0, le=100.0)
     ] = None

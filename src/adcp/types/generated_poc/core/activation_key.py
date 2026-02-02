@@ -12,22 +12,22 @@ from pydantic import ConfigDict, Field, RootModel
 
 class ActivationKey1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     segment_id: Annotated[
         str,
-        Field(description='The platform-specific segment identifier to use in campaign targeting'),
+        Field(description="The platform-specific segment identifier to use in campaign targeting"),
     ]
-    type: Annotated[Literal['segment_id'], Field(description='Segment ID based targeting')]
+    type: Annotated[Literal["segment_id"], Field(description="Segment ID based targeting")]
 
 
 class ActivationKey2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    key: Annotated[str, Field(description='The targeting parameter key')]
-    type: Annotated[Literal['key_value'], Field(description='Key-value pair based targeting')]
-    value: Annotated[str, Field(description='The targeting parameter value')]
+    key: Annotated[str, Field(description="The targeting parameter key")]
+    type: Annotated[Literal["key_value"], Field(description="Key-value pair based targeting")]
+    value: Annotated[str, Field(description="The targeting parameter value")]
 
 
 class ActivationKey(RootModel[ActivationKey1 | ActivationKey2]):
@@ -35,6 +35,6 @@ class ActivationKey(RootModel[ActivationKey1 | ActivationKey2]):
         ActivationKey1 | ActivationKey2,
         Field(
             description="Universal identifier for using a signal on a destination platform. Can be either a segment ID or a key-value pair depending on the platform's targeting mechanism.",
-            title='Activation Key',
+            title="Activation Key",
         ),
     ]

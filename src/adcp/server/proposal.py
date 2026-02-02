@@ -288,9 +288,7 @@ class ProposalBuilder:
 
         total = sum(a["allocation_percentage"] for a in self._allocations)
         if abs(total - 100.0) > 0.01:
-            raise ValueError(
-                f"Allocation percentages must sum to 100, got {total}"
-            )
+            raise ValueError(f"Allocation percentages must sum to 100, got {total}")
 
         proposal: dict[str, Any] = {
             "proposal_id": self._proposal_id,

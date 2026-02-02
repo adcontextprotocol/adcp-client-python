@@ -14,16 +14,16 @@ class MediaBuyFeatures(AdCPBaseModel):
     content_standards: Annotated[
         bool | None,
         Field(
-            description='Full support for content_standards configuration including sampling rates and category filtering'
+            description="Full support for content_standards configuration including sampling rates and category filtering"
         ),
     ] = None
     inline_creative_management: Annotated[
         bool | None,
-        Field(description='Supports creatives provided inline in create_media_buy requests'),
+        Field(description="Supports creatives provided inline in create_media_buy requests"),
     ] = None
     property_list_filtering: Annotated[
         bool | None,
         Field(
-            description='Honors property_list parameter in get_products to filter results to buyer-approved properties'
+            description="Honors property_list parameter in get_products to filter results to buyer-approved properties"
         ),
     ] = None

@@ -12,11 +12,11 @@ from pydantic import ConfigDict, Field
 
 class PropertyFeature(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    feature_id: Annotated[str, Field(description='Identifier for the feature being assessed')]
+    feature_id: Annotated[str, Field(description="Identifier for the feature being assessed")]
     source: Annotated[
         str | None,
-        Field(description='Source of the feature data (e.g., app_store_privacy_label, tcf_string)'),
+        Field(description="Source of the feature data (e.g., app_store_privacy_label, tcf_string)"),
     ] = None
-    value: Annotated[str, Field(description='The feature value')]
+    value: Annotated[str, Field(description="The feature value")]

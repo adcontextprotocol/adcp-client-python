@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/protocol/get-adcp-capabilities-response.json",
+  "$id": "/schemas/3.0.0-beta.2/protocol/get-adcp-capabilities-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Response payload for get_adcp_capabilities task. Protocol-level capability discovery across all AdCP protocols. Each domain protocol has its own capability section.",
@@ -23,17 +23,17 @@
       "type": "object"
     },
     "context": {
-      "$ref": "/schemas/3.0.0-beta.1/core/context.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/context.json"
     },
     "errors": {
       "description": "Task-specific errors and warnings",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.1/core/error.json"
+        "$ref": "/schemas/3.0.0-beta.2/core/error.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.1/core/ext.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
     },
     "extensions_supported": {
       "description": "Extension namespaces this agent supports. Buyers can expect meaningful data in ext.{namespace} fields on responses from this agent. Extension schemas are published in the AdCP extension registry.",
@@ -242,7 +242,7 @@
           "type": "object"
         },
         "features": {
-          "$ref": "/schemas/3.0.0-beta.1/core/media-buy-features.json"
+          "$ref": "/schemas/3.0.0-beta.2/core/media-buy-features.json"
         },
         "portfolio": {
           "description": "Information about the seller's media inventory portfolio",
@@ -260,7 +260,7 @@
             "primary_channels": {
               "description": "Primary advertising channels in this portfolio",
               "items": {
-                "$ref": "/schemas/3.0.0-beta.1/enums/channels.json"
+                "$ref": "/schemas/3.0.0-beta.2/enums/channels.json"
               },
               "type": "array"
             },
@@ -312,7 +312,7 @@
           "type": "string"
         },
         "capabilities": {
-          "$ref": "/schemas/3.0.0-beta.1/sponsored-intelligence/si-capabilities.json",
+          "$ref": "/schemas/3.0.0-beta.2/sponsored-intelligence/si-capabilities.json",
           "description": "Modalities, components, and commerce capabilities"
         },
         "endpoint": {
@@ -374,7 +374,8 @@
           "media_buy",
           "signals",
           "governance",
-          "sponsored_intelligence"
+          "sponsored_intelligence",
+          "creative"
         ],
         "type": "string"
       },

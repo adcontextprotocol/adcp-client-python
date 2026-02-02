@@ -8,12 +8,12 @@ from enum import Enum
 
 
 class AvailableMetric(Enum):
-    impressions = 'impressions'
-    spend = 'spend'
-    clicks = 'clicks'
-    ctr = 'ctr'
-    video_completions = 'video_completions'
-    completion_rate = 'completion_rate'
-    conversions = 'conversions'
-    viewability = 'viewability'
-    engagement_rate = 'engagement_rate'
+    impressions = "impressions"
+    spend = "spend"
+    clicks = "clicks"
+    ctr = "ctr"
+    video_completions = "video_completions"
+    completion_rate = "completion_rate"
+    conversions = "conversions"
+    viewability = "viewability"
+    engagement_rate = "engagement_rate"

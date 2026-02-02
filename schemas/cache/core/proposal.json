@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/core/proposal.json",
+  "$id": "/schemas/3.0.0-beta.2/core/proposal.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "A proposed media plan with budget allocations across products. Represents the publisher's strategic recommendation for how to structure a campaign based on the brief. Proposals are actionable - buyers can execute them directly via create_media_buy by providing the proposal_id.",
@@ -7,7 +7,7 @@
     "allocations": {
       "description": "Budget allocations across products. Allocation percentages MUST sum to 100. Publishers are responsible for ensuring the sum equals 100; buyers SHOULD validate this before execution.",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.1/core/product-allocation.json"
+        "$ref": "/schemas/3.0.0-beta.2/core/product-allocation.json"
       },
       "minItems": 1,
       "type": "array"
@@ -26,7 +26,7 @@
       "type": "string"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.1/core/ext.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
     },
     "name": {
       "description": "Human-readable name for this media plan proposal",

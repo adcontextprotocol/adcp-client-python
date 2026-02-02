@@ -14,16 +14,16 @@ from ..enums import signal_catalog_type
 
 class SignalFilters(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     catalog_types: Annotated[
         list[signal_catalog_type.SignalCatalogType] | None,
-        Field(description='Filter by catalog type'),
+        Field(description="Filter by catalog type"),
     ] = None
     data_providers: Annotated[
-        list[str] | None, Field(description='Filter by specific data providers')
+        list[str] | None, Field(description="Filter by specific data providers")
     ] = None
-    max_cpm: Annotated[float | None, Field(description='Maximum CPM price filter', ge=0.0)] = None
+    max_cpm: Annotated[float | None, Field(description="Maximum CPM price filter", ge=0.0)] = None
     min_coverage_percentage: Annotated[
-        float | None, Field(description='Minimum coverage requirement', ge=0.0, le=100.0)
+        float | None, Field(description="Minimum coverage requirement", ge=0.0, le=100.0)
     ] = None

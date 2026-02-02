@@ -17,13 +17,13 @@ from ..core import ext as ext_1
 
 class BuildCreativeResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
-            description='Array of errors explaining why creative generation failed', min_length=1
+            description="Array of errors explaining why creative generation failed", min_length=1
         ),
     ]
     ext: ext_1.ExtensionObject | None = None
@@ -31,12 +31,12 @@ class BuildCreativeResponse2(AdCPBaseModel):
 
 class BuildCreativeResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest,
-        Field(description='The generated or transformed creative manifest'),
+        Field(description="The generated or transformed creative manifest"),
     ]
     ext: ext_1.ExtensionObject | None = None
 
@@ -45,7 +45,7 @@ class BuildCreativeResponse(RootModel[BuildCreativeResponse1 | BuildCreativeResp
     root: Annotated[
         BuildCreativeResponse1 | BuildCreativeResponse2,
         Field(
-            description='Response containing the transformed or generated creative manifest, ready for use with preview_creative or sync_creatives. Returns either the complete creative manifest OR error information, never both.',
-            title='Build Creative Response',
+            description="Response containing the transformed or generated creative manifest, ready for use with preview_creative or sync_creatives. Returns either the complete creative manifest OR error information, never both.",
+            title="Build Creative Response",
         ),
     ]

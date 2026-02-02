@@ -12,12 +12,12 @@ from pydantic import AnyUrl, ConfigDict, Field
 
 class ImageAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    alt_text: Annotated[str | None, Field(description='Alternative text for accessibility')] = None
+    alt_text: Annotated[str | None, Field(description="Alternative text for accessibility")] = None
     format: Annotated[
-        str | None, Field(description='Image file format (jpg, png, gif, webp, etc.)')
+        str | None, Field(description="Image file format (jpg, png, gif, webp, etc.)")
     ] = None
-    height: Annotated[int, Field(description='Height in pixels', ge=1)]
-    url: Annotated[AnyUrl, Field(description='URL to the image asset')]
-    width: Annotated[int, Field(description='Width in pixels', ge=1)]
+    height: Annotated[int, Field(description="Height in pixels", ge=1)]
+    url: Annotated[AnyUrl, Field(description="URL to the image asset")]
+    width: Annotated[int, Field(description="Width in pixels", ge=1)]

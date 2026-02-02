@@ -1,17 +1,17 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/sponsored-intelligence/si-send-message-response.json",
+  "$id": "/schemas/3.0.0-beta.2/sponsored-intelligence/si-send-message-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Brand agent's response to a user message",
   "properties": {
     "errors": {
       "items": {
-        "$ref": "/schemas/3.0.0-beta.1/core/error.json"
+        "$ref": "/schemas/3.0.0-beta.2/core/error.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.1/core/ext.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
     },
     "handoff": {
       "additionalProperties": true,
@@ -73,6 +73,10 @@
       },
       "type": "object"
     },
+    "mcp_resource_uri": {
+      "description": "MCP resource URI for hosts with MCP Apps support (e.g., ui://si/session-abc123)",
+      "type": "string"
+    },
     "response": {
       "additionalProperties": true,
       "description": "Brand agent's response",
@@ -81,10 +85,15 @@
           "description": "Conversational message from brand agent",
           "type": "string"
         },
+        "surface": {
+          "$ref": "/schemas/3.0.0-beta.2/a2ui/surface.json",
+          "description": "A2UI surface with interactive components"
+        },
         "ui_elements": {
-          "description": "Visual components to render",
+          "deprecated": true,
+          "description": "Visual components to render (DEPRECATED: use surface instead)",
           "items": {
-            "$ref": "/schemas/3.0.0-beta.1/sponsored-intelligence/si-ui-element.json"
+            "$ref": "/schemas/3.0.0-beta.2/sponsored-intelligence/si-ui-element.json"
           },
           "type": "array"
         }

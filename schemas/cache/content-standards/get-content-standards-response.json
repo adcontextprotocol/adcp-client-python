@@ -1,18 +1,18 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/content-standards/get-content-standards-response.json",
+  "$id": "/schemas/3.0.0-beta.2/content-standards/get-content-standards-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Response payload with content safety policies",
   "oneOf": [
     {
       "allOf": [
         {
-          "$ref": "/schemas/3.0.0-beta.1/content-standards/content-standards.json"
+          "$ref": "/schemas/3.0.0-beta.2/content-standards/content-standards.json"
         }
       ],
       "description": "Success response - returns the content standards configuration",
       "properties": {
         "context": {
-          "$ref": "/schemas/3.0.0-beta.1/core/context.json"
+          "$ref": "/schemas/3.0.0-beta.2/core/context.json"
         },
         "errors": {
           "description": "Field must not be present in success response",
@@ -25,16 +25,16 @@
       "description": "Error response",
       "properties": {
         "context": {
-          "$ref": "/schemas/3.0.0-beta.1/core/context.json"
+          "$ref": "/schemas/3.0.0-beta.2/core/context.json"
         },
         "errors": {
           "items": {
-            "$ref": "/schemas/3.0.0-beta.1/core/error.json"
+            "$ref": "/schemas/3.0.0-beta.2/core/error.json"
           },
           "type": "array"
         },
         "ext": {
-          "$ref": "/schemas/3.0.0-beta.1/core/ext.json"
+          "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
         },
         "standards_id": {
           "description": "Field must not be present in error response",

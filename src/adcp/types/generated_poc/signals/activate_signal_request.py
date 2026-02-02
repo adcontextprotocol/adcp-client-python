@@ -16,17 +16,17 @@ from ..core import ext as ext_1
 
 class ActivateSignalRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     deployments: Annotated[
         list[destination.Destination],
         Field(
-            description='Target deployment(s) for activation. If the authenticated caller matches one of these deployment targets, activation keys will be included in the response.',
+            description="Target deployment(s) for activation. If the authenticated caller matches one of these deployment targets, activation keys will be included in the response.",
             min_length=1,
         ),
     ]
     ext: ext_1.ExtensionObject | None = None
     signal_agent_segment_id: Annotated[
-        str, Field(description='The universal identifier for the signal to activate')
+        str, Field(description="The universal identifier for the signal to activate")
     ]

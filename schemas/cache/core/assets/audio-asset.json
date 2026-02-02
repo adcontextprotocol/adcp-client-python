@@ -1,22 +1,62 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/core/assets/audio-asset.json",
+  "$id": "/schemas/3.0.0-beta.2/core/assets/audio-asset.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
-  "description": "Audio asset with URL and specifications",
+  "description": "Audio asset with URL and technical specifications",
   "properties": {
+    "bit_depth": {
+      "description": "Bit depth",
+      "enum": [
+        16,
+        24,
+        32
+      ],
+      "type": "integer"
+    },
     "bitrate_kbps": {
-      "description": "Audio bitrate in kilobits per second",
+      "description": "Bitrate in kilobits per second",
       "minimum": 1,
       "type": "integer"
+    },
+    "channels": {
+      "description": "Channel configuration",
+      "enum": [
+        "mono",
+        "stereo",
+        "5.1",
+        "7.1"
+      ],
+      "type": "string"
+    },
+    "codec": {
+      "description": "Audio codec used (aac, aac_lc, he_aac, pcm, mp3, vorbis, opus, flac, ac3, eac3, etc.)",
+      "type": "string"
+    },
+    "container_format": {
+      "description": "Audio container/file format (mp3, m4a, aac, wav, ogg, flac, etc.)",
+      "type": "string"
     },
     "duration_ms": {
       "description": "Audio duration in milliseconds",
       "minimum": 0,
       "type": "integer"
     },
-    "format": {
-      "description": "Audio file format (mp3, wav, aac, etc.)",
-      "type": "string"
+    "file_size_bytes": {
+      "description": "File size in bytes",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "loudness_lufs": {
+      "description": "Integrated loudness in LUFS",
+      "type": "number"
+    },
+    "sampling_rate_hz": {
+      "description": "Sampling rate in Hz (e.g., 44100, 48000, 96000)",
+      "type": "integer"
+    },
+    "true_peak_dbfs": {
+      "description": "True peak level in dBFS",
+      "type": "number"
     },
     "url": {
       "description": "URL to the audio asset",

@@ -15,8 +15,8 @@ from ..core import ext as ext_1
 
 class DeletePropertyListRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
-    list_id: Annotated[str, Field(description='ID of the property list to delete')]
+    list_id: Annotated[str, Field(description="ID of the property list to delete")]

@@ -8,11 +8,11 @@ from enum import Enum
 
 
 class PropertyType(Enum):
-    website = 'website'
-    mobile_app = 'mobile_app'
-    ctv_app = 'ctv_app'
-    desktop_app = 'desktop_app'
-    dooh = 'dooh'
-    podcast = 'podcast'
-    radio = 'radio'
-    streaming_audio = 'streaming_audio'
+    website = "website"
+    mobile_app = "mobile_app"
+    ctv_app = "ctv_app"
+    desktop_app = "desktop_app"
+    dooh = "dooh"
+    podcast = "podcast"
+    radio = "radio"
+    streaming_audio = "streaming_audio"

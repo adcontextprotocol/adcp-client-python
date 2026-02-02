@@ -15,19 +15,19 @@ from ..core import identifier
 
 
 class Role(Enum):
-    title_ = 'title'
-    paragraph = 'paragraph'
-    heading = 'heading'
-    caption = 'caption'
-    quote = 'quote'
-    list_item = 'list_item'
-    description = 'description'
+    title_ = "title"
+    paragraph = "paragraph"
+    heading = "heading"
+    caption = "caption"
+    quote = "quote"
+    list_item = "list_item"
+    description = "description"
 
 
 class Assets(AdCPBaseModel):
-    content: Annotated[str, Field(description='Text content')]
+    content: Annotated[str, Field(description="Text content")]
     heading_level: Annotated[
-        int | None, Field(description='Heading level (1-6), only for role=heading', ge=1, le=6)
+        int | None, Field(description="Heading level (1-6), only for role=heading", ge=1, le=6)
     ] = None
     language: Annotated[
         str | None,
@@ -41,123 +41,123 @@ class Assets(AdCPBaseModel):
             description="Role of this text in the document. Use 'title' for the main artifact title, 'description' for summaries."
         ),
     ] = None
-    type: Literal['text']
+    type: Literal["text"]
 
 
 class TranscriptSource(Enum):
-    original_script = 'original_script'
-    subtitles = 'subtitles'
-    closed_captions = 'closed_captions'
-    dub = 'dub'
-    generated = 'generated'
+    original_script = "original_script"
+    subtitles = "subtitles"
+    closed_captions = "closed_captions"
+    dub = "dub"
+    generated = "generated"
 
 
 class TranscriptSource1(Enum):
-    original_script = 'original_script'
-    closed_captions = 'closed_captions'
-    generated = 'generated'
+    original_script = "original_script"
+    closed_captions = "closed_captions"
+    generated = "generated"
 
 
 class Identifiers(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    apple_podcast_id: Annotated[str | None, Field(description='Apple Podcasts ID')] = None
-    podcast_guid: Annotated[str | None, Field(description='Podcast GUID (from RSS feed)')] = None
-    rss_url: Annotated[AnyUrl | None, Field(description='RSS feed URL')] = None
-    spotify_show_id: Annotated[str | None, Field(description='Spotify show ID')] = None
-    youtube_video_id: Annotated[str | None, Field(description='YouTube video ID')] = None
+    apple_podcast_id: Annotated[str | None, Field(description="Apple Podcasts ID")] = None
+    podcast_guid: Annotated[str | None, Field(description="Podcast GUID (from RSS feed)")] = None
+    rss_url: Annotated[AnyUrl | None, Field(description="RSS feed URL")] = None
+    spotify_show_id: Annotated[str | None, Field(description="Spotify show ID")] = None
+    youtube_video_id: Annotated[str | None, Field(description="YouTube video ID")] = None
 
 
 class Metadata(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    author: Annotated[str | None, Field(description='Artifact author name')] = None
-    canonical: Annotated[AnyUrl | None, Field(description='Canonical URL')] = None
+    author: Annotated[str | None, Field(description="Artifact author name")] = None
+    canonical: Annotated[AnyUrl | None, Field(description="Canonical URL")] = None
     json_ld: Annotated[
-        list[dict[str, Any]] | None, Field(description='JSON-LD structured data (schema.org)')
+        list[dict[str, Any]] | None, Field(description="JSON-LD structured data (schema.org)")
     ] = None
-    keywords: Annotated[str | None, Field(description='Artifact keywords')] = None
+    keywords: Annotated[str | None, Field(description="Artifact keywords")] = None
     open_graph: Annotated[
-        dict[str, Any] | None, Field(description='Open Graph protocol metadata')
+        dict[str, Any] | None, Field(description="Open Graph protocol metadata")
     ] = None
-    twitter_card: Annotated[dict[str, Any] | None, Field(description='Twitter Card metadata')] = (
+    twitter_card: Annotated[dict[str, Any] | None, Field(description="Twitter Card metadata")] = (
         None
     )
 
 
 class AssetAccess1(AdCPBaseModel):
-    method: Literal['bearer_token']
-    token: Annotated[str, Field(description='OAuth2 bearer token for Authorization header')]
+    method: Literal["bearer_token"]
+    token: Annotated[str, Field(description="OAuth2 bearer token for Authorization header")]
 
 
 class Provider(Enum):
-    gcp = 'gcp'
-    aws = 'aws'
+    gcp = "gcp"
+    aws = "aws"
 
 
 class AssetAccess2(AdCPBaseModel):
     credentials: Annotated[
-        dict[str, Any] | None, Field(description='Service account credentials')
+        dict[str, Any] | None, Field(description="Service account credentials")
     ] = None
-    method: Literal['service_account']
-    provider: Annotated[Provider, Field(description='Cloud provider')]
+    method: Literal["service_account"]
+    provider: Annotated[Provider, Field(description="Cloud provider")]
 
 
 class AssetAccess3(AdCPBaseModel):
-    method: Literal['signed_url']
+    method: Literal["signed_url"]
 
 
 class AssetAccess(RootModel[AssetAccess1 | AssetAccess2 | AssetAccess3]):
     root: Annotated[
         AssetAccess1 | AssetAccess2 | AssetAccess3,
-        Field(description='Authentication for accessing secured asset URLs'),
+        Field(description="Authentication for accessing secured asset URLs"),
     ]
 
 
 class Assets1(AdCPBaseModel):
-    access: Annotated[AssetAccess | None, Field(description='Authentication for secured URLs')] = (
+    access: Annotated[AssetAccess | None, Field(description="Authentication for secured URLs")] = (
         None
     )
-    alt_text: Annotated[str | None, Field(description='Alt text or image description')] = None
-    caption: Annotated[str | None, Field(description='Image caption')] = None
-    height: Annotated[int | None, Field(description='Image height in pixels')] = None
-    type: Literal['image']
-    url: Annotated[AnyUrl, Field(description='Image URL')]
-    width: Annotated[int | None, Field(description='Image width in pixels')] = None
+    alt_text: Annotated[str | None, Field(description="Alt text or image description")] = None
+    caption: Annotated[str | None, Field(description="Image caption")] = None
+    height: Annotated[int | None, Field(description="Image height in pixels")] = None
+    type: Literal["image"]
+    url: Annotated[AnyUrl, Field(description="Image URL")]
+    width: Annotated[int | None, Field(description="Image width in pixels")] = None
 
 
 class Assets2(AdCPBaseModel):
-    access: Annotated[AssetAccess | None, Field(description='Authentication for secured URLs')] = (
+    access: Annotated[AssetAccess | None, Field(description="Authentication for secured URLs")] = (
         None
     )
-    duration_ms: Annotated[int | None, Field(description='Video duration in milliseconds')] = None
-    thumbnail_url: Annotated[AnyUrl | None, Field(description='Video thumbnail URL')] = None
-    transcript: Annotated[str | None, Field(description='Video transcript')] = None
+    duration_ms: Annotated[int | None, Field(description="Video duration in milliseconds")] = None
+    thumbnail_url: Annotated[AnyUrl | None, Field(description="Video thumbnail URL")] = None
+    transcript: Annotated[str | None, Field(description="Video transcript")] = None
     transcript_source: Annotated[
-        TranscriptSource | None, Field(description='How the transcript was generated')
+        TranscriptSource | None, Field(description="How the transcript was generated")
     ] = None
-    type: Literal['video']
-    url: Annotated[AnyUrl, Field(description='Video URL')]
+    type: Literal["video"]
+    url: Annotated[AnyUrl, Field(description="Video URL")]
 
 
 class Assets3(AdCPBaseModel):
-    access: Annotated[AssetAccess | None, Field(description='Authentication for secured URLs')] = (
+    access: Annotated[AssetAccess | None, Field(description="Authentication for secured URLs")] = (
         None
     )
-    duration_ms: Annotated[int | None, Field(description='Audio duration in milliseconds')] = None
-    transcript: Annotated[str | None, Field(description='Audio transcript')] = None
+    duration_ms: Annotated[int | None, Field(description="Audio duration in milliseconds")] = None
+    transcript: Annotated[str | None, Field(description="Audio transcript")] = None
     transcript_source: Annotated[
-        TranscriptSource1 | None, Field(description='How the transcript was generated')
+        TranscriptSource1 | None, Field(description="How the transcript was generated")
     ] = None
-    type: Literal['audio']
-    url: Annotated[AnyUrl, Field(description='Audio URL')]
+    type: Literal["audio"]
+    url: Annotated[AnyUrl, Field(description="Audio URL")]
 
 
 class Artifact(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     artifact_id: Annotated[
         str,
@@ -168,36 +168,36 @@ class Artifact(AdCPBaseModel):
     assets: Annotated[
         list[Assets | Assets1 | Assets2 | Assets3],
         Field(
-            description='Artifact assets in document flow order - text blocks, images, video, audio'
+            description="Artifact assets in document flow order - text blocks, images, video, audio"
         ),
     ]
     format_id: Annotated[
         format_id_1.FormatId | None,
         Field(
-            description='Optional reference to a format definition. Uses the same format registry as creative formats.'
+            description="Optional reference to a format definition. Uses the same format registry as creative formats."
         ),
     ] = None
     identifiers: Annotated[
-        Identifiers | None, Field(description='Platform-specific identifiers for this artifact')
+        Identifiers | None, Field(description="Platform-specific identifiers for this artifact")
     ] = None
     last_update_time: Annotated[
         AwareDatetime | None,
-        Field(description='When the artifact was last modified (ISO 8601 format)'),
+        Field(description="When the artifact was last modified (ISO 8601 format)"),
     ] = None
     metadata: Annotated[
-        Metadata | None, Field(description='Rich metadata extracted from the artifact')
+        Metadata | None, Field(description="Rich metadata extracted from the artifact")
     ] = None
     property_id: Annotated[
         identifier.Identifier,
-        Field(description='Identifier for the property where this artifact appears'),
+        Field(description="Identifier for the property where this artifact appears"),
     ]
     published_time: Annotated[
-        AwareDatetime | None, Field(description='When the artifact was published (ISO 8601 format)')
+        AwareDatetime | None, Field(description="When the artifact was published (ISO 8601 format)")
     ] = None
     url: Annotated[
         AnyUrl | None,
         Field(
-            description='Optional URL for this artifact (web page, podcast feed, video page). Not all artifacts have URLs (e.g., Instagram content, podcast segments, TV scenes).'
+            description="Optional URL for this artifact (web page, podcast feed, video page). Not all artifacts have URLs (e.g., Instagram content, podcast segments, TV scenes)."
         ),
     ] = None
     variant_id: Annotated[

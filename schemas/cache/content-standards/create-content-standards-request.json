@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/content-standards/create-content-standards-request.json",
+  "$id": "/schemas/3.0.0-beta.2/content-standards/create-content-standards-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Request parameters for creating a new content standards configuration",
@@ -36,7 +36,7 @@
                 "type": "object"
               },
               {
-                "$ref": "/schemas/3.0.0-beta.1/content-standards/artifact.json",
+                "$ref": "/schemas/3.0.0-beta.2/content-standards/artifact.json",
                 "description": "Full artifact with pre-extracted content (text, images, video, audio)"
               }
             ]
@@ -72,7 +72,7 @@
                 "type": "object"
               },
               {
-                "$ref": "/schemas/3.0.0-beta.1/content-standards/artifact.json",
+                "$ref": "/schemas/3.0.0-beta.2/content-standards/artifact.json",
                 "description": "Full artifact with pre-extracted content (text, images, video, audio)"
               }
             ]
@@ -83,10 +83,10 @@
       "type": "object"
     },
     "context": {
-      "$ref": "/schemas/3.0.0-beta.1/core/context.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.1/core/ext.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
     },
     "policy": {
       "description": "Natural language policy describing acceptable and unacceptable content contexts. Used by LLMs and human reviewers to make judgments.",
@@ -98,7 +98,7 @@
         "channels_any": {
           "description": "Advertising channels. Standards apply to ANY of the listed channels (OR logic).",
           "items": {
-            "$ref": "/schemas/3.0.0-beta.1/enums/channels.json"
+            "$ref": "/schemas/3.0.0-beta.2/enums/channels.json"
           },
           "type": "array"
         },

@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/core/creative-asset.json",
+  "$id": "/schemas/3.0.0-beta.2/core/creative-asset.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Creative asset for upload to library - supports static assets, generative formats, and third-party snippets",
@@ -11,37 +11,37 @@
         "^[a-zA-Z0-9_-]+$": {
           "oneOf": [
             {
-              "$ref": "/schemas/3.0.0-beta.1/core/assets/image-asset.json"
+              "$ref": "/schemas/3.0.0-beta.2/core/assets/image-asset.json"
             },
             {
-              "$ref": "/schemas/3.0.0-beta.1/core/assets/video-asset.json"
+              "$ref": "/schemas/3.0.0-beta.2/core/assets/video-asset.json"
             },
             {
-              "$ref": "/schemas/3.0.0-beta.1/core/assets/audio-asset.json"
+              "$ref": "/schemas/3.0.0-beta.2/core/assets/audio-asset.json"
             },
             {
-              "$ref": "/schemas/3.0.0-beta.1/core/assets/text-asset.json"
+              "$ref": "/schemas/3.0.0-beta.2/core/assets/text-asset.json"
             },
             {
-              "$ref": "/schemas/3.0.0-beta.1/core/assets/html-asset.json"
+              "$ref": "/schemas/3.0.0-beta.2/core/assets/html-asset.json"
             },
             {
-              "$ref": "/schemas/3.0.0-beta.1/core/assets/css-asset.json"
+              "$ref": "/schemas/3.0.0-beta.2/core/assets/css-asset.json"
             },
             {
-              "$ref": "/schemas/3.0.0-beta.1/core/assets/javascript-asset.json"
+              "$ref": "/schemas/3.0.0-beta.2/core/assets/javascript-asset.json"
             },
             {
-              "$ref": "/schemas/3.0.0-beta.1/core/assets/vast-asset.json"
+              "$ref": "/schemas/3.0.0-beta.2/core/assets/vast-asset.json"
             },
             {
-              "$ref": "/schemas/3.0.0-beta.1/core/assets/daast-asset.json"
+              "$ref": "/schemas/3.0.0-beta.2/core/assets/daast-asset.json"
             },
             {
-              "$ref": "/schemas/3.0.0-beta.1/core/promoted-offerings.json"
+              "$ref": "/schemas/3.0.0-beta.2/core/promoted-offerings.json"
             },
             {
-              "$ref": "/schemas/3.0.0-beta.1/core/assets/url-asset.json"
+              "$ref": "/schemas/3.0.0-beta.2/core/assets/url-asset.json"
             }
           ]
         }
@@ -53,7 +53,7 @@
       "type": "string"
     },
     "format_id": {
-      "$ref": "/schemas/3.0.0-beta.1/core/format-id.json",
+      "$ref": "/schemas/3.0.0-beta.2/core/format-id.json",
       "description": "Format identifier specifying which format this creative conforms to. Can be: (1) concrete format_id referencing a format with fixed dimensions, (2) template format_id referencing a template format, or (3) parameterized format_id with dimensions/duration parameters for template formats."
     },
     "inputs": {
@@ -97,7 +97,7 @@
       "type": "array"
     },
     "status": {
-      "$ref": "/schemas/3.0.0-beta.1/enums/creative-status.json",
+      "$ref": "/schemas/3.0.0-beta.2/enums/creative-status.json",
       "description": "For generative creatives: set to 'approved' to finalize, 'rejected' to request regeneration with updated assets/message. Omit for non-generative creatives (system will set based on processing state)."
     },
     "tags": {

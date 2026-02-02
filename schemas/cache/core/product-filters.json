@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/core/product-filters.json",
+  "$id": "/schemas/3.0.0-beta.2/core/product-filters.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Structured filters for product discovery",
@@ -44,7 +44,7 @@
     "channels": {
       "description": "Filter by advertising channels (e.g., ['display', 'video', 'dooh'])",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.1/enums/channels.json"
+        "$ref": "/schemas/3.0.0-beta.2/enums/channels.json"
       },
       "type": "array"
     },
@@ -57,7 +57,7 @@
       "type": "array"
     },
     "delivery_type": {
-      "$ref": "/schemas/3.0.0-beta.1/enums/delivery-type.json"
+      "$ref": "/schemas/3.0.0-beta.2/enums/delivery-type.json"
     },
     "end_date": {
       "description": "Campaign end date (ISO 8601 date format: YYYY-MM-DD) for availability checks",
@@ -67,14 +67,14 @@
     "format_ids": {
       "description": "Filter by specific format IDs",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.1/core/format-id.json"
+        "$ref": "/schemas/3.0.0-beta.2/core/format-id.json"
       },
       "type": "array"
     },
     "format_types": {
       "description": "Filter by format types",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.1/enums/format-category.json"
+        "$ref": "/schemas/3.0.0-beta.2/enums/format-category.json"
       },
       "type": "array"
     },
@@ -92,7 +92,7 @@
             "type": "string"
           },
           "system": {
-            "$ref": "/schemas/3.0.0-beta.1/enums/metro-system.json",
+            "$ref": "/schemas/3.0.0-beta.2/enums/metro-system.json",
             "description": "Metro classification system"
           }
         },
@@ -126,7 +126,7 @@
       "type": "array"
     },
     "required_features": {
-      "$ref": "/schemas/3.0.0-beta.1/core/media-buy-features.json",
+      "$ref": "/schemas/3.0.0-beta.2/core/media-buy-features.json",
       "description": "Filter to products from sellers supporting specific protocol features. Only features set to true are used for filtering."
     },
     "required_geo_targeting": {
@@ -135,7 +135,7 @@
         "additionalProperties": false,
         "properties": {
           "level": {
-            "$ref": "/schemas/3.0.0-beta.1/enums/geo-level.json",
+            "$ref": "/schemas/3.0.0-beta.2/enums/geo-level.json",
             "description": "Geographic targeting level (country, region, metro, postal_area)"
           },
           "system": {

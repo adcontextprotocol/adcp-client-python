@@ -17,38 +17,38 @@ from . import artifact as artifact_1
 
 
 class BrandContext(AdCPBaseModel):
-    brand_id: Annotated[str | None, Field(description='Brand identifier')] = None
-    sku_id: Annotated[str | None, Field(description='Product/SKU identifier if applicable')] = None
+    brand_id: Annotated[str | None, Field(description="Brand identifier")] = None
+    sku_id: Annotated[str | None, Field(description="Product/SKU identifier if applicable")] = None
 
 
 class LocalVerdict(Enum):
-    pass_ = 'pass'
-    fail = 'fail'
-    unevaluated = 'unevaluated'
+    pass_ = "pass"
+    fail = "fail"
+    unevaluated = "unevaluated"
 
 
 class Pagination(AdCPBaseModel):
-    cursor: Annotated[str | None, Field(description='Cursor for fetching the next page')] = None
-    has_more: Annotated[bool | None, Field(description='Whether more results are available')] = None
+    cursor: Annotated[str | None, Field(description="Cursor for fetching the next page")] = None
+    has_more: Annotated[bool | None, Field(description="Whether more results are available")] = None
 
 
 class Method(Enum):
-    random = 'random'
-    stratified = 'stratified'
-    recent = 'recent'
-    failures_only = 'failures_only'
+    random = "random"
+    stratified = "stratified"
+    recent = "recent"
+    failures_only = "failures_only"
 
 
 class SamplingInfo(AdCPBaseModel):
-    effective_rate: Annotated[float | None, Field(description='Actual sampling rate achieved')] = (
+    effective_rate: Annotated[float | None, Field(description="Actual sampling rate achieved")] = (
         None
     )
-    method: Annotated[Method | None, Field(description='Sampling method used')] = None
+    method: Annotated[Method | None, Field(description="Sampling method used")] = None
     sampled_count: Annotated[
-        int | None, Field(description='Number of artifacts in this response')
+        int | None, Field(description="Number of artifacts in this response")
     ] = None
     total_deliveries: Annotated[
-        int | None, Field(description='Total deliveries in the time range')
+        int | None, Field(description="Total deliveries in the time range")
     ] = None
 
 
@@ -57,51 +57,51 @@ class GetMediaBuyArtifactsResponse2(AdCPBaseModel):
     errors: list[error.Error]
     ext: ext_1.ExtensionObject | None = None
     media_buy_id: Annotated[
-        Any | None, Field(description='Field must not be present in error response')
+        Any | None, Field(description="Field must not be present in error response")
     ] = None
 
 
 class Artifact(AdCPBaseModel):
-    artifact: Annotated[artifact_1.Artifact, Field(description='Full artifact with content assets')]
+    artifact: Annotated[artifact_1.Artifact, Field(description="Full artifact with content assets")]
     brand_context: Annotated[
         BrandContext | None,
         Field(
-            description='Brand information for policy evaluation. Schema TBD - placeholder for brand identifiers.'
+            description="Brand information for policy evaluation. Schema TBD - placeholder for brand identifiers."
         ),
     ] = None
     channel: Annotated[
-        str | None, Field(description='Channel type (e.g., display, video, audio, social)')
+        str | None, Field(description="Channel type (e.g., display, video, audio, social)")
     ] = None
     country: Annotated[
-        str | None, Field(description='ISO 3166-1 alpha-2 country code where delivery occurred')
+        str | None, Field(description="ISO 3166-1 alpha-2 country code where delivery occurred")
     ] = None
     local_verdict: Annotated[
         LocalVerdict | None, Field(description="Seller's local model verdict for this artifact")
     ] = None
     package_id: Annotated[
-        str | None, Field(description='Which package this delivery belongs to')
+        str | None, Field(description="Which package this delivery belongs to")
     ] = None
-    record_id: Annotated[str, Field(description='Unique identifier for this delivery record')]
-    timestamp: Annotated[AwareDatetime | None, Field(description='When the delivery occurred')] = (
+    record_id: Annotated[str, Field(description="Unique identifier for this delivery record")]
+    timestamp: Annotated[AwareDatetime | None, Field(description="When the delivery occurred")] = (
         None
     )
 
 
 class GetMediaBuyArtifactsResponse1(AdCPBaseModel):
     artifacts: Annotated[
-        list[Artifact], Field(description='Delivery records with full artifact content')
+        list[Artifact], Field(description="Delivery records with full artifact content")
     ]
     context: context_1.ContextObject | None = None
     errors: Annotated[
-        Any | None, Field(description='Field must not be present in success response')
+        Any | None, Field(description="Field must not be present in success response")
     ] = None
     ext: ext_1.ExtensionObject | None = None
-    media_buy_id: Annotated[str, Field(description='Media buy these artifacts belong to')]
+    media_buy_id: Annotated[str, Field(description="Media buy these artifacts belong to")]
     pagination: Annotated[
-        Pagination | None, Field(description='Pagination information for large result sets')
+        Pagination | None, Field(description="Pagination information for large result sets")
     ] = None
     sampling_info: Annotated[
-        SamplingInfo | None, Field(description='Information about how the sample was generated')
+        SamplingInfo | None, Field(description="Information about how the sample was generated")
     ] = None
 
 
@@ -111,7 +111,7 @@ class GetMediaBuyArtifactsResponse(
     root: Annotated[
         GetMediaBuyArtifactsResponse1 | GetMediaBuyArtifactsResponse2,
         Field(
-            description='Response containing content artifacts from a media buy for validation',
-            title='Get Media Buy Artifacts Response',
+            description="Response containing content artifacts from a media buy for validation",
+            title="Get Media Buy Artifacts Response",
         ),
     ]

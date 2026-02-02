@@ -1,5 +1,5 @@
 {
-  "$id": "/schemas/3.0.0-beta.1/property/property-list-changed-webhook.json",
+  "$id": "/schemas/3.0.0-beta.2/property/property-list-changed-webhook.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Webhook notification sent when a property list's resolved properties change. Contains a summary only - recipients must call get_property_list to retrieve the updated properties. This keeps payloads small and avoids redundant data transfer.",
@@ -34,7 +34,7 @@
       "type": "string"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.1/core/ext.json"
+      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
     },
     "list_id": {
       "description": "ID of the property list that changed",

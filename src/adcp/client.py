@@ -32,8 +32,8 @@ from adcp.types import (
     GetProductsResponse,
     GetSignalsRequest,
     GetSignalsResponse,
-    ListAuthorizedPropertiesRequest,
-    ListAuthorizedPropertiesResponse,
+    ListAccountsRequest,
+    ListAccountsResponse,
     ListCreativeFormatsRequest,
     ListCreativeFormatsResponse,
     ListCreativesRequest,
@@ -525,18 +525,20 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, GetMediaBuyDeliveryResponse)
 
-    async def list_authorized_properties(
+    async def list_accounts(
         self,
-        request: ListAuthorizedPropertiesRequest,
-    ) -> TaskResult[ListAuthorizedPropertiesResponse]:
+        request: ListAccountsRequest,
+    ) -> TaskResult[ListAccountsResponse]:
         """
-        List Authorized Properties.
+        List Accounts.
+
+        Lists billing accounts accessible to the authenticated agent.
 
         Args:
             request: Request parameters
 
         Returns:
-            TaskResult containing ListAuthorizedPropertiesResponse
+            TaskResult containing ListAccountsResponse
         """
         operation_id = create_operation_id()
         params = request.model_dump(exclude_none=True)
@@ -546,25 +548,25 @@ class ADCPClient:
                 type=ActivityType.PROTOCOL_REQUEST,
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
-                task_type="list_authorized_properties",
+                task_type="list_accounts",
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        raw_result = await self.adapter.list_authorized_properties(params)
+        raw_result = await self.adapter.list_accounts(params)
 
         self._emit_activity(
             Activity(
                 type=ActivityType.PROTOCOL_RESPONSE,
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
-                task_type="list_authorized_properties",
+                task_type="list_accounts",
                 status=raw_result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        return self.adapter._parse_response(raw_result, ListAuthorizedPropertiesResponse)
+        return self.adapter._parse_response(raw_result, ListAccountsResponse)
 
     async def get_signals(
         self,
@@ -1759,7 +1761,7 @@ class ADCPClient:
             "sync_creatives": SyncCreativesResponse,  # Union type
             "list_creatives": ListCreativesResponse,
             "get_media_buy_delivery": GetMediaBuyDeliveryResponse,
-            "list_authorized_properties": ListAuthorizedPropertiesResponse,
+            "list_accounts": ListAccountsResponse,
             "get_signals": GetSignalsResponse,
             "activate_signal": ActivateSignalResponse,  # Union type
             "provide_performance_feedback": ProvidePerformanceFeedbackResponse,
