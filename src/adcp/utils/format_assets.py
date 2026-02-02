@@ -1,30 +1,23 @@
 """Format Asset Utilities.
 
-Provides backward-compatible access to format assets.
-The v2.6 `assets` field replaces the deprecated `assets_required` field.
-
-These utilities help users work with format assets regardless of which field
-the agent uses, providing a smooth migration path.
+Provides utilities for working with format assets from the `assets` field.
 
 Example:
     ```python
     from adcp import Format
     from adcp.utils.format_assets import get_format_assets, get_required_assets
 
-    # Get all assets from a format (handles both new and deprecated fields)
+    # Get all assets from a format
     all_assets = get_format_assets(format)
 
     # Get only required assets
     required = get_required_assets(format)
-
-    # Check if using deprecated field
-    if uses_deprecated_assets_field(format):
-        print("Agent should migrate to 'assets' field")
     ```
 """
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any, Union
 
 from adcp.types.generated_poc.core.format import Assets as AssetsModel
@@ -38,18 +31,16 @@ FormatAsset = Union["Assets", "Assets5"]
 
 
 def get_format_assets(format: Format) -> list[FormatAsset]:
-    """Get assets from a Format, preferring new `assets` field, falling back to `assets_required`.
+    """Get assets from a Format.
 
-    This provides backward compatibility during the migration from `assets_required` to `assets`.
-    - If `assets` exists and has items, returns it directly
-    - If only `assets_required` exists, normalizes it to the new format (sets required=True)
-    - Returns empty list if neither field exists (flexible format with no assets)
+    Returns the list of assets from the format's `assets` field.
+    Returns empty list if no assets are defined (flexible format with no assets).
 
     Args:
         format: The Format object from list_creative_formats response
 
     Returns:
-        List of assets in the new format structure
+        List of assets
 
     Example:
         ```python
@@ -59,19 +50,18 @@ def get_format_assets(format: Format) -> list[FormatAsset]:
             print(f"{format.name} has {len(assets)} assets")
         ```
     """
-    # Prefer new `assets` field (v2.6+)
     if format.assets and len(format.assets) > 0:
         return list(format.assets)
-
-    # Fall back to deprecated `assets_required` and normalize
-    if format.assets_required and len(format.assets_required) > 0:
-        return normalize_assets_required(format.assets_required)
 
     return []
 
 
 def normalize_assets_required(assets_required: list[Any]) -> list[FormatAsset]:
     """Convert deprecated assets_required to new assets format.
+
+    .. deprecated:: 3.2.0
+        The ``assets_required`` field was removed in ADCP 3.0.0-beta.2.
+        This function will be removed in a future version.
 
     All assets in assets_required are required by definition (that's why they were in
     that array). The new `assets` field has an explicit `required: boolean` to allow
@@ -83,6 +73,13 @@ def normalize_assets_required(assets_required: list[Any]) -> list[FormatAsset]:
     Returns:
         Normalized assets as Pydantic models with explicit required=True
     """
+    warnings.warn(
+        "normalize_assets_required() is deprecated. "
+        "The assets_required field was removed in ADCP 3.0.0-beta.2. "
+        "This function will be removed in a future version.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     normalized: list[FormatAsset] = []
     for asset in assets_required:
         # Get asset data as dict
@@ -168,23 +165,26 @@ def get_repeatable_groups(format: Format) -> list[FormatAsset]:
 
 
 def uses_deprecated_assets_field(format: Format) -> bool:
-    """Check if format uses deprecated assets_required field (for migration warnings).
+    """Check if format uses deprecated assets_required field.
+
+    .. deprecated:: 3.2.0
+        The ``assets_required`` field was removed in ADCP 3.0.0-beta.2.
+        This function always returns False and will be removed in a future version.
 
     Args:
         format: The Format object
 
     Returns:
-        True if using deprecated field, False if using new field or neither
-
-    Example:
-        ```python
-        if uses_deprecated_assets_field(format):
-            print(f"Format {format.name} uses deprecated assets_required field")
-        ```
+        Always False (deprecated field no longer exists)
     """
-    has_assets = format.assets is not None and len(format.assets) > 0
-    has_assets_required = format.assets_required is not None and len(format.assets_required) > 0
-    return not has_assets and has_assets_required
+    warnings.warn(
+        "uses_deprecated_assets_field() is deprecated and always returns False. "
+        "The assets_required field was removed in ADCP 3.0.0-beta.2. "
+        "This function will be removed in a future version.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return False
 
 
 def get_asset_count(format: Format) -> int:

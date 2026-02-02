@@ -1,9 +1,9 @@
 """Tests for format asset utilities.
 
-These utilities provide backward-compatible access to format assets,
-handling the migration from deprecated `assets_required` to new `assets` field.
+These utilities provide access to format assets from the `assets` field.
 """
 
+import pytest
 
 from adcp import Format, FormatCategory, FormatId
 from adcp.utils.format_assets import (
@@ -37,46 +37,27 @@ def get_asset_ids(assets) -> list[str]:
 class TestGetFormatAssets:
     """Tests for get_format_assets() utility."""
 
-    def test_prefers_new_assets_field(self):
-        """Should prefer new assets field when present."""
+    def test_returns_assets_from_format(self):
+        """Should return assets from the format's assets field."""
         fmt = Format(
             format_id=make_format_id("test"),
             name="Test",
             type=FormatCategory.display,
             assets=[
                 {
-                    "asset_id": "new_img",
+                    "asset_id": "img",
                     "asset_type": "image",
                     "item_type": "individual",
                     "required": True,
                 },
             ],
-            assets_required=[
-                {"asset_id": "old_img", "asset_type": "image", "item_type": "individual"},
-            ],
         )
         assets = get_format_assets(fmt)
         assert len(assets) == 1
-        assert get_asset_id(assets[0]) == "new_img"
-
-    def test_falls_back_to_assets_required(self):
-        """Should fall back to deprecated assets_required when assets is empty."""
-        fmt = Format(
-            format_id=make_format_id("test"),
-            name="Test",
-            type=FormatCategory.display,
-            assets_required=[
-                {"asset_id": "legacy_img", "asset_type": "image", "item_type": "individual"},
-            ],
-        )
-        assets = get_format_assets(fmt)
-        assert len(assets) == 1
-        # Normalized to have required=True
-        assert get_asset_id(assets[0]) == "legacy_img"
-        assert assets[0].required is True
+        assert get_asset_id(assets[0]) == "img"
 
     def test_returns_empty_list_when_no_assets(self):
-        """Should return empty list when neither field has assets."""
+        """Should return empty list when format has no assets."""
         fmt = Format(
             format_id=make_format_id("test"),
             name="Test",
@@ -87,14 +68,15 @@ class TestGetFormatAssets:
 
 
 class TestNormalizeAssetsRequired:
-    """Tests for normalize_assets_required() utility."""
+    """Tests for normalize_assets_required() utility (deprecated)."""
 
     def test_adds_required_true_to_dict_assets(self):
-        """Should add required=True to dict assets."""
+        """Should add required=True to dict assets and emit deprecation warning."""
         assets_required = [
             {"asset_id": "img", "asset_type": "image", "item_type": "individual"},
         ]
-        normalized = normalize_assets_required(assets_required)
+        with pytest.warns(DeprecationWarning, match="normalize_assets_required"):
+            normalized = normalize_assets_required(assets_required)
         assert len(normalized) == 1
         assert normalized[0].required is True
         assert get_asset_id(normalized[0]) == "img"
@@ -109,7 +91,8 @@ class TestNormalizeAssetsRequired:
                 "requirements": {"width": 300, "height": 250},
             },
         ]
-        normalized = normalize_assets_required(assets_required)
+        with pytest.warns(DeprecationWarning, match="normalize_assets_required"):
+            normalized = normalize_assets_required(assets_required)
         # normalize_assets_required returns Pydantic models
         assert normalized[0].requirements == {"width": 300, "height": 250}
 
@@ -131,7 +114,8 @@ class TestNormalizeAssetsRequired:
                 ],
             },
         ]
-        normalized = normalize_assets_required(assets_required)
+        with pytest.warns(DeprecationWarning, match="normalize_assets_required"):
+            normalized = normalize_assets_required(assets_required)
         assert len(normalized) == 1
         assert normalized[0].required is True
         assert normalized[0].asset_group_id == "products"
@@ -176,19 +160,23 @@ class TestGetRequiredAssets:
         assert "required_url" in ids
         assert "optional_logo" not in ids
 
-    def test_all_required_from_assets_required(self):
-        """All assets from deprecated assets_required should be considered required."""
+    def test_empty_when_no_required_assets(self):
+        """Should return empty list when no required assets."""
         fmt = Format(
             format_id=make_format_id("test"),
             name="Test",
             type=FormatCategory.display,
-            assets_required=[
-                {"asset_id": "img1", "asset_type": "image", "item_type": "individual"},
-                {"asset_id": "img2", "asset_type": "image", "item_type": "individual"},
+            assets=[
+                {
+                    "asset_id": "optional_img",
+                    "asset_type": "image",
+                    "item_type": "individual",
+                    "required": False,
+                },
             ],
         )
         required = get_required_assets(fmt)
-        assert len(required) == 2
+        assert len(required) == 0
 
 
 class TestGetOptionalAssets:
@@ -219,14 +207,19 @@ class TestGetOptionalAssets:
         assert len(optional) == 1
         assert get_asset_id(optional[0]) == "optional_logo"
 
-    def test_empty_for_assets_required(self):
-        """Should return empty for deprecated assets_required (all are required)."""
+    def test_empty_when_all_required(self):
+        """Should return empty when all assets are required."""
         fmt = Format(
             format_id=make_format_id("test"),
             name="Test",
             type=FormatCategory.display,
-            assets_required=[
-                {"asset_id": "img", "asset_type": "image", "item_type": "individual"},
+            assets=[
+                {
+                    "asset_id": "img",
+                    "asset_type": "image",
+                    "item_type": "individual",
+                    "required": True,
+                },
             ],
         )
         optional = get_optional_assets(fmt)
@@ -296,22 +289,13 @@ class TestGetRepeatableGroups:
 
 
 class TestUsesDeprecatedAssetsField:
-    """Tests for uses_deprecated_assets_field() utility."""
+    """Tests for uses_deprecated_assets_field() utility (deprecated).
 
-    def test_true_when_only_assets_required(self):
-        """Should return True when only deprecated field is used."""
-        fmt = Format(
-            format_id=make_format_id("test"),
-            name="Test",
-            type=FormatCategory.display,
-            assets_required=[
-                {"asset_id": "img", "asset_type": "image", "item_type": "individual"},
-            ],
-        )
-        assert uses_deprecated_assets_field(fmt) is True
+    This function always returns False and emits a deprecation warning.
+    """
 
-    def test_false_when_using_new_assets(self):
-        """Should return False when new assets field is used."""
+    def test_false_when_using_assets_with_deprecation_warning(self):
+        """Should return False and emit deprecation warning."""
         fmt = Format(
             format_id=make_format_id("test"),
             name="Test",
@@ -325,16 +309,20 @@ class TestUsesDeprecatedAssetsField:
                 },
             ],
         )
-        assert uses_deprecated_assets_field(fmt) is False
+        with pytest.warns(DeprecationWarning, match="uses_deprecated_assets_field"):
+            result = uses_deprecated_assets_field(fmt)
+        assert result is False
 
-    def test_false_when_no_assets(self):
-        """Should return False when neither field is used."""
+    def test_false_when_no_assets_with_deprecation_warning(self):
+        """Should return False and emit deprecation warning even with no assets."""
         fmt = Format(
             format_id=make_format_id("test"),
             name="Test",
             type=FormatCategory.display,
         )
-        assert uses_deprecated_assets_field(fmt) is False
+        with pytest.warns(DeprecationWarning, match="uses_deprecated_assets_field"):
+            result = uses_deprecated_assets_field(fmt)
+        assert result is False
 
 
 class TestGetAssetCount:
