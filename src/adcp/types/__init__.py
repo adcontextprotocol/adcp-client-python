@@ -40,6 +40,8 @@ from adcp.types import _generated as generated  # noqa: F401
 # V3 Sponsored Intelligence types
 # V3 Governance (Property Lists) types
 from adcp.types._generated import (
+    A2UiComponent,
+    A2UiSurface,
     Account,
     ActivateSignalRequest,
     ActivateSignalResponse,
@@ -400,6 +402,8 @@ __all__ = [
     "ValidateContentDeliveryRequest",
     "ValidateContentDeliveryResponse",
     # V3 Sponsored Intelligence
+    "A2UiComponent",
+    "A2UiSurface",
     "SiCapabilities",
     "SiGetOfferingRequest",
     "SiGetOfferingResponse",
