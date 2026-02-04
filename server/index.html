@@ -222,9 +222,7 @@ async def call_tool(name: str, arguments: dict):
     # Core Catalog Operations
     # ========================================================================
 
-    async def get_products(
-        self, params: dict[str, Any], context: ToolContext | None = None
-    ) -&gt; Any:
+    async def get_products(self, params: dict[str, Any], context: ToolContext | None = None) -&gt; Any:
         &#34;&#34;&#34;Get advertising products.
 
         Override this to provide product catalog functionality.
@@ -240,14 +238,14 @@ async def call_tool(name: str, arguments: dict):
         &#34;&#34;&#34;
         return not_supported(&#34;list_creative_formats is not implemented by this agent&#34;)
 
-    async def list_authorized_properties(
+    async def list_accounts(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
-        &#34;&#34;&#34;List authorized properties.
+        &#34;&#34;&#34;List billing accounts accessible to the authenticated agent.
 
-        Override this to provide property authorization information.
+        Override this to provide account information.
         &#34;&#34;&#34;
-        return not_supported(&#34;list_authorized_properties is not implemented by this agent&#34;)
+        return not_supported(&#34;list_accounts is not implemented by this agent&#34;)
 
     # ========================================================================
     # Creative Operations
@@ -315,9 +313,7 @@ async def call_tool(name: str, arguments: dict):
     # Signal Operations
     # ========================================================================
 
-    async def get_signals(
-        self, params: dict[str, Any], context: ToolContext | None = None
-    ) -&gt; Any:
+    async def get_signals(self, params: dict[str, Any], context: ToolContext | None = None) -&gt; Any:
         &#34;&#34;&#34;Get available signals.
 
         Override this to provide signal catalog.
@@ -762,9 +758,7 @@ only the operations your agent supports.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def get_products(
-    self, params: dict[str, Any], context: ToolContext | None = None
-) -&gt; Any:
+<pre><code class="python">async def get_products(self, params: dict[str, Any], context: ToolContext | None = None) -&gt; Any:
     &#34;&#34;&#34;Get advertising products.
 
     Override this to provide product catalog functionality.
@@ -802,9 +796,7 @@ only the operations your agent supports.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def get_signals(
-    self, params: dict[str, Any], context: ToolContext | None = None
-) -&gt; Any:
+<pre><code class="python">async def get_signals(self, params: dict[str, Any], context: ToolContext | None = None) -&gt; Any:
     &#34;&#34;&#34;Get available signals.
 
     Override this to provide signal catalog.
@@ -814,25 +806,25 @@ only the operations your agent supports.</p>
 <div class="desc"><p>Get available signals.</p>
 <p>Override this to provide signal catalog.</p></div>
 </dd>
-<dt id="adcp.server.ADCPHandler.list_authorized_properties"><code class="name flex">
-<span>async def <span class="ident">list_authorized_properties</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.ToolContext" href="#adcp.server.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<dt id="adcp.server.ADCPHandler.list_accounts"><code class="name flex">
+<span>async def <span class="ident">list_accounts</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.ToolContext" href="#adcp.server.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def list_authorized_properties(
+<pre><code class="python">async def list_accounts(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
-    &#34;&#34;&#34;List authorized properties.
+    &#34;&#34;&#34;List billing accounts accessible to the authenticated agent.
 
-    Override this to provide property authorization information.
+    Override this to provide account information.
     &#34;&#34;&#34;
-    return not_supported(&#34;list_authorized_properties is not implemented by this agent&#34;)</code></pre>
+    return not_supported(&#34;list_accounts is not implemented by this agent&#34;)</code></pre>
 </details>
-<div class="desc"><p>List authorized properties.</p>
-<p>Override this to provide property authorization information.</p></div>
+<div class="desc"><p>List billing accounts accessible to the authenticated agent.</p>
+<p>Override this to provide account information.</p></div>
 </dd>
 <dt id="adcp.server.ADCPHandler.list_content_standards"><code class="name flex">
 <span>async def <span class="ident">list_content_standards</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.ToolContext" href="#adcp.server.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
@@ -1486,41 +1478,31 @@ only the operations your agent supports.</p>
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;list_creative_formats is not supported by Content Standards agents.&#34;
-        )
+        return not_supported(&#34;list_creative_formats is not supported by Content Standards agents.&#34;)
 
-    async def list_authorized_properties(
+    async def list_accounts(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;list_authorized_properties is not supported by Content Standards agents.&#34;
-        )
+        return not_supported(&#34;list_accounts is not supported by Content Standards agents.&#34;)
 
     async def sync_creatives(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;sync_creatives is not supported by Content Standards agents.&#34;
-        )
+        return not_supported(&#34;sync_creatives is not supported by Content Standards agents.&#34;)
 
     async def list_creatives(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;list_creatives is not supported by Content Standards agents.&#34;
-        )
+        return not_supported(&#34;list_creatives is not supported by Content Standards agents.&#34;)
 
     async def build_creative(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;build_creative is not supported by Content Standards agents.&#34;
-        )
+        return not_supported(&#34;build_creative is not supported by Content Standards agents.&#34;)
 
     async def create_media_buy(
         self, params: dict[str, Any], context: ToolContext | None = None
@@ -1535,33 +1517,25 @@ only the operations your agent supports.</p>
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;update_media_buy is not supported by Content Standards agents.&#34;
-        )
+        return not_supported(&#34;update_media_buy is not supported by Content Standards agents.&#34;)
 
     async def get_media_buy_delivery(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;get_media_buy_delivery is not supported by Content Standards agents.&#34;
-        )
+        return not_supported(&#34;get_media_buy_delivery is not supported by Content Standards agents.&#34;)
 
     async def get_signals(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;get_signals is not supported by Content Standards agents.&#34;
-        )
+        return not_supported(&#34;get_signals is not supported by Content Standards agents.&#34;)
 
     async def activate_signal(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;activate_signal is not supported by Content Standards agents.&#34;
-        )
+        return not_supported(&#34;activate_signal is not supported by Content Standards agents.&#34;)
 
     async def provide_performance_feedback(
         self, params: dict[str, Any], context: ToolContext | None = None
@@ -1588,25 +1562,19 @@ only the operations your agent supports.</p>
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;si_initiate_session is not supported by Content Standards agents.&#34;
-        )
+        return not_supported(&#34;si_initiate_session is not supported by Content Standards agents.&#34;)
 
     async def si_send_message(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;si_send_message is not supported by Content Standards agents.&#34;
-        )
+        return not_supported(&#34;si_send_message is not supported by Content Standards agents.&#34;)
 
     async def si_terminate_session(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;si_terminate_session is not supported by Content Standards agents.&#34;
-        )
+        return not_supported(&#34;si_terminate_session is not supported by Content Standards agents.&#34;)
 
     # ========================================================================
     # V3 Governance (Property Lists) - Not supported
@@ -1625,33 +1593,25 @@ only the operations your agent supports.</p>
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;get_property_list is not supported by Content Standards agents.&#34;
-        )
+        return not_supported(&#34;get_property_list is not supported by Content Standards agents.&#34;)
 
     async def list_property_lists(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;list_property_lists is not supported by Content Standards agents.&#34;
-        )
+        return not_supported(&#34;list_property_lists is not supported by Content Standards agents.&#34;)
 
     async def update_property_list(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;update_property_list is not supported by Content Standards agents.&#34;
-        )
+        return not_supported(&#34;update_property_list is not supported by Content Standards agents.&#34;)
 
     async def delete_property_list(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;delete_property_list is not supported by Content Standards agents.&#34;
-        )</code></pre>
+        return not_supported(&#34;delete_property_list is not supported by Content Standards agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Handler for Content Standards protocol.</p>
 <p>Subclass this to implement a Content Standards agent. All Content Standards
@@ -1688,9 +1648,7 @@ return CreateContentStandardsResponse(&hellip;)</p></div>
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;activate_signal is not supported by Content Standards agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;activate_signal is not supported by Content Standards agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Content Standards agents.</p></div>
 </dd>
@@ -1706,9 +1664,7 @@ return CreateContentStandardsResponse(&hellip;)</p></div>
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;build_creative is not supported by Content Standards agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;build_creative is not supported by Content Standards agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Content Standards agents.</p></div>
 </dd>
@@ -1854,9 +1810,7 @@ return CreateContentStandardsResponse(&hellip;)</p></div>
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;delete_property_list is not supported by Content Standards agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;delete_property_list is not supported by Content Standards agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Content Standards agents.</p></div>
 </dd>
@@ -1964,9 +1918,7 @@ return CreateContentStandardsResponse(&hellip;)</p></div>
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;get_media_buy_delivery is not supported by Content Standards agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;get_media_buy_delivery is not supported by Content Standards agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Content Standards agents.</p></div>
 </dd>
@@ -2001,9 +1953,7 @@ return CreateContentStandardsResponse(&hellip;)</p></div>
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;get_property_list is not supported by Content Standards agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;get_property_list is not supported by Content Standards agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Content Standards agents.</p></div>
 </dd>
@@ -2019,9 +1969,7 @@ return CreateContentStandardsResponse(&hellip;)</p></div>
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;get_signals is not supported by Content Standards agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;get_signals is not supported by Content Standards agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Content Standards agents.</p></div>
 </dd>
@@ -2298,21 +2246,19 @@ async def handle_validate_content_delivery(
 <h2 id="returns">Returns</h2>
 <p>Validation response</p></div>
 </dd>
-<dt id="adcp.server.ContentStandardsHandler.list_authorized_properties"><code class="name flex">
-<span>async def <span class="ident">list_authorized_properties</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.ToolContext" href="#adcp.server.ToolContext">ToolContext</a> | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<dt id="adcp.server.ContentStandardsHandler.list_accounts"><code class="name flex">
+<span>async def <span class="ident">list_accounts</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.ToolContext" href="#adcp.server.ToolContext">ToolContext</a> | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def list_authorized_properties(
+<pre><code class="python">async def list_accounts(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;list_authorized_properties is not supported by Content Standards agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;list_accounts is not supported by Content Standards agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Content Standards agents.</p></div>
 </dd>
@@ -2374,9 +2320,7 @@ async def handle_validate_content_delivery(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;list_creative_formats is not supported by Content Standards agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;list_creative_formats is not supported by Content Standards agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Content Standards agents.</p></div>
 </dd>
@@ -2392,9 +2336,7 @@ async def handle_validate_content_delivery(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;list_creatives is not supported by Content Standards agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;list_creatives is not supported by Content Standards agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Content Standards agents.</p></div>
 </dd>
@@ -2410,9 +2352,7 @@ async def handle_validate_content_delivery(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;list_property_lists is not supported by Content Standards agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;list_property_lists is not supported by Content Standards agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Content Standards agents.</p></div>
 </dd>
@@ -2465,9 +2405,7 @@ async def handle_validate_content_delivery(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;si_initiate_session is not supported by Content Standards agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;si_initiate_session is not supported by Content Standards agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Content Standards agents.</p></div>
 </dd>
@@ -2483,9 +2421,7 @@ async def handle_validate_content_delivery(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;si_send_message is not supported by Content Standards agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;si_send_message is not supported by Content Standards agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Content Standards agents.</p></div>
 </dd>
@@ -2501,9 +2437,7 @@ async def handle_validate_content_delivery(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;si_terminate_session is not supported by Content Standards agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;si_terminate_session is not supported by Content Standards agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Content Standards agents.</p></div>
 </dd>
@@ -2519,9 +2453,7 @@ async def handle_validate_content_delivery(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;sync_creatives is not supported by Content Standards agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;sync_creatives is not supported by Content Standards agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Content Standards agents.</p></div>
 </dd>
@@ -2583,9 +2515,7 @@ async def handle_validate_content_delivery(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;update_media_buy is not supported by Content Standards agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;update_media_buy is not supported by Content Standards agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Content Standards agents.</p></div>
 </dd>
@@ -2601,9 +2531,7 @@ async def handle_validate_content_delivery(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;update_property_list is not supported by Content Standards agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;update_property_list is not supported by Content Standards agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Content Standards agents.</p></div>
 </dd>
@@ -2950,42 +2878,31 @@ async def handle_validate_content_delivery(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;list_creative_formats is not supported by Governance agents.&#34;
-        )
+        return not_supported(&#34;list_creative_formats is not supported by Governance agents.&#34;)
 
-    async def list_authorized_properties(
+    async def list_accounts(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;list_authorized_properties is not supported by Governance agents. &#34;
-            &#34;Use get_property_list with resolve=true instead.&#34;
-        )
+        return not_supported(&#34;list_accounts is not supported by Governance agents.&#34;)
 
     async def sync_creatives(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;sync_creatives is not supported by Governance agents.&#34;
-        )
+        return not_supported(&#34;sync_creatives is not supported by Governance agents.&#34;)
 
     async def list_creatives(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;list_creatives is not supported by Governance agents.&#34;
-        )
+        return not_supported(&#34;list_creatives is not supported by Governance agents.&#34;)
 
     async def build_creative(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;build_creative is not supported by Governance agents.&#34;
-        )
+        return not_supported(&#34;build_creative is not supported by Governance agents.&#34;)
 
     async def create_media_buy(
         self, params: dict[str, Any], context: ToolContext | None = None
@@ -3000,41 +2917,31 @@ async def handle_validate_content_delivery(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;update_media_buy is not supported by Governance agents.&#34;
-        )
+        return not_supported(&#34;update_media_buy is not supported by Governance agents.&#34;)
 
     async def get_media_buy_delivery(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;get_media_buy_delivery is not supported by Governance agents.&#34;
-        )
+        return not_supported(&#34;get_media_buy_delivery is not supported by Governance agents.&#34;)
 
     async def get_signals(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;get_signals is not supported by Governance agents.&#34;
-        )
+        return not_supported(&#34;get_signals is not supported by Governance agents.&#34;)
 
     async def activate_signal(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;activate_signal is not supported by Governance agents.&#34;
-        )
+        return not_supported(&#34;activate_signal is not supported by Governance agents.&#34;)
 
     async def provide_performance_feedback(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;provide_performance_feedback is not supported by Governance agents.&#34;
-        )
+        return not_supported(&#34;provide_performance_feedback is not supported by Governance agents.&#34;)
 
     # ========================================================================
     # V3 Content Standards - Not supported
@@ -3053,49 +2960,37 @@ async def handle_validate_content_delivery(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;get_content_standards is not supported by Governance agents.&#34;
-        )
+        return not_supported(&#34;get_content_standards is not supported by Governance agents.&#34;)
 
     async def list_content_standards(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;list_content_standards is not supported by Governance agents.&#34;
-        )
+        return not_supported(&#34;list_content_standards is not supported by Governance agents.&#34;)
 
     async def update_content_standards(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;update_content_standards is not supported by Governance agents.&#34;
-        )
+        return not_supported(&#34;update_content_standards is not supported by Governance agents.&#34;)
 
     async def calibrate_content(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;calibrate_content is not supported by Governance agents.&#34;
-        )
+        return not_supported(&#34;calibrate_content is not supported by Governance agents.&#34;)
 
     async def validate_content_delivery(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;validate_content_delivery is not supported by Governance agents.&#34;
-        )
+        return not_supported(&#34;validate_content_delivery is not supported by Governance agents.&#34;)
 
     async def get_media_buy_artifacts(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;get_media_buy_artifacts is not supported by Governance agents.&#34;
-        )
+        return not_supported(&#34;get_media_buy_artifacts is not supported by Governance agents.&#34;)
 
     # ========================================================================
     # V3 Sponsored Intelligence - Not supported
@@ -3114,25 +3009,19 @@ async def handle_validate_content_delivery(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;si_initiate_session is not supported by Governance agents.&#34;
-        )
+        return not_supported(&#34;si_initiate_session is not supported by Governance agents.&#34;)
 
     async def si_send_message(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;si_send_message is not supported by Governance agents.&#34;
-        )
+        return not_supported(&#34;si_send_message is not supported by Governance agents.&#34;)
 
     async def si_terminate_session(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;si_terminate_session is not supported by Governance agents.&#34;
-        )</code></pre>
+        return not_supported(&#34;si_terminate_session is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Handler for Governance protocol (Property Lists).</p>
 <p>Subclass this to implement a Governance agent that manages property lists
@@ -3172,9 +3061,7 @@ return CreatePropertyListResponse(list=PropertyList(&hellip;))</p></div>
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;activate_signal is not supported by Governance agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;activate_signal is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
@@ -3190,9 +3077,7 @@ return CreatePropertyListResponse(list=PropertyList(&hellip;))</p></div>
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;build_creative is not supported by Governance agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;build_creative is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
@@ -3208,9 +3093,7 @@ return CreatePropertyListResponse(list=PropertyList(&hellip;))</p></div>
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;calibrate_content is not supported by Governance agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;calibrate_content is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
@@ -3356,9 +3239,7 @@ return CreatePropertyListResponse(list=PropertyList(&hellip;))</p></div>
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;get_content_standards is not supported by Governance agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;get_content_standards is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
@@ -3374,9 +3255,7 @@ return CreatePropertyListResponse(list=PropertyList(&hellip;))</p></div>
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;get_media_buy_artifacts is not supported by Governance agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;get_media_buy_artifacts is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
@@ -3392,9 +3271,7 @@ return CreatePropertyListResponse(list=PropertyList(&hellip;))</p></div>
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;get_media_buy_delivery is not supported by Governance agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;get_media_buy_delivery is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
@@ -3475,9 +3352,7 @@ return CreatePropertyListResponse(list=PropertyList(&hellip;))</p></div>
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;get_signals is not supported by Governance agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;get_signals is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
@@ -3681,22 +3556,19 @@ async def handle_update_property_list(
 <h2 id="returns">Returns</h2>
 <p>Response with updated property list</p></div>
 </dd>
-<dt id="adcp.server.GovernanceHandler.list_authorized_properties"><code class="name flex">
-<span>async def <span class="ident">list_authorized_properties</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.ToolContext" href="#adcp.server.ToolContext">ToolContext</a> | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<dt id="adcp.server.GovernanceHandler.list_accounts"><code class="name flex">
+<span>async def <span class="ident">list_accounts</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.ToolContext" href="#adcp.server.ToolContext">ToolContext</a> | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def list_authorized_properties(
+<pre><code class="python">async def list_accounts(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;list_authorized_properties is not supported by Governance agents. &#34;
-        &#34;Use get_property_list with resolve=true instead.&#34;
-    )</code></pre>
+    return not_supported(&#34;list_accounts is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
@@ -3712,9 +3584,7 @@ async def handle_update_property_list(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;list_content_standards is not supported by Governance agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;list_content_standards is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
@@ -3730,9 +3600,7 @@ async def handle_update_property_list(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;list_creative_formats is not supported by Governance agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;list_creative_formats is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
@@ -3748,9 +3616,7 @@ async def handle_update_property_list(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;list_creatives is not supported by Governance agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;list_creatives is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
@@ -3812,9 +3678,7 @@ async def handle_update_property_list(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;provide_performance_feedback is not supported by Governance agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;provide_performance_feedback is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
@@ -3849,9 +3713,7 @@ async def handle_update_property_list(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;si_initiate_session is not supported by Governance agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;si_initiate_session is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
@@ -3867,9 +3729,7 @@ async def handle_update_property_list(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;si_send_message is not supported by Governance agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;si_send_message is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
@@ -3885,9 +3745,7 @@ async def handle_update_property_list(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;si_terminate_session is not supported by Governance agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;si_terminate_session is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
@@ -3903,9 +3761,7 @@ async def handle_update_property_list(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;sync_creatives is not supported by Governance agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;sync_creatives is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
@@ -3921,9 +3777,7 @@ async def handle_update_property_list(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;update_content_standards is not supported by Governance agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;update_content_standards is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
@@ -3939,9 +3793,7 @@ async def handle_update_property_list(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;update_media_buy is not supported by Governance agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;update_media_buy is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
@@ -4003,9 +3855,7 @@ async def handle_update_property_list(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;validate_content_delivery is not supported by Governance agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;validate_content_delivery is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
@@ -4392,9 +4242,7 @@ validated to form a valid model.</p>
 
         total = sum(a[&#34;allocation_percentage&#34;] for a in self._allocations)
         if abs(total - 100.0) &gt; 0.01:
-            raise ValueError(
-                f&#34;Allocation percentages must sum to 100, got {total}&#34;
-            )
+            raise ValueError(f&#34;Allocation percentages must sum to 100, got {total}&#34;)
 
         proposal: dict[str, Any] = {
             &#34;proposal_id&#34;: self._proposal_id,
@@ -4527,9 +4375,7 @@ before adding another allocation or calling build().</p>
 
     total = sum(a[&#34;allocation_percentage&#34;] for a in self._allocations)
     if abs(total - 100.0) &gt; 0.01:
-        raise ValueError(
-            f&#34;Allocation percentages must sum to 100, got {total}&#34;
-        )
+        raise ValueError(f&#34;Allocation percentages must sum to 100, got {total}&#34;)
 
     proposal: dict[str, Any] = {
         &#34;proposal_id&#34;: self._proposal_id,
@@ -5121,37 +4967,29 @@ validated to form a valid model.</p>
             &#34;list_creative_formats is not supported by Sponsored Intelligence agents.&#34;
         )
 
-    async def list_authorized_properties(
+    async def list_accounts(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;list_authorized_properties is not supported by Sponsored Intelligence agents.&#34;
-        )
+        return not_supported(&#34;list_accounts is not supported by Sponsored Intelligence agents.&#34;)
 
     async def sync_creatives(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;sync_creatives is not supported by Sponsored Intelligence agents.&#34;
-        )
+        return not_supported(&#34;sync_creatives is not supported by Sponsored Intelligence agents.&#34;)
 
     async def list_creatives(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;list_creatives is not supported by Sponsored Intelligence agents.&#34;
-        )
+        return not_supported(&#34;list_creatives is not supported by Sponsored Intelligence agents.&#34;)
 
     async def build_creative(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;build_creative is not supported by Sponsored Intelligence agents.&#34;
-        )
+        return not_supported(&#34;build_creative is not supported by Sponsored Intelligence agents.&#34;)
 
     async def create_media_buy(
         self, params: dict[str, Any], context: ToolContext | None = None
@@ -5166,9 +5004,7 @@ validated to form a valid model.</p>
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;update_media_buy is not supported by Sponsored Intelligence agents.&#34;
-        )
+        return not_supported(&#34;update_media_buy is not supported by Sponsored Intelligence agents.&#34;)
 
     async def get_media_buy_delivery(
         self, params: dict[str, Any], context: ToolContext | None = None
@@ -5182,17 +5018,13 @@ validated to form a valid model.</p>
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;get_signals is not supported by Sponsored Intelligence agents.&#34;
-        )
+        return not_supported(&#34;get_signals is not supported by Sponsored Intelligence agents.&#34;)
 
     async def activate_signal(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;activate_signal is not supported by Sponsored Intelligence agents.&#34;
-        )
+        return not_supported(&#34;activate_signal is not supported by Sponsored Intelligence agents.&#34;)
 
     async def provide_performance_feedback(
         self, params: dict[str, Any], context: ToolContext | None = None
@@ -5243,9 +5075,7 @@ validated to form a valid model.</p>
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;calibrate_content is not supported by Sponsored Intelligence agents.&#34;
-        )
+        return not_supported(&#34;calibrate_content is not supported by Sponsored Intelligence agents.&#34;)
 
     async def validate_content_delivery(
         self, params: dict[str, Any], context: ToolContext | None = None
@@ -5280,9 +5110,7 @@ validated to form a valid model.</p>
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;get_property_list is not supported by Sponsored Intelligence agents.&#34;
-        )
+        return not_supported(&#34;get_property_list is not supported by Sponsored Intelligence agents.&#34;)
 
     async def list_property_lists(
         self, params: dict[str, Any], context: ToolContext | None = None
@@ -5343,9 +5171,7 @@ return SiGetOfferingResponse(&hellip;)</p></div>
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;activate_signal is not supported by Sponsored Intelligence agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;activate_signal is not supported by Sponsored Intelligence agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Sponsored Intelligence agents.</p></div>
 </dd>
@@ -5361,9 +5187,7 @@ return SiGetOfferingResponse(&hellip;)</p></div>
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;build_creative is not supported by Sponsored Intelligence agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;build_creative is not supported by Sponsored Intelligence agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Sponsored Intelligence agents.</p></div>
 </dd>
@@ -5379,9 +5203,7 @@ return SiGetOfferingResponse(&hellip;)</p></div>
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;calibrate_content is not supported by Sponsored Intelligence agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;calibrate_content is not supported by Sponsored Intelligence agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Sponsored Intelligence agents.</p></div>
 </dd>
@@ -5545,9 +5367,7 @@ return SiGetOfferingResponse(&hellip;)</p></div>
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;get_property_list is not supported by Sponsored Intelligence agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;get_property_list is not supported by Sponsored Intelligence agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Sponsored Intelligence agents.</p></div>
 </dd>
@@ -5563,9 +5383,7 @@ return SiGetOfferingResponse(&hellip;)</p></div>
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;get_signals is not supported by Sponsored Intelligence agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;get_signals is not supported by Sponsored Intelligence agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Sponsored Intelligence agents.</p></div>
 </dd>
@@ -5725,21 +5543,19 @@ async def handle_si_terminate_session(
 <h2 id="returns">Returns</h2>
 <p>Termination response with session summary</p></div>
 </dd>
-<dt id="adcp.server.SponsoredIntelligenceHandler.list_authorized_properties"><code class="name flex">
-<span>async def <span class="ident">list_authorized_properties</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.ToolContext" href="#adcp.server.ToolContext">ToolContext</a> | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<dt id="adcp.server.SponsoredIntelligenceHandler.list_accounts"><code class="name flex">
+<span>async def <span class="ident">list_accounts</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.ToolContext" href="#adcp.server.ToolContext">ToolContext</a> | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def list_authorized_properties(
+<pre><code class="python">async def list_accounts(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;list_authorized_properties is not supported by Sponsored Intelligence agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;list_accounts is not supported by Sponsored Intelligence agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Sponsored Intelligence agents.</p></div>
 </dd>
@@ -5791,9 +5607,7 @@ async def handle_si_terminate_session(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;list_creatives is not supported by Sponsored Intelligence agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;list_creatives is not supported by Sponsored Intelligence agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Sponsored Intelligence agents.</p></div>
 </dd>
@@ -6029,9 +5843,7 @@ async def handle_si_terminate_session(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;sync_creatives is not supported by Sponsored Intelligence agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;sync_creatives is not supported by Sponsored Intelligence agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Sponsored Intelligence agents.</p></div>
 </dd>
@@ -6065,9 +5877,7 @@ async def handle_si_terminate_session(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;update_media_buy is not supported by Sponsored Intelligence agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;update_media_buy is not supported by Sponsored Intelligence agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Sponsored Intelligence agents.</p></div>
 </dd>
@@ -6205,7 +6015,7 @@ for logging, authorization, or other cross-cutting concerns.</p></div>
 <li><code><a title="adcp.server.ADCPHandler.get_products" href="#adcp.server.ADCPHandler.get_products">get_products</a></code></li>
 <li><code><a title="adcp.server.ADCPHandler.get_property_list" href="#adcp.server.ADCPHandler.get_property_list">get_property_list</a></code></li>
 <li><code><a title="adcp.server.ADCPHandler.get_signals" href="#adcp.server.ADCPHandler.get_signals">get_signals</a></code></li>
-<li><code><a title="adcp.server.ADCPHandler.list_authorized_properties" href="#adcp.server.ADCPHandler.list_authorized_properties">list_authorized_properties</a></code></li>
+<li><code><a title="adcp.server.ADCPHandler.list_accounts" href="#adcp.server.ADCPHandler.list_accounts">list_accounts</a></code></li>
 <li><code><a title="adcp.server.ADCPHandler.list_content_standards" href="#adcp.server.ADCPHandler.list_content_standards">list_content_standards</a></code></li>
 <li><code><a title="adcp.server.ADCPHandler.list_creative_formats" href="#adcp.server.ADCPHandler.list_creative_formats">list_creative_formats</a></code></li>
 <li><code><a title="adcp.server.ADCPHandler.list_creatives" href="#adcp.server.ADCPHandler.list_creatives">list_creatives</a></code></li>
@@ -6245,7 +6055,7 @@ for logging, authorization, or other cross-cutting concerns.</p></div>
 <li><code><a title="adcp.server.ContentStandardsHandler.handle_list_content_standards" href="#adcp.server.ContentStandardsHandler.handle_list_content_standards">handle_list_content_standards</a></code></li>
 <li><code><a title="adcp.server.ContentStandardsHandler.handle_update_content_standards" href="#adcp.server.ContentStandardsHandler.handle_update_content_standards">handle_update_content_standards</a></code></li>
 <li><code><a title="adcp.server.ContentStandardsHandler.handle_validate_content_delivery" href="#adcp.server.ContentStandardsHandler.handle_validate_content_delivery">handle_validate_content_delivery</a></code></li>
-<li><code><a title="adcp.server.ContentStandardsHandler.list_authorized_properties" href="#adcp.server.ContentStandardsHandler.list_authorized_properties">list_authorized_properties</a></code></li>
+<li><code><a title="adcp.server.ContentStandardsHandler.list_accounts" href="#adcp.server.ContentStandardsHandler.list_accounts">list_accounts</a></code></li>
 <li><code><a title="adcp.server.ContentStandardsHandler.list_content_standards" href="#adcp.server.ContentStandardsHandler.list_content_standards">list_content_standards</a></code></li>
 <li><code><a title="adcp.server.ContentStandardsHandler.list_creative_formats" href="#adcp.server.ContentStandardsHandler.list_creative_formats">list_creative_formats</a></code></li>
 <li><code><a title="adcp.server.ContentStandardsHandler.list_creatives" href="#adcp.server.ContentStandardsHandler.list_creatives">list_creatives</a></code></li>
@@ -6283,7 +6093,7 @@ for logging, authorization, or other cross-cutting concerns.</p></div>
 <li><code><a title="adcp.server.GovernanceHandler.handle_get_property_list" href="#adcp.server.GovernanceHandler.handle_get_property_list">handle_get_property_list</a></code></li>
 <li><code><a title="adcp.server.GovernanceHandler.handle_list_property_lists" href="#adcp.server.GovernanceHandler.handle_list_property_lists">handle_list_property_lists</a></code></li>
 <li><code><a title="adcp.server.GovernanceHandler.handle_update_property_list" href="#adcp.server.GovernanceHandler.handle_update_property_list">handle_update_property_list</a></code></li>
-<li><code><a title="adcp.server.GovernanceHandler.list_authorized_properties" href="#adcp.server.GovernanceHandler.list_authorized_properties">list_authorized_properties</a></code></li>
+<li><code><a title="adcp.server.GovernanceHandler.list_accounts" href="#adcp.server.GovernanceHandler.list_accounts">list_accounts</a></code></li>
 <li><code><a title="adcp.server.GovernanceHandler.list_content_standards" href="#adcp.server.GovernanceHandler.list_content_standards">list_content_standards</a></code></li>
 <li><code><a title="adcp.server.GovernanceHandler.list_creative_formats" href="#adcp.server.GovernanceHandler.list_creative_formats">list_creative_formats</a></code></li>
 <li><code><a title="adcp.server.GovernanceHandler.list_creatives" href="#adcp.server.GovernanceHandler.list_creatives">list_creatives</a></code></li>
@@ -6364,7 +6174,7 @@ for logging, authorization, or other cross-cutting concerns.</p></div>
 <li><code><a title="adcp.server.SponsoredIntelligenceHandler.handle_si_initiate_session" href="#adcp.server.SponsoredIntelligenceHandler.handle_si_initiate_session">handle_si_initiate_session</a></code></li>
 <li><code><a title="adcp.server.SponsoredIntelligenceHandler.handle_si_send_message" href="#adcp.server.SponsoredIntelligenceHandler.handle_si_send_message">handle_si_send_message</a></code></li>
 <li><code><a title="adcp.server.SponsoredIntelligenceHandler.handle_si_terminate_session" href="#adcp.server.SponsoredIntelligenceHandler.handle_si_terminate_session">handle_si_terminate_session</a></code></li>
-<li><code><a title="adcp.server.SponsoredIntelligenceHandler.list_authorized_properties" href="#adcp.server.SponsoredIntelligenceHandler.list_authorized_properties">list_authorized_properties</a></code></li>
+<li><code><a title="adcp.server.SponsoredIntelligenceHandler.list_accounts" href="#adcp.server.SponsoredIntelligenceHandler.list_accounts">list_accounts</a></code></li>
 <li><code><a title="adcp.server.SponsoredIntelligenceHandler.list_content_standards" href="#adcp.server.SponsoredIntelligenceHandler.list_content_standards">list_content_standards</a></code></li>
 <li><code><a title="adcp.server.SponsoredIntelligenceHandler.list_creative_formats" href="#adcp.server.SponsoredIntelligenceHandler.list_creative_formats">list_creative_formats</a></code></li>
 <li><code><a title="adcp.server.SponsoredIntelligenceHandler.list_creatives" href="#adcp.server.SponsoredIntelligenceHandler.list_creatives">list_creatives</a></code></li>

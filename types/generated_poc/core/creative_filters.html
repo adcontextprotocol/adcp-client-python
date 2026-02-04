@@ -57,65 +57,71 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class CreativeFilters(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
+    account_ids: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Filter creatives by owning accounts. Useful for agencies managing multiple client accounts.&#34;
+        ),
+    ] = None
     assigned_to_packages: Annotated[
-        list[str] | None, Field(description=&#39;Filter creatives assigned to any of these packages&#39;)
+        list[str] | None, Field(description=&#34;Filter creatives assigned to any of these packages&#34;)
     ] = None
     buyer_refs: Annotated[
         list[str] | None,
         Field(
-            description=&#39;Filter creatives assigned to media buys with any of these buyer references&#39;
+            description=&#34;Filter creatives assigned to media buys with any of these buyer references&#34;
         ),
     ] = None
     created_after: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;Filter creatives created after this date (ISO 8601)&#39;),
+        Field(description=&#34;Filter creatives created after this date (ISO 8601)&#34;),
     ] = None
     created_before: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;Filter creatives created before this date (ISO 8601)&#39;),
+        Field(description=&#34;Filter creatives created before this date (ISO 8601)&#34;),
     ] = None
     creative_ids: Annotated[
-        list[str] | None, Field(description=&#39;Filter by specific creative IDs&#39;, max_length=100)
+        list[str] | None, Field(description=&#34;Filter by specific creative IDs&#34;, max_length=100)
     ] = None
     formats: Annotated[
         list[str] | None,
-        Field(description=&#39;Filter by creative format types (e.g., video, audio, display)&#39;),
+        Field(description=&#34;Filter by creative format types (e.g., video, audio, display)&#34;),
     ] = None
     has_performance_data: Annotated[
-        bool | None, Field(description=&#39;Filter creatives that have performance data when true&#39;)
+        bool | None, Field(description=&#34;Filter creatives that have performance data when true&#34;)
     ] = None
     media_buy_ids: Annotated[
-        list[str] | None, Field(description=&#39;Filter creatives assigned to any of these media buys&#39;)
+        list[str] | None, Field(description=&#34;Filter creatives assigned to any of these media buys&#34;)
     ] = None
     name_contains: Annotated[
         str | None,
-        Field(description=&#39;Filter by creative names containing this text (case-insensitive)&#39;),
+        Field(description=&#34;Filter by creative names containing this text (case-insensitive)&#34;),
     ] = None
     statuses: Annotated[
         list[creative_status.CreativeStatus] | None,
-        Field(description=&#39;Filter by creative approval statuses&#39;),
+        Field(description=&#34;Filter by creative approval statuses&#34;),
     ] = None
     tags: Annotated[
-        list[str] | None, Field(description=&#39;Filter by creative tags (all tags must match)&#39;)
+        list[str] | None, Field(description=&#34;Filter by creative tags (all tags must match)&#34;)
     ] = None
     tags_any: Annotated[
-        list[str] | None, Field(description=&#39;Filter by creative tags (any tag must match)&#39;)
+        list[str] | None, Field(description=&#34;Filter by creative tags (any tag must match)&#34;)
     ] = None
     unassigned: Annotated[
         bool | None,
         Field(
-            description=&#39;Filter for unassigned creatives when true, assigned creatives when false&#39;
+            description=&#34;Filter for unassigned creatives when true, assigned creatives when false&#34;
         ),
     ] = None
     updated_after: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;Filter creatives last updated after this date (ISO 8601)&#39;),
+        Field(description=&#34;Filter creatives last updated after this date (ISO 8601)&#34;),
     ] = None
     updated_before: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;Filter creatives last updated before this date (ISO 8601)&#39;),
+        Field(description=&#34;Filter creatives last updated before this date (ISO 8601)&#34;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -133,6 +139,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.core.creative_filters.CreativeFilters.account_ids"><code class="name">var <span class="ident">account_ids</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.creative_filters.CreativeFilters.assigned_to_packages"><code class="name">var <span class="ident">assigned_to_packages</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -227,6 +237,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters">CreativeFilters</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters.account_ids" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters.account_ids">account_ids</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters.assigned_to_packages" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters.assigned_to_packages">assigned_to_packages</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters.buyer_refs" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters.buyer_refs">buyer_refs</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_filters.CreativeFilters.created_after" href="#adcp.types.generated_poc.core.creative_filters.CreativeFilters.created_after">created_after</a></code></li>

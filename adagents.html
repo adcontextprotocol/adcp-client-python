@@ -168,9 +168,7 @@ el.replaceWith(d);
     for depth in range(MAX_REDIRECT_DEPTH + 1):
         # Check for redirect loop
         if url in visited_urls:
-            raise AdagentsValidationError(
-                f&#34;Circular redirect detected: {url} already visited&#34;
-            )
+            raise AdagentsValidationError(f&#34;Circular redirect detected: {url} already visited&#34;)
         visited_urls.add(url)
 
         data = await _fetch_adagents_url(url, timeout, user_agent, client)
@@ -261,8 +259,8 @@ to enable connection pooling and improve performance.</p></div>
     properties your agent can access.
 
     This is the &#34;pull&#34; approach - you query publishers to see if they&#39;ve authorized you.
-    For the &#34;push&#34; approach where the agent tells you what it&#39;s authorized for,
-    use the agent&#39;s list_authorized_properties endpoint via ADCPClient.
+    For the &#34;push&#34; approach where the agent tells you what billing accounts you can use,
+    use the agent&#39;s list_accounts endpoint via ADCPClient.
 
     Args:
         agent_url: URL of your sales agent
@@ -286,7 +284,7 @@ to enable connection pooling and improve performance.</p></div>
         ...     print(f&#34;  Tags: {ctx.property_tags}&#34;)
 
     See Also:
-        ADCPClient.list_authorized_properties: &#34;Push&#34; approach using the agent&#39;s API
+        ADCPClient.list_accounts: &#34;Push&#34; approach using the agent&#39;s API to list billing accounts
 
     Notes:
         - Silently skips domains where adagents.json is not found or invalid
@@ -330,8 +328,8 @@ to enable connection pooling and improve performance.</p></div>
 their adagents.json files from the .well-known directory and extracting the
 properties your agent can access.</p>
 <p>This is the "pull" approach - you query publishers to see if they've authorized you.
-For the "push" approach where the agent tells you what it's authorized for,
-use the agent's list_authorized_properties endpoint via ADCPClient.</p>
+For the "push" approach where the agent tells you what billing accounts you can use,
+use the agent's list_accounts endpoint via ADCPClient.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>agent_url</code></strong></dt>
@@ -358,7 +356,7 @@ Only includes domains where the agent is authorized.</p>
 ...     print(f&quot;  Tags: {ctx.property_tags}&quot;)
 </code></pre>
 <p>See Also:
-ADCPClient.list_authorized_properties: "Push" approach using the agent's API</p>
+ADCPClient.list_accounts: "Push" approach using the agent's API to list billing accounts</p>
 <h2 id="notes">Notes</h2>
 <ul>
 <li>Silently skips domains where adagents.json is not found or invalid</li>

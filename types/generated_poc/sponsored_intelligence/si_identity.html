@@ -56,11 +56,11 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ConsentScopeEnum(Enum):
-    name = &#39;name&#39;
-    email = &#39;email&#39;
-    shipping_address = &#39;shipping_address&#39;
-    phone = &#39;phone&#39;
-    locale = &#39;locale&#39;</code></pre>
+    name = &#34;name&#34;
+    email = &#34;email&#34;
+    shipping_address = &#34;shipping_address&#34;
+    phone = &#34;phone&#34;
+    locale = &#34;locale&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -136,13 +136,13 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class PrivacyPolicyAcknowledged(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     brand_policy_url: Annotated[
         AnyUrl | None, Field(description=&#34;URL to brand&#39;s privacy policy&#34;)
     ] = None
     brand_policy_version: Annotated[
-        str | None, Field(description=&#39;Version of policy acknowledged&#39;)
+        str | None, Field(description=&#34;Version of policy acknowledged&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -195,7 +195,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ShippingAddress(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     city: str | None = None
     country: str | None = None
@@ -265,24 +265,24 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SiIdentity(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     anonymous_session_id: Annotated[
         str | None,
-        Field(description=&#39;Session ID for anonymous users (when consent_granted is false)&#39;),
+        Field(description=&#34;Session ID for anonymous users (when consent_granted is false)&#34;),
     ] = None
-    consent_granted: Annotated[bool, Field(description=&#39;Whether user consented to share identity&#39;)]
+    consent_granted: Annotated[bool, Field(description=&#34;Whether user consented to share identity&#34;)]
     consent_scope: Annotated[
-        list[ConsentScopeEnum] | None, Field(description=&#39;What data was consented to share&#39;)
+        list[ConsentScopeEnum] | None, Field(description=&#34;What data was consented to share&#34;)
     ] = None
     consent_timestamp: Annotated[
-        AwareDatetime | None, Field(description=&#39;When consent was granted (ISO 8601)&#39;)
+        AwareDatetime | None, Field(description=&#34;When consent was granted (ISO 8601)&#34;)
     ] = None
     privacy_policy_acknowledged: Annotated[
-        PrivacyPolicyAcknowledged | None, Field(description=&#39;Brand privacy policy acknowledgment&#39;)
+        PrivacyPolicyAcknowledged | None, Field(description=&#34;Brand privacy policy acknowledgment&#34;)
     ] = None
     user: Annotated[
-        User | None, Field(description=&#39;User data (only present if consent_granted is true)&#39;)
+        User | None, Field(description=&#34;User data (only present if consent_granted is true)&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -351,7 +351,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class User(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     email: Annotated[EmailStr | None, Field(description=&#34;User&#39;s email address&#34;)] = None
     locale: Annotated[str | None, Field(description=&#34;User&#39;s locale (e.g., en-US)&#34;)] = None

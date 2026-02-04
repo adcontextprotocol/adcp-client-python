@@ -59,8 +59,8 @@ el.replaceWith(d);
     root: Annotated[
         PackageUpdate1 | PackageUpdate2,
         Field(
-            description=&#39;Package update configuration for update_media_buy. Identifies package by package_id or buyer_ref and specifies fields to modify. Fields not present are left unchanged. Note: product_id, format_ids, and pricing_option_id cannot be changed after creation.&#39;,
-            title=&#39;Package Update&#39;,
+            description=&#34;Package update configuration for update_media_buy. Identifies package by package_id or buyer_ref and specifies fields to modify. Fields not present are left unchanged. Note: product_id, format_ids, and pricing_option_id cannot be changed after creation.&#34;,
+            title=&#34;Package Update&#34;,
         ),
     ]</code></pre>
 </details>
@@ -114,19 +114,19 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PackageUpdate1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     bid_price: Annotated[
         float | None,
         Field(
-            description=&#39;Updated bid price for auction-based pricing options (only applies when pricing_option is auction-based)&#39;,
+            description=&#34;Updated bid price for auction-based pricing options (only applies when pricing_option is auction-based)&#34;,
             ge=0.0,
         ),
     ] = None
     budget: Annotated[
         float | None,
         Field(
-            description=&#39;Updated budget allocation for this package in the currency specified by the pricing option&#39;,
+            description=&#34;Updated budget allocation for this package in the currency specified by the pricing option&#34;,
             ge=0.0,
         ),
     ] = None
@@ -136,25 +136,25 @@ validated to form a valid model.</p>
     creative_assignments: Annotated[
         list[creative_assignment.CreativeAssignment] | None,
         Field(
-            description=&#39;Replace creative assignments for this package with optional weights and placement targeting. Uses replacement semantics - omit to leave assignments unchanged.&#39;
+            description=&#34;Replace creative assignments for this package with optional weights and placement targeting. Uses replacement semantics - omit to leave assignments unchanged.&#34;
         ),
     ] = None
     creatives: Annotated[
         list[creative_asset.CreativeAsset] | None,
         Field(
-            description=&#39;Upload new creative assets and assign to this package (creatives will be added to library). Use creative_assignments instead for existing library creatives.&#39;,
+            description=&#34;Upload new creative assets and assign to this package (creatives will be added to library). Use creative_assignments instead for existing library creatives.&#34;,
             max_length=100,
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     impressions: Annotated[
-        float | None, Field(description=&#39;Updated impression goal for this package&#39;, ge=0.0)
+        float | None, Field(description=&#34;Updated impression goal for this package&#34;, ge=0.0)
     ] = None
     pacing: pacing_1.Pacing | None = None
     package_id: Annotated[str, Field(description=&#34;Publisher&#39;s ID of package to update&#34;)]
     paused: Annotated[
         bool | None,
-        Field(description=&#39;Pause/resume specific package (true = paused, false = active)&#39;),
+        Field(description=&#34;Pause/resume specific package (true = paused, false = active)&#34;),
     ] = None
     targeting_overlay: targeting.TargetingOverlay | None = None</code></pre>
 </details>
@@ -244,19 +244,19 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PackageUpdate2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     bid_price: Annotated[
         float | None,
         Field(
-            description=&#39;Updated bid price for auction-based pricing options (only applies when pricing_option is auction-based)&#39;,
+            description=&#34;Updated bid price for auction-based pricing options (only applies when pricing_option is auction-based)&#34;,
             ge=0.0,
         ),
     ] = None
     budget: Annotated[
         float | None,
         Field(
-            description=&#39;Updated budget allocation for this package in the currency specified by the pricing option&#39;,
+            description=&#34;Updated budget allocation for this package in the currency specified by the pricing option&#34;,
             ge=0.0,
         ),
     ] = None
@@ -264,19 +264,19 @@ validated to form a valid model.</p>
     creative_assignments: Annotated[
         list[creative_assignment.CreativeAssignment] | None,
         Field(
-            description=&#39;Replace creative assignments for this package with optional weights and placement targeting. Uses replacement semantics - omit to leave assignments unchanged.&#39;
+            description=&#34;Replace creative assignments for this package with optional weights and placement targeting. Uses replacement semantics - omit to leave assignments unchanged.&#34;
         ),
     ] = None
     creatives: Annotated[
         list[creative_asset.CreativeAsset] | None,
         Field(
-            description=&#39;Upload new creative assets and assign to this package (creatives will be added to library). Use creative_assignments instead for existing library creatives.&#39;,
+            description=&#34;Upload new creative assets and assign to this package (creatives will be added to library). Use creative_assignments instead for existing library creatives.&#34;,
             max_length=100,
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     impressions: Annotated[
-        float | None, Field(description=&#39;Updated impression goal for this package&#39;, ge=0.0)
+        float | None, Field(description=&#34;Updated impression goal for this package&#34;, ge=0.0)
     ] = None
     pacing: pacing_1.Pacing | None = None
     package_id: Annotated[str | None, Field(description=&#34;Publisher&#39;s ID of package to update&#34;)] = (
@@ -284,7 +284,7 @@ validated to form a valid model.</p>
     )
     paused: Annotated[
         bool | None,
-        Field(description=&#39;Pause/resume specific package (true = paused, false = active)&#39;),
+        Field(description=&#34;Pause/resume specific package (true = paused, false = active)&#34;),
     ] = None
     targeting_overlay: targeting.TargetingOverlay | None = None</code></pre>
 </details>

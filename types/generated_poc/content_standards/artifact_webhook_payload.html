@@ -56,16 +56,16 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Artifact(AdCPBaseModel):
-    artifact: Annotated[artifact_1.Artifact, Field(description=&#39;The content artifact&#39;)]
+    artifact: Annotated[artifact_1.Artifact, Field(description=&#34;The content artifact&#34;)]
     delivered_at: Annotated[
-        AwareDatetime, Field(description=&#39;When the impression was delivered (ISO 8601)&#39;)
+        AwareDatetime, Field(description=&#34;When the impression was delivered (ISO 8601)&#34;)
     ]
     impression_id: Annotated[
         str | None,
-        Field(description=&#39;Optional impression identifier for correlation with delivery reports&#39;),
+        Field(description=&#34;Optional impression identifier for correlation with delivery reports&#34;),
     ] = None
     package_id: Annotated[
-        str | None, Field(description=&#39;Package within the media buy this artifact relates to&#39;)
+        str | None, Field(description=&#34;Package within the media buy this artifact relates to&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -126,26 +126,26 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ArtifactWebhookPayload(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     artifacts: Annotated[
-        list[Artifact], Field(description=&#39;Content artifacts from delivered impressions&#39;)
+        list[Artifact], Field(description=&#34;Content artifacts from delivered impressions&#34;)
     ]
     batch_id: Annotated[
         str,
         Field(
-            description=&#39;Unique identifier for this batch of artifacts. Use for deduplication and acknowledgment.&#39;
+            description=&#34;Unique identifier for this batch of artifacts. Use for deduplication and acknowledgment.&#34;
         ),
     ]
     ext: ext_1.ExtensionObject | None = None
     media_buy_id: Annotated[
-        str, Field(description=&#39;Media buy identifier these artifacts belong to&#39;)
+        str, Field(description=&#34;Media buy identifier these artifacts belong to&#34;)
     ]
     pagination: Annotated[
-        Pagination | None, Field(description=&#39;Pagination info when batching large artifact sets&#39;)
+        Pagination | None, Field(description=&#34;Pagination info when batching large artifact sets&#34;)
     ] = None
     timestamp: Annotated[
-        AwareDatetime, Field(description=&#39;When this batch was generated (ISO 8601)&#39;)
+        AwareDatetime, Field(description=&#34;When this batch was generated (ISO 8601)&#34;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -213,14 +213,14 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Pagination(AdCPBaseModel):
-    batch_number: Annotated[int | None, Field(description=&#39;Current batch number (1-indexed)&#39;)] = (
+    batch_number: Annotated[int | None, Field(description=&#34;Current batch number (1-indexed)&#34;)] = (
         None
     )
     total_artifacts: Annotated[
-        int | None, Field(description=&#39;Total artifacts in the delivery period&#39;)
+        int | None, Field(description=&#34;Total artifacts in the delivery period&#34;)
     ] = None
     total_batches: Annotated[
-        int | None, Field(description=&#39;Total batches for this delivery period&#39;)
+        int | None, Field(description=&#34;Total batches for this delivery period&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

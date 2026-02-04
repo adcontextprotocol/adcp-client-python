@@ -57,13 +57,13 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class ContextForCheckout(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     applied_offers: Annotated[
-        list[str] | None, Field(description=&#39;Offer IDs that were applied during the conversation&#39;)
+        list[str] | None, Field(description=&#34;Offer IDs that were applied during the conversation&#34;)
     ] = None
     conversation_summary: Annotated[
-        str | None, Field(description=&#39;Summary of the conversation leading to purchase&#39;)
+        str | None, Field(description=&#34;Summary of the conversation leading to purchase&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -116,19 +116,19 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Handoff(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context_for_checkout: Annotated[
-        ContextForCheckout | None, Field(description=&#39;Context to pass to ACP for seamless checkout&#39;)
+        ContextForCheckout | None, Field(description=&#34;Context to pass to ACP for seamless checkout&#34;)
     ] = None
     intent: Annotated[
         Intent | None,
-        Field(description=&#39;For transaction handoffs: what the user wants to purchase&#39;),
+        Field(description=&#34;For transaction handoffs: what the user wants to purchase&#34;),
     ] = None
     type: Annotated[
         Type | None,
         Field(
-            description=&#39;Type of handoff: transaction (ready for ACP checkout) or complete (conversation done)&#39;
+            description=&#34;Type of handoff: transaction (ready for ACP checkout) or complete (conversation done)&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -186,13 +186,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Intent(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     action: Annotated[str | None, Field(description=&#34;The commerce action (e.g., &#39;purchase&#39;)&#34;)] = (
         None
     )
-    price: Annotated[Price | None, Field(description=&#39;Price information&#39;)] = None
-    product: Annotated[dict[str, Any] | None, Field(description=&#39;Product details for checkout&#39;)] = (
+    price: Annotated[Price | None, Field(description=&#34;Price information&#34;)] = None
+    product: Annotated[dict[str, Any] | None, Field(description=&#34;Product details for checkout&#34;)] = (
         None
     )</code></pre>
 </details>
@@ -302,13 +302,20 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Response(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    message: Annotated[str | None, Field(description=&#39;Conversational message from brand agent&#39;)] = (
+    message: Annotated[str | None, Field(description=&#34;Conversational message from brand agent&#34;)] = (
         None
     )
+    surface: Annotated[
+        surface_1.A2UiSurface | None, Field(description=&#34;A2UI surface with interactive components&#34;)
+    ] = None
     ui_elements: Annotated[
-        list[si_ui_element.SiUiElement] | None, Field(description=&#39;Visual components to render&#39;)
+        list[si_ui_element.SiUiElement] | None,
+        Field(
+            deprecated=True,
+            description=&#34;Visual components to render (DEPRECATED: use surface instead)&#34;,
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -334,9 +341,41 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.Response.ui_elements"><code class="name">var <span class="ident">ui_elements</span> : list[<a title="adcp.types.generated_poc.sponsored_intelligence.si_ui_element.SiUiElement" href="si_ui_element.html#adcp.types.generated_poc.sponsored_intelligence.si_ui_element.SiUiElement">SiUiElement</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.Response.surface"><code class="name">var <span class="ident">surface</span> : <a title="adcp.types.generated_poc.a2ui.surface.A2UiSurface" href="../a2ui/surface.html#adcp.types.generated_poc.a2ui.surface.A2UiSurface">A2UiSurface</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.Response.ui_elements"><code class="name">var <span class="ident">ui_elements</span> : list[<a title="adcp.types.generated_poc.sponsored_intelligence.si_ui_element.SiUiElement" href="si_ui_element.html#adcp.types.generated_poc.sponsored_intelligence.si_ui_element.SiUiElement">SiUiElement</a>] | None</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def __get__(self, obj: BaseModel | None, obj_type: type[BaseModel] | None = None) -&gt; Any:
+    if obj is None:
+        if self.wrapped_property is not None:
+            return self.wrapped_property.__get__(None, obj_type)
+        raise AttributeError(self.field_name)
+
+    warnings.warn(self.msg, DeprecationWarning, stacklevel=2)
+
+    if self.wrapped_property is not None:
+        return self.wrapped_property.__get__(obj, obj_type)
+    return obj.__dict__[self.field_name]</code></pre>
+</details>
+<div class="desc"><p>Read-only data descriptor used to emit a runtime deprecation warning before accessing a deprecated field.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>msg</code></strong></dt>
+<dd>The deprecation message to be emitted.</dd>
+<dt><strong><code>wrapped_property</code></strong></dt>
+<dd>The property instance if the deprecated field is a computed field, or <code>None</code>.</dd>
+<dt><strong><code>field_name</code></strong></dt>
+<dd>The name of the field being deprecated.</dd>
+</dl></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
@@ -360,9 +399,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class SessionStatus(Enum):
-    active = &#39;active&#39;
-    pending_handoff = &#39;pending_handoff&#39;
-    complete = &#39;complete&#39;</code></pre>
+    active = &#34;active&#34;
+    pending_handoff = &#34;pending_handoff&#34;
+    complete = &#34;complete&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -430,16 +469,22 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class SiSendMessageResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     errors: list[error.Error] | None = None
     ext: ext_1.ExtensionObject | None = None
     handoff: Annotated[
-        Handoff | None, Field(description=&#39;Handoff request when session_status is pending_handoff&#39;)
+        Handoff | None, Field(description=&#34;Handoff request when session_status is pending_handoff&#34;)
+    ] = None
+    mcp_resource_uri: Annotated[
+        str | None,
+        Field(
+            description=&#34;MCP resource URI for hosts with MCP Apps support (e.g., ui://si/session-abc123)&#34;
+        ),
     ] = None
     response: Annotated[Response | None, Field(description=&#34;Brand agent&#39;s response&#34;)] = None
-    session_id: Annotated[str, Field(description=&#39;Session identifier&#39;)]
-    session_status: Annotated[SessionStatus, Field(description=&#39;Current session status&#39;)]</code></pre>
+    session_id: Annotated[str, Field(description=&#34;Session identifier&#34;)]
+    session_status: Annotated[SessionStatus, Field(description=&#34;Current session status&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -465,6 +510,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.handoff"><code class="name">var <span class="ident">handoff</span> : <a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.Handoff" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.Handoff">Handoff</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.mcp_resource_uri"><code class="name">var <span class="ident">mcp_resource_uri</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -506,8 +555,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Type(Enum):
-    transaction = &#39;transaction&#39;
-    complete = &#39;complete&#39;</code></pre>
+    transaction = &#34;transaction&#34;
+    complete = &#34;complete&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -614,6 +663,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.Response.message" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.Response.message">message</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.Response.model_config" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.Response.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.Response.surface" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.Response.surface">surface</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.Response.ui_elements" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.Response.ui_elements">ui_elements</a></code></li>
 </ul>
 </li>
@@ -631,6 +681,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.errors" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.errors">errors</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.ext" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.handoff" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.handoff">handoff</a></code></li>
+<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.mcp_resource_uri" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.mcp_resource_uri">mcp_resource_uri</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.model_config" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.response" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.response">response</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.session_id" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.session_id">session_id</a></code></li>

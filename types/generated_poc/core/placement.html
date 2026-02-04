@@ -57,15 +57,15 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Placement(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     description: Annotated[
-        str | None, Field(description=&#39;Detailed description of where and how the placement appears&#39;)
+        str | None, Field(description=&#34;Detailed description of where and how the placement appears&#34;)
     ] = None
     format_ids: Annotated[
         list[format_id.FormatId] | None,
         Field(
-            description=&#39;Format IDs supported by this specific placement. Can include: (1) concrete format_ids (fixed dimensions), (2) template format_ids without parameters (accepts any dimensions/duration), or (3) parameterized format_ids (specific dimension/duration constraints).&#39;,
+            description=&#34;Format IDs supported by this specific placement. Can include: (1) concrete format_ids (fixed dimensions), (2) template format_ids without parameters (accepts any dimensions/duration), or (3) parameterized format_ids (specific dimension/duration constraints).&#34;,
             min_length=1,
         ),
     ] = None
@@ -76,7 +76,7 @@ el.replaceWith(d);
         ),
     ]
     placement_id: Annotated[
-        str, Field(description=&#39;Unique identifier for the placement within the product&#39;)
+        str, Field(description=&#34;Unique identifier for the placement within the product&#34;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

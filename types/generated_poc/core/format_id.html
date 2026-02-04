@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class FormatId(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     agent_url: Annotated[
         AnyUrl,
@@ -68,14 +68,14 @@ el.replaceWith(d);
     duration_ms: Annotated[
         float | None,
         Field(
-            description=&#39;Duration in milliseconds for time-based formats (video, audio). When specified, creates a parameterized format ID. Omit to reference a template format without parameters.&#39;,
+            description=&#34;Duration in milliseconds for time-based formats (video, audio). When specified, creates a parameterized format ID. Omit to reference a template format without parameters.&#34;,
             ge=1.0,
         ),
     ] = None
     height: Annotated[
         int | None,
         Field(
-            description=&#39;Height in pixels for visual formats. When specified, width must also be specified. Both fields together create a parameterized format ID for dimension-specific variants.&#39;,
+            description=&#34;Height in pixels for visual formats. When specified, width must also be specified. Both fields together create a parameterized format ID for dimension-specific variants.&#34;,
             ge=1,
         ),
     ] = None
@@ -83,13 +83,13 @@ el.replaceWith(d);
         str,
         Field(
             description=&#34;Format identifier within the agent&#39;s namespace (e.g., &#39;display_static&#39;, &#39;video_hosted&#39;, &#39;audio_standard&#39;). When used alone, references a template format. When combined with dimension/duration fields, creates a parameterized format ID for a specific variant.&#34;,
-            pattern=&#39;^[a-zA-Z0-9_-]+$&#39;,
+            pattern=&#34;^[a-zA-Z0-9_-]+$&#34;,
         ),
     ]
     width: Annotated[
         int | None,
         Field(
-            description=&#39;Width in pixels for visual formats. When specified, height must also be specified. Both fields together create a parameterized format ID for dimension-specific variants.&#39;,
+            description=&#34;Width in pixels for visual formats. When specified, height must also be specified. Both fields together create a parameterized format ID for dimension-specific variants.&#34;,
             ge=1,
         ),
     ] = None</code></pre>

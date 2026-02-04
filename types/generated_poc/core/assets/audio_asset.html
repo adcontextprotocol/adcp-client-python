@@ -57,18 +57,33 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class AudioAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
+    bit_depth: Annotated[BitDepth | None, Field(description=&#34;Bit depth&#34;)] = None
     bitrate_kbps: Annotated[
-        int | None, Field(description=&#39;Audio bitrate in kilobits per second&#39;, ge=1)
+        int | None, Field(description=&#34;Bitrate in kilobits per second&#34;, ge=1)
+    ] = None
+    channels: Annotated[Channels | None, Field(description=&#34;Channel configuration&#34;)] = None
+    codec: Annotated[
+        str | None,
+        Field(
+            description=&#34;Audio codec used (aac, aac_lc, he_aac, pcm, mp3, vorbis, opus, flac, ac3, eac3, etc.)&#34;
+        ),
+    ] = None
+    container_format: Annotated[
+        str | None,
+        Field(description=&#34;Audio container/file format (mp3, m4a, aac, wav, ogg, flac, etc.)&#34;),
     ] = None
     duration_ms: Annotated[
-        int | None, Field(description=&#39;Audio duration in milliseconds&#39;, ge=0)
+        int | None, Field(description=&#34;Audio duration in milliseconds&#34;, ge=0)
     ] = None
-    format: Annotated[str | None, Field(description=&#39;Audio file format (mp3, wav, aac, etc.)&#39;)] = (
-        None
-    )
-    url: Annotated[AnyUrl, Field(description=&#39;URL to the audio asset&#39;)]</code></pre>
+    file_size_bytes: Annotated[int | None, Field(description=&#34;File size in bytes&#34;, ge=1)] = None
+    loudness_lufs: Annotated[float | None, Field(description=&#34;Integrated loudness in LUFS&#34;)] = None
+    sampling_rate_hz: Annotated[
+        int | None, Field(description=&#34;Sampling rate in Hz (e.g., 44100, 48000, 96000)&#34;)
+    ] = None
+    true_peak_dbfs: Annotated[float | None, Field(description=&#34;True peak level in dBFS&#34;)] = None
+    url: Annotated[AnyUrl, Field(description=&#34;URL to the audio asset&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -85,7 +100,23 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.bit_depth"><code class="name">var <span class="ident">bit_depth</span> : <a title="adcp.types.generated_poc.core.assets.audio_asset.BitDepth" href="#adcp.types.generated_poc.core.assets.audio_asset.BitDepth">BitDepth</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.bitrate_kbps"><code class="name">var <span class="ident">bitrate_kbps</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.channels"><code class="name">var <span class="ident">channels</span> : <a title="adcp.types.generated_poc.core.assets.audio_asset.Channels" href="#adcp.types.generated_poc.core.assets.audio_asset.Channels">Channels</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.codec"><code class="name">var <span class="ident">codec</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.container_format"><code class="name">var <span class="ident">container_format</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -93,11 +124,23 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.format"><code class="name">var <span class="ident">format</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.file_size_bytes"><code class="name">var <span class="ident">file_size_bytes</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.loudness_lufs"><code class="name">var <span class="ident">loudness_lufs</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.sampling_rate_hz"><code class="name">var <span class="ident">sampling_rate_hz</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.true_peak_dbfs"><code class="name">var <span class="ident">true_peak_dbfs</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -117,6 +160,118 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.core.assets.audio_asset.BitDepth"><code class="flex name class">
+<span>class <span class="ident">BitDepth</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class BitDepth(IntEnum):
+    integer_16 = 16
+    integer_24 = 24
+    integer_32 = 32</code></pre>
+</details>
+<div class="desc"><p>Enum where members are also (and must be) ints</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.IntEnum</li>
+<li>builtins.int</li>
+<li>enum.ReprEnum</li>
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.assets.audio_asset.BitDepth.integer_16"><code class="name">var <span class="ident">integer_16</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.audio_asset.BitDepth.integer_24"><code class="name">var <span class="ident">integer_24</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.audio_asset.BitDepth.integer_32"><code class="name">var <span class="ident">integer_32</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.audio_asset.Channels"><code class="flex name class">
+<span>class <span class="ident">Channels</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Channels(Enum):
+    mono = &#34;mono&#34;
+    stereo = &#34;stereo&#34;
+    field_5_1 = &#34;5.1&#34;
+    field_7_1 = &#34;7.1&#34;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.assets.audio_asset.Channels.field_5_1"><code class="name">var <span class="ident">field_5_1</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.audio_asset.Channels.field_7_1"><code class="name">var <span class="ident">field_7_1</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.audio_asset.Channels.mono"><code class="name">var <span class="ident">mono</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.audio_asset.Channels.stereo"><code class="name">var <span class="ident">stereo</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 </dl>
 </section>
 </article>
@@ -134,12 +289,36 @@ validated to form a valid model.</p>
 <ul>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset" href="#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset">AudioAsset</a></code></h4>
-<ul class="">
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.bit_depth" href="#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.bit_depth">bit_depth</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.bitrate_kbps" href="#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.bitrate_kbps">bitrate_kbps</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.channels" href="#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.channels">channels</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.codec" href="#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.codec">codec</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.container_format" href="#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.container_format">container_format</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.duration_ms" href="#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.duration_ms">duration_ms</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.format" href="#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.format">format</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.file_size_bytes" href="#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.file_size_bytes">file_size_bytes</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.loudness_lufs" href="#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.loudness_lufs">loudness_lufs</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.model_config" href="#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.sampling_rate_hz" href="#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.sampling_rate_hz">sampling_rate_hz</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.true_peak_dbfs" href="#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.true_peak_dbfs">true_peak_dbfs</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.url" href="#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.assets.audio_asset.BitDepth" href="#adcp.types.generated_poc.core.assets.audio_asset.BitDepth">BitDepth</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.BitDepth.integer_16" href="#adcp.types.generated_poc.core.assets.audio_asset.BitDepth.integer_16">integer_16</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.BitDepth.integer_24" href="#adcp.types.generated_poc.core.assets.audio_asset.BitDepth.integer_24">integer_24</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.BitDepth.integer_32" href="#adcp.types.generated_poc.core.assets.audio_asset.BitDepth.integer_32">integer_32</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.assets.audio_asset.Channels" href="#adcp.types.generated_poc.core.assets.audio_asset.Channels">Channels</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.Channels.field_5_1" href="#adcp.types.generated_poc.core.assets.audio_asset.Channels.field_5_1">field_5_1</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.Channels.field_7_1" href="#adcp.types.generated_poc.core.assets.audio_asset.Channels.field_7_1">field_7_1</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.Channels.mono" href="#adcp.types.generated_poc.core.assets.audio_asset.Channels.mono">mono</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.Channels.stereo" href="#adcp.types.generated_poc.core.assets.audio_asset.Channels.stereo">stereo</a></code></li>
 </ul>
 </li>
 </ul>

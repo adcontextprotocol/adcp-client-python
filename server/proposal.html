@@ -470,9 +470,7 @@ Proposals represent recommended media plans with budget allocations across produ
 
         total = sum(a[&#34;allocation_percentage&#34;] for a in self._allocations)
         if abs(total - 100.0) &gt; 0.01:
-            raise ValueError(
-                f&#34;Allocation percentages must sum to 100, got {total}&#34;
-            )
+            raise ValueError(f&#34;Allocation percentages must sum to 100, got {total}&#34;)
 
         proposal: dict[str, Any] = {
             &#34;proposal_id&#34;: self._proposal_id,
@@ -605,9 +603,7 @@ before adding another allocation or calling build().</p>
 
     total = sum(a[&#34;allocation_percentage&#34;] for a in self._allocations)
     if abs(total - 100.0) &gt; 0.01:
-        raise ValueError(
-            f&#34;Allocation percentages must sum to 100, got {total}&#34;
-        )
+        raise ValueError(f&#34;Allocation percentages must sum to 100, got {total}&#34;)
 
     proposal: dict[str, Any] = {
         &#34;proposal_id&#34;: self._proposal_id,

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.media_buy.list_authorized_properties_request API documentation</title>
+<title>adcp.types.generated_poc.pricing_options.price_guidance API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.media_buy.list_authorized_properties_request</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.pricing_options.price_guidance</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,8 +46,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.list_authorized_properties_request.ListAuthorizedPropertiesRequest"><code class="flex name class">
-<span>class <span class="ident">ListAuthorizedPropertiesRequest</span></span>
+<dt id="adcp.types.generated_poc.pricing_options.price_guidance.PriceGuidance"><code class="flex name class">
+<span>class <span class="ident">PriceGuidance</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -55,18 +55,19 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class ListAuthorizedPropertiesRequest(AdCPBaseModel):
+<pre><code class="python">class PriceGuidance(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
-    publisher_domains: Annotated[
-        list[PublisherDomain] | None,
-        Field(
-            description=&#39;Filter to specific publisher domains (optional). If omitted, returns all publishers this agent represents.&#39;,
-            min_length=1,
-        ),
+    p25: Annotated[
+        float | None, Field(description=&#34;25th percentile of recent winning bids&#34;, ge=0.0)
+    ] = None
+    p50: Annotated[float | None, Field(description=&#34;Median of recent winning bids&#34;, ge=0.0)] = None
+    p75: Annotated[
+        float | None, Field(description=&#34;75th percentile of recent winning bids&#34;, ge=0.0)
+    ] = None
+    p90: Annotated[
+        float | None, Field(description=&#34;90th percentile of recent winning bids&#34;, ge=0.0)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -84,19 +85,23 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.list_authorized_properties_request.ListAuthorizedPropertiesRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.pricing_options.price_guidance.PriceGuidance.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.list_authorized_properties_request.ListAuthorizedPropertiesRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.pricing_options.price_guidance.PriceGuidance.p25"><code class="name">var <span class="ident">p25</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.list_authorized_properties_request.ListAuthorizedPropertiesRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.pricing_options.price_guidance.PriceGuidance.p50"><code class="name">var <span class="ident">p50</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.list_authorized_properties_request.ListAuthorizedPropertiesRequest.publisher_domains"><code class="name">var <span class="ident">publisher_domains</span> : list[<a title="adcp.types.generated_poc.media_buy.list_authorized_properties_request.PublisherDomain" href="#adcp.types.generated_poc.media_buy.list_authorized_properties_request.PublisherDomain">PublisherDomain</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.pricing_options.price_guidance.PriceGuidance.p75"><code class="name">var <span class="ident">p75</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.pricing_options.price_guidance.PriceGuidance.p90"><code class="name">var <span class="ident">p90</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -112,63 +117,6 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.list_authorized_properties_request.PublisherDomain"><code class="flex name class">
-<span>class <span class="ident">PublisherDomain</span></span>
-<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class PublisherDomain(RootModel[str]):
-    root: Annotated[
-        str,
-        Field(
-            description=&#34;Publisher domain to filter by (e.g., &#39;cnn.com&#39;, &#39;espn.com&#39;)&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
-        ),
-    ]</code></pre>
-</details>
-<div class="desc"><div class="admonition abstract">
-<p class="admonition-title">Usage Documentation</p>
-<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
-</div>
-<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
-<h2 id="attributes">Attributes</h2>
-<dl>
-<dt><strong><code>root</code></strong></dt>
-<dd>The root object of the model.</dd>
-<dt><strong><code>__pydantic_root_model__</code></strong></dt>
-<dd>Whether the model is a RootModel.</dd>
-<dt><strong><code>__pydantic_private__</code></strong></dt>
-<dd>Private fields in the model.</dd>
-<dt><strong><code>__pydantic_extra__</code></strong></dt>
-<dd>Extra fields in the model.</dd>
-</dl>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>pydantic.root_model.RootModel[str]</li>
-<li>pydantic.root_model.RootModel</li>
-<li>pydantic.main.BaseModel</li>
-<li>typing.Generic</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.media_buy.list_authorized_properties_request.PublisherDomain.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.list_authorized_properties_request.PublisherDomain.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 </dl>
 </section>
 </article>
@@ -179,25 +127,19 @@ validated to form a valid model.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.media_buy" href="index.html">adcp.types.generated_poc.media_buy</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options" href="index.html">adcp.types.generated_poc.pricing_options</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.media_buy.list_authorized_properties_request.ListAuthorizedPropertiesRequest" href="#adcp.types.generated_poc.media_buy.list_authorized_properties_request.ListAuthorizedPropertiesRequest">ListAuthorizedPropertiesRequest</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.pricing_options.price_guidance.PriceGuidance" href="#adcp.types.generated_poc.pricing_options.price_guidance.PriceGuidance">PriceGuidance</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.media_buy.list_authorized_properties_request.ListAuthorizedPropertiesRequest.context" href="#adcp.types.generated_poc.media_buy.list_authorized_properties_request.ListAuthorizedPropertiesRequest.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.list_authorized_properties_request.ListAuthorizedPropertiesRequest.ext" href="#adcp.types.generated_poc.media_buy.list_authorized_properties_request.ListAuthorizedPropertiesRequest.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.list_authorized_properties_request.ListAuthorizedPropertiesRequest.model_config" href="#adcp.types.generated_poc.media_buy.list_authorized_properties_request.ListAuthorizedPropertiesRequest.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.list_authorized_properties_request.ListAuthorizedPropertiesRequest.publisher_domains" href="#adcp.types.generated_poc.media_buy.list_authorized_properties_request.ListAuthorizedPropertiesRequest.publisher_domains">publisher_domains</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.media_buy.list_authorized_properties_request.PublisherDomain" href="#adcp.types.generated_poc.media_buy.list_authorized_properties_request.PublisherDomain">PublisherDomain</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.media_buy.list_authorized_properties_request.PublisherDomain.model_config" href="#adcp.types.generated_poc.media_buy.list_authorized_properties_request.PublisherDomain.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.list_authorized_properties_request.PublisherDomain.root" href="#adcp.types.generated_poc.media_buy.list_authorized_properties_request.PublisherDomain.root">root</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.price_guidance.PriceGuidance.model_config" href="#adcp.types.generated_poc.pricing_options.price_guidance.PriceGuidance.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.price_guidance.PriceGuidance.p25" href="#adcp.types.generated_poc.pricing_options.price_guidance.PriceGuidance.p25">p25</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.price_guidance.PriceGuidance.p50" href="#adcp.types.generated_poc.pricing_options.price_guidance.PriceGuidance.p50">p50</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.price_guidance.PriceGuidance.p75" href="#adcp.types.generated_poc.pricing_options.price_guidance.PriceGuidance.p75">p75</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.price_guidance.PriceGuidance.p90" href="#adcp.types.generated_poc.pricing_options.price_guidance.PriceGuidance.p90">p90</a></code></li>
 </ul>
 </li>
 </ul>

@@ -57,16 +57,16 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class CreatePropertyListResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     auth_token: Annotated[
         str,
         Field(
-            description=&#39;Token that can be shared with sellers to authorize fetching this list. Store this - it is only returned at creation time.&#39;
+            description=&#34;Token that can be shared with sellers to authorize fetching this list. Store this - it is only returned at creation time.&#34;
         ),
     ]
     ext: ext_1.ExtensionObject | None = None
-    list: Annotated[property_list.PropertyList, Field(description=&#39;The created property list&#39;)]</code></pre>
+    list: Annotated[property_list.PropertyList, Field(description=&#34;The created property list&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null

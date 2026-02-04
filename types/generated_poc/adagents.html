@@ -57,16 +57,16 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class AuthorizedAgents(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     authorization_type: Annotated[
-        Literal[&#39;property_ids&#39;],
-        Field(description=&#39;Discriminator indicating authorization by specific property IDs&#39;),
+        Literal[&#34;property_ids&#34;],
+        Field(description=&#34;Discriminator indicating authorization by specific property IDs&#34;),
     ]
     authorized_for: Annotated[
         str,
         Field(
-            description=&#39;Human-readable description of what this agent is authorized to sell&#39;,
+            description=&#34;Human-readable description of what this agent is authorized to sell&#34;,
             max_length=500,
             min_length=1,
         ),
@@ -74,7 +74,7 @@ el.replaceWith(d);
     property_ids: Annotated[
         list[property_id.PropertyId],
         Field(
-            description=&#39;Property IDs this agent is authorized for. Resolved against the top-level properties array in this file&#39;,
+            description=&#34;Property IDs this agent is authorized for. Resolved against the top-level properties array in this file&#34;,
             min_length=1,
         ),
     ]
@@ -138,16 +138,16 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizedAgents1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     authorization_type: Annotated[
-        Literal[&#39;property_tags&#39;],
-        Field(description=&#39;Discriminator indicating authorization by property tags&#39;),
+        Literal[&#34;property_tags&#34;],
+        Field(description=&#34;Discriminator indicating authorization by property tags&#34;),
     ]
     authorized_for: Annotated[
         str,
         Field(
-            description=&#39;Human-readable description of what this agent is authorized to sell&#39;,
+            description=&#34;Human-readable description of what this agent is authorized to sell&#34;,
             max_length=500,
             min_length=1,
         ),
@@ -155,7 +155,7 @@ validated to form a valid model.</p>
     property_tags: Annotated[
         list[property_tag.PropertyTag],
         Field(
-            description=&#39;Tags identifying which properties this agent is authorized for. Resolved against the top-level properties array in this file using tag matching&#39;,
+            description=&#34;Tags identifying which properties this agent is authorized for. Resolved against the top-level properties array in this file using tag matching&#34;,
             min_length=1,
         ),
     ]
@@ -219,16 +219,16 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizedAgents2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     authorization_type: Annotated[
-        Literal[&#39;inline_properties&#39;],
-        Field(description=&#39;Discriminator indicating authorization by inline property definitions&#39;),
+        Literal[&#34;inline_properties&#34;],
+        Field(description=&#34;Discriminator indicating authorization by inline property definitions&#34;),
     ]
     authorized_for: Annotated[
         str,
         Field(
-            description=&#39;Human-readable description of what this agent is authorized to sell&#39;,
+            description=&#34;Human-readable description of what this agent is authorized to sell&#34;,
             max_length=500,
             min_length=1,
         ),
@@ -236,7 +236,7 @@ validated to form a valid model.</p>
     properties: Annotated[
         list[property.Property],
         Field(
-            description=&#39;Specific properties this agent is authorized for (alternative to property_ids/property_tags)&#39;,
+            description=&#34;Specific properties this agent is authorized for (alternative to property_ids/property_tags)&#34;,
             min_length=1,
         ),
     ]
@@ -300,18 +300,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizedAgents3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     authorization_type: Annotated[
-        Literal[&#39;publisher_properties&#39;],
+        Literal[&#34;publisher_properties&#34;],
         Field(
-            description=&#39;Discriminator indicating authorization for properties from other publisher domains&#39;
+            description=&#34;Discriminator indicating authorization for properties from other publisher domains&#34;
         ),
     ]
     authorized_for: Annotated[
         str,
         Field(
-            description=&#39;Human-readable description of what this agent is authorized to sell&#39;,
+            description=&#34;Human-readable description of what this agent is authorized to sell&#34;,
             max_length=500,
             min_length=1,
         ),
@@ -319,7 +319,7 @@ validated to form a valid model.</p>
     publisher_properties: Annotated[
         list[publisher_property_selector.PublisherPropertySelector],
         Field(
-            description=&#39;Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell&#39;,
+            description=&#34;Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell&#34;,
             min_length=1,
         ),
     ]
@@ -385,233 +385,233 @@ validated to form a valid model.</p>
     root: Annotated[
         AuthorizedSalesAgents1 | AuthorizedSalesAgents2,
         Field(
-            description=&#39;Declaration of authorized sales agents for advertising inventory. Hosted at /.well-known/adagents.json on publisher domains. Can either contain the full structure inline or reference an authoritative URL.&#39;,
+            description=&#34;Declaration of authorized sales agents for advertising inventory. Hosted at /.well-known/adagents.json on publisher domains. Can either contain the full structure inline or reference an authoritative URL.&#34;,
             examples=[
                 {
-                    &#39;$schema&#39;: &#39;/schemas/3.0.0-beta.1/adagents.json&#39;,
-                    &#39;authoritative_location&#39;: &#39;https://cdn.example.com/adagents/v2/adagents.json&#39;,
-                    &#39;last_updated&#39;: &#39;2025-01-15T10:00:00Z&#39;,
+                    &#34;$schema&#34;: &#34;/schemas/3.0.0-beta.2/adagents.json&#34;,
+                    &#34;authoritative_location&#34;: &#34;https://cdn.example.com/adagents/v2/adagents.json&#34;,
+                    &#34;last_updated&#34;: &#34;2025-01-15T10:00:00Z&#34;,
                 },
                 {
-                    &#39;$schema&#39;: &#39;/schemas/3.0.0-beta.1/adagents.json&#39;,
-                    &#39;authorized_agents&#39;: [
+                    &#34;$schema&#34;: &#34;/schemas/3.0.0-beta.2/adagents.json&#34;,
+                    &#34;authorized_agents&#34;: [
                         {
-                            &#39;authorization_type&#39;: &#39;property_tags&#39;,
-                            &#39;authorized_for&#39;: &#39;Official sales agent&#39;,
-                            &#39;property_tags&#39;: [&#39;all&#39;],
-                            &#39;url&#39;: &#39;https://agent.example.com&#39;,
+                            &#34;authorization_type&#34;: &#34;property_tags&#34;,
+                            &#34;authorized_for&#34;: &#34;Official sales agent&#34;,
+                            &#34;property_tags&#34;: [&#34;all&#34;],
+                            &#34;url&#34;: &#34;https://agent.example.com&#34;,
                         }
                     ],
-                    &#39;last_updated&#39;: &#39;2025-01-10T12:00:00Z&#39;,
-                    &#39;properties&#39;: [
+                    &#34;last_updated&#34;: &#34;2025-01-10T12:00:00Z&#34;,
+                    &#34;properties&#34;: [
                         {
-                            &#39;identifiers&#39;: [{&#39;type&#39;: &#39;domain&#39;, &#39;value&#39;: &#39;example.com&#39;}],
-                            &#39;name&#39;: &#39;Example Site&#39;,
-                            &#39;property_type&#39;: &#39;website&#39;,
-                            &#39;publisher_domain&#39;: &#39;example.com&#39;,
+                            &#34;identifiers&#34;: [{&#34;type&#34;: &#34;domain&#34;, &#34;value&#34;: &#34;example.com&#34;}],
+                            &#34;name&#34;: &#34;Example Site&#34;,
+                            &#34;property_type&#34;: &#34;website&#34;,
+                            &#34;publisher_domain&#34;: &#34;example.com&#34;,
                         }
                     ],
-                    &#39;tags&#39;: {
-                        &#39;all&#39;: {
-                            &#39;description&#39;: &#39;All properties in this file&#39;,
-                            &#39;name&#39;: &#39;All Properties&#39;,
+                    &#34;tags&#34;: {
+                        &#34;all&#34;: {
+                            &#34;description&#34;: &#34;All properties in this file&#34;,
+                            &#34;name&#34;: &#34;All Properties&#34;,
                         }
                     },
                 },
                 {
-                    &#39;$schema&#39;: &#39;/schemas/3.0.0-beta.1/adagents.json&#39;,
-                    &#39;authorized_agents&#39;: [
+                    &#34;$schema&#34;: &#34;/schemas/3.0.0-beta.2/adagents.json&#34;,
+                    &#34;authorized_agents&#34;: [
                         {
-                            &#39;authorization_type&#39;: &#39;property_tags&#39;,
-                            &#39;authorized_for&#39;: &#39;All Meta properties&#39;,
-                            &#39;property_tags&#39;: [&#39;meta_network&#39;],
-                            &#39;url&#39;: &#39;https://meta-ads.com&#39;,
+                            &#34;authorization_type&#34;: &#34;property_tags&#34;,
+                            &#34;authorized_for&#34;: &#34;All Meta properties&#34;,
+                            &#34;property_tags&#34;: [&#34;meta_network&#34;],
+                            &#34;url&#34;: &#34;https://meta-ads.com&#34;,
                         }
                     ],
-                    &#39;contact&#39;: {
-                        &#39;domain&#39;: &#39;meta.com&#39;,
-                        &#39;email&#39;: &#39;adops@meta.com&#39;,
-                        &#39;name&#39;: &#39;Meta Advertising Operations&#39;,
-                        &#39;privacy_policy_url&#39;: &#39;https://www.meta.com/privacy/policy&#39;,
-                        &#39;seller_id&#39;: &#39;pub-meta-12345&#39;,
-                        &#39;tag_id&#39;: &#39;12345&#39;,
+                    &#34;contact&#34;: {
+                        &#34;domain&#34;: &#34;meta.com&#34;,
+                        &#34;email&#34;: &#34;adops@meta.com&#34;,
+                        &#34;name&#34;: &#34;Meta Advertising Operations&#34;,
+                        &#34;privacy_policy_url&#34;: &#34;https://www.meta.com/privacy/policy&#34;,
+                        &#34;seller_id&#34;: &#34;pub-meta-12345&#34;,
+                        &#34;tag_id&#34;: &#34;12345&#34;,
                     },
-                    &#39;last_updated&#39;: &#39;2025-01-10T15:30:00Z&#39;,
-                    &#39;properties&#39;: [
+                    &#34;last_updated&#34;: &#34;2025-01-10T15:30:00Z&#34;,
+                    &#34;properties&#34;: [
                         {
-                            &#39;identifiers&#39;: [
-                                {&#39;type&#39;: &#39;ios_bundle&#39;, &#39;value&#39;: &#39;com.burbn.instagram&#39;},
-                                {&#39;type&#39;: &#39;android_package&#39;, &#39;value&#39;: &#39;com.instagram.android&#39;},
+                            &#34;identifiers&#34;: [
+                                {&#34;type&#34;: &#34;ios_bundle&#34;, &#34;value&#34;: &#34;com.burbn.instagram&#34;},
+                                {&#34;type&#34;: &#34;android_package&#34;, &#34;value&#34;: &#34;com.instagram.android&#34;},
                             ],
-                            &#39;name&#39;: &#39;Instagram&#39;,
-                            &#39;property_type&#39;: &#39;mobile_app&#39;,
-                            &#39;publisher_domain&#39;: &#39;instagram.com&#39;,
-                            &#39;tags&#39;: [&#39;meta_network&#39;, &#39;social_media&#39;],
+                            &#34;name&#34;: &#34;Instagram&#34;,
+                            &#34;property_type&#34;: &#34;mobile_app&#34;,
+                            &#34;publisher_domain&#34;: &#34;instagram.com&#34;,
+                            &#34;tags&#34;: [&#34;meta_network&#34;, &#34;social_media&#34;],
                         },
                         {
-                            &#39;identifiers&#39;: [
-                                {&#39;type&#39;: &#39;ios_bundle&#39;, &#39;value&#39;: &#39;com.facebook.Facebook&#39;},
-                                {&#39;type&#39;: &#39;android_package&#39;, &#39;value&#39;: &#39;com.facebook.katana&#39;},
+                            &#34;identifiers&#34;: [
+                                {&#34;type&#34;: &#34;ios_bundle&#34;, &#34;value&#34;: &#34;com.facebook.Facebook&#34;},
+                                {&#34;type&#34;: &#34;android_package&#34;, &#34;value&#34;: &#34;com.facebook.katana&#34;},
                             ],
-                            &#39;name&#39;: &#39;Facebook&#39;,
-                            &#39;property_type&#39;: &#39;mobile_app&#39;,
-                            &#39;publisher_domain&#39;: &#39;facebook.com&#39;,
-                            &#39;tags&#39;: [&#39;meta_network&#39;, &#39;social_media&#39;],
+                            &#34;name&#34;: &#34;Facebook&#34;,
+                            &#34;property_type&#34;: &#34;mobile_app&#34;,
+                            &#34;publisher_domain&#34;: &#34;facebook.com&#34;,
+                            &#34;tags&#34;: [&#34;meta_network&#34;, &#34;social_media&#34;],
                         },
                         {
-                            &#39;identifiers&#39;: [
-                                {&#39;type&#39;: &#39;ios_bundle&#39;, &#39;value&#39;: &#39;net.whatsapp.WhatsApp&#39;},
-                                {&#39;type&#39;: &#39;android_package&#39;, &#39;value&#39;: &#39;com.whatsapp&#39;},
+                            &#34;identifiers&#34;: [
+                                {&#34;type&#34;: &#34;ios_bundle&#34;, &#34;value&#34;: &#34;net.whatsapp.WhatsApp&#34;},
+                                {&#34;type&#34;: &#34;android_package&#34;, &#34;value&#34;: &#34;com.whatsapp&#34;},
                             ],
-                            &#39;name&#39;: &#39;WhatsApp&#39;,
-                            &#39;property_type&#39;: &#39;mobile_app&#39;,
-                            &#39;publisher_domain&#39;: &#39;whatsapp.com&#39;,
-                            &#39;tags&#39;: [&#39;meta_network&#39;, &#39;messaging&#39;],
+                            &#34;name&#34;: &#34;WhatsApp&#34;,
+                            &#34;property_type&#34;: &#34;mobile_app&#34;,
+                            &#34;publisher_domain&#34;: &#34;whatsapp.com&#34;,
+                            &#34;tags&#34;: [&#34;meta_network&#34;, &#34;messaging&#34;],
                         },
                     ],
-                    &#39;tags&#39;: {
-                        &#39;messaging&#39;: {
-                            &#39;description&#39;: &#39;Messaging and communication apps&#39;,
-                            &#39;name&#39;: &#39;Messaging Apps&#39;,
+                    &#34;tags&#34;: {
+                        &#34;messaging&#34;: {
+                            &#34;description&#34;: &#34;Messaging and communication apps&#34;,
+                            &#34;name&#34;: &#34;Messaging Apps&#34;,
                         },
-                        &#39;meta_network&#39;: {
-                            &#39;description&#39;: &#39;All Meta-owned properties&#39;,
-                            &#39;name&#39;: &#39;Meta Network&#39;,
+                        &#34;meta_network&#34;: {
+                            &#34;description&#34;: &#34;All Meta-owned properties&#34;,
+                            &#34;name&#34;: &#34;Meta Network&#34;,
                         },
-                        &#39;social_media&#39;: {
-                            &#39;description&#39;: &#39;Social networking applications&#39;,
-                            &#39;name&#39;: &#39;Social Media Apps&#39;,
+                        &#34;social_media&#34;: {
+                            &#34;description&#34;: &#34;Social networking applications&#34;,
+                            &#34;name&#34;: &#34;Social Media Apps&#34;,
                         },
                     },
                 },
                 {
-                    &#39;$schema&#39;: &#39;/schemas/3.0.0-beta.1/adagents.json&#39;,
-                    &#39;authorized_agents&#39;: [
+                    &#34;$schema&#34;: &#34;/schemas/3.0.0-beta.2/adagents.json&#34;,
+                    &#34;authorized_agents&#34;: [
                         {
-                            &#39;authorization_type&#39;: &#39;property_tags&#39;,
-                            &#39;authorized_for&#39;: &#39;Tumblr corporate properties only&#39;,
-                            &#39;property_tags&#39;: [&#39;corporate&#39;],
-                            &#39;url&#39;: &#39;https://tumblr-sales.com&#39;,
+                            &#34;authorization_type&#34;: &#34;property_tags&#34;,
+                            &#34;authorized_for&#34;: &#34;Tumblr corporate properties only&#34;,
+                            &#34;property_tags&#34;: [&#34;corporate&#34;],
+                            &#34;url&#34;: &#34;https://tumblr-sales.com&#34;,
                         }
                     ],
-                    &#39;contact&#39;: {&#39;name&#39;: &#39;Tumblr Advertising&#39;},
-                    &#39;last_updated&#39;: &#39;2025-01-10T16:00:00Z&#39;,
-                    &#39;properties&#39;: [
+                    &#34;contact&#34;: {&#34;name&#34;: &#34;Tumblr Advertising&#34;},
+                    &#34;last_updated&#34;: &#34;2025-01-10T16:00:00Z&#34;,
+                    &#34;properties&#34;: [
                         {
-                            &#39;identifiers&#39;: [{&#39;type&#39;: &#39;domain&#39;, &#39;value&#39;: &#39;tumblr.com&#39;}],
-                            &#39;name&#39;: &#39;Tumblr Corporate&#39;,
-                            &#39;property_type&#39;: &#39;website&#39;,
-                            &#39;publisher_domain&#39;: &#39;tumblr.com&#39;,
-                            &#39;tags&#39;: [&#39;corporate&#39;],
+                            &#34;identifiers&#34;: [{&#34;type&#34;: &#34;domain&#34;, &#34;value&#34;: &#34;tumblr.com&#34;}],
+                            &#34;name&#34;: &#34;Tumblr Corporate&#34;,
+                            &#34;property_type&#34;: &#34;website&#34;,
+                            &#34;publisher_domain&#34;: &#34;tumblr.com&#34;,
+                            &#34;tags&#34;: [&#34;corporate&#34;],
                         }
                     ],
-                    &#39;tags&#39;: {
-                        &#39;corporate&#39;: {
-                            &#39;description&#39;: &#39;Tumblr-owned corporate properties (not user blogs)&#39;,
-                            &#39;name&#39;: &#39;Corporate Properties&#39;,
+                    &#34;tags&#34;: {
+                        &#34;corporate&#34;: {
+                            &#34;description&#34;: &#34;Tumblr-owned corporate properties (not user blogs)&#34;,
+                            &#34;name&#34;: &#34;Corporate Properties&#34;,
                         }
                     },
                 },
                 {
-                    &#39;$schema&#39;: &#39;/schemas/3.0.0-beta.1/adagents.json&#39;,
-                    &#39;authorized_agents&#39;: [
+                    &#34;$schema&#34;: &#34;/schemas/3.0.0-beta.2/adagents.json&#34;,
+                    &#34;authorized_agents&#34;: [
                         {
-                            &#39;authorization_type&#39;: &#39;publisher_properties&#39;,
-                            &#39;authorized_for&#39;: &#39;CNN CTV properties via publisher authorization&#39;,
-                            &#39;publisher_properties&#39;: [
+                            &#34;authorization_type&#34;: &#34;publisher_properties&#34;,
+                            &#34;authorized_for&#34;: &#34;CNN CTV properties via publisher authorization&#34;,
+                            &#34;publisher_properties&#34;: [
                                 {
-                                    &#39;property_ids&#39;: [&#39;cnn_ctv_app&#39;],
-                                    &#39;publisher_domain&#39;: &#39;cnn.com&#39;,
-                                    &#39;selection_type&#39;: &#39;by_id&#39;,
+                                    &#34;property_ids&#34;: [&#34;cnn_ctv_app&#34;],
+                                    &#34;publisher_domain&#34;: &#34;cnn.com&#34;,
+                                    &#34;selection_type&#34;: &#34;by_id&#34;,
                                 }
                             ],
-                            &#39;url&#39;: &#39;https://agent.example/api&#39;,
+                            &#34;url&#34;: &#34;https://agent.example/api&#34;,
                         },
                         {
-                            &#39;authorization_type&#39;: &#39;publisher_properties&#39;,
-                            &#39;authorized_for&#39;: &#39;All CTV properties from multiple publishers&#39;,
-                            &#39;publisher_properties&#39;: [
+                            &#34;authorization_type&#34;: &#34;publisher_properties&#34;,
+                            &#34;authorized_for&#34;: &#34;All CTV properties from multiple publishers&#34;,
+                            &#34;publisher_properties&#34;: [
                                 {
-                                    &#39;property_tags&#39;: [&#39;ctv&#39;],
-                                    &#39;publisher_domain&#39;: &#39;cnn.com&#39;,
-                                    &#39;selection_type&#39;: &#39;by_tag&#39;,
+                                    &#34;property_tags&#34;: [&#34;ctv&#34;],
+                                    &#34;publisher_domain&#34;: &#34;cnn.com&#34;,
+                                    &#34;selection_type&#34;: &#34;by_tag&#34;,
                                 },
                                 {
-                                    &#39;property_tags&#39;: [&#39;ctv&#39;],
-                                    &#39;publisher_domain&#39;: &#39;espn.com&#39;,
-                                    &#39;selection_type&#39;: &#39;by_tag&#39;,
+                                    &#34;property_tags&#34;: [&#34;ctv&#34;],
+                                    &#34;publisher_domain&#34;: &#34;espn.com&#34;,
+                                    &#34;selection_type&#34;: &#34;by_tag&#34;,
                                 },
                             ],
-                            &#39;url&#39;: &#39;https://agent.example/api&#39;,
+                            &#34;url&#34;: &#34;https://agent.example/api&#34;,
                         },
                     ],
-                    &#39;contact&#39;: {
-                        &#39;domain&#39;: &#39;agent.example&#39;,
-                        &#39;email&#39;: &#39;sales@agent.example&#39;,
-                        &#39;name&#39;: &#39;Example Third-Party Sales Agent&#39;,
+                    &#34;contact&#34;: {
+                        &#34;domain&#34;: &#34;agent.example&#34;,
+                        &#34;email&#34;: &#34;sales@agent.example&#34;,
+                        &#34;name&#34;: &#34;Example Third-Party Sales Agent&#34;,
                     },
-                    &#39;last_updated&#39;: &#39;2025-01-10T17:00:00Z&#39;,
+                    &#34;last_updated&#34;: &#34;2025-01-10T17:00:00Z&#34;,
                 },
                 {
-                    &#39;$schema&#39;: &#39;/schemas/3.0.0-beta.1/adagents.json&#39;,
-                    &#39;authorized_agents&#39;: [
+                    &#34;$schema&#34;: &#34;/schemas/3.0.0-beta.2/adagents.json&#34;,
+                    &#34;authorized_agents&#34;: [
                         {
-                            &#39;authorization_type&#39;: &#39;property_tags&#39;,
-                            &#39;authorized_for&#39;: &#39;All news properties&#39;,
-                            &#39;property_tags&#39;: [&#39;news&#39;],
-                            &#39;url&#39;: &#39;https://sales.news.example.com&#39;,
+                            &#34;authorization_type&#34;: &#34;property_tags&#34;,
+                            &#34;authorized_for&#34;: &#34;All news properties&#34;,
+                            &#34;property_tags&#34;: [&#34;news&#34;],
+                            &#34;url&#34;: &#34;https://sales.news.example.com&#34;,
                         }
                     ],
-                    &#39;contact&#39;: {
-                        &#39;domain&#39;: &#39;news.example.com&#39;,
-                        &#39;email&#39;: &#39;adops@news.example.com&#39;,
-                        &#39;name&#39;: &#39;Premium News Publisher&#39;,
+                    &#34;contact&#34;: {
+                        &#34;domain&#34;: &#34;news.example.com&#34;,
+                        &#34;email&#34;: &#34;adops@news.example.com&#34;,
+                        &#34;name&#34;: &#34;Premium News Publisher&#34;,
                     },
-                    &#39;last_updated&#39;: &#39;2025-01-10T18:00:00Z&#39;,
-                    &#39;properties&#39;: [
+                    &#34;last_updated&#34;: &#34;2025-01-10T18:00:00Z&#34;,
+                    &#34;properties&#34;: [
                         {
-                            &#39;identifiers&#39;: [{&#39;type&#39;: &#39;domain&#39;, &#39;value&#39;: &#39;news.example.com&#39;}],
-                            &#39;name&#39;: &#39;News Example&#39;,
-                            &#39;property_type&#39;: &#39;website&#39;,
-                            &#39;publisher_domain&#39;: &#39;news.example.com&#39;,
-                            &#39;tags&#39;: [&#39;premium&#39;, &#39;news&#39;],
+                            &#34;identifiers&#34;: [{&#34;type&#34;: &#34;domain&#34;, &#34;value&#34;: &#34;news.example.com&#34;}],
+                            &#34;name&#34;: &#34;News Example&#34;,
+                            &#34;property_type&#34;: &#34;website&#34;,
+                            &#34;publisher_domain&#34;: &#34;news.example.com&#34;,
+                            &#34;tags&#34;: [&#34;premium&#34;, &#34;news&#34;],
                         }
                     ],
-                    &#39;property_features&#39;: [
+                    &#34;property_features&#34;: [
                         {
-                            &#39;features&#39;: [&#39;carbon_score&#39;, &#39;sustainability_grade&#39;],
-                            &#39;name&#39;: &#39;Scope3&#39;,
-                            &#39;publisher_id&#39;: &#39;pub_news_12345&#39;,
-                            &#39;url&#39;: &#39;https://api.scope3.com&#39;,
+                            &#34;features&#34;: [&#34;carbon_score&#34;, &#34;sustainability_grade&#34;],
+                            &#34;name&#34;: &#34;Scope3&#34;,
+                            &#34;publisher_id&#34;: &#34;pub_news_12345&#34;,
+                            &#34;url&#34;: &#34;https://api.scope3.com&#34;,
                         },
                         {
-                            &#39;features&#39;: [
-                                &#39;tag_certified_against_fraud&#39;,
-                                &#39;tag_brand_safety_certified&#39;,
+                            &#34;features&#34;: [
+                                &#34;tag_certified_against_fraud&#34;,
+                                &#34;tag_brand_safety_certified&#34;,
                             ],
-                            &#39;name&#39;: &#39;TAG&#39;,
-                            &#39;url&#39;: &#39;https://api.tagtoday.net&#39;,
+                            &#34;name&#34;: &#34;TAG&#34;,
+                            &#34;url&#34;: &#34;https://api.tagtoday.net&#34;,
                         },
                         {
-                            &#39;features&#39;: [&#39;gdpr_compliant&#39;, &#39;tcf_registered&#39;, &#39;ccpa_compliant&#39;],
-                            &#39;name&#39;: &#39;OneTrust&#39;,
-                            &#39;publisher_id&#39;: &#39;ot_news_67890&#39;,
-                            &#39;url&#39;: &#39;https://api.onetrust.com&#39;,
+                            &#34;features&#34;: [&#34;gdpr_compliant&#34;, &#34;tcf_registered&#34;, &#34;ccpa_compliant&#34;],
+                            &#34;name&#34;: &#34;OneTrust&#34;,
+                            &#34;publisher_id&#34;: &#34;ot_news_67890&#34;,
+                            &#34;url&#34;: &#34;https://api.onetrust.com&#34;,
                         },
                     ],
-                    &#39;tags&#39;: {
-                        &#39;news&#39;: {
-                            &#39;description&#39;: &#39;News and journalism content&#39;,
-                            &#39;name&#39;: &#39;News Properties&#39;,
+                    &#34;tags&#34;: {
+                        &#34;news&#34;: {
+                            &#34;description&#34;: &#34;News and journalism content&#34;,
+                            &#34;name&#34;: &#34;News Properties&#34;,
                         },
-                        &#39;premium&#39;: {
-                            &#39;description&#39;: &#39;High-quality, brand-safe properties&#39;,
-                            &#39;name&#39;: &#39;Premium Properties&#39;,
+                        &#34;premium&#34;: {
+                            &#34;description&#34;: &#34;High-quality, brand-safe properties&#34;,
+                            &#34;name&#34;: &#34;Premium Properties&#34;,
                         },
                     },
                 },
             ],
-            title=&#39;Authorized Sales Agents&#39;,
+            title=&#34;Authorized Sales Agents&#34;,
         ),
     ]</code></pre>
 </details>
@@ -665,21 +665,21 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizedSalesAgents1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     field_schema: Annotated[
         str | None,
-        Field(alias=&#39;$schema&#39;, description=&#39;JSON Schema identifier for this adagents.json file&#39;),
+        Field(alias=&#34;$schema&#34;, description=&#34;JSON Schema identifier for this adagents.json file&#34;),
     ] = None
     authoritative_location: Annotated[
         AnyUrl,
         Field(
-            description=&#39;HTTPS URL of the authoritative adagents.json file. When present, this file is a reference and the authoritative location contains the actual agent authorization data.&#39;
+            description=&#34;HTTPS URL of the authoritative adagents.json file. When present, this file is a reference and the authoritative location contains the actual agent authorization data.&#34;
         ),
     ]
     last_updated: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;ISO 8601 timestamp indicating when this reference was last updated&#39;),
+        Field(description=&#34;ISO 8601 timestamp indicating when this reference was last updated&#34;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -736,33 +736,33 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizedSalesAgents2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     field_schema: Annotated[
         str | None,
-        Field(alias=&#39;$schema&#39;, description=&#39;JSON Schema identifier for this adagents.json file&#39;),
+        Field(alias=&#34;$schema&#34;, description=&#34;JSON Schema identifier for this adagents.json file&#34;),
     ] = None
     authorized_agents: Annotated[
         list[AuthorizedAgents | AuthorizedAgents1 | AuthorizedAgents2 | AuthorizedAgents3],
         Field(
-            description=&#39;Array of sales agents authorized to sell inventory for properties in this file&#39;,
+            description=&#34;Array of sales agents authorized to sell inventory for properties in this file&#34;,
             min_length=1,
         ),
     ]
     contact: Annotated[
         Contact | None,
         Field(
-            description=&#39;Contact information for the entity managing this adagents.json file (may be publisher or third-party operator)&#39;
+            description=&#34;Contact information for the entity managing this adagents.json file (may be publisher or third-party operator)&#34;
         ),
     ] = None
     last_updated: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;ISO 8601 timestamp indicating when this file was last updated&#39;),
+        Field(description=&#34;ISO 8601 timestamp indicating when this file was last updated&#34;),
     ] = None
     properties: Annotated[
         list[property.Property] | None,
         Field(
-            description=&#39;Array of all properties covered by this adagents.json file. Defines the canonical property list that authorized agents reference.&#39;,
+            description=&#34;Array of all properties covered by this adagents.json file. Defines the canonical property list that authorized agents reference.&#34;,
             min_length=1,
         ),
     ] = None
@@ -775,7 +775,7 @@ validated to form a valid model.</p>
     tags: Annotated[
         dict[str, Tags] | None,
         Field(
-            description=&#39;Metadata for each tag referenced by properties. Provides human-readable context for property tag values.&#39;
+            description=&#34;Metadata for each tag referenced by properties. Provides human-readable context for property tag values.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -849,19 +849,19 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Contact(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     domain: Annotated[
         str | None,
         Field(
-            description=&#39;Primary domain of the entity managing this file&#39;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            description=&#34;Primary domain of the entity managing this file&#34;,
+            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
         ),
     ] = None
     email: Annotated[
         EmailStr | None,
         Field(
-            description=&#39;Contact email for questions or issues with this authorization file&#39;,
+            description=&#34;Contact email for questions or issues with this authorization file&#34;,
             max_length=255,
             min_length=1,
         ),
@@ -883,7 +883,7 @@ validated to form a valid model.</p>
     seller_id: Annotated[
         str | None,
         Field(
-            description=&#39;Seller ID from IAB Tech Lab sellers.json (if applicable)&#39;,
+            description=&#34;Seller ID from IAB Tech Lab sellers.json (if applicable)&#34;,
             max_length=255,
             min_length=1,
         ),
@@ -891,7 +891,7 @@ validated to form a valid model.</p>
     tag_id: Annotated[
         str | None,
         Field(
-            description=&#39;TAG Certified Against Fraud ID for verification (if applicable)&#39;,
+            description=&#34;TAG Certified Against Fraud ID for verification (if applicable)&#34;,
             max_length=100,
             min_length=1,
         ),
@@ -963,12 +963,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PropertyFeature(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     features: Annotated[
         list[str],
         Field(
-            description=&#34;Feature IDs this agent provides (e.g., &#39;carbon_score&#39;, &#39;tag_certified_against_fraud&#39;). Use list_property_features on the agent for full definitions.&#34;,
+            description=&#34;Feature IDs this agent provides (e.g., &#39;carbon_score&#39;, &#39;tag_certified_against_fraud&#39;). Use get_adcp_capabilities on the agent for full definitions.&#34;,
             min_length=1,
         ),
     ]
@@ -979,12 +979,9 @@ validated to form a valid model.</p>
         ),
     ]
     publisher_id: Annotated[
-        str | None, Field(description=&#39;Optional publisher identifier at this agent (for lookup)&#39;)
+        str | None, Field(description=&#34;Optional publisher identifier at this agent (for lookup)&#34;)
     ] = None
-    url: Annotated[
-        AnyUrl,
-        Field(description=&#34;The agent&#39;s API endpoint URL (must implement get_property_features)&#34;),
-    ]</code></pre>
+    url: Annotated[AnyUrl, Field(description=&#34;The agent&#39;s API endpoint URL&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -1044,10 +1041,10 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Tags(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    description: Annotated[str, Field(description=&#39;Description of what this tag represents&#39;)]
-    name: Annotated[str, Field(description=&#39;Human-readable name for this tag&#39;)]</code></pre>
+    description: Annotated[str, Field(description=&#34;Description of what this tag represents&#34;)]
+    name: Annotated[str, Field(description=&#34;Human-readable name for this tag&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null

@@ -61,8 +61,8 @@ el.replaceWith(d);
     root: Annotated[
         CreateContentStandardsResponse1 | CreateContentStandardsResponse2,
         Field(
-            description=&#39;Response payload for creating a content standards configuration&#39;,
-            title=&#39;Create Content Standards Response&#39;,
+            description=&#34;Response payload for creating a content standards configuration&#34;,
+            title=&#34;Create Content Standards Response&#34;,
         ),
     ]</code></pre>
 </details>
@@ -117,11 +117,11 @@ validated to form a valid model.</p>
 <pre><code class="python">class CreateContentStandardsResponse1(AdCPBaseModel):
     context: context_1.ContextObject | None = None
     errors: Annotated[
-        Any | None, Field(description=&#39;Field must not be present in success response&#39;)
+        Any | None, Field(description=&#34;Field must not be present in success response&#34;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
     standards_id: Annotated[
-        str, Field(description=&#39;Unique identifier for the created standards configuration&#39;)
+        str, Field(description=&#34;Unique identifier for the created standards configuration&#34;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -184,14 +184,14 @@ validated to form a valid model.</p>
     conflicting_standards_id: Annotated[
         str | None,
         Field(
-            description=&#39;If the error is a scope conflict, the ID of the existing standards that conflict&#39;
+            description=&#34;If the error is a scope conflict, the ID of the existing standards that conflict&#34;
         ),
     ] = None
     context: context_1.ContextObject | None = None
     errors: list[error.Error]
     ext: ext_1.ExtensionObject | None = None
     standards_id: Annotated[
-        Any | None, Field(description=&#39;Field must not be present in error response&#39;)
+        Any | None, Field(description=&#34;Field must not be present in error response&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

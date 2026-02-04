@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class CreativeManifest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     assets: Annotated[
         dict[
@@ -76,7 +76,7 @@ el.replaceWith(d);
             | promoted_offerings.PromotedOfferings,
         ],
         Field(
-            description=&#34;Map of asset IDs to actual asset content. Each key MUST match an asset_id from the format&#39;s assets_required array (e.g., &#39;banner_image&#39;, &#39;clickthrough_url&#39;, &#39;video_file&#39;, &#39;vast_tag&#39;). The asset_id is the technical identifier used to match assets to format requirements.\n\nIMPORTANT: Creative manifest validation MUST be performed in the context of the format specification. The format defines what type each asset_id should be, which eliminates any validation ambiguity.&#34;
+            description=&#34;Map of asset IDs to actual asset content. Each key MUST match an asset_id from the format&#39;s assets array (e.g., &#39;banner_image&#39;, &#39;clickthrough_url&#39;, &#39;video_file&#39;, &#39;vast_tag&#39;). The asset_id is the technical identifier used to match assets to format requirements.\n\nIMPORTANT: Creative manifest validation MUST be performed in the context of the format specification. The format defines what type each asset_id should be, which eliminates any validation ambiguity.&#34;
         ),
     ]
     ext: ext_1.ExtensionObject | None = None
@@ -89,7 +89,7 @@ el.replaceWith(d);
     promoted_offering: Annotated[
         str | None,
         Field(
-            description=&#39;Product name or offering being advertised. Maps to promoted_offerings in create_media_buy request to associate creative with the product being promoted.&#39;
+            description=&#34;Product name or offering being advertised. Maps to promoted_offerings in create_media_buy request to associate creative with the product being promoted.&#34;
         ),
     ] = None</code></pre>
 </details>

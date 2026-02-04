@@ -57,13 +57,13 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Response(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    message: Annotated[str | None, Field(description=&#39;Conversational message from brand agent&#39;)] = (
+    message: Annotated[str | None, Field(description=&#34;Conversational message from brand agent&#34;)] = (
         None
     )
     ui_elements: Annotated[
-        list[si_ui_element.SiUiElement] | None, Field(description=&#39;Visual components to render&#39;)
+        list[si_ui_element.SiUiElement] | None, Field(description=&#34;Visual components to render&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -116,19 +116,19 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SiInitiateSessionResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     errors: Annotated[
-        list[error.Error] | None, Field(description=&#39;Errors during session initiation&#39;)
+        list[error.Error] | None, Field(description=&#34;Errors during session initiation&#34;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
     negotiated_capabilities: Annotated[
         si_capabilities.SiCapabilities | None,
-        Field(description=&#39;Intersection of brand and host capabilities for this session&#39;),
+        Field(description=&#34;Intersection of brand and host capabilities for this session&#34;),
     ] = None
     response: Annotated[Response | None, Field(description=&#34;Brand agent&#39;s initial response&#34;)] = None
     session_id: Annotated[
-        str, Field(description=&#39;Unique session identifier for subsequent messages&#39;)
+        str, Field(description=&#34;Unique session identifier for subsequent messages&#34;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

@@ -57,28 +57,31 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class MediaBuy(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
+    account: Annotated[
+        account_1.Account | None, Field(description=&#34;Account billed for this media buy&#34;)
+    ] = None
     buyer_ref: Annotated[
         str | None, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)
     ] = None
-    created_at: Annotated[AwareDatetime | None, Field(description=&#39;Creation timestamp&#39;)] = None
+    created_at: Annotated[AwareDatetime | None, Field(description=&#34;Creation timestamp&#34;)] = None
     creative_deadline: Annotated[
-        AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
+        AwareDatetime | None, Field(description=&#34;ISO 8601 timestamp for creative upload deadline&#34;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
     media_buy_id: Annotated[
         str, Field(description=&#34;Publisher&#39;s unique identifier for the media buy&#34;)
     ]
     packages: Annotated[
-        list[package.Package], Field(description=&#39;Array of packages within this media buy&#39;)
+        list[package.Package], Field(description=&#34;Array of packages within this media buy&#34;)
     ]
     promoted_offering: Annotated[
-        str, Field(description=&#39;Description of advertiser and what is being promoted&#39;)
+        str, Field(description=&#34;Description of advertiser and what is being promoted&#34;)
     ]
     status: media_buy_status.MediaBuyStatus
-    total_budget: Annotated[float, Field(description=&#39;Total budget amount&#39;, ge=0.0)]
-    updated_at: Annotated[AwareDatetime | None, Field(description=&#39;Last update timestamp&#39;)] = None</code></pre>
+    total_budget: Annotated[float, Field(description=&#34;Total budget amount&#34;, ge=0.0)]
+    updated_at: Annotated[AwareDatetime | None, Field(description=&#34;Last update timestamp&#34;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -95,6 +98,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.core.media_buy.MediaBuy.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account.Account" href="account.html#adcp.types.generated_poc.core.account.Account">Account</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.media_buy.MediaBuy.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -169,6 +176,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy" href="#adcp.types.generated_poc.core.media_buy.MediaBuy">MediaBuy</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.account" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.account">account</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.buyer_ref" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.buyer_ref">buyer_ref</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.created_at" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.created_at">created_at</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.creative_deadline" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.creative_deadline">creative_deadline</a></code></li>

@@ -409,18 +409,20 @@ el.replaceWith(d);
 
         return self.adapter._parse_response(raw_result, GetMediaBuyDeliveryResponse)
 
-    async def list_authorized_properties(
+    async def list_accounts(
         self,
-        request: ListAuthorizedPropertiesRequest,
-    ) -&gt; TaskResult[ListAuthorizedPropertiesResponse]:
+        request: ListAccountsRequest,
+    ) -&gt; TaskResult[ListAccountsResponse]:
         &#34;&#34;&#34;
-        List Authorized Properties.
+        List Accounts.
+
+        Lists billing accounts accessible to the authenticated agent.
 
         Args:
             request: Request parameters
 
         Returns:
-            TaskResult containing ListAuthorizedPropertiesResponse
+            TaskResult containing ListAccountsResponse
         &#34;&#34;&#34;
         operation_id = create_operation_id()
         params = request.model_dump(exclude_none=True)
@@ -430,25 +432,25 @@ el.replaceWith(d);
                 type=ActivityType.PROTOCOL_REQUEST,
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
-                task_type=&#34;list_authorized_properties&#34;,
+                task_type=&#34;list_accounts&#34;,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        raw_result = await self.adapter.list_authorized_properties(params)
+        raw_result = await self.adapter.list_accounts(params)
 
         self._emit_activity(
             Activity(
                 type=ActivityType.PROTOCOL_RESPONSE,
                 operation_id=operation_id,
                 agent_id=self.agent_config.id,
-                task_type=&#34;list_authorized_properties&#34;,
+                task_type=&#34;list_accounts&#34;,
                 status=raw_result.status,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
 
-        return self.adapter._parse_response(raw_result, ListAuthorizedPropertiesResponse)
+        return self.adapter._parse_response(raw_result, ListAccountsResponse)
 
     async def get_signals(
         self,
@@ -1643,7 +1645,7 @@ el.replaceWith(d);
             &#34;sync_creatives&#34;: SyncCreativesResponse,  # Union type
             &#34;list_creatives&#34;: ListCreativesResponse,
             &#34;get_media_buy_delivery&#34;: GetMediaBuyDeliveryResponse,
-            &#34;list_authorized_properties&#34;: ListAuthorizedPropertiesResponse,
+            &#34;list_accounts&#34;: ListAccountsResponse,
             &#34;get_signals&#34;: GetSignalsResponse,
             &#34;activate_signal&#34;: ActivateSignalResponse,  # Union type
             &#34;provide_performance_feedback&#34;: ProvidePerformanceFeedbackResponse,
@@ -3281,26 +3283,28 @@ routing and pass them explicitly.</p>
 &gt;&gt;&gt;         print(f&quot;Task still working: {result.metadata.get('message')}&quot;)
 </code></pre></div>
 </dd>
-<dt id="adcp.client.ADCPClient.list_authorized_properties"><code class="name flex">
-<span>async def <span class="ident">list_authorized_properties</span></span>(<span>self, request: ListAuthorizedPropertiesRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[ListAuthorizedPropertiesResponse]</span>
+<dt id="adcp.client.ADCPClient.list_accounts"><code class="name flex">
+<span>async def <span class="ident">list_accounts</span></span>(<span>self, request: ListAccountsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[ListAccountsResponse]</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def list_authorized_properties(
+<pre><code class="python">async def list_accounts(
     self,
-    request: ListAuthorizedPropertiesRequest,
-) -&gt; TaskResult[ListAuthorizedPropertiesResponse]:
+    request: ListAccountsRequest,
+) -&gt; TaskResult[ListAccountsResponse]:
     &#34;&#34;&#34;
-    List Authorized Properties.
+    List Accounts.
+
+    Lists billing accounts accessible to the authenticated agent.
 
     Args:
         request: Request parameters
 
     Returns:
-        TaskResult containing ListAuthorizedPropertiesResponse
+        TaskResult containing ListAccountsResponse
     &#34;&#34;&#34;
     operation_id = create_operation_id()
     params = request.model_dump(exclude_none=True)
@@ -3310,34 +3314,35 @@ routing and pass them explicitly.</p>
             type=ActivityType.PROTOCOL_REQUEST,
             operation_id=operation_id,
             agent_id=self.agent_config.id,
-            task_type=&#34;list_authorized_properties&#34;,
+            task_type=&#34;list_accounts&#34;,
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
     )
 
-    raw_result = await self.adapter.list_authorized_properties(params)
+    raw_result = await self.adapter.list_accounts(params)
 
     self._emit_activity(
         Activity(
             type=ActivityType.PROTOCOL_RESPONSE,
             operation_id=operation_id,
             agent_id=self.agent_config.id,
-            task_type=&#34;list_authorized_properties&#34;,
+            task_type=&#34;list_accounts&#34;,
             status=raw_result.status,
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
     )
 
-    return self.adapter._parse_response(raw_result, ListAuthorizedPropertiesResponse)</code></pre>
+    return self.adapter._parse_response(raw_result, ListAccountsResponse)</code></pre>
 </details>
-<div class="desc"><p>List Authorized Properties.</p>
+<div class="desc"><p>List Accounts.</p>
+<p>Lists billing accounts accessible to the authenticated agent.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>request</code></strong></dt>
 <dd>Request parameters</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>TaskResult containing ListAuthorizedPropertiesResponse</p></div>
+<p>TaskResult containing ListAccountsResponse</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.list_content_standards"><code class="name flex">
 <span>async def <span class="ident">list_content_standards</span></span>(<span>self, request: ListContentStandardsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[ListContentStandardsResponse]</span>
@@ -4583,7 +4588,7 @@ def agent_ids(self) -&gt; list[str]:
 <li><code><a title="adcp.client.ADCPClient.get_signals" href="#adcp.client.ADCPClient.get_signals">get_signals</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_webhook_url" href="#adcp.client.ADCPClient.get_webhook_url">get_webhook_url</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.handle_webhook" href="#adcp.client.ADCPClient.handle_webhook">handle_webhook</a></code></li>
-<li><code><a title="adcp.client.ADCPClient.list_authorized_properties" href="#adcp.client.ADCPClient.list_authorized_properties">list_authorized_properties</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.list_accounts" href="#adcp.client.ADCPClient.list_accounts">list_accounts</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.list_content_standards" href="#adcp.client.ADCPClient.list_content_standards">list_content_standards</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.list_creative_formats" href="#adcp.client.ADCPClient.list_creative_formats">list_creative_formats</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.list_creatives" href="#adcp.client.ADCPClient.list_creatives">list_creatives</a></code></li>

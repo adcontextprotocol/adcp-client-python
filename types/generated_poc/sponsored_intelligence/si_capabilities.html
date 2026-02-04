@@ -46,6 +46,64 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.A2ui"><code class="flex name class">
+<span>class <span class="ident">A2ui</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class A2ui(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#34;allow&#34;,
+    )
+    catalogs: Annotated[
+        list[str] | None,
+        Field(description=&#34;Supported A2UI component catalogs (e.g., &#39;si-standard&#39;, &#39;standard&#39;)&#34;),
+    ] = None
+    supported: Annotated[bool | None, Field(description=&#34;Supports A2UI surface rendering&#34;)] = False</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.A2ui.catalogs"><code class="name">var <span class="ident">catalogs</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.A2ui.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.A2ui.supported"><code class="name">var <span class="ident">supported</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.Avatar"><code class="flex name class">
 <span>class <span class="ident">Avatar</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -57,11 +115,11 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Avatar(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    avatar_id: Annotated[str | None, Field(description=&#39;Brand avatar identifier&#39;)] = None
+    avatar_id: Annotated[str | None, Field(description=&#34;Brand avatar identifier&#34;)] = None
     provider: Annotated[
-        str | None, Field(description=&#39;Avatar provider (d-id, heygen, synthesia, etc.)&#39;)
+        str | None, Field(description=&#34;Avatar provider (d-id, heygen, synthesia, etc.)&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -114,10 +172,10 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Commerce(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     acp_checkout: Annotated[
-        bool | None, Field(description=&#39;Supports ACP (Agentic Commerce Protocol) checkout handoff&#39;)
+        bool | None, Field(description=&#34;Supports ACP (Agentic Commerce Protocol) checkout handoff&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -166,15 +224,15 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Components(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     extensions: Annotated[
         dict[str, Any] | None,
-        Field(description=&#39;Platform-specific extensions (chatgpt_apps_sdk, maps, forms, etc.)&#39;),
+        Field(description=&#34;Platform-specific extensions (chatgpt_apps_sdk, maps, forms, etc.)&#34;),
     ] = None
     standard: Annotated[
         list[StandardEnum] | None,
-        Field(description=&#39;Standard components that all SI hosts must render&#39;),
+        Field(description=&#34;Standard components that all SI hosts must render&#34;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -227,17 +285,17 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Modalities(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     avatar: Annotated[
-        bool | Avatar | None, Field(description=&#39;Animated video presence with brand avatar&#39;)
+        bool | Avatar | None, Field(description=&#34;Animated video presence with brand avatar&#34;)
     ] = None
     conversational: Annotated[
-        bool | None, Field(description=&#39;Pure text exchange - the baseline modality&#39;)
+        bool | None, Field(description=&#34;Pure text exchange - the baseline modality&#34;)
     ] = True
-    video: Annotated[bool | Video | None, Field(description=&#39;Brand video content playback&#39;)] = None
+    video: Annotated[bool | Video | None, Field(description=&#34;Brand video content playback&#34;)] = None
     voice: Annotated[
-        bool | Voice | None, Field(description=&#39;Audio-based interaction using brand voice&#39;)
+        bool | Voice | None, Field(description=&#34;Audio-based interaction using brand voice&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -298,14 +356,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SiCapabilities(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    commerce: Annotated[Commerce | None, Field(description=&#39;Commerce capabilities&#39;)] = None
-    components: Annotated[Components | None, Field(description=&#39;Visual components supported&#39;)] = (
+    a2ui: Annotated[A2ui | None, Field(description=&#34;A2UI (Agent-to-UI) capabilities&#34;)] = None
+    commerce: Annotated[Commerce | None, Field(description=&#34;Commerce capabilities&#34;)] = None
+    components: Annotated[Components | None, Field(description=&#34;Visual components supported&#34;)] = (
         None
     )
+    mcp_apps: Annotated[
+        bool | None, Field(description=&#34;Supports MCP Apps for rendering A2UI surfaces in iframes&#34;)
+    ] = False
     modalities: Annotated[
-        Modalities | None, Field(description=&#39;Interaction modalities supported&#39;)
+        Modalities | None, Field(description=&#34;Interaction modalities supported&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -323,11 +385,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.SiCapabilities.a2ui"><code class="name">var <span class="ident">a2ui</span> : <a title="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.A2ui" href="#adcp.types.generated_poc.sponsored_intelligence.si_capabilities.A2ui">A2ui</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.SiCapabilities.commerce"><code class="name">var <span class="ident">commerce</span> : <a title="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.Commerce" href="#adcp.types.generated_poc.sponsored_intelligence.si_capabilities.Commerce">Commerce</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.SiCapabilities.components"><code class="name">var <span class="ident">components</span> : <a title="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.Components" href="#adcp.types.generated_poc.sponsored_intelligence.si_capabilities.Components">Components</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.SiCapabilities.mcp_apps"><code class="name">var <span class="ident">mcp_apps</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -361,12 +431,12 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class StandardEnum(Enum):
-    text = &#39;text&#39;
-    link = &#39;link&#39;
-    image = &#39;image&#39;
-    product_card = &#39;product_card&#39;
-    carousel = &#39;carousel&#39;
-    action_button = &#39;action_button&#39;</code></pre>
+    text = &#34;text&#34;
+    link = &#34;link&#34;
+    image = &#34;image&#34;
+    product_card = &#34;product_card&#34;
+    carousel = &#34;carousel&#34;
+    action_button = &#34;action_button&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -446,12 +516,12 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Video(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     formats: Annotated[
-        list[str] | None, Field(description=&#39;Supported video formats (mp4, webm, etc.)&#39;)
+        list[str] | None, Field(description=&#34;Supported video formats (mp4, webm, etc.)&#34;)
     ] = None
-    max_duration_seconds: Annotated[int | None, Field(description=&#39;Maximum video duration&#39;)] = None</code></pre>
+    max_duration_seconds: Annotated[int | None, Field(description=&#34;Maximum video duration&#34;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -503,12 +573,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Voice(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     provider: Annotated[
-        str | None, Field(description=&#39;TTS provider (elevenlabs, openai, etc.)&#39;)
+        str | None, Field(description=&#34;TTS provider (elevenlabs, openai, etc.)&#34;)
     ] = None
-    voice_id: Annotated[str | None, Field(description=&#39;Brand voice identifier&#39;)] = None</code></pre>
+    voice_id: Annotated[str | None, Field(description=&#34;Brand voice identifier&#34;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -565,6 +635,14 @@ validated to form a valid model.</p>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
+<h4><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.A2ui" href="#adcp.types.generated_poc.sponsored_intelligence.si_capabilities.A2ui">A2ui</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.A2ui.catalogs" href="#adcp.types.generated_poc.sponsored_intelligence.si_capabilities.A2ui.catalogs">catalogs</a></code></li>
+<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.A2ui.model_config" href="#adcp.types.generated_poc.sponsored_intelligence.si_capabilities.A2ui.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.A2ui.supported" href="#adcp.types.generated_poc.sponsored_intelligence.si_capabilities.A2ui.supported">supported</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.Avatar" href="#adcp.types.generated_poc.sponsored_intelligence.si_capabilities.Avatar">Avatar</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.Avatar.avatar_id" href="#adcp.types.generated_poc.sponsored_intelligence.si_capabilities.Avatar.avatar_id">avatar_id</a></code></li>
@@ -599,9 +677,11 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.SiCapabilities" href="#adcp.types.generated_poc.sponsored_intelligence.si_capabilities.SiCapabilities">SiCapabilities</a></code></h4>
-<ul class="">
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.SiCapabilities.a2ui" href="#adcp.types.generated_poc.sponsored_intelligence.si_capabilities.SiCapabilities.a2ui">a2ui</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.SiCapabilities.commerce" href="#adcp.types.generated_poc.sponsored_intelligence.si_capabilities.SiCapabilities.commerce">commerce</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.SiCapabilities.components" href="#adcp.types.generated_poc.sponsored_intelligence.si_capabilities.SiCapabilities.components">components</a></code></li>
+<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.SiCapabilities.mcp_apps" href="#adcp.types.generated_poc.sponsored_intelligence.si_capabilities.SiCapabilities.mcp_apps">mcp_apps</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.SiCapabilities.modalities" href="#adcp.types.generated_poc.sponsored_intelligence.si_capabilities.SiCapabilities.modalities">modalities</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_capabilities.SiCapabilities.model_config" href="#adcp.types.generated_poc.sponsored_intelligence.si_capabilities.SiCapabilities.model_config">model_config</a></code></li>
 </ul>

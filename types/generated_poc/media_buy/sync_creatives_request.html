@@ -57,41 +57,47 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class SyncCreativesRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
+    account_id: Annotated[
+        str | None,
+        Field(
+            description=&#34;Account that owns these creatives. Optional if the agent has a single account or the seller can determine the account from context. Required if the agent has multiple accounts and the seller cannot route automatically.&#34;
+        ),
+    ] = None
     assignments: Annotated[
         dict[str, list[str]] | None,
-        Field(description=&#39;Optional bulk assignment of creatives to packages&#39;),
+        Field(description=&#34;Optional bulk assignment of creatives to packages&#34;),
     ] = None
     context: context_1.ContextObject | None = None
     creative_ids: Annotated[
         list[str] | None,
         Field(
-            description=&#39;Optional filter to limit sync scope to specific creative IDs. When provided, only these creatives will be created/updated. Other creatives in the library are unaffected. Useful for partial updates and error recovery.&#39;,
+            description=&#34;Optional filter to limit sync scope to specific creative IDs. When provided, only these creatives will be created/updated. Other creatives in the library are unaffected. Useful for partial updates and error recovery.&#34;,
             max_length=100,
         ),
     ] = None
     creatives: Annotated[
         list[creative_asset.CreativeAsset],
-        Field(description=&#39;Array of creative assets to sync (create or update)&#39;, max_length=100),
+        Field(description=&#34;Array of creative assets to sync (create or update)&#34;, max_length=100),
     ]
     delete_missing: Annotated[
         bool | None,
         Field(
-            description=&#39;When true, creatives not included in this sync will be archived. Use with caution for full library replacement.&#39;
+            description=&#34;When true, creatives not included in this sync will be archived. Use with caution for full library replacement.&#34;
         ),
     ] = False
     dry_run: Annotated[
         bool | None,
         Field(
-            description=&#39;When true, preview changes without applying them. Returns what would be created/updated/deleted.&#39;
+            description=&#34;When true, preview changes without applying them. Returns what would be created/updated/deleted.&#34;
         ),
     ] = False
     ext: ext_1.ExtensionObject | None = None
     push_notification_config: Annotated[
         push_notification_config_1.PushNotificationConfig | None,
         Field(
-            description=&#39;Optional webhook configuration for async sync notifications. Publisher will send webhook when sync completes if operation takes longer than immediate response time (typically for large bulk operations or manual approval/HITL).&#39;
+            description=&#34;Optional webhook configuration for async sync notifications. Publisher will send webhook when sync completes if operation takes longer than immediate response time (typically for large bulk operations or manual approval/HITL).&#34;
         ),
     ] = None
     validation_mode: Annotated[
@@ -116,6 +122,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.account_id"><code class="name">var <span class="ident">account_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.assignments"><code class="name">var <span class="ident">assignments</span> : dict[str, list[str]] | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -186,6 +196,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest">SyncCreativesRequest</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.account_id" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.account_id">account_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.assignments" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.assignments">assignments</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.context" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.creative_ids" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.creative_ids">creative_ids</a></code></li>

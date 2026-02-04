@@ -59,8 +59,8 @@ el.replaceWith(d);
     root: Annotated[
         UpdateMediaBuyResponse1 | UpdateMediaBuyResponse2,
         Field(
-            description=&#39;Response payload for update_media_buy task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - updates are either fully applied or not applied at all.&#39;,
-            title=&#39;Update Media Buy Response&#39;,
+            description=&#34;Response payload for update_media_buy task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - updates are either fully applied or not applied at all.&#34;,
+            title=&#34;Update Media Buy Response&#34;,
         ),
     ]</code></pre>
 </details>
@@ -114,18 +114,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class UpdateMediaBuyResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     affected_packages: Annotated[
         list[package.Package] | None,
-        Field(description=&#39;Array of packages that were modified with complete state information&#39;),
+        Field(description=&#34;Array of packages that were modified with complete state information&#34;),
     ] = None
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for the media buy&#34;)]
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     implementation_date: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;ISO 8601 timestamp when changes take effect (null if pending approval)&#39;),
+        Field(description=&#34;ISO 8601 timestamp when changes take effect (null if pending approval)&#34;),
     ] = None
     media_buy_id: Annotated[str, Field(description=&#34;Publisher&#39;s identifier for the media buy&#34;)]</code></pre>
 </details>
@@ -195,12 +195,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class UpdateMediaBuyResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
-        Field(description=&#39;Array of errors explaining why the operation failed&#39;, min_length=1),
+        Field(description=&#34;Array of errors explaining why the operation failed&#34;, min_length=1),
     ]
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>

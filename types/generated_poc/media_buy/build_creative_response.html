@@ -59,8 +59,8 @@ el.replaceWith(d);
     root: Annotated[
         BuildCreativeResponse1 | BuildCreativeResponse2,
         Field(
-            description=&#39;Response containing the transformed or generated creative manifest, ready for use with preview_creative or sync_creatives. Returns either the complete creative manifest OR error information, never both.&#39;,
-            title=&#39;Build Creative Response&#39;,
+            description=&#34;Response containing the transformed or generated creative manifest, ready for use with preview_creative or sync_creatives. Returns either the complete creative manifest OR error information, never both.&#34;,
+            title=&#34;Build Creative Response&#34;,
         ),
     ]</code></pre>
 </details>
@@ -114,12 +114,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BuildCreativeResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest,
-        Field(description=&#39;The generated or transformed creative manifest&#39;),
+        Field(description=&#34;The generated or transformed creative manifest&#34;),
     ]
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
@@ -177,13 +177,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BuildCreativeResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
-            description=&#39;Array of errors explaining why creative generation failed&#39;, min_length=1
+            description=&#34;Array of errors explaining why creative generation failed&#34;, min_length=1
         ),
     ]
     ext: ext_1.ExtensionObject | None = None</code></pre>

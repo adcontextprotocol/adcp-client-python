@@ -37,23 +37,16 @@ el.replaceWith(d);
 </header>
 <section id="section-intro">
 <p>Format Asset Utilities.</p>
-<p>Provides backward-compatible access to format assets.
-The v2.6 <code>assets</code> field replaces the deprecated <code>assets_required</code> field.</p>
-<p>These utilities help users work with format assets regardless of which field
-the agent uses, providing a smooth migration path.</p>
+<p>Provides utilities for working with format assets from the <code>assets</code> field.</p>
 <h2 id="example">Example</h2>
 <pre><code class="language-python">from adcp import Format
 from adcp.utils.format_assets import get_format_assets, get_required_assets
 
-# Get all assets from a format (handles both new and deprecated fields)
+# Get all assets from a format
 all_assets = get_format_assets(format)
 
 # Get only required assets
 required = get_required_assets(format)
-
-# Check if using deprecated field
-if uses_deprecated_assets_field(format):
-    print(&quot;Agent should migrate to 'assets' field&quot;)
 </code></pre>
 </section>
 <section>
@@ -100,18 +93,16 @@ if uses_deprecated_assets_field(format):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def get_format_assets(format: Format) -&gt; list[FormatAsset]:
-    &#34;&#34;&#34;Get assets from a Format, preferring new `assets` field, falling back to `assets_required`.
+    &#34;&#34;&#34;Get assets from a Format.
 
-    This provides backward compatibility during the migration from `assets_required` to `assets`.
-    - If `assets` exists and has items, returns it directly
-    - If only `assets_required` exists, normalizes it to the new format (sets required=True)
-    - Returns empty list if neither field exists (flexible format with no assets)
+    Returns the list of assets from the format&#39;s `assets` field.
+    Returns empty list if no assets are defined (flexible format with no assets).
 
     Args:
         format: The Format object from list_creative_formats response
 
     Returns:
-        List of assets in the new format structure
+        List of assets
 
     Example:
         ```python
@@ -121,28 +112,21 @@ if uses_deprecated_assets_field(format):
             print(f&#34;{format.name} has {len(assets)} assets&#34;)
         ```
     &#34;&#34;&#34;
-    # Prefer new `assets` field (v2.6+)
     if format.assets and len(format.assets) &gt; 0:
         return list(format.assets)
 
-    # Fall back to deprecated `assets_required` and normalize
-    if format.assets_required and len(format.assets_required) &gt; 0:
-        return normalize_assets_required(format.assets_required)
-
     return []</code></pre>
 </details>
-<div class="desc"><p>Get assets from a Format, preferring new <code>assets</code> field, falling back to <code>assets_required</code>.</p>
-<p>This provides backward compatibility during the migration from <code>assets_required</code> to <code>assets</code>.
-- If <code>assets</code> exists and has items, returns it directly
-- If only <code>assets_required</code> exists, normalizes it to the new format (sets required=True)
-- Returns empty list if neither field exists (flexible format with no assets)</p>
+<div class="desc"><p>Get assets from a Format.</p>
+<p>Returns the list of assets from the format's <code>assets</code> field.
+Returns empty list if no assets are defined (flexible format with no assets).</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>format</code></strong></dt>
 <dd>The Format object from list_creative_formats response</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>List of assets in the new format structure</p>
+<p>List of assets</p>
 <h2 id="example">Example</h2>
 <pre><code class="language-python">formats = await agent.simple.list_creative_formats()
 for format in formats.formats:
@@ -328,6 +312,10 @@ print(f&quot;Must provide {len(required_assets)} assets&quot;)
 <pre><code class="python">def normalize_assets_required(assets_required: list[Any]) -&gt; list[FormatAsset]:
     &#34;&#34;&#34;Convert deprecated assets_required to new assets format.
 
+    .. deprecated:: 3.2.0
+        The ``assets_required`` field was removed in ADCP 3.0.0-beta.2.
+        This function will be removed in a future version.
+
     All assets in assets_required are required by definition (that&#39;s why they were in
     that array). The new `assets` field has an explicit `required: boolean` to allow
     both required AND optional assets.
@@ -338,6 +326,13 @@ print(f&quot;Must provide {len(required_assets)} assets&quot;)
     Returns:
         Normalized assets as Pydantic models with explicit required=True
     &#34;&#34;&#34;
+    warnings.warn(
+        &#34;normalize_assets_required() is deprecated. &#34;
+        &#34;The assets_required field was removed in ADCP 3.0.0-beta.2. &#34;
+        &#34;This function will be removed in a future version.&#34;,
+        DeprecationWarning,
+        stacklevel=2,
+    )
     normalized: list[FormatAsset] = []
     for asset in assets_required:
         # Get asset data as dict
@@ -357,6 +352,11 @@ print(f&quot;Must provide {len(required_assets)} assets&quot;)
     return normalized</code></pre>
 </details>
 <div class="desc"><p>Convert deprecated assets_required to new assets format.</p>
+<div class="admonition deprecated">
+<p class="admonition-title">Deprecated since version:&ensp;3.2.0</p>
+<p>The <code>assets_required</code> field was removed in ADCP 3.0.0-beta.2.
+This function will be removed in a future version.</p>
+</div>
 <p>All assets in assets_required are required by definition (that's why they were in
 that array). The new <code>assets</code> field has an explicit <code>required: boolean</code> to allow
 both required AND optional assets.</p>
@@ -377,36 +377,40 @@ both required AND optional assets.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def uses_deprecated_assets_field(format: Format) -&gt; bool:
-    &#34;&#34;&#34;Check if format uses deprecated assets_required field (for migration warnings).
+    &#34;&#34;&#34;Check if format uses deprecated assets_required field.
+
+    .. deprecated:: 3.2.0
+        The ``assets_required`` field was removed in ADCP 3.0.0-beta.2.
+        This function always returns False and will be removed in a future version.
 
     Args:
         format: The Format object
 
     Returns:
-        True if using deprecated field, False if using new field or neither
-
-    Example:
-        ```python
-        if uses_deprecated_assets_field(format):
-            print(f&#34;Format {format.name} uses deprecated assets_required field&#34;)
-        ```
+        Always False (deprecated field no longer exists)
     &#34;&#34;&#34;
-    has_assets = format.assets is not None and len(format.assets) &gt; 0
-    has_assets_required = format.assets_required is not None and len(format.assets_required) &gt; 0
-    return not has_assets and has_assets_required</code></pre>
+    warnings.warn(
+        &#34;uses_deprecated_assets_field() is deprecated and always returns False. &#34;
+        &#34;The assets_required field was removed in ADCP 3.0.0-beta.2. &#34;
+        &#34;This function will be removed in a future version.&#34;,
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return False</code></pre>
 </details>
-<div class="desc"><p>Check if format uses deprecated assets_required field (for migration warnings).</p>
+<div class="desc"><p>Check if format uses deprecated assets_required field.</p>
+<div class="admonition deprecated">
+<p class="admonition-title">Deprecated since version:&ensp;3.2.0</p>
+<p>The <code>assets_required</code> field was removed in ADCP 3.0.0-beta.2.
+This function always returns False and will be removed in a future version.</p>
+</div>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>format</code></strong></dt>
 <dd>The Format object</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>True if using deprecated field, False if using new field or neither</p>
-<h2 id="example">Example</h2>
-<pre><code class="language-python">if uses_deprecated_assets_field(format):
-    print(f&quot;Format {format.name} uses deprecated assets_required field&quot;)
-</code></pre></div>
+<p>Always False (deprecated field no longer exists)</p></div>
 </dd>
 </dl>
 </section>

@@ -56,13 +56,13 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class AssetType(Enum):
-    image = &#39;image&#39;
-    video = &#39;video&#39;
-    audio = &#39;audio&#39;
-    text = &#39;text&#39;
-    html = &#39;html&#39;
-    javascript = &#39;javascript&#39;
-    url = &#39;url&#39;</code></pre>
+    image = &#34;image&#34;
+    video = &#34;video&#34;
+    audio = &#34;audio&#34;
+    text = &#34;text&#34;
+    html = &#34;html&#34;
+    javascript = &#34;javascript&#34;
+    url = &#34;url&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -146,7 +146,7 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class ListCreativeFormatsRequestCreativeAgent(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     asset_types: Annotated[
         list[AssetType] | None,
@@ -157,45 +157,45 @@ attributes &ndash; see the documentation for details.</p></div>
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     format_ids: Annotated[
-        list[format_id.FormatId] | None, Field(description=&#39;Return only these specific format IDs&#39;)
+        list[format_id.FormatId] | None, Field(description=&#34;Return only these specific format IDs&#34;)
     ] = None
     is_responsive: Annotated[
         bool | None,
         Field(
-            description=&#39;Filter for responsive formats that adapt to container size. When true, returns formats without fixed dimensions.&#39;
+            description=&#34;Filter for responsive formats that adapt to container size. When true, returns formats without fixed dimensions.&#34;
         ),
     ] = None
     max_height: Annotated[
         int | None,
         Field(
-            description=&#39;Maximum height in pixels (inclusive). Returns formats with height &lt;= this value. Omit for responsive/fluid formats.&#39;
+            description=&#34;Maximum height in pixels (inclusive). Returns formats with height &lt;= this value. Omit for responsive/fluid formats.&#34;
         ),
     ] = None
     max_width: Annotated[
         int | None,
         Field(
-            description=&#39;Maximum width in pixels (inclusive). Returns formats with width &lt;= this value. Omit for responsive/fluid formats.&#39;
+            description=&#34;Maximum width in pixels (inclusive). Returns formats with width &lt;= this value. Omit for responsive/fluid formats.&#34;
         ),
     ] = None
     min_height: Annotated[
         int | None,
         Field(
-            description=&#39;Minimum height in pixels (inclusive). Returns formats with height &gt;= this value.&#39;
+            description=&#34;Minimum height in pixels (inclusive). Returns formats with height &gt;= this value.&#34;
         ),
     ] = None
     min_width: Annotated[
         int | None,
         Field(
-            description=&#39;Minimum width in pixels (inclusive). Returns formats with width &gt;= this value.&#39;
+            description=&#34;Minimum width in pixels (inclusive). Returns formats with width &gt;= this value.&#34;
         ),
     ] = None
     name_search: Annotated[
-        str | None, Field(description=&#39;Search for formats by name (case-insensitive partial match)&#39;)
+        str | None, Field(description=&#34;Search for formats by name (case-insensitive partial match)&#34;)
     ] = None
     type: Annotated[
         Type | None,
         Field(
-            description=&#39;Filter by format type (technical categories with distinct requirements)&#39;
+            description=&#34;Filter by format type (technical categories with distinct requirements)&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -284,10 +284,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Type(Enum):
-    audio = &#39;audio&#39;
-    video = &#39;video&#39;
-    display = &#39;display&#39;
-    dooh = &#39;dooh&#39;</code></pre>
+    audio = &#34;audio&#34;
+    video = &#34;video&#34;
+    display = &#34;display&#34;
+    dooh = &#34;dooh&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>

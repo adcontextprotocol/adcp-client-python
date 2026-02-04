@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class ListCreativeFormatsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     asset_types: Annotated[
         list[asset_content_type.AssetContentType] | None,
@@ -70,46 +70,46 @@ el.replaceWith(d);
     format_ids: Annotated[
         list[format_id.FormatId] | None,
         Field(
-            description=&#39;Return only these specific format IDs (e.g., from get_products response)&#39;
+            description=&#34;Return only these specific format IDs (e.g., from get_products response)&#34;
         ),
     ] = None
     is_responsive: Annotated[
         bool | None,
         Field(
-            description=&#39;Filter for responsive formats that adapt to container size. When true, returns formats without fixed dimensions.&#39;
+            description=&#34;Filter for responsive formats that adapt to container size. When true, returns formats without fixed dimensions.&#34;
         ),
     ] = None
     max_height: Annotated[
         int | None,
         Field(
-            description=&#39;Maximum height in pixels (inclusive). Returns formats where ANY render has height &lt;= this value. For multi-render formats, matches if at least one render fits.&#39;
+            description=&#34;Maximum height in pixels (inclusive). Returns formats where ANY render has height &lt;= this value. For multi-render formats, matches if at least one render fits.&#34;
         ),
     ] = None
     max_width: Annotated[
         int | None,
         Field(
-            description=&#39;Maximum width in pixels (inclusive). Returns formats where ANY render has width &lt;= this value. For multi-render formats, matches if at least one render fits.&#39;
+            description=&#34;Maximum width in pixels (inclusive). Returns formats where ANY render has width &lt;= this value. For multi-render formats, matches if at least one render fits.&#34;
         ),
     ] = None
     min_height: Annotated[
         int | None,
         Field(
-            description=&#39;Minimum height in pixels (inclusive). Returns formats where ANY render has height &gt;= this value.&#39;
+            description=&#34;Minimum height in pixels (inclusive). Returns formats where ANY render has height &gt;= this value.&#34;
         ),
     ] = None
     min_width: Annotated[
         int | None,
         Field(
-            description=&#39;Minimum width in pixels (inclusive). Returns formats where ANY render has width &gt;= this value.&#39;
+            description=&#34;Minimum width in pixels (inclusive). Returns formats where ANY render has width &gt;= this value.&#34;
         ),
     ] = None
     name_search: Annotated[
-        str | None, Field(description=&#39;Search for formats by name (case-insensitive partial match)&#39;)
+        str | None, Field(description=&#34;Search for formats by name (case-insensitive partial match)&#34;)
     ] = None
     type: Annotated[
         format_category.FormatCategory | None,
         Field(
-            description=&#39;Filter by format type (technical categories with distinct requirements)&#39;
+            description=&#34;Filter by format type (technical categories with distinct requirements)&#34;
         ),
     ] = None</code></pre>
 </details>

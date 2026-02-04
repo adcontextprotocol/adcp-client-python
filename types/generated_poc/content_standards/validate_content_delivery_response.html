@@ -61,7 +61,7 @@ el.replaceWith(d);
     rule_id: Annotated[
         str | None,
         Field(
-            description=&#39;Which rule triggered this result (e.g., GARM category, Scope3 standard)&#39;
+            description=&#34;Which rule triggered this result (e.g., GARM category, Scope3 standard)&#34;
         ),
     ] = None
     status: Status
@@ -129,10 +129,10 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Result(AdCPBaseModel):
     features: Annotated[
-        list[Feature] | None, Field(description=&#39;Optional feature-level breakdown&#39;)
+        list[Feature] | None, Field(description=&#34;Optional feature-level breakdown&#34;)
     ] = None
-    record_id: Annotated[str, Field(description=&#39;Which delivery record was evaluated&#39;)]
-    verdict: Annotated[Verdict, Field(description=&#39;Overall pass/fail verdict for this record&#39;)]</code></pre>
+    record_id: Annotated[str, Field(description=&#34;Which delivery record was evaluated&#34;)]
+    verdict: Annotated[Verdict, Field(description=&#34;Overall pass/fail verdict for this record&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -187,10 +187,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Status(Enum):
-    passed = &#39;passed&#39;
-    failed = &#39;failed&#39;
-    warning = &#39;warning&#39;
-    unevaluated = &#39;unevaluated&#39;</code></pre>
+    passed = &#34;passed&#34;
+    failed = &#34;failed&#34;
+    warning = &#34;warning&#34;
+    unevaluated = &#34;unevaluated&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -323,8 +323,8 @@ validated to form a valid model.</p>
     root: Annotated[
         ValidateContentDeliveryResponse1 | ValidateContentDeliveryResponse2,
         Field(
-            description=&#39;Response payload with per-record verdicts and optional feature breakdown&#39;,
-            title=&#39;Validate Content Delivery Response&#39;,
+            description=&#34;Response payload with per-record verdicts and optional feature breakdown&#34;,
+            title=&#34;Validate Content Delivery Response&#34;,
         ),
     ]</code></pre>
 </details>
@@ -379,11 +379,11 @@ validated to form a valid model.</p>
 <pre><code class="python">class ValidateContentDeliveryResponse1(AdCPBaseModel):
     context: context_1.ContextObject | None = None
     errors: Annotated[
-        Any | None, Field(description=&#39;Field must not be present in success response&#39;)
+        Any | None, Field(description=&#34;Field must not be present in success response&#34;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
-    results: Annotated[list[Result], Field(description=&#39;Per-record evaluation results&#39;)]
-    summary: Annotated[Summary, Field(description=&#39;Summary counts across all records&#39;)]</code></pre>
+    results: Annotated[list[Result], Field(description=&#34;Per-record evaluation results&#34;)]
+    summary: Annotated[Summary, Field(description=&#34;Summary counts across all records&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -450,7 +450,7 @@ validated to form a valid model.</p>
     errors: list[error.Error]
     ext: ext_1.ExtensionObject | None = None
     summary: Annotated[
-        Any | None, Field(description=&#39;Field must not be present in error response&#39;)
+        Any | None, Field(description=&#34;Field must not be present in error response&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -510,8 +510,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Verdict(Enum):
-    pass_ = &#39;pass&#39;
-    fail = &#39;fail&#39;</code></pre>
+    pass_ = &#34;pass&#34;
+    fail = &#34;fail&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>

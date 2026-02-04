@@ -162,8 +162,8 @@ el.replaceWith(d);
         pass
 
     @abstractmethod
-    async def list_authorized_properties(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
-        &#34;&#34;&#34;List authorized properties.&#34;&#34;&#34;
+    async def list_accounts(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;List billing accounts accessible to the authenticated agent.&#34;&#34;&#34;
         pass
 
     @abstractmethod
@@ -611,8 +611,8 @@ async def get_signals(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
 </details>
 <div class="desc"><p>Get signals.</p></div>
 </dd>
-<dt id="adcp.protocols.base.ProtocolAdapter.list_authorized_properties"><code class="name flex">
-<span>async def <span class="ident">list_authorized_properties</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+<dt id="adcp.protocols.base.ProtocolAdapter.list_accounts"><code class="name flex">
+<span>async def <span class="ident">list_accounts</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -620,11 +620,11 @@ async def get_signals(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@abstractmethod
-async def list_authorized_properties(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
-    &#34;&#34;&#34;List authorized properties.&#34;&#34;&#34;
+async def list_accounts(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;List billing accounts accessible to the authenticated agent.&#34;&#34;&#34;
     pass</code></pre>
 </details>
-<div class="desc"><p>List authorized properties.</p></div>
+<div class="desc"><p>List billing accounts accessible to the authenticated agent.</p></div>
 </dd>
 <dt id="adcp.protocols.base.ProtocolAdapter.list_content_standards"><code class="name flex">
 <span>async def <span class="ident">list_content_standards</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
@@ -894,7 +894,7 @@ async def validate_content_delivery(self, params: dict[str, Any]) -&gt; TaskResu
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_products" href="#adcp.protocols.base.ProtocolAdapter.get_products">get_products</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_property_list" href="#adcp.protocols.base.ProtocolAdapter.get_property_list">get_property_list</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_signals" href="#adcp.protocols.base.ProtocolAdapter.get_signals">get_signals</a></code></li>
-<li><code><a title="adcp.protocols.base.ProtocolAdapter.list_authorized_properties" href="#adcp.protocols.base.ProtocolAdapter.list_authorized_properties">list_authorized_properties</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.list_accounts" href="#adcp.protocols.base.ProtocolAdapter.list_accounts">list_accounts</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_content_standards" href="#adcp.protocols.base.ProtocolAdapter.list_content_standards">list_content_standards</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_creative_formats" href="#adcp.protocols.base.ProtocolAdapter.list_creative_formats">list_creative_formats</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_creatives" href="#adcp.protocols.base.ProtocolAdapter.list_creatives">list_creatives</a></code></li>

@@ -57,19 +57,19 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class ListPropertyListsResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     ext: ext_1.ExtensionObject | None = None
     lists: Annotated[
         list[property_list.PropertyList],
-        Field(description=&#39;Array of property lists (metadata only, not resolved properties)&#39;),
+        Field(description=&#34;Array of property lists (metadata only, not resolved properties)&#34;),
     ]
-    pagination: Annotated[Pagination | None, Field(description=&#39;Pagination information&#39;)] = None
+    pagination: Annotated[Pagination | None, Field(description=&#34;Pagination information&#34;)] = None
     returned_count: Annotated[
-        int | None, Field(description=&#39;Number of lists returned in this response&#39;)
+        int | None, Field(description=&#34;Number of lists returned in this response&#34;)
     ] = None
     total_count: Annotated[
-        int | None, Field(description=&#39;Total number of lists matching criteria&#39;)
+        int | None, Field(description=&#34;Total number of lists matching criteria&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -134,10 +134,10 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Pagination(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
-    cursor: Annotated[str | None, Field(description=&#39;Cursor for next page&#39;)] = None
-    has_more: Annotated[bool | None, Field(description=&#39;Whether more results are available&#39;)] = None</code></pre>
+    cursor: Annotated[str | None, Field(description=&#34;Cursor for next page&#34;)] = None
+    has_more: Annotated[bool | None, Field(description=&#34;Whether more results are available&#34;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null

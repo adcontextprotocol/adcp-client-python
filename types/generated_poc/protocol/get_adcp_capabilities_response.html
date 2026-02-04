@@ -59,7 +59,7 @@ el.replaceWith(d);
     major_versions: Annotated[
         list[MajorVersion],
         Field(
-            description=&#39;AdCP major versions supported by this seller. Major versions indicate breaking changes.&#39;,
+            description=&#34;AdCP major versions supported by this seller. Major versions indicate breaking changes.&#34;,
             min_length=1,
         ),
     ]</code></pre>
@@ -111,15 +111,15 @@ validated to form a valid model.</p>
 <pre><code class="python">class CreativeSpecs(AdCPBaseModel):
     mraid_versions: Annotated[
         list[MraidVersion] | None,
-        Field(description=&#39;MRAID versions supported for rich media mobile creatives&#39;),
+        Field(description=&#34;MRAID versions supported for rich media mobile creatives&#34;),
     ] = None
-    simid: Annotated[bool | None, Field(description=&#39;SIMID support for interactive video ads&#39;)] = (
+    simid: Annotated[bool | None, Field(description=&#34;SIMID support for interactive video ads&#34;)] = (
         None
     )
     vast_versions: Annotated[
-        list[VastVersion] | None, Field(description=&#39;VAST versions supported for video creatives&#39;)
+        list[VastVersion] | None, Field(description=&#34;VAST versions supported for video creatives&#34;)
     ] = None
-    vpaid: Annotated[bool | None, Field(description=&#39;VPAID support for interactive video ads&#39;)] = (
+    vpaid: Annotated[bool | None, Field(description=&#34;VPAID support for interactive video ads&#34;)] = (
         None
     )</code></pre>
 </details>
@@ -181,12 +181,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Endpoint(AdCPBaseModel):
     preferred: Annotated[
-        Preferred | None, Field(description=&#39;Preferred transport when host supports multiple&#39;)
+        Preferred | None, Field(description=&#34;Preferred transport when host supports multiple&#34;)
     ] = None
     transports: Annotated[
         list[Transport],
         Field(
-            description=&#39;Available protocol transports. Hosts select based on their capabilities.&#39;,
+            description=&#34;Available protocol transports. Hosts select based on their capabilities.&#34;,
             min_length=1,
         ),
     ]</code></pre>
@@ -243,16 +243,16 @@ validated to form a valid model.</p>
     axe_integrations: Annotated[
         list[AnyUrl] | None,
         Field(
-            description=&#39;Agentic ad exchange (AXE) integrations supported. URLs are canonical identifiers for exchanges this seller can execute through.&#39;
+            description=&#34;Agentic ad exchange (AXE) integrations supported. URLs are canonical identifiers for exchanges this seller can execute through.&#34;
         ),
     ] = None
     creative_specs: Annotated[
-        CreativeSpecs | None, Field(description=&#39;Creative specification support&#39;)
+        CreativeSpecs | None, Field(description=&#34;Creative specification support&#34;)
     ] = None
     targeting: Annotated[
         Targeting | None,
         Field(
-            description=&#39;Targeting capabilities. If declared true/supported, buyer can use these targeting parameters and seller MUST honor them.&#39;
+            description=&#34;Targeting capabilities. If declared true/supported, buyer can use these targeting parameters and seller MUST honor them.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -313,7 +313,7 @@ validated to form a valid model.</p>
         str,
         Field(
             description=&#34;Extension namespace (lowercase alphanumeric with underscores, e.g., &#39;scope3&#39;, &#39;garm&#39;, &#39;iab_tcf&#39;)&#34;,
-            pattern=&#39;^[a-z][a-z0-9_]*$&#39;,
+            pattern=&#34;^[a-z][a-z0-9_]*$&#34;,
         ),
     ]</code></pre>
 </details>
@@ -367,14 +367,14 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GeoMetros(AdCPBaseModel):
     eurostat_nuts2: Annotated[
-        bool | None, Field(description=&#39;Supports Eurostat NUTS Level 2 regions (EU)&#39;)
+        bool | None, Field(description=&#34;Supports Eurostat NUTS Level 2 regions (EU)&#34;)
     ] = None
     nielsen_dma: Annotated[
         bool | None,
         Field(description=&#34;Supports Nielsen DMA codes (US market, e.g., &#39;501&#39; for NYC)&#34;),
     ] = None
-    uk_itl1: Annotated[bool | None, Field(description=&#39;Supports UK ITL Level 1 regions&#39;)] = None
-    uk_itl2: Annotated[bool | None, Field(description=&#39;Supports UK ITL Level 2 regions&#39;)] = None</code></pre>
+    uk_itl1: Annotated[bool | None, Field(description=&#34;Supports UK ITL Level 1 regions&#34;)] = None
+    uk_itl2: Annotated[bool | None, Field(description=&#34;Supports UK ITL Level 2 regions&#34;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -535,53 +535,53 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetAdcpCapabilitiesResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    adcp: Annotated[Adcp, Field(description=&#39;Core AdCP protocol information&#39;)]
+    adcp: Annotated[Adcp, Field(description=&#34;Core AdCP protocol information&#34;)]
     context: context_1.ContextObject | None = None
     errors: Annotated[
-        list[error.Error] | None, Field(description=&#39;Task-specific errors and warnings&#39;)
+        list[error.Error] | None, Field(description=&#34;Task-specific errors and warnings&#34;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
     extensions_supported: Annotated[
         list[ExtensionsSupportedItem] | None,
         Field(
-            description=&#39;Extension namespaces this agent supports. Buyers can expect meaningful data in ext.{namespace} fields on responses from this agent. Extension schemas are published in the AdCP extension registry.&#39;
+            description=&#34;Extension namespaces this agent supports. Buyers can expect meaningful data in ext.{namespace} fields on responses from this agent. Extension schemas are published in the AdCP extension registry.&#34;
         ),
     ] = None
     governance: Annotated[
         Governance | None,
         Field(
-            description=&#39;Governance protocol capabilities. Only present if governance is in supported_protocols. Governance agents provide property data like compliance scores, brand safety ratings, and sustainability metrics.&#39;
+            description=&#34;Governance protocol capabilities. Only present if governance is in supported_protocols. Governance agents provide property data like compliance scores, brand safety ratings, and sustainability metrics.&#34;
         ),
     ] = None
     last_updated: Annotated[
         AwareDatetime | None,
         Field(
-            description=&#39;ISO 8601 timestamp of when capabilities were last updated. Buyers can use this for cache invalidation.&#39;
+            description=&#34;ISO 8601 timestamp of when capabilities were last updated. Buyers can use this for cache invalidation.&#34;
         ),
     ] = None
     media_buy: Annotated[
         MediaBuy | None,
         Field(
-            description=&#39;Media-buy protocol capabilities. Only present if media_buy is in supported_protocols.&#39;
+            description=&#34;Media-buy protocol capabilities. Only present if media_buy is in supported_protocols.&#34;
         ),
     ] = None
     signals: Annotated[
         Signals | None,
         Field(
-            description=&#39;Signals protocol capabilities. Only present if signals is in supported_protocols. Reserved for future use.&#39;
+            description=&#34;Signals protocol capabilities. Only present if signals is in supported_protocols. Reserved for future use.&#34;
         ),
     ] = None
     sponsored_intelligence: Annotated[
         SponsoredIntelligence | None,
         Field(
-            description=&#39;Sponsored Intelligence protocol capabilities. Only present if sponsored_intelligence is in supported_protocols. SI agents handle conversational brand experiences.&#39;
+            description=&#34;Sponsored Intelligence protocol capabilities. Only present if sponsored_intelligence is in supported_protocols. SI agents handle conversational brand experiences.&#34;
         ),
     ] = None
     supported_protocols: Annotated[
         list[SupportedProtocol],
-        Field(description=&#39;Which AdCP domain protocols this seller supports&#39;, min_length=1),
+        Field(description=&#34;Which AdCP domain protocols this seller supports&#34;, min_length=1),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -672,7 +672,7 @@ validated to form a valid model.</p>
     property_features: Annotated[
         list[PropertyFeature] | None,
         Field(
-            description=&#39;Property features this governance agent can evaluate. Each feature describes a score, rating, or certification the agent can provide for properties.&#39;
+            description=&#34;Property features this governance agent can evaluate. Each feature describes a score, rating, or certification the agent can provide for properties.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -773,7 +773,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class MediaBuy(AdCPBaseModel):
     execution: Annotated[
-        Execution | None, Field(description=&#39;Technical execution capabilities for media buying&#39;)
+        Execution | None, Field(description=&#34;Technical execution capabilities for media buying&#34;)
     ] = None
     features: media_buy_features.MediaBuyFeatures | None = None
     portfolio: Annotated[
@@ -834,7 +834,7 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class MraidVersion(RootModel[str]):
-    root: Annotated[str, Field(pattern=&#39;^[0-9]+\\.[0-9]+$&#39;)]</code></pre>
+    root: Annotated[str, Field(pattern=&#34;^[0-9]+\\.[0-9]+$&#34;)]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -892,23 +892,23 @@ validated to form a valid model.</p>
     advertising_policies: Annotated[
         str | None,
         Field(
-            description=&#39;Advertising content policies, restrictions, and guidelines&#39;,
+            description=&#34;Advertising content policies, restrictions, and guidelines&#34;,
             max_length=10000,
         ),
     ] = None
     description: Annotated[
         str | None,
         Field(
-            description=&#39;Markdown-formatted description of the inventory portfolio&#39;, max_length=5000
+            description=&#34;Markdown-formatted description of the inventory portfolio&#34;, max_length=5000
         ),
     ] = None
     primary_channels: Annotated[
         list[channels.MediaChannel] | None,
-        Field(description=&#39;Primary advertising channels in this portfolio&#39;),
+        Field(description=&#34;Primary advertising channels in this portfolio&#34;),
     ] = None
     primary_countries: Annotated[
         list[PrimaryCountry] | None,
-        Field(description=&#39;Primary countries (ISO 3166-1 alpha-2) where inventory is concentrated&#39;),
+        Field(description=&#34;Primary countries (ISO 3166-1 alpha-2) where inventory is concentrated&#34;),
     ] = None
     publisher_domains: Annotated[
         list[PublisherDomain],
@@ -979,8 +979,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Preferred(Enum):
-    mcp = &#39;mcp&#39;
-    a2a = &#39;a2a&#39;</code></pre>
+    mcp = &#34;mcp&#34;
+    a2a = &#34;a2a&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1043,7 +1043,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PrimaryCountry(RootModel[str]):
-    root: Annotated[str, Field(pattern=&#39;^[A-Z]{2}$&#39;)]</code></pre>
+    root: Annotated[str, Field(pattern=&#34;^[A-Z]{2}$&#34;)]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -1095,10 +1095,10 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PropertyFeature(AdCPBaseModel):
     categories: Annotated[
-        list[str] | None, Field(description=&#39;For categorical features, the valid values&#39;)
+        list[str] | None, Field(description=&#34;For categorical features, the valid values&#34;)
     ] = None
     description: Annotated[
-        str | None, Field(description=&#39;Human-readable description of what this feature measures&#39;)
+        str | None, Field(description=&#34;Human-readable description of what this feature measures&#34;)
     ] = None
     feature_id: Annotated[
         str,
@@ -1109,11 +1109,11 @@ validated to form a valid model.</p>
     methodology_url: Annotated[
         AnyUrl | None,
         Field(
-            description=&#39;URL to documentation explaining how this feature is calculated or measured. Helps buyers understand and compare methodologies across vendors.&#39;
+            description=&#34;URL to documentation explaining how this feature is calculated or measured. Helps buyers understand and compare methodologies across vendors.&#34;
         ),
     ] = None
     range: Annotated[
-        Range | None, Field(description=&#39;For quantitative features, the valid range&#39;)
+        Range | None, Field(description=&#34;For quantitative features, the valid range&#34;)
     ] = None
     type: Annotated[
         Type,
@@ -1188,7 +1188,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PublisherDomain(RootModel[str]):
     root: Annotated[
-        str, Field(pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;)
+        str, Field(pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;)
     ]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
@@ -1240,8 +1240,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Range(AdCPBaseModel):
-    max: Annotated[float, Field(description=&#39;Maximum value&#39;)]
-    min: Annotated[float, Field(description=&#39;Minimum value&#39;)]</code></pre>
+    max: Annotated[float, Field(description=&#34;Maximum value&#34;)]
+    min: Annotated[float, Field(description=&#34;Minimum value&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -1293,7 +1293,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Signals(AdCPBaseModel):
     features: Annotated[
-        dict[str, bool] | None, Field(description=&#39;Optional signals features supported&#39;)
+        dict[str, bool] | None, Field(description=&#34;Optional signals features supported&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1342,13 +1342,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SponsoredIntelligence(AdCPBaseModel):
     brand_manifest_url: Annotated[
-        AnyUrl | None, Field(description=&#39;URL to brand manifest with colors, fonts, logos, tone&#39;)
+        AnyUrl | None, Field(description=&#34;URL to brand manifest with colors, fonts, logos, tone&#34;)
     ] = None
     capabilities: Annotated[
         si_capabilities.SiCapabilities,
-        Field(description=&#39;Modalities, components, and commerce capabilities&#39;),
+        Field(description=&#34;Modalities, components, and commerce capabilities&#34;),
     ]
-    endpoint: Annotated[Endpoint, Field(description=&#39;SI agent endpoint configuration&#39;)]</code></pre>
+    endpoint: Annotated[Endpoint, Field(description=&#34;SI agent endpoint configuration&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -1403,10 +1403,11 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class SupportedProtocol(Enum):
-    media_buy = &#39;media_buy&#39;
-    signals = &#39;signals&#39;
-    governance = &#39;governance&#39;
-    sponsored_intelligence = &#39;sponsored_intelligence&#39;</code></pre>
+    media_buy = &#34;media_buy&#34;
+    signals = &#34;signals&#34;
+    governance = &#34;governance&#34;
+    sponsored_intelligence = &#34;sponsored_intelligence&#34;
+    creative = &#34;creative&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1449,6 +1450,10 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedProtocol.creative"><code class="name">var <span class="ident">creative</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedProtocol.governance"><code class="name">var <span class="ident">governance</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -1486,13 +1491,13 @@ attributes &ndash; see the documentation for details.</p></div>
     geo_metros: Annotated[
         GeoMetros | None,
         Field(
-            description=&#39;Metro area targeting support. Specifies which classification systems are supported.&#39;
+            description=&#34;Metro area targeting support. Specifies which classification systems are supported.&#34;
         ),
     ] = None
     geo_postal_areas: Annotated[
         GeoPostalAreas | None,
         Field(
-            description=&#39;Postal area targeting support. Specifies which postal code systems are supported. System names encode country and precision.&#39;
+            description=&#34;Postal area targeting support. Specifies which postal code systems are supported. System names encode country and precision.&#34;
         ),
     ] = None
     geo_regions: Annotated[
@@ -1560,10 +1565,10 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Transport(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    type: Annotated[Preferred, Field(description=&#39;Protocol transport type&#39;)]
-    url: Annotated[AnyUrl, Field(description=&#39;Agent endpoint URL for this transport&#39;)]</code></pre>
+    type: Annotated[Preferred, Field(description=&#34;Protocol transport type&#34;)]
+    url: Annotated[AnyUrl, Field(description=&#34;Agent endpoint URL for this transport&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -1614,9 +1619,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Type(Enum):
-    binary = &#39;binary&#39;
-    quantitative = &#39;quantitative&#39;
-    categorical = &#39;categorical&#39;</code></pre>
+    binary = &#34;binary&#34;
+    quantitative = &#34;quantitative&#34;
+    categorical = &#34;categorical&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1920,6 +1925,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedProtocol" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedProtocol">SupportedProtocol</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedProtocol.creative" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedProtocol.creative">creative</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedProtocol.governance" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedProtocol.governance">governance</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedProtocol.media_buy" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedProtocol.media_buy">media_buy</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedProtocol.signals" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedProtocol.signals">signals</a></code></li>

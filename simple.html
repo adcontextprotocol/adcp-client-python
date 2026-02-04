@@ -265,26 +265,26 @@ print(products.products)</p>
             )
         return result.data
 
-    async def list_authorized_properties(
+    async def list_accounts(
         self,
         **kwargs: Any,
-    ) -&gt; ListAuthorizedPropertiesResponse:
-        &#34;&#34;&#34;List authorized properties.
+    ) -&gt; ListAccountsResponse:
+        &#34;&#34;&#34;List billing accounts accessible to the authenticated agent.
 
         Args:
-            **kwargs: Arguments passed to ListAuthorizedPropertiesRequest
+            **kwargs: Arguments passed to ListAccountsRequest
 
         Returns:
-            ListAuthorizedPropertiesResponse
+            ListAccountsResponse
 
         Raises:
             Exception: If the request fails
         &#34;&#34;&#34;
-        request = ListAuthorizedPropertiesRequest(**kwargs)
-        result = await self._client.list_authorized_properties(request)
+        request = ListAccountsRequest(**kwargs)
+        result = await self._client.list_accounts(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
-                operation=&#34;list_authorized_properties&#34;,
+                operation=&#34;list_accounts&#34;,
                 error_message=result.error,
                 agent_id=self._client.agent_config.id,
             )
@@ -815,47 +815,47 @@ print(f"Found {len(products.products)} products")</p></div>
 <dd>If the request fails</dd>
 </dl></div>
 </dd>
-<dt id="adcp.simple.SimpleAPI.list_authorized_properties"><code class="name flex">
-<span>async def <span class="ident">list_authorized_properties</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.list_authorized_properties_response.ListAuthorizedPropertiesResponse" href="types/generated_poc/media_buy/list_authorized_properties_response.html#adcp.types.generated_poc.media_buy.list_authorized_properties_response.ListAuthorizedPropertiesResponse">ListAuthorizedPropertiesResponse</a></span>
+<dt id="adcp.simple.SimpleAPI.list_accounts"><code class="name flex">
+<span>async def <span class="ident">list_accounts</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.account.list_accounts_response.ListAccountsResponse" href="types/generated_poc/account/list_accounts_response.html#adcp.types.generated_poc.account.list_accounts_response.ListAccountsResponse">ListAccountsResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def list_authorized_properties(
+<pre><code class="python">async def list_accounts(
     self,
     **kwargs: Any,
-) -&gt; ListAuthorizedPropertiesResponse:
-    &#34;&#34;&#34;List authorized properties.
+) -&gt; ListAccountsResponse:
+    &#34;&#34;&#34;List billing accounts accessible to the authenticated agent.
 
     Args:
-        **kwargs: Arguments passed to ListAuthorizedPropertiesRequest
+        **kwargs: Arguments passed to ListAccountsRequest
 
     Returns:
-        ListAuthorizedPropertiesResponse
+        ListAccountsResponse
 
     Raises:
         Exception: If the request fails
     &#34;&#34;&#34;
-    request = ListAuthorizedPropertiesRequest(**kwargs)
-    result = await self._client.list_authorized_properties(request)
+    request = ListAccountsRequest(**kwargs)
+    result = await self._client.list_accounts(request)
     if not result.success or not result.data:
         raise ADCPSimpleAPIError(
-            operation=&#34;list_authorized_properties&#34;,
+            operation=&#34;list_accounts&#34;,
             error_message=result.error,
             agent_id=self._client.agent_config.id,
         )
     return result.data</code></pre>
 </details>
-<div class="desc"><p>List authorized properties.</p>
+<div class="desc"><p>List billing accounts accessible to the authenticated agent.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>**kwargs</code></strong></dt>
-<dd>Arguments passed to ListAuthorizedPropertiesRequest</dd>
+<dd>Arguments passed to ListAccountsRequest</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>ListAuthorizedPropertiesResponse</p>
+<p>ListAccountsResponse</p>
 <h2 id="raises">Raises</h2>
 <dl>
 <dt><code>Exception</code></dt>
@@ -1201,7 +1201,7 @@ print(f"Updated media buy: {updated.media_buy_id}")</p></div>
 <li><code><a title="adcp.simple.SimpleAPI.get_media_buy_delivery" href="#adcp.simple.SimpleAPI.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.get_products" href="#adcp.simple.SimpleAPI.get_products">get_products</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.get_signals" href="#adcp.simple.SimpleAPI.get_signals">get_signals</a></code></li>
-<li><code><a title="adcp.simple.SimpleAPI.list_authorized_properties" href="#adcp.simple.SimpleAPI.list_authorized_properties">list_authorized_properties</a></code></li>
+<li><code><a title="adcp.simple.SimpleAPI.list_accounts" href="#adcp.simple.SimpleAPI.list_accounts">list_accounts</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.list_creative_formats" href="#adcp.simple.SimpleAPI.list_creative_formats">list_creative_formats</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.list_creatives" href="#adcp.simple.SimpleAPI.list_creatives">list_creatives</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.preview_creative" href="#adcp.simple.SimpleAPI.preview_creative">preview_creative</a></code></li>

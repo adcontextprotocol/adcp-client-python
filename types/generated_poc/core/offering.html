@@ -57,11 +57,11 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Offering(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     assets: Annotated[
         list[dict[str, Any]] | None,
-        Field(description=&#39;Assets specific to this offering (images, videos, copy)&#39;),
+        Field(description=&#34;Assets specific to this offering (images, videos, copy)&#34;),
     ] = None
     categories: Annotated[
         list[str] | None,
@@ -82,11 +82,11 @@ el.replaceWith(d);
     keywords: Annotated[
         list[str] | None,
         Field(
-            description=&#39;Keywords for matching this offering to user intent. Hosts use these for retrieval/relevance scoring.&#39;
+            description=&#34;Keywords for matching this offering to user intent. Hosts use these for retrieval/relevance scoring.&#34;
         ),
     ] = None
     landing_url: Annotated[
-        AnyUrl | None, Field(description=&#39;Landing page URL for this offering.&#39;)
+        AnyUrl | None, Field(description=&#34;Landing page URL for this offering.&#34;)
     ] = None
     name: Annotated[
         str,
@@ -97,28 +97,28 @@ el.replaceWith(d);
     offering_id: Annotated[
         str,
         Field(
-            description=&#39;Unique identifier for this offering. Used by hosts to reference specific offerings in si_get_offering calls.&#39;
+            description=&#34;Unique identifier for this offering. Used by hosts to reference specific offerings in si_get_offering calls.&#34;
         ),
     ]
     portfolio_ref: Annotated[
         AnyUrl | None,
         Field(
-            description=&#39;Reference to a creative portfolio for this offering. Portfolios contain organized creative assets across formats, enabling consistent ad delivery for this specific offering.&#39;
+            description=&#34;Reference to a creative portfolio for this offering. Portfolios contain organized creative assets across formats, enabling consistent ad delivery for this specific offering.&#34;
         ),
     ] = None
     tagline: Annotated[
-        str | None, Field(description=&#39;Short promotional tagline for the offering&#39;)
+        str | None, Field(description=&#34;Short promotional tagline for the offering&#34;)
     ] = None
     valid_from: Annotated[
         AwareDatetime | None,
         Field(
-            description=&#39;When the offering becomes available. If not specified, offering is immediately available.&#39;
+            description=&#34;When the offering becomes available. If not specified, offering is immediately available.&#34;
         ),
     ] = None
     valid_to: Annotated[
         AwareDatetime | None,
         Field(
-            description=&#39;When the offering expires. If not specified, offering has no expiration.&#39;
+            description=&#34;When the offering expires. If not specified, offering has no expiration.&#34;
         ),
     ] = None</code></pre>
 </details>

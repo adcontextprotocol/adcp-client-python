@@ -46,6 +46,601 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.AudioBitDepth"><code class="flex name class">
+<span>class <span class="ident">AudioBitDepth</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AudioBitDepth(IntEnum):
+    integer_16 = 16
+    integer_24 = 24
+    integer_32 = 32</code></pre>
+</details>
+<div class="desc"><p>Enum where members are also (and must be) ints</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.IntEnum</li>
+<li>builtins.int</li>
+<li>enum.ReprEnum</li>
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.AudioBitDepth.integer_16"><code class="name">var <span class="ident">integer_16</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.AudioBitDepth.integer_24"><code class="name">var <span class="ident">integer_24</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.AudioBitDepth.integer_32"><code class="name">var <span class="ident">integer_32</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.AudioChannels"><code class="flex name class">
+<span>class <span class="ident">AudioChannels</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AudioChannels(Enum):
+    mono = &#34;mono&#34;
+    stereo = &#34;stereo&#34;
+    field_5_1 = &#34;5.1&#34;
+    field_7_1 = &#34;7.1&#34;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.AudioChannels.field_5_1"><code class="name">var <span class="ident">field_5_1</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.AudioChannels.field_7_1"><code class="name">var <span class="ident">field_7_1</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.AudioChannels.mono"><code class="name">var <span class="ident">mono</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.AudioChannels.stereo"><code class="name">var <span class="ident">stereo</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.ChromaSubsampling"><code class="flex name class">
+<span>class <span class="ident">ChromaSubsampling</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ChromaSubsampling(Enum):
+    field_4_2_0 = &#34;4:2:0&#34;
+    field_4_2_2 = &#34;4:2:2&#34;
+    field_4_4_4 = &#34;4:4:4&#34;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.ChromaSubsampling.field_4_2_0"><code class="name">var <span class="ident">field_4_2_0</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.ChromaSubsampling.field_4_2_2"><code class="name">var <span class="ident">field_4_2_2</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.ChromaSubsampling.field_4_4_4"><code class="name">var <span class="ident">field_4_4_4</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.ColorSpace"><code class="flex name class">
+<span>class <span class="ident">ColorSpace</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ColorSpace(Enum):
+    rec709 = &#34;rec709&#34;
+    rec2020 = &#34;rec2020&#34;
+    rec2100 = &#34;rec2100&#34;
+    srgb = &#34;srgb&#34;
+    dci_p3 = &#34;dci_p3&#34;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.ColorSpace.dci_p3"><code class="name">var <span class="ident">dci_p3</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.ColorSpace.rec2020"><code class="name">var <span class="ident">rec2020</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.ColorSpace.rec2100"><code class="name">var <span class="ident">rec2100</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.ColorSpace.rec709"><code class="name">var <span class="ident">rec709</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.ColorSpace.srgb"><code class="name">var <span class="ident">srgb</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.FrameRateType"><code class="flex name class">
+<span>class <span class="ident">FrameRateType</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FrameRateType(Enum):
+    constant = &#34;constant&#34;
+    variable = &#34;variable&#34;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.FrameRateType.constant"><code class="name">var <span class="ident">constant</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.FrameRateType.variable"><code class="name">var <span class="ident">variable</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.GopType"><code class="flex name class">
+<span>class <span class="ident">GopType</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GopType(Enum):
+    closed = &#34;closed&#34;
+    open = &#34;open&#34;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.GopType.closed"><code class="name">var <span class="ident">closed</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.GopType.open"><code class="name">var <span class="ident">open</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.HdrFormat"><code class="flex name class">
+<span>class <span class="ident">HdrFormat</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class HdrFormat(Enum):
+    sdr = &#34;sdr&#34;
+    hdr10 = &#34;hdr10&#34;
+    hdr10_plus = &#34;hdr10_plus&#34;
+    hlg = &#34;hlg&#34;
+    dolby_vision = &#34;dolby_vision&#34;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.HdrFormat.dolby_vision"><code class="name">var <span class="ident">dolby_vision</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.HdrFormat.hdr10"><code class="name">var <span class="ident">hdr10</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.HdrFormat.hdr10_plus"><code class="name">var <span class="ident">hdr10_plus</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.HdrFormat.hlg"><code class="name">var <span class="ident">hlg</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.HdrFormat.sdr"><code class="name">var <span class="ident">sdr</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.MoovAtomPosition"><code class="flex name class">
+<span>class <span class="ident">MoovAtomPosition</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MoovAtomPosition(Enum):
+    start = &#34;start&#34;
+    end = &#34;end&#34;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.MoovAtomPosition.end"><code class="name">var <span class="ident">end</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.MoovAtomPosition.start"><code class="name">var <span class="ident">start</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.ScanType"><code class="flex name class">
+<span>class <span class="ident">ScanType</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ScanType(Enum):
+    progressive = &#34;progressive&#34;
+    interlaced = &#34;interlaced&#34;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.ScanType.interlaced"><code class="name">var <span class="ident">interlaced</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.ScanType.progressive"><code class="name">var <span class="ident">progressive</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset"><code class="flex name class">
 <span>class <span class="ident">VideoAsset</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -57,20 +652,74 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class VideoAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    bitrate_kbps: Annotated[
-        int | None, Field(description=&#39;Video bitrate in kilobits per second&#39;, ge=1)
+    audio_bit_depth: Annotated[AudioBitDepth | None, Field(description=&#34;Audio bit depth&#34;)] = None
+    audio_bitrate_kbps: Annotated[
+        int | None, Field(description=&#34;Audio bitrate in kilobits per second&#34;, ge=1)
     ] = None
-    duration_ms: Annotated[
-        int | None, Field(description=&#39;Video duration in milliseconds&#39;, ge=1)
+    audio_channels: Annotated[
+        AudioChannels | None, Field(description=&#34;Audio channel configuration&#34;)
     ] = None
-    format: Annotated[str | None, Field(description=&#39;Video file format (mp4, webm, mov, etc.)&#39;)] = (
+    audio_codec: Annotated[
+        str | None,
+        Field(description=&#34;Audio codec used (aac, aac_lc, he_aac, pcm, mp3, ac3, eac3, etc.)&#34;),
+    ] = None
+    audio_loudness_lufs: Annotated[
+        float | None, Field(description=&#34;Integrated loudness in LUFS&#34;)
+    ] = None
+    audio_sampling_rate_hz: Annotated[
+        int | None, Field(description=&#34;Audio sampling rate in Hz (e.g., 44100, 48000)&#34;)
+    ] = None
+    audio_true_peak_dbfs: Annotated[float | None, Field(description=&#34;True peak level in dBFS&#34;)] = (
         None
     )
-    height: Annotated[int, Field(description=&#39;Height in pixels&#39;, ge=1)]
-    url: Annotated[AnyUrl, Field(description=&#39;URL to the video asset&#39;)]
-    width: Annotated[int, Field(description=&#39;Width in pixels&#39;, ge=1)]</code></pre>
+    chroma_subsampling: Annotated[
+        ChromaSubsampling | None, Field(description=&#34;Chroma subsampling format&#34;)
+    ] = None
+    color_space: Annotated[ColorSpace | None, Field(description=&#34;Color space of the video&#34;)] = None
+    container_format: Annotated[
+        str | None, Field(description=&#34;Video container format (mp4, webm, mov, etc.)&#34;)
+    ] = None
+    duration_ms: Annotated[
+        int | None, Field(description=&#34;Video duration in milliseconds&#34;, ge=1)
+    ] = None
+    file_size_bytes: Annotated[int | None, Field(description=&#34;File size in bytes&#34;, ge=1)] = None
+    frame_rate: Annotated[
+        str | None,
+        Field(
+            description=&#34;Frame rate as string to preserve precision (e.g., &#39;23.976&#39;, &#39;29.97&#39;, &#39;30&#39;)&#34;
+        ),
+    ] = None
+    frame_rate_type: Annotated[
+        FrameRateType | None,
+        Field(description=&#34;Whether the video uses constant (CFR) or variable (VFR) frame rate&#34;),
+    ] = None
+    gop_interval_seconds: Annotated[
+        float | None, Field(description=&#34;GOP/keyframe interval in seconds&#34;)
+    ] = None
+    gop_type: Annotated[GopType | None, Field(description=&#34;GOP structure type&#34;)] = None
+    has_audio: Annotated[
+        bool | None, Field(description=&#34;Whether the video contains an audio track&#34;)
+    ] = None
+    hdr_format: Annotated[
+        HdrFormat | None,
+        Field(description=&#34;HDR format if applicable, or &#39;sdr&#39; for standard dynamic range&#34;),
+    ] = None
+    height: Annotated[int, Field(description=&#34;Height in pixels&#34;, ge=1)]
+    moov_atom_position: Annotated[
+        MoovAtomPosition | None, Field(description=&#34;Position of moov atom in MP4 container&#34;)
+    ] = None
+    scan_type: Annotated[ScanType | None, Field(description=&#34;Scan type of the video&#34;)] = None
+    url: Annotated[AnyUrl, Field(description=&#34;URL to the video asset&#34;)]
+    video_bit_depth: Annotated[VideoBitDepth | None, Field(description=&#34;Video bit depth&#34;)] = None
+    video_bitrate_kbps: Annotated[
+        int | None, Field(description=&#34;Video stream bitrate in kilobits per second&#34;, ge=1)
+    ] = None
+    video_codec: Annotated[
+        str | None, Field(description=&#34;Video codec used (h264, h265, vp9, av1, prores, etc.)&#34;)
+    ] = None
+    width: Annotated[int, Field(description=&#34;Width in pixels&#34;, ge=1)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -87,7 +736,43 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.bitrate_kbps"><code class="name">var <span class="ident">bitrate_kbps</span> : int | None</code></dt>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_bit_depth"><code class="name">var <span class="ident">audio_bit_depth</span> : <a title="adcp.types.generated_poc.core.assets.video_asset.AudioBitDepth" href="#adcp.types.generated_poc.core.assets.video_asset.AudioBitDepth">AudioBitDepth</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_bitrate_kbps"><code class="name">var <span class="ident">audio_bitrate_kbps</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_channels"><code class="name">var <span class="ident">audio_channels</span> : <a title="adcp.types.generated_poc.core.assets.video_asset.AudioChannels" href="#adcp.types.generated_poc.core.assets.video_asset.AudioChannels">AudioChannels</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_codec"><code class="name">var <span class="ident">audio_codec</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_loudness_lufs"><code class="name">var <span class="ident">audio_loudness_lufs</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_sampling_rate_hz"><code class="name">var <span class="ident">audio_sampling_rate_hz</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_true_peak_dbfs"><code class="name">var <span class="ident">audio_true_peak_dbfs</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.chroma_subsampling"><code class="name">var <span class="ident">chroma_subsampling</span> : <a title="adcp.types.generated_poc.core.assets.video_asset.ChromaSubsampling" href="#adcp.types.generated_poc.core.assets.video_asset.ChromaSubsampling">ChromaSubsampling</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.color_space"><code class="name">var <span class="ident">color_space</span> : <a title="adcp.types.generated_poc.core.assets.video_asset.ColorSpace" href="#adcp.types.generated_poc.core.assets.video_asset.ColorSpace">ColorSpace</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.container_format"><code class="name">var <span class="ident">container_format</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -95,7 +780,31 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.format"><code class="name">var <span class="ident">format</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.file_size_bytes"><code class="name">var <span class="ident">file_size_bytes</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.frame_rate"><code class="name">var <span class="ident">frame_rate</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.frame_rate_type"><code class="name">var <span class="ident">frame_rate_type</span> : <a title="adcp.types.generated_poc.core.assets.video_asset.FrameRateType" href="#adcp.types.generated_poc.core.assets.video_asset.FrameRateType">FrameRateType</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.gop_interval_seconds"><code class="name">var <span class="ident">gop_interval_seconds</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.gop_type"><code class="name">var <span class="ident">gop_type</span> : <a title="adcp.types.generated_poc.core.assets.video_asset.GopType" href="#adcp.types.generated_poc.core.assets.video_asset.GopType">GopType</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.has_audio"><code class="name">var <span class="ident">has_audio</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.hdr_format"><code class="name">var <span class="ident">hdr_format</span> : <a title="adcp.types.generated_poc.core.assets.video_asset.HdrFormat" href="#adcp.types.generated_poc.core.assets.video_asset.HdrFormat">HdrFormat</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -107,7 +816,27 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.moov_atom_position"><code class="name">var <span class="ident">moov_atom_position</span> : <a title="adcp.types.generated_poc.core.assets.video_asset.MoovAtomPosition" href="#adcp.types.generated_poc.core.assets.video_asset.MoovAtomPosition">MoovAtomPosition</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.scan_type"><code class="name">var <span class="ident">scan_type</span> : <a title="adcp.types.generated_poc.core.assets.video_asset.ScanType" href="#adcp.types.generated_poc.core.assets.video_asset.ScanType">ScanType</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.video_bit_depth"><code class="name">var <span class="ident">video_bit_depth</span> : <a title="adcp.types.generated_poc.core.assets.video_asset.VideoBitDepth" href="#adcp.types.generated_poc.core.assets.video_asset.VideoBitDepth">VideoBitDepth</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.video_bitrate_kbps"><code class="name">var <span class="ident">video_bitrate_kbps</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.video_codec"><code class="name">var <span class="ident">video_codec</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -127,6 +856,44 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoBitDepth"><code class="flex name class">
+<span>class <span class="ident">VideoBitDepth</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class VideoBitDepth(IntEnum):
+    integer_8 = 8
+    integer_10 = 10
+    integer_12 = 12</code></pre>
+</details>
+<div class="desc"><p>Enum where members are also (and must be) ints</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.IntEnum</li>
+<li>builtins.int</li>
+<li>enum.ReprEnum</li>
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoBitDepth.integer_10"><code class="name">var <span class="ident">integer_10</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoBitDepth.integer_12"><code class="name">var <span class="ident">integer_12</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoBitDepth.integer_8"><code class="name">var <span class="ident">integer_8</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 </dl>
 </section>
 </article>
@@ -143,15 +910,116 @@ validated to form a valid model.</p>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
+<h4><code><a title="adcp.types.generated_poc.core.assets.video_asset.AudioBitDepth" href="#adcp.types.generated_poc.core.assets.video_asset.AudioBitDepth">AudioBitDepth</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.AudioBitDepth.integer_16" href="#adcp.types.generated_poc.core.assets.video_asset.AudioBitDepth.integer_16">integer_16</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.AudioBitDepth.integer_24" href="#adcp.types.generated_poc.core.assets.video_asset.AudioBitDepth.integer_24">integer_24</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.AudioBitDepth.integer_32" href="#adcp.types.generated_poc.core.assets.video_asset.AudioBitDepth.integer_32">integer_32</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.assets.video_asset.AudioChannels" href="#adcp.types.generated_poc.core.assets.video_asset.AudioChannels">AudioChannels</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.AudioChannels.field_5_1" href="#adcp.types.generated_poc.core.assets.video_asset.AudioChannels.field_5_1">field_5_1</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.AudioChannels.field_7_1" href="#adcp.types.generated_poc.core.assets.video_asset.AudioChannels.field_7_1">field_7_1</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.AudioChannels.mono" href="#adcp.types.generated_poc.core.assets.video_asset.AudioChannels.mono">mono</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.AudioChannels.stereo" href="#adcp.types.generated_poc.core.assets.video_asset.AudioChannels.stereo">stereo</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.assets.video_asset.ChromaSubsampling" href="#adcp.types.generated_poc.core.assets.video_asset.ChromaSubsampling">ChromaSubsampling</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.ChromaSubsampling.field_4_2_0" href="#adcp.types.generated_poc.core.assets.video_asset.ChromaSubsampling.field_4_2_0">field_4_2_0</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.ChromaSubsampling.field_4_2_2" href="#adcp.types.generated_poc.core.assets.video_asset.ChromaSubsampling.field_4_2_2">field_4_2_2</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.ChromaSubsampling.field_4_4_4" href="#adcp.types.generated_poc.core.assets.video_asset.ChromaSubsampling.field_4_4_4">field_4_4_4</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.assets.video_asset.ColorSpace" href="#adcp.types.generated_poc.core.assets.video_asset.ColorSpace">ColorSpace</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.ColorSpace.dci_p3" href="#adcp.types.generated_poc.core.assets.video_asset.ColorSpace.dci_p3">dci_p3</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.ColorSpace.rec2020" href="#adcp.types.generated_poc.core.assets.video_asset.ColorSpace.rec2020">rec2020</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.ColorSpace.rec2100" href="#adcp.types.generated_poc.core.assets.video_asset.ColorSpace.rec2100">rec2100</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.ColorSpace.rec709" href="#adcp.types.generated_poc.core.assets.video_asset.ColorSpace.rec709">rec709</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.ColorSpace.srgb" href="#adcp.types.generated_poc.core.assets.video_asset.ColorSpace.srgb">srgb</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.assets.video_asset.FrameRateType" href="#adcp.types.generated_poc.core.assets.video_asset.FrameRateType">FrameRateType</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.FrameRateType.constant" href="#adcp.types.generated_poc.core.assets.video_asset.FrameRateType.constant">constant</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.FrameRateType.variable" href="#adcp.types.generated_poc.core.assets.video_asset.FrameRateType.variable">variable</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.assets.video_asset.GopType" href="#adcp.types.generated_poc.core.assets.video_asset.GopType">GopType</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.GopType.closed" href="#adcp.types.generated_poc.core.assets.video_asset.GopType.closed">closed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.GopType.open" href="#adcp.types.generated_poc.core.assets.video_asset.GopType.open">open</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.assets.video_asset.HdrFormat" href="#adcp.types.generated_poc.core.assets.video_asset.HdrFormat">HdrFormat</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.HdrFormat.dolby_vision" href="#adcp.types.generated_poc.core.assets.video_asset.HdrFormat.dolby_vision">dolby_vision</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.HdrFormat.hdr10" href="#adcp.types.generated_poc.core.assets.video_asset.HdrFormat.hdr10">hdr10</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.HdrFormat.hdr10_plus" href="#adcp.types.generated_poc.core.assets.video_asset.HdrFormat.hdr10_plus">hdr10_plus</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.HdrFormat.hlg" href="#adcp.types.generated_poc.core.assets.video_asset.HdrFormat.hlg">hlg</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.HdrFormat.sdr" href="#adcp.types.generated_poc.core.assets.video_asset.HdrFormat.sdr">sdr</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.assets.video_asset.MoovAtomPosition" href="#adcp.types.generated_poc.core.assets.video_asset.MoovAtomPosition">MoovAtomPosition</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.MoovAtomPosition.end" href="#adcp.types.generated_poc.core.assets.video_asset.MoovAtomPosition.end">end</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.MoovAtomPosition.start" href="#adcp.types.generated_poc.core.assets.video_asset.MoovAtomPosition.start">start</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.assets.video_asset.ScanType" href="#adcp.types.generated_poc.core.assets.video_asset.ScanType">ScanType</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.ScanType.interlaced" href="#adcp.types.generated_poc.core.assets.video_asset.ScanType.interlaced">interlaced</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.ScanType.progressive" href="#adcp.types.generated_poc.core.assets.video_asset.ScanType.progressive">progressive</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset">VideoAsset</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.bitrate_kbps" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.bitrate_kbps">bitrate_kbps</a></code></li>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_bit_depth" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_bit_depth">audio_bit_depth</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_bitrate_kbps" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_bitrate_kbps">audio_bitrate_kbps</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_channels" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_channels">audio_channels</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_codec" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_codec">audio_codec</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_loudness_lufs" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_loudness_lufs">audio_loudness_lufs</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_sampling_rate_hz" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_sampling_rate_hz">audio_sampling_rate_hz</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_true_peak_dbfs" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_true_peak_dbfs">audio_true_peak_dbfs</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.chroma_subsampling" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.chroma_subsampling">chroma_subsampling</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.color_space" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.color_space">color_space</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.container_format" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.container_format">container_format</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.duration_ms" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.duration_ms">duration_ms</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.format" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.format">format</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.file_size_bytes" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.file_size_bytes">file_size_bytes</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.frame_rate" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.frame_rate">frame_rate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.frame_rate_type" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.frame_rate_type">frame_rate_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.gop_interval_seconds" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.gop_interval_seconds">gop_interval_seconds</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.gop_type" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.gop_type">gop_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.has_audio" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.has_audio">has_audio</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.hdr_format" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.hdr_format">hdr_format</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.height" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.height">height</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.model_config" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.moov_atom_position" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.moov_atom_position">moov_atom_position</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.scan_type" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.scan_type">scan_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.url" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.url">url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.video_bit_depth" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.video_bit_depth">video_bit_depth</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.video_bitrate_kbps" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.video_bitrate_kbps">video_bitrate_kbps</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.video_codec" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.video_codec">video_codec</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.width" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.width">width</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoBitDepth" href="#adcp.types.generated_poc.core.assets.video_asset.VideoBitDepth">VideoBitDepth</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoBitDepth.integer_10" href="#adcp.types.generated_poc.core.assets.video_asset.VideoBitDepth.integer_10">integer_10</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoBitDepth.integer_12" href="#adcp.types.generated_poc.core.assets.video_asset.VideoBitDepth.integer_12">integer_12</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoBitDepth.integer_8" href="#adcp.types.generated_poc.core.assets.video_asset.VideoBitDepth.integer_8">integer_8</a></code></li>
 </ul>
 </li>
 </ul>

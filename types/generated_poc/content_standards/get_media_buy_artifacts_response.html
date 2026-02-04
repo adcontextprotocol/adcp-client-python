@@ -56,27 +56,27 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Artifact(AdCPBaseModel):
-    artifact: Annotated[artifact_1.Artifact, Field(description=&#39;Full artifact with content assets&#39;)]
+    artifact: Annotated[artifact_1.Artifact, Field(description=&#34;Full artifact with content assets&#34;)]
     brand_context: Annotated[
         BrandContext | None,
         Field(
-            description=&#39;Brand information for policy evaluation. Schema TBD - placeholder for brand identifiers.&#39;
+            description=&#34;Brand information for policy evaluation. Schema TBD - placeholder for brand identifiers.&#34;
         ),
     ] = None
     channel: Annotated[
-        str | None, Field(description=&#39;Channel type (e.g., display, video, audio, social)&#39;)
+        str | None, Field(description=&#34;Channel type (e.g., display, video, audio, social)&#34;)
     ] = None
     country: Annotated[
-        str | None, Field(description=&#39;ISO 3166-1 alpha-2 country code where delivery occurred&#39;)
+        str | None, Field(description=&#34;ISO 3166-1 alpha-2 country code where delivery occurred&#34;)
     ] = None
     local_verdict: Annotated[
         LocalVerdict | None, Field(description=&#34;Seller&#39;s local model verdict for this artifact&#34;)
     ] = None
     package_id: Annotated[
-        str | None, Field(description=&#39;Which package this delivery belongs to&#39;)
+        str | None, Field(description=&#34;Which package this delivery belongs to&#34;)
     ] = None
-    record_id: Annotated[str, Field(description=&#39;Unique identifier for this delivery record&#39;)]
-    timestamp: Annotated[AwareDatetime | None, Field(description=&#39;When the delivery occurred&#39;)] = (
+    record_id: Annotated[str, Field(description=&#34;Unique identifier for this delivery record&#34;)]
+    timestamp: Annotated[AwareDatetime | None, Field(description=&#34;When the delivery occurred&#34;)] = (
         None
     )</code></pre>
 </details>
@@ -153,8 +153,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class BrandContext(AdCPBaseModel):
-    brand_id: Annotated[str | None, Field(description=&#39;Brand identifier&#39;)] = None
-    sku_id: Annotated[str | None, Field(description=&#39;Product/SKU identifier if applicable&#39;)] = None</code></pre>
+    brand_id: Annotated[str | None, Field(description=&#34;Brand identifier&#34;)] = None
+    sku_id: Annotated[str | None, Field(description=&#34;Product/SKU identifier if applicable&#34;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -210,8 +210,8 @@ validated to form a valid model.</p>
     root: Annotated[
         GetMediaBuyArtifactsResponse1 | GetMediaBuyArtifactsResponse2,
         Field(
-            description=&#39;Response containing content artifacts from a media buy for validation&#39;,
-            title=&#39;Get Media Buy Artifacts Response&#39;,
+            description=&#34;Response containing content artifacts from a media buy for validation&#34;,
+            title=&#34;Get Media Buy Artifacts Response&#34;,
         ),
     ]</code></pre>
 </details>
@@ -265,19 +265,19 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetMediaBuyArtifactsResponse1(AdCPBaseModel):
     artifacts: Annotated[
-        list[Artifact], Field(description=&#39;Delivery records with full artifact content&#39;)
+        list[Artifact], Field(description=&#34;Delivery records with full artifact content&#34;)
     ]
     context: context_1.ContextObject | None = None
     errors: Annotated[
-        Any | None, Field(description=&#39;Field must not be present in success response&#39;)
+        Any | None, Field(description=&#34;Field must not be present in success response&#34;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
-    media_buy_id: Annotated[str, Field(description=&#39;Media buy these artifacts belong to&#39;)]
+    media_buy_id: Annotated[str, Field(description=&#34;Media buy these artifacts belong to&#34;)]
     pagination: Annotated[
-        Pagination | None, Field(description=&#39;Pagination information for large result sets&#39;)
+        Pagination | None, Field(description=&#34;Pagination information for large result sets&#34;)
     ] = None
     sampling_info: Annotated[
-        SamplingInfo | None, Field(description=&#39;Information about how the sample was generated&#39;)
+        SamplingInfo | None, Field(description=&#34;Information about how the sample was generated&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -353,7 +353,7 @@ validated to form a valid model.</p>
     errors: list[error.Error]
     ext: ext_1.ExtensionObject | None = None
     media_buy_id: Annotated[
-        Any | None, Field(description=&#39;Field must not be present in error response&#39;)
+        Any | None, Field(description=&#34;Field must not be present in error response&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -413,9 +413,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class LocalVerdict(Enum):
-    pass_ = &#39;pass&#39;
-    fail = &#39;fail&#39;
-    unevaluated = &#39;unevaluated&#39;</code></pre>
+    pass_ = &#34;pass&#34;
+    fail = &#34;fail&#34;
+    unevaluated = &#34;unevaluated&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -482,10 +482,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Method(Enum):
-    random = &#39;random&#39;
-    stratified = &#39;stratified&#39;
-    recent = &#39;recent&#39;
-    failures_only = &#39;failures_only&#39;</code></pre>
+    random = &#34;random&#34;
+    stratified = &#34;stratified&#34;
+    recent = &#34;recent&#34;
+    failures_only = &#34;failures_only&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -556,8 +556,8 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Pagination(AdCPBaseModel):
-    cursor: Annotated[str | None, Field(description=&#39;Cursor for fetching the next page&#39;)] = None
-    has_more: Annotated[bool | None, Field(description=&#39;Whether more results are available&#39;)] = None</code></pre>
+    cursor: Annotated[str | None, Field(description=&#34;Cursor for fetching the next page&#34;)] = None
+    has_more: Annotated[bool | None, Field(description=&#34;Whether more results are available&#34;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -608,15 +608,15 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class SamplingInfo(AdCPBaseModel):
-    effective_rate: Annotated[float | None, Field(description=&#39;Actual sampling rate achieved&#39;)] = (
+    effective_rate: Annotated[float | None, Field(description=&#34;Actual sampling rate achieved&#34;)] = (
         None
     )
-    method: Annotated[Method | None, Field(description=&#39;Sampling method used&#39;)] = None
+    method: Annotated[Method | None, Field(description=&#34;Sampling method used&#34;)] = None
     sampled_count: Annotated[
-        int | None, Field(description=&#39;Number of artifacts in this response&#39;)
+        int | None, Field(description=&#34;Number of artifacts in this response&#34;)
     ] = None
     total_deliveries: Annotated[
-        int | None, Field(description=&#39;Total deliveries in the time range&#39;)
+        int | None, Field(description=&#34;Total deliveries in the time range&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

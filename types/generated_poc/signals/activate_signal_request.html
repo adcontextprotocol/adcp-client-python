@@ -57,19 +57,19 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class ActivateSignalRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     context: context_1.ContextObject | None = None
     deployments: Annotated[
         list[destination.Destination],
         Field(
-            description=&#39;Target deployment(s) for activation. If the authenticated caller matches one of these deployment targets, activation keys will be included in the response.&#39;,
+            description=&#34;Target deployment(s) for activation. If the authenticated caller matches one of these deployment targets, activation keys will be included in the response.&#34;,
             min_length=1,
         ),
     ]
     ext: ext_1.ExtensionObject | None = None
     signal_agent_segment_id: Annotated[
-        str, Field(description=&#39;The universal identifier for the signal to activate&#39;)
+        str, Field(description=&#34;The universal identifier for the signal to activate&#34;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

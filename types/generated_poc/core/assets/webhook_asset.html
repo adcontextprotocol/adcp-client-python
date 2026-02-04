@@ -63,7 +63,7 @@ el.replaceWith(d);
         str | None, Field(description=&#34;Header name for HMAC signature (e.g., &#39;X-Signature&#39;)&#34;)
     ] = None
     method: Annotated[
-        webhook_security_method.WebhookSecurityMethod, Field(description=&#39;Authentication method&#39;)
+        webhook_security_method.WebhookSecurityMethod, Field(description=&#34;Authentication method&#34;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -120,31 +120,31 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class WebhookAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    method: Annotated[http_method.HttpMethod | None, Field(description=&#39;HTTP method&#39;)] = (
+    method: Annotated[http_method.HttpMethod | None, Field(description=&#34;HTTP method&#34;)] = (
         http_method.HttpMethod.POST
     )
     required_macros: Annotated[
         list[str] | None,
-        Field(description=&#39;Universal macros that must be provided for webhook to function&#39;),
+        Field(description=&#34;Universal macros that must be provided for webhook to function&#34;),
     ] = None
     response_type: Annotated[
         webhook_response_type.WebhookResponseType,
-        Field(description=&#39;Expected content type of webhook response&#39;),
+        Field(description=&#34;Expected content type of webhook response&#34;),
     ]
-    security: Annotated[Security, Field(description=&#39;Security configuration for webhook calls&#39;)]
+    security: Annotated[Security, Field(description=&#34;Security configuration for webhook calls&#34;)]
     supported_macros: Annotated[
         list[str] | None,
         Field(
-            description=&#39;Universal macros that can be passed to webhook (e.g., {DEVICE_TYPE}, {COUNTRY})&#39;
+            description=&#34;Universal macros that can be passed to webhook (e.g., {DEVICE_TYPE}, {COUNTRY})&#34;
         ),
     ] = None
     timeout_ms: Annotated[
         int | None,
-        Field(description=&#39;Maximum time to wait for response in milliseconds&#39;, ge=10, le=5000),
+        Field(description=&#34;Maximum time to wait for response in milliseconds&#34;, ge=10, le=5000),
     ] = 500
-    url: Annotated[AnyUrl, Field(description=&#39;Webhook URL to call for dynamic content&#39;)]</code></pre>
+    url: Annotated[AnyUrl, Field(description=&#34;Webhook URL to call for dynamic content&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null

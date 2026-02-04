@@ -57,10 +57,10 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Identifier(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     type: Annotated[
-        identifier_types.PropertyIdentifierTypes, Field(description=&#39;Type of identifier&#39;)
+        identifier_types.PropertyIdentifierTypes, Field(description=&#34;Type of identifier&#34;)
     ]
     value: Annotated[
         str,

@@ -58,23 +58,23 @@ el.replaceWith(d);
 <pre><code class="python">class GetMediaBuyArtifactsRequest(AdCPBaseModel):
     context: context_1.ContextObject | None = None
     cursor: Annotated[
-        str | None, Field(description=&#39;Pagination cursor for fetching subsequent pages&#39;)
+        str | None, Field(description=&#34;Pagination cursor for fetching subsequent pages&#34;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
     limit: Annotated[
-        int | None, Field(description=&#39;Maximum artifacts to return per request&#39;, ge=1, le=10000)
+        int | None, Field(description=&#34;Maximum artifacts to return per request&#34;, ge=1, le=10000)
     ] = 1000
-    media_buy_id: Annotated[str, Field(description=&#39;Media buy to get artifacts from&#39;)]
+    media_buy_id: Annotated[str, Field(description=&#34;Media buy to get artifacts from&#34;)]
     package_ids: Annotated[
-        list[str] | None, Field(description=&#39;Filter to specific packages within the media buy&#39;)
+        list[str] | None, Field(description=&#34;Filter to specific packages within the media buy&#34;)
     ] = None
     sampling: Annotated[
         Sampling | None,
         Field(
-            description=&#39;Sampling parameters. Defaults to the sampling rate agreed in the media buy.&#39;
+            description=&#34;Sampling parameters. Defaults to the sampling rate agreed in the media buy.&#34;
         ),
     ] = None
-    time_range: Annotated[TimeRange | None, Field(description=&#39;Filter to specific time period&#39;)] = (
+    time_range: Annotated[TimeRange | None, Field(description=&#34;Filter to specific time period&#34;)] = (
         None
     )</code></pre>
 </details>
@@ -151,10 +151,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Method(Enum):
-    random = &#39;random&#39;
-    stratified = &#39;stratified&#39;
-    recent = &#39;recent&#39;
-    failures_only = &#39;failures_only&#39;</code></pre>
+    random = &#34;random&#34;
+    stratified = &#34;stratified&#34;
+    recent = &#34;recent&#34;
+    failures_only = &#34;failures_only&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -225,11 +225,11 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Sampling(AdCPBaseModel):
-    method: Annotated[Method | None, Field(description=&#39;How to select the sample&#39;)] = None
+    method: Annotated[Method | None, Field(description=&#34;How to select the sample&#34;)] = None
     rate: Annotated[
         float | None,
         Field(
-            description=&#39;Sampling rate (0-1). 1.0 = all deliveries, 0.25 = 25% sample.&#39;,
+            description=&#34;Sampling rate (0-1). 1.0 = all deliveries, 0.25 = 25% sample.&#34;,
             ge=0.0,
             le=1.0,
         ),
@@ -284,8 +284,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class TimeRange(AdCPBaseModel):
-    end: Annotated[AwareDatetime | None, Field(description=&#39;End of time range (exclusive)&#39;)] = None
-    start: Annotated[AwareDatetime | None, Field(description=&#39;Start of time range (inclusive)&#39;)] = (
+    end: Annotated[AwareDatetime | None, Field(description=&#34;End of time range (exclusive)&#34;)] = None
+    start: Annotated[AwareDatetime | None, Field(description=&#34;Start of time range (inclusive)&#34;)] = (
         None
     )</code></pre>
 </details>
