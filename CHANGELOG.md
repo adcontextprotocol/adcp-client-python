@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v3.1.0...v3.2.0) (2026-02-04)
+
+
+### Features
+
+* export A2UI types from public API ([#125](https://github.com/adcontextprotocol/adcp-client-python/issues/125)) ([acc2239](https://github.com/adcontextprotocol/adcp-client-python/commit/acc223961e8b0f3108e9b14dd90b3376533269cc))
+
 ## [3.1.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v3.0.0...v3.1.0) (2026-01-26)
 
 
