@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.3.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v3.2.0...v3.3.0) (2026-02-12)
+
+
+### Features
+
+* sync ADCP schema to 3.0.0-beta.3 with new operations and forecasting ([#127](https://github.com/adcontextprotocol/adcp-client-python/issues/127)) ([bb611c3](https://github.com/adcontextprotocol/adcp-client-python/commit/bb611c3ad011990bc85f7562cf764ba7e5eb06c1))
+
 ## [3.2.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v3.1.0...v3.2.0) (2026-02-04)
 
 
