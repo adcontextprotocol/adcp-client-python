@@ -121,6 +121,15 @@ class ADCPHandler(ABC):
         """
         return not_supported("build_creative is not implemented by this agent")
 
+    async def preview_creative(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -> Any:
+        """Preview a creative rendering.
+
+        Override this to provide creative preview functionality.
+        """
+        return not_supported("preview_creative is not implemented by this agent")
+
     async def get_creative_delivery(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> Any:

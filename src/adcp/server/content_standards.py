@@ -413,6 +413,12 @@ class ContentStandardsHandler(ADCPHandler):
         """Not supported by Content Standards agents."""
         return not_supported("build_creative is not supported by Content Standards agents.")
 
+    async def preview_creative(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -> NotImplementedResponse:
+        """Not supported by Content Standards agents."""
+        return not_supported("preview_creative is not supported by Content Standards agents.")
+
     async def get_creative_delivery(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:

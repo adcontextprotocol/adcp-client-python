@@ -149,6 +149,27 @@ async def test_all_client_methods():
     assert hasattr(client, "log_event")
     assert hasattr(client, "sync_event_sources")
     assert hasattr(client, "get_creative_delivery")
+    # V3 Protocol Discovery
+    assert hasattr(client, "get_adcp_capabilities")
+    # V3 Content Standards
+    assert hasattr(client, "create_content_standards")
+    assert hasattr(client, "get_content_standards")
+    assert hasattr(client, "list_content_standards")
+    assert hasattr(client, "update_content_standards")
+    assert hasattr(client, "calibrate_content")
+    assert hasattr(client, "validate_content_delivery")
+    assert hasattr(client, "get_media_buy_artifacts")
+    # V3 Sponsored Intelligence
+    assert hasattr(client, "si_get_offering")
+    assert hasattr(client, "si_initiate_session")
+    assert hasattr(client, "si_send_message")
+    assert hasattr(client, "si_terminate_session")
+    # V3 Governance (Property Lists)
+    assert hasattr(client, "create_property_list")
+    assert hasattr(client, "get_property_list")
+    assert hasattr(client, "list_property_lists")
+    assert hasattr(client, "update_property_list")
+    assert hasattr(client, "delete_property_list")
 
 
 @pytest.mark.parametrize(

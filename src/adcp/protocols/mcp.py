@@ -309,6 +309,7 @@ class MCPAdapter(ProtocolAdapter):
         """Call a tool using MCP protocol."""
         start_time = time.time() if self.agent_config.debug else None
         debug_info = None
+        debug_request: dict[str, Any] = {}
 
         try:
             session = await self._get_session()
@@ -397,7 +398,7 @@ class MCPAdapter(ProtocolAdapter):
             if self.agent_config.debug and start_time:
                 duration_ms = (time.time() - start_time) * 1000
                 debug_info = DebugInfo(
-                    request=debug_request if self.agent_config.debug else {},
+                    request=debug_request,
                     response={"error": str(e)},
                     duration_ms=duration_ms,
                 )

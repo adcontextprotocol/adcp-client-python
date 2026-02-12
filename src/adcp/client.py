@@ -1926,19 +1926,45 @@ class ADCPClient:
         # Map task types to their response types (using string literals, not enum)
         # Note: Some response types are Union types (e.g., ActivateSignalResponse = Success | Error)
         response_type_map: dict[str, type[BaseModel] | Any] = {
+            # Core operations
             "get_products": GetProductsResponse,
             "list_creative_formats": ListCreativeFormatsResponse,
-            "sync_creatives": SyncCreativesResponse,  # Union type
+            "sync_creatives": SyncCreativesResponse,
             "list_creatives": ListCreativesResponse,
+            "build_creative": BuildCreativeResponse,
+            "preview_creative": PreviewCreativeResponse,
+            "create_media_buy": CreateMediaBuyResponse,
+            "update_media_buy": UpdateMediaBuyResponse,
             "get_media_buy_delivery": GetMediaBuyDeliveryResponse,
             "get_signals": GetSignalsResponse,
-            "activate_signal": ActivateSignalResponse,  # Union type
+            "activate_signal": ActivateSignalResponse,
             "provide_performance_feedback": ProvidePerformanceFeedbackResponse,
             "list_accounts": ListAccountsResponse,
             "sync_accounts": SyncAccountsResponse,
             "log_event": LogEventResponse,
             "sync_event_sources": SyncEventSourcesResponse,
             "get_creative_delivery": GetCreativeDeliveryResponse,
+            # V3 Protocol Discovery
+            "get_adcp_capabilities": GetAdcpCapabilitiesResponse,
+            # V3 Content Standards
+            "create_content_standards": CreateContentStandardsResponse,
+            "get_content_standards": GetContentStandardsResponse,
+            "list_content_standards": ListContentStandardsResponse,
+            "update_content_standards": UpdateContentStandardsResponse,
+            "calibrate_content": CalibrateContentResponse,
+            "validate_content_delivery": ValidateContentDeliveryResponse,
+            "get_media_buy_artifacts": GetMediaBuyArtifactsResponse,
+            # V3 Sponsored Intelligence
+            "si_get_offering": SiGetOfferingResponse,
+            "si_initiate_session": SiInitiateSessionResponse,
+            "si_send_message": SiSendMessageResponse,
+            "si_terminate_session": SiTerminateSessionResponse,
+            # V3 Governance (Property Lists)
+            "create_property_list": CreatePropertyListResponse,
+            "get_property_list": GetPropertyListResponse,
+            "list_property_lists": ListPropertyListsResponse,
+            "update_property_list": UpdatePropertyListResponse,
+            "delete_property_list": DeletePropertyListResponse,
         }
 
         # Handle completed tasks with result parsing
@@ -2118,10 +2144,7 @@ class ADCPClient:
 
                     # Unwrap {"response": {...}} wrapper if present (ADK pattern)
                     if isinstance(adcp_data, dict) and "response" in adcp_data:
-                        if len(adcp_data) == 1:
-                            adcp_data = adcp_data["response"]
-                        else:
-                            adcp_data = adcp_data["response"]
+                        adcp_data = adcp_data["response"]
 
                 # Extract TextPart for human-readable message
                 for part in payload.status.message.parts:
@@ -2158,10 +2181,7 @@ class ADCPClient:
 
                         # Unwrap {"response": {...}} wrapper if present (ADK pattern)
                         if isinstance(adcp_data, dict) and "response" in adcp_data:
-                            if len(adcp_data) == 1:
-                                adcp_data = adcp_data["response"]
-                            else:
-                                adcp_data = adcp_data["response"]
+                            adcp_data = adcp_data["response"]
 
                     # Extract TextPart for human-readable message
                     for part in target_artifact.parts:

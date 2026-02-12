@@ -389,10 +389,6 @@ class A2AAdapter(ProtocolAdapter):
         # Some A2A implementations (e.g., ADK) wrap the response in {"response": {...}}
         # Unwrap it to get the actual AdCP payload if present
         if isinstance(data, dict) and "response" in data:
-            # If response is the only key, unwrap completely
-            if len(data) == 1:
-                return data["response"]
-            # If there are other keys alongside response, prefer the wrapped content
             return data["response"]
 
         return data

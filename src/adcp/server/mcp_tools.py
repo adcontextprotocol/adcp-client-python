@@ -79,6 +79,18 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "preview_creative",
+        "description": "Preview a creative rendering",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "format_id": {"type": "string"},
+                "creative_manifest": {"type": "object"},
+                "output_format": {"type": "string"},
+            },
+        },
+    },
+    {
         "name": "get_creative_delivery",
         "description": "Get creative delivery metrics",
         "inputSchema": {
