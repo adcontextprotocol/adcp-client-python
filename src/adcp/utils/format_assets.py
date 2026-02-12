@@ -21,7 +21,6 @@ import warnings
 from typing import TYPE_CHECKING, Any, Union
 
 from adcp.types.generated_poc.core.format import Assets as AssetsModel
-from adcp.types.generated_poc.core.format import Assets5 as Assets5Model
 
 if TYPE_CHECKING:
     from adcp.types.generated_poc.core.format import Assets, Assets5, Format
