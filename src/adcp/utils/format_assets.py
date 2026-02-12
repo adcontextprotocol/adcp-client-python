@@ -18,15 +18,18 @@ Example:
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any
 
 from adcp.types.generated_poc.core.format import Assets as AssetsModel
 
 if TYPE_CHECKING:
-    from adcp.types.generated_poc.core.format import Assets, Assets5, Format
+    from adcp.types.generated_poc.core.format import Format
 
-# Type alias for any format asset (individual or repeatable group)
-FormatAsset = Union["Assets", "Assets5"]
+# Type alias for any format asset (individual or repeatable group).
+# Uses Any because the schema generates many numbered discriminated union
+# variants (Assets, Assets5, ..., Assets17) that all share the same
+# base interface (asset_id, required, item_type, asset_type).
+FormatAsset = Any
 
 
 def get_format_assets(format: Format) -> list[FormatAsset]:

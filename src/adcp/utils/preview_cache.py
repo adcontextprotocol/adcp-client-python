@@ -429,7 +429,7 @@ def _create_sample_manifest_for_format(fmt: Format) -> CreativeManifest | None:
                 group_assets = getattr(asset, "assets", [])
                 for group_asset in group_assets:
                     if isinstance(group_asset, dict):
-                        asset_id = group_asset.get("asset_id")
+                        asset_id = str(group_asset.get("asset_id", ""))
                         asset_type = group_asset.get("asset_type")
                     else:
                         asset_id = group_asset.asset_id
