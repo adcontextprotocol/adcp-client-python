@@ -46,6 +46,70 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.types.generated_poc.core.reporting_capabilities.DateRangeSupport"><code class="flex name class">
+<span>class <span class="ident">DateRangeSupport</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DateRangeSupport(Enum):
+    date_range = &#39;date_range&#39;
+    lifetime_only = &#39;lifetime_only&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.reporting_capabilities.DateRangeSupport.date_range"><code class="name">var <span class="ident">date_range</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.reporting_capabilities.DateRangeSupport.lifetime_only"><code class="name">var <span class="ident">lifetime_only</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities"><code class="flex name class">
 <span>class <span class="ident">ReportingCapabilities</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -57,39 +121,51 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class ReportingCapabilities(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     available_metrics: Annotated[
         list[available_metric.AvailableMetric],
         Field(
-            description=&#34;Metrics available in reporting. Impressions and spend are always implicitly included.&#34;,
+            description=&#34;Metrics available in reporting. Impressions and spend are always implicitly included. When a creative format declares reported_metrics, buyers receive the intersection of these product-level metrics and the format&#39;s reported_metrics.&#34;,
             examples=[
-                [&#34;impressions&#34;, &#34;spend&#34;, &#34;clicks&#34;, &#34;video_completions&#34;],
-                [&#34;impressions&#34;, &#34;spend&#34;, &#34;conversions&#34;],
+                [&#39;impressions&#39;, &#39;spend&#39;, &#39;clicks&#39;, &#39;video_completions&#39;],
+                [&#39;impressions&#39;, &#39;spend&#39;, &#39;conversions&#39;],
             ],
         ),
     ]
     available_reporting_frequencies: Annotated[
         list[reporting_frequency.ReportingFrequency],
-        Field(description=&#34;Supported reporting frequency options&#34;, min_length=1),
+        Field(description=&#39;Supported reporting frequency options&#39;, min_length=1),
+    ]
+    date_range_support: Annotated[
+        DateRangeSupport,
+        Field(
+            description=&#34;Whether delivery data can be filtered to arbitrary date ranges. &#39;date_range&#39; means the platform supports start_date/end_date parameters. &#39;lifetime_only&#39; means the platform returns campaign lifetime totals and date range parameters are not accepted.&#34;
+        ),
     ]
     expected_delay_minutes: Annotated[
         int,
         Field(
-            description=&#34;Expected delay in minutes before reporting data becomes available (e.g., 240 for 4-hour delay)&#34;,
+            description=&#39;Expected delay in minutes before reporting data becomes available (e.g., 240 for 4-hour delay)&#39;,
             examples=[240, 300, 1440],
             ge=0,
         ),
     ]
+    supports_creative_breakdown: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether this product supports creative-level metric breakdowns in delivery reporting (by_creative within by_package)&#39;
+        ),
+    ] = None
     supports_webhooks: Annotated[
         bool,
-        Field(description=&#34;Whether this product supports webhook-based reporting notifications&#34;),
+        Field(description=&#39;Whether this product supports webhook-based reporting notifications&#39;),
     ]
     timezone: Annotated[
         str,
         Field(
             description=&#34;Timezone for reporting periods. Use &#39;UTC&#39; or IANA timezone (e.g., &#39;America/New_York&#39;). Critical for daily/monthly frequency alignment.&#34;,
-            examples=[&#34;UTC&#34;, &#34;America/New_York&#34;, &#34;Europe/London&#34;, &#34;America/Los_Angeles&#34;],
+            examples=[&#39;UTC&#39;, &#39;America/New_York&#39;, &#39;Europe/London&#39;, &#39;America/Los_Angeles&#39;],
         ),
     ]</code></pre>
 </details>
@@ -116,11 +192,19 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.date_range_support"><code class="name">var <span class="ident">date_range_support</span> : <a title="adcp.types.generated_poc.core.reporting_capabilities.DateRangeSupport" href="#adcp.types.generated_poc.core.reporting_capabilities.DateRangeSupport">DateRangeSupport</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.expected_delay_minutes"><code class="name">var <span class="ident">expected_delay_minutes</span> : int</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_creative_breakdown"><code class="name">var <span class="ident">supports_creative_breakdown</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -160,12 +244,21 @@ validated to form a valid model.</p>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
+<h4><code><a title="adcp.types.generated_poc.core.reporting_capabilities.DateRangeSupport" href="#adcp.types.generated_poc.core.reporting_capabilities.DateRangeSupport">DateRangeSupport</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.DateRangeSupport.date_range" href="#adcp.types.generated_poc.core.reporting_capabilities.DateRangeSupport.date_range">date_range</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.DateRangeSupport.lifetime_only" href="#adcp.types.generated_poc.core.reporting_capabilities.DateRangeSupport.lifetime_only">lifetime_only</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities">ReportingCapabilities</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.available_metrics" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.available_metrics">available_metrics</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.available_reporting_frequencies" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.available_reporting_frequencies">available_reporting_frequencies</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.date_range_support" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.date_range_support">date_range_support</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.expected_delay_minutes" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.expected_delay_minutes">expected_delay_minutes</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.model_config" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_creative_breakdown" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_creative_breakdown">supports_creative_breakdown</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_webhooks" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_webhooks">supports_webhooks</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.timezone" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.timezone">timezone</a></code></li>
 </ul>

@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class CreativeAgent(AdCPBaseModel):
     agent_name: Annotated[
-        str | None, Field(description=&#34;Human-readable name for the creative agent&#34;)
+        str | None, Field(description=&#39;Human-readable name for the creative agent&#39;)
     ] = None
     agent_url: Annotated[
         AnyUrl,
@@ -67,7 +67,7 @@ el.replaceWith(d);
     ]
     capabilities: Annotated[
         list[creative_agent_capability.CreativeAgentCapability] | None,
-        Field(description=&#34;Capabilities this creative agent provides&#34;),
+        Field(description=&#39;Capabilities this creative agent provides&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -124,17 +124,17 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ListCreativeFormatsResponseCreativeAgent(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     creative_agents: Annotated[
         list[CreativeAgent] | None,
         Field(
-            description=&#34;Optional: Creative agents that provide additional formats. Buyers can recursively query these agents to discover more formats. No authentication required for list_creative_formats.&#34;
+            description=&#39;Optional: Creative agents that provide additional formats. Buyers can recursively query these agents to discover more formats. No authentication required for list_creative_formats.&#39;
         ),
     ] = None
     errors: Annotated[
-        list[error.Error] | None, Field(description=&#34;Task-specific errors and warnings&#34;)
+        list[error.Error] | None, Field(description=&#39;Task-specific errors and warnings&#39;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
     formats: Annotated[
@@ -142,7 +142,8 @@ validated to form a valid model.</p>
         Field(
             description=&#34;Full format definitions for all formats this agent supports. Each format&#39;s authoritative source is indicated by its agent_url field.&#34;
         ),
-    ]</code></pre>
+    ]
+    pagination: pagination_response.PaginationResponse | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -180,6 +181,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.creative.list_creative_formats_response.ListCreativeFormatsResponseCreativeAgent.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.creative.list_creative_formats_response.ListCreativeFormatsResponseCreativeAgent.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_response.PaginationResponse" href="../core/pagination_response.html#adcp.types.generated_poc.core.pagination_response.PaginationResponse">PaginationResponse</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -228,6 +233,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.creative.list_creative_formats_response.ListCreativeFormatsResponseCreativeAgent.ext" href="#adcp.types.generated_poc.creative.list_creative_formats_response.ListCreativeFormatsResponseCreativeAgent.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.list_creative_formats_response.ListCreativeFormatsResponseCreativeAgent.formats" href="#adcp.types.generated_poc.creative.list_creative_formats_response.ListCreativeFormatsResponseCreativeAgent.formats">formats</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.list_creative_formats_response.ListCreativeFormatsResponseCreativeAgent.model_config" href="#adcp.types.generated_poc.creative.list_creative_formats_response.ListCreativeFormatsResponseCreativeAgent.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.list_creative_formats_response.ListCreativeFormatsResponseCreativeAgent.pagination" href="#adcp.types.generated_poc.creative.list_creative_formats_response.ListCreativeFormatsResponseCreativeAgent.pagination">pagination</a></code></li>
 </ul>
 </li>
 </ul>

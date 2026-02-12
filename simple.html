@@ -265,31 +265,6 @@ print(products.products)</p>
             )
         return result.data
 
-    async def list_accounts(
-        self,
-        **kwargs: Any,
-    ) -&gt; ListAccountsResponse:
-        &#34;&#34;&#34;List billing accounts accessible to the authenticated agent.
-
-        Args:
-            **kwargs: Arguments passed to ListAccountsRequest
-
-        Returns:
-            ListAccountsResponse
-
-        Raises:
-            Exception: If the request fails
-        &#34;&#34;&#34;
-        request = ListAccountsRequest(**kwargs)
-        result = await self._client.list_accounts(request)
-        if not result.success or not result.data:
-            raise ADCPSimpleAPIError(
-                operation=&#34;list_accounts&#34;,
-                error_message=result.error,
-                agent_id=self._client.agent_config.id,
-            )
-        return result.data
-
     async def get_signals(
         self,
         **kwargs: Any,
@@ -458,6 +433,131 @@ print(products.products)</p>
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
                 operation=&#34;build_creative&#34;,
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def list_accounts(
+        self,
+        **kwargs: Any,
+    ) -&gt; ListAccountsResponse:
+        &#34;&#34;&#34;List accounts.
+
+        Args:
+            **kwargs: Arguments passed to ListAccountsRequest
+
+        Returns:
+            ListAccountsResponse
+
+        Raises:
+            Exception: If the request fails
+        &#34;&#34;&#34;
+        request = ListAccountsRequest(**kwargs)
+        result = await self._client.list_accounts(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation=&#34;list_accounts&#34;,
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def sync_accounts(
+        self,
+        **kwargs: Any,
+    ) -&gt; SyncAccountsResponse:
+        &#34;&#34;&#34;Sync accounts.
+
+        Args:
+            **kwargs: Arguments passed to SyncAccountsRequest
+
+        Returns:
+            SyncAccountsResponse
+
+        Raises:
+            Exception: If the request fails
+        &#34;&#34;&#34;
+        request = SyncAccountsRequest(**kwargs)
+        result = await self._client.sync_accounts(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation=&#34;sync_accounts&#34;,
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def log_event(
+        self,
+        **kwargs: Any,
+    ) -&gt; LogEventResponse:
+        &#34;&#34;&#34;Log event.
+
+        Args:
+            **kwargs: Arguments passed to LogEventRequest
+
+        Returns:
+            LogEventResponse
+
+        Raises:
+            Exception: If the request fails
+        &#34;&#34;&#34;
+        request = LogEventRequest(**kwargs)
+        result = await self._client.log_event(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation=&#34;log_event&#34;,
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def sync_event_sources(
+        self,
+        **kwargs: Any,
+    ) -&gt; SyncEventSourcesResponse:
+        &#34;&#34;&#34;Sync event sources.
+
+        Args:
+            **kwargs: Arguments passed to SyncEventSourcesRequest
+
+        Returns:
+            SyncEventSourcesResponse
+
+        Raises:
+            Exception: If the request fails
+        &#34;&#34;&#34;
+        request = SyncEventSourcesRequest(**kwargs)
+        result = await self._client.sync_event_sources(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation=&#34;sync_event_sources&#34;,
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def get_creative_delivery(
+        self,
+        **kwargs: Any,
+    ) -&gt; GetCreativeDeliveryResponse:
+        &#34;&#34;&#34;Get creative delivery.
+
+        Args:
+            **kwargs: Arguments passed to GetCreativeDeliveryRequest
+
+        Returns:
+            GetCreativeDeliveryResponse
+
+        Raises:
+            Exception: If the request fails
+        &#34;&#34;&#34;
+        request = GetCreativeDeliveryRequest(**kwargs)
+        result = await self._client.get_creative_delivery(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation=&#34;get_creative_delivery&#34;,
                 error_message=result.error,
                 agent_id=self._client.agent_config.id,
             )
@@ -651,6 +751,53 @@ publisher_properties=properties
 )
 print(f"Created media buy: {media_buy.media_buy_id}")</p></div>
 </dd>
+<dt id="adcp.simple.SimpleAPI.get_creative_delivery"><code class="name flex">
+<span>async def <span class="ident">get_creative_delivery</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.creative.get_creative_delivery_response.GetCreativeDeliveryResponse" href="types/generated_poc/creative/get_creative_delivery_response.html#adcp.types.generated_poc.creative.get_creative_delivery_response.GetCreativeDeliveryResponse">GetCreativeDeliveryResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_creative_delivery(
+    self,
+    **kwargs: Any,
+) -&gt; GetCreativeDeliveryResponse:
+    &#34;&#34;&#34;Get creative delivery.
+
+    Args:
+        **kwargs: Arguments passed to GetCreativeDeliveryRequest
+
+    Returns:
+        GetCreativeDeliveryResponse
+
+    Raises:
+        Exception: If the request fails
+    &#34;&#34;&#34;
+    request = GetCreativeDeliveryRequest(**kwargs)
+    result = await self._client.get_creative_delivery(request)
+    if not result.success or not result.data:
+        raise ADCPSimpleAPIError(
+            operation=&#34;get_creative_delivery&#34;,
+            error_message=result.error,
+            agent_id=self._client.agent_config.id,
+        )
+    return result.data</code></pre>
+</details>
+<div class="desc"><p>Get creative delivery.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong></dt>
+<dd>Arguments passed to GetCreativeDeliveryRequest</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>GetCreativeDeliveryResponse</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>Exception</code></dt>
+<dd>If the request fails</dd>
+</dl></div>
+</dd>
 <dt id="adcp.simple.SimpleAPI.get_media_buy_delivery"><code class="name flex">
 <span>async def <span class="ident">get_media_buy_delivery</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse" href="types/generated_poc/media_buy/get_media_buy_delivery_response.html#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse">GetMediaBuyDeliveryResponse</a></span>
 </code></dt>
@@ -827,7 +974,7 @@ print(f"Found {len(products.products)} products")</p></div>
     self,
     **kwargs: Any,
 ) -&gt; ListAccountsResponse:
-    &#34;&#34;&#34;List billing accounts accessible to the authenticated agent.
+    &#34;&#34;&#34;List accounts.
 
     Args:
         **kwargs: Arguments passed to ListAccountsRequest
@@ -848,7 +995,7 @@ print(f"Found {len(products.products)} products")</p></div>
         )
     return result.data</code></pre>
 </details>
-<div class="desc"><p>List billing accounts accessible to the authenticated agent.</p>
+<div class="desc"><p>List accounts.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>**kwargs</code></strong></dt>
@@ -963,6 +1110,53 @@ print(f"Found {len(formats.formats)} formats")</p></div>
 <dd>If the request fails</dd>
 </dl></div>
 </dd>
+<dt id="adcp.simple.SimpleAPI.log_event"><code class="name flex">
+<span>async def <span class="ident">log_event</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse" href="types/generated_poc/media_buy/log_event_response.html#adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse">LogEventResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def log_event(
+    self,
+    **kwargs: Any,
+) -&gt; LogEventResponse:
+    &#34;&#34;&#34;Log event.
+
+    Args:
+        **kwargs: Arguments passed to LogEventRequest
+
+    Returns:
+        LogEventResponse
+
+    Raises:
+        Exception: If the request fails
+    &#34;&#34;&#34;
+    request = LogEventRequest(**kwargs)
+    result = await self._client.log_event(request)
+    if not result.success or not result.data:
+        raise ADCPSimpleAPIError(
+            operation=&#34;log_event&#34;,
+            error_message=result.error,
+            agent_id=self._client.agent_config.id,
+        )
+    return result.data</code></pre>
+</details>
+<div class="desc"><p>Log event.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong></dt>
+<dd>Arguments passed to LogEventRequest</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>LogEventResponse</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>Exception</code></dt>
+<dd>If the request fails</dd>
+</dl></div>
+</dd>
 <dt id="adcp.simple.SimpleAPI.preview_creative"><code class="name flex">
 <span>async def <span class="ident">preview_creative</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.creative.preview_creative_response.PreviewCreativeResponse" href="types/generated_poc/creative/preview_creative_response.html#adcp.types.generated_poc.creative.preview_creative_response.PreviewCreativeResponse">PreviewCreativeResponse</a></span>
 </code></dt>
@@ -1068,6 +1262,53 @@ print(f"Preview: {preview.previews[0]}")</p></div>
 <dd>If the request fails</dd>
 </dl></div>
 </dd>
+<dt id="adcp.simple.SimpleAPI.sync_accounts"><code class="name flex">
+<span>async def <span class="ident">sync_accounts</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.account.sync_accounts_response.SyncAccountsResponse" href="types/generated_poc/account/sync_accounts_response.html#adcp.types.generated_poc.account.sync_accounts_response.SyncAccountsResponse">SyncAccountsResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def sync_accounts(
+    self,
+    **kwargs: Any,
+) -&gt; SyncAccountsResponse:
+    &#34;&#34;&#34;Sync accounts.
+
+    Args:
+        **kwargs: Arguments passed to SyncAccountsRequest
+
+    Returns:
+        SyncAccountsResponse
+
+    Raises:
+        Exception: If the request fails
+    &#34;&#34;&#34;
+    request = SyncAccountsRequest(**kwargs)
+    result = await self._client.sync_accounts(request)
+    if not result.success or not result.data:
+        raise ADCPSimpleAPIError(
+            operation=&#34;sync_accounts&#34;,
+            error_message=result.error,
+            agent_id=self._client.agent_config.id,
+        )
+    return result.data</code></pre>
+</details>
+<div class="desc"><p>Sync accounts.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong></dt>
+<dd>Arguments passed to SyncAccountsRequest</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>SyncAccountsResponse</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>Exception</code></dt>
+<dd>If the request fails</dd>
+</dl></div>
+</dd>
 <dt id="adcp.simple.SimpleAPI.sync_creatives"><code class="name flex">
 <span>async def <span class="ident">sync_creatives</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse" href="types/generated_poc/media_buy/sync_creatives_response.html#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse">SyncCreativesResponse</a></span>
 </code></dt>
@@ -1109,6 +1350,53 @@ print(f"Preview: {preview.previews[0]}")</p></div>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>SyncCreativesResponse</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>Exception</code></dt>
+<dd>If the request fails</dd>
+</dl></div>
+</dd>
+<dt id="adcp.simple.SimpleAPI.sync_event_sources"><code class="name flex">
+<span>async def <span class="ident">sync_event_sources</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.sync_event_sources_response.SyncEventSourcesResponse" href="types/generated_poc/media_buy/sync_event_sources_response.html#adcp.types.generated_poc.media_buy.sync_event_sources_response.SyncEventSourcesResponse">SyncEventSourcesResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def sync_event_sources(
+    self,
+    **kwargs: Any,
+) -&gt; SyncEventSourcesResponse:
+    &#34;&#34;&#34;Sync event sources.
+
+    Args:
+        **kwargs: Arguments passed to SyncEventSourcesRequest
+
+    Returns:
+        SyncEventSourcesResponse
+
+    Raises:
+        Exception: If the request fails
+    &#34;&#34;&#34;
+    request = SyncEventSourcesRequest(**kwargs)
+    result = await self._client.sync_event_sources(request)
+    if not result.success or not result.data:
+        raise ADCPSimpleAPIError(
+            operation=&#34;sync_event_sources&#34;,
+            error_message=result.error,
+            agent_id=self._client.agent_config.id,
+        )
+    return result.data</code></pre>
+</details>
+<div class="desc"><p>Sync event sources.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong></dt>
+<dd>Arguments passed to SyncEventSourcesRequest</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>SyncEventSourcesResponse</p>
 <h2 id="raises">Raises</h2>
 <dl>
 <dt><code>Exception</code></dt>
@@ -1198,15 +1486,19 @@ print(f"Updated media buy: {updated.media_buy_id}")</p></div>
 <li><code><a title="adcp.simple.SimpleAPI.activate_signal" href="#adcp.simple.SimpleAPI.activate_signal">activate_signal</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.build_creative" href="#adcp.simple.SimpleAPI.build_creative">build_creative</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.create_media_buy" href="#adcp.simple.SimpleAPI.create_media_buy">create_media_buy</a></code></li>
+<li><code><a title="adcp.simple.SimpleAPI.get_creative_delivery" href="#adcp.simple.SimpleAPI.get_creative_delivery">get_creative_delivery</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.get_media_buy_delivery" href="#adcp.simple.SimpleAPI.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.get_products" href="#adcp.simple.SimpleAPI.get_products">get_products</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.get_signals" href="#adcp.simple.SimpleAPI.get_signals">get_signals</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.list_accounts" href="#adcp.simple.SimpleAPI.list_accounts">list_accounts</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.list_creative_formats" href="#adcp.simple.SimpleAPI.list_creative_formats">list_creative_formats</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.list_creatives" href="#adcp.simple.SimpleAPI.list_creatives">list_creatives</a></code></li>
+<li><code><a title="adcp.simple.SimpleAPI.log_event" href="#adcp.simple.SimpleAPI.log_event">log_event</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.preview_creative" href="#adcp.simple.SimpleAPI.preview_creative">preview_creative</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.provide_performance_feedback" href="#adcp.simple.SimpleAPI.provide_performance_feedback">provide_performance_feedback</a></code></li>
+<li><code><a title="adcp.simple.SimpleAPI.sync_accounts" href="#adcp.simple.SimpleAPI.sync_accounts">sync_accounts</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.sync_creatives" href="#adcp.simple.SimpleAPI.sync_creatives">sync_creatives</a></code></li>
+<li><code><a title="adcp.simple.SimpleAPI.sync_event_sources" href="#adcp.simple.SimpleAPI.sync_event_sources">sync_event_sources</a></code></li>
 <li><code><a title="adcp.simple.SimpleAPI.update_media_buy" href="#adcp.simple.SimpleAPI.update_media_buy">update_media_buy</a></code></li>
 </ul>
 </li>

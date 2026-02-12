@@ -175,12 +175,12 @@ product = Product(
 </summary>
 <pre><code class="python">class ActivateSignalResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     deployments: Annotated[
         list[deployment.Deployment],
-        Field(description=&#34;Array of deployment results for each deployment target&#34;),
+        Field(description=&#39;Array of deployment results for each deployment target&#39;),
     ]
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
@@ -238,13 +238,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ActivateSignalResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
-            description=&#34;Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)&#34;,
+            description=&#39;Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)&#39;,
             min_length=1,
         ),
     ]
@@ -304,16 +304,16 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizedAgents(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     authorization_type: Annotated[
-        Literal[&#34;property_ids&#34;],
-        Field(description=&#34;Discriminator indicating authorization by specific property IDs&#34;),
+        Literal[&#39;property_ids&#39;],
+        Field(description=&#39;Discriminator indicating authorization by specific property IDs&#39;),
     ]
     authorized_for: Annotated[
         str,
         Field(
-            description=&#34;Human-readable description of what this agent is authorized to sell&#34;,
+            description=&#39;Human-readable description of what this agent is authorized to sell&#39;,
             max_length=500,
             min_length=1,
         ),
@@ -321,7 +321,7 @@ validated to form a valid model.</p>
     property_ids: Annotated[
         list[property_id.PropertyId],
         Field(
-            description=&#34;Property IDs this agent is authorized for. Resolved against the top-level properties array in this file&#34;,
+            description=&#39;Property IDs this agent is authorized for. Resolved against the top-level properties array in this file&#39;,
             min_length=1,
         ),
     ]
@@ -385,16 +385,16 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizedAgents1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     authorization_type: Annotated[
-        Literal[&#34;property_tags&#34;],
-        Field(description=&#34;Discriminator indicating authorization by property tags&#34;),
+        Literal[&#39;property_tags&#39;],
+        Field(description=&#39;Discriminator indicating authorization by property tags&#39;),
     ]
     authorized_for: Annotated[
         str,
         Field(
-            description=&#34;Human-readable description of what this agent is authorized to sell&#34;,
+            description=&#39;Human-readable description of what this agent is authorized to sell&#39;,
             max_length=500,
             min_length=1,
         ),
@@ -402,7 +402,7 @@ validated to form a valid model.</p>
     property_tags: Annotated[
         list[property_tag.PropertyTag],
         Field(
-            description=&#34;Tags identifying which properties this agent is authorized for. Resolved against the top-level properties array in this file using tag matching&#34;,
+            description=&#39;Tags identifying which properties this agent is authorized for. Resolved against the top-level properties array in this file using tag matching&#39;,
             min_length=1,
         ),
     ]
@@ -466,16 +466,16 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizedAgents2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     authorization_type: Annotated[
-        Literal[&#34;inline_properties&#34;],
-        Field(description=&#34;Discriminator indicating authorization by inline property definitions&#34;),
+        Literal[&#39;inline_properties&#39;],
+        Field(description=&#39;Discriminator indicating authorization by inline property definitions&#39;),
     ]
     authorized_for: Annotated[
         str,
         Field(
-            description=&#34;Human-readable description of what this agent is authorized to sell&#34;,
+            description=&#39;Human-readable description of what this agent is authorized to sell&#39;,
             max_length=500,
             min_length=1,
         ),
@@ -483,7 +483,7 @@ validated to form a valid model.</p>
     properties: Annotated[
         list[property.Property],
         Field(
-            description=&#34;Specific properties this agent is authorized for (alternative to property_ids/property_tags)&#34;,
+            description=&#39;Specific properties this agent is authorized for (alternative to property_ids/property_tags)&#39;,
             min_length=1,
         ),
     ]
@@ -547,18 +547,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizedAgents3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     authorization_type: Annotated[
-        Literal[&#34;publisher_properties&#34;],
+        Literal[&#39;publisher_properties&#39;],
         Field(
-            description=&#34;Discriminator indicating authorization for properties from other publisher domains&#34;
+            description=&#39;Discriminator indicating authorization for properties from other publisher domains&#39;
         ),
     ]
     authorized_for: Annotated[
         str,
         Field(
-            description=&#34;Human-readable description of what this agent is authorized to sell&#34;,
+            description=&#39;Human-readable description of what this agent is authorized to sell&#39;,
             max_length=500,
             min_length=1,
         ),
@@ -566,7 +566,7 @@ validated to form a valid model.</p>
     publisher_properties: Annotated[
         list[publisher_property_selector.PublisherPropertySelector],
         Field(
-            description=&#34;Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell&#34;,
+            description=&#39;Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell&#39;,
             min_length=1,
         ),
     ]
@@ -630,12 +630,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BuildCreativeResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest,
-        Field(description=&#34;The generated or transformed creative manifest&#34;),
+        Field(description=&#39;The generated or transformed creative manifest&#39;),
     ]
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
@@ -693,13 +693,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BuildCreativeResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
-            description=&#34;Array of errors explaining why creative generation failed&#34;, min_length=1
+            description=&#39;Array of errors explaining why creative generation failed&#39;, min_length=1
         ),
     ]
     ext: ext_1.ExtensionObject | None = None</code></pre>
@@ -747,6 +747,277 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.aliases.CalibrateContentResponse1"><code class="flex name class">
+<span>class <span class="ident">CalibrateContentSuccessResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class CalibrateContentResponse1(AdCPBaseModel):
+    confidence: Annotated[
+        float | None, Field(description=&#39;Model confidence in the verdict (0-1)&#39;, ge=0.0, le=1.0)
+    ] = None
+    errors: Annotated[
+        Any | None, Field(description=&#39;Field must not be present in success response&#39;)
+    ] = None
+    explanation: Annotated[
+        str | None, Field(description=&#39;Detailed natural language explanation of the decision&#39;)
+    ] = None
+    features: Annotated[
+        list[Feature] | None, Field(description=&#39;Per-feature breakdown with explanations&#39;)
+    ] = None
+    verdict: Annotated[
+        Verdict, Field(description=&#39;Overall pass/fail verdict for the content evaluation&#39;)
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.CalibrateContentResponse1.confidence"><code class="name">var <span class="ident">confidence</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CalibrateContentResponse1.errors"><code class="name">var <span class="ident">errors</span> : typing.Any | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CalibrateContentResponse1.explanation"><code class="name">var <span class="ident">explanation</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CalibrateContentResponse1.features"><code class="name">var <span class="ident">features</span> : list[<a title="adcp.types.generated_poc.content_standards.calibrate_content_response.Feature" href="generated_poc/content_standards/calibrate_content_response.html#adcp.types.generated_poc.content_standards.calibrate_content_response.Feature">Feature</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CalibrateContentResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CalibrateContentResponse1.verdict"><code class="name">var <span class="ident">verdict</span> : <a title="adcp.types.generated_poc.content_standards.calibrate_content_response.Verdict" href="generated_poc/content_standards/calibrate_content_response.html#adcp.types.generated_poc.content_standards.calibrate_content_response.Verdict">Verdict</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.CalibrateContentResponse2"><code class="flex name class">
+<span>class <span class="ident">CalibrateContentErrorResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class CalibrateContentResponse2(AdCPBaseModel):
+    errors: list[error.Error]
+    verdict: Annotated[
+        Any | None, Field(description=&#39;Field must not be present in error response&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.CalibrateContentResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="generated_poc/core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CalibrateContentResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CalibrateContentResponse2.verdict"><code class="name">var <span class="ident">verdict</span> : typing.Any | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.CreateContentStandardsResponse1"><code class="flex name class">
+<span>class <span class="ident">CreateContentStandardsSuccessResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class CreateContentStandardsResponse1(AdCPBaseModel):
+    context: context_1.ContextObject | None = None
+    errors: Annotated[
+        Any | None, Field(description=&#39;Field must not be present in success response&#39;)
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    standards_id: Annotated[
+        str, Field(description=&#39;Unique identifier for the created standards configuration&#39;)
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.CreateContentStandardsResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CreateContentStandardsResponse1.errors"><code class="name">var <span class="ident">errors</span> : typing.Any | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CreateContentStandardsResponse1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CreateContentStandardsResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CreateContentStandardsResponse1.standards_id"><code class="name">var <span class="ident">standards_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.CreateContentStandardsResponse2"><code class="flex name class">
+<span>class <span class="ident">CreateContentStandardsErrorResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class CreateContentStandardsResponse2(AdCPBaseModel):
+    conflicting_standards_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;If the error is a scope conflict, the ID of the existing standards that conflict&#39;
+        ),
+    ] = None
+    context: context_1.ContextObject | None = None
+    errors: list[error.Error]
+    ext: ext_1.ExtensionObject | None = None
+    standards_id: Annotated[
+        Any | None, Field(description=&#39;Field must not be present in error response&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.CreateContentStandardsResponse2.conflicting_standards_id"><code class="name">var <span class="ident">conflicting_standards_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CreateContentStandardsResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CreateContentStandardsResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="generated_poc/core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CreateContentStandardsResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CreateContentStandardsResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CreateContentStandardsResponse2.standards_id"><code class="name">var <span class="ident">standards_id</span> : typing.Any | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.aliases.CreateMediaBuyResponse1"><code class="flex name class">
 <span>class <span class="ident">CreateMediaBuySuccessResponse</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -758,18 +1029,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreateMediaBuyResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     account: Annotated[
         account_1.Account | None,
         Field(
-            description=&#34;Account billed for this media buy. Includes advertiser, billing proxy (if any), and rate card applied.&#34;
+            description=&#39;Account billed for this media buy. Includes advertiser, billing proxy (if any), and rate card applied.&#39;
         ),
     ] = None
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
     context: context_1.ContextObject | None = None
     creative_deadline: Annotated[
-        AwareDatetime | None, Field(description=&#34;ISO 8601 timestamp for creative upload deadline&#34;)
+        AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
     media_buy_id: Annotated[
@@ -777,7 +1048,7 @@ validated to form a valid model.</p>
     ]
     packages: Annotated[
         list[package.Package],
-        Field(description=&#34;Array of created packages with complete state information&#34;),
+        Field(description=&#39;Array of created packages with complete state information&#39;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -850,12 +1121,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreateMediaBuyResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
-        Field(description=&#34;Array of errors explaining why the operation failed&#34;, min_length=1),
+        Field(description=&#39;Array of errors explaining why the operation failed&#39;, min_length=1),
     ]
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
@@ -913,31 +1184,31 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Creative(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     account: Annotated[
-        account_1.Account | None, Field(description=&#34;Account that owns this creative&#34;)
+        account_1.Account | None, Field(description=&#39;Account that owns this creative&#39;)
     ] = None
     action: Annotated[
-        creative_action.CreativeAction, Field(description=&#34;Action taken for this creative&#34;)
+        creative_action.CreativeAction, Field(description=&#39;Action taken for this creative&#39;)
     ]
     assigned_to: Annotated[
         list[str] | None,
         Field(
-            description=&#34;Package IDs this creative was successfully assigned to (only present when assignments were requested)&#34;
+            description=&#39;Package IDs this creative was successfully assigned to (only present when assignments were requested)&#39;
         ),
     ] = None
     assignment_errors: Annotated[
         dict[str, str] | None,
         Field(
-            description=&#34;Assignment errors by package ID (only present when assignment failures occurred)&#34;
+            description=&#39;Assignment errors by package ID (only present when assignment failures occurred)&#39;
         ),
     ] = None
     changes: Annotated[
         list[str] | None,
         Field(description=&#34;Field names that were modified (only present when action=&#39;updated&#39;)&#34;),
     ] = None
-    creative_id: Annotated[str, Field(description=&#34;Creative ID from the request&#34;)]
+    creative_id: Annotated[str, Field(description=&#39;Creative ID from the request&#39;)]
     errors: Annotated[
         list[str] | None,
         Field(description=&#34;Validation or processing errors (only present when action=&#39;failed&#39;)&#34;),
@@ -945,20 +1216,20 @@ validated to form a valid model.</p>
     expires_at: Annotated[
         AwareDatetime | None,
         Field(
-            description=&#34;ISO 8601 timestamp when preview link expires (only present when preview_url exists)&#34;
+            description=&#39;ISO 8601 timestamp when preview link expires (only present when preview_url exists)&#39;
         ),
     ] = None
     platform_id: Annotated[
-        str | None, Field(description=&#34;Platform-specific ID assigned to the creative&#34;)
+        str | None, Field(description=&#39;Platform-specific ID assigned to the creative&#39;)
     ] = None
     preview_url: Annotated[
         AnyUrl | None,
         Field(
-            description=&#34;Preview URL for generative creatives (only present for generative formats)&#34;
+            description=&#39;Preview URL for generative creatives (only present for generative formats)&#39;
         ),
     ] = None
     warnings: Annotated[
-        list[str] | None, Field(description=&#34;Non-fatal warnings about this creative&#34;)
+        list[str] | None, Field(description=&#39;Non-fatal warnings about this creative&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1047,26 +1318,29 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class DaastAsset1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     companion_ads: Annotated[
-        bool | None, Field(description=&#34;Whether companion display ads are included&#34;)
+        bool | None, Field(description=&#39;Whether companion display ads are included&#39;)
     ] = None
     daast_version: Annotated[
-        daast_version_1.DaastVersion | None, Field(description=&#34;DAAST specification version&#34;)
+        daast_version_1.DaastVersion | None, Field(description=&#39;DAAST specification version&#39;)
     ] = None
     delivery_type: Annotated[
-        Literal[&#34;url&#34;],
-        Field(description=&#34;Discriminator indicating DAAST is delivered via URL endpoint&#34;),
+        Literal[&#39;url&#39;],
+        Field(description=&#39;Discriminator indicating DAAST is delivered via URL endpoint&#39;),
     ]
     duration_ms: Annotated[
-        int | None, Field(description=&#34;Expected audio duration in milliseconds (if known)&#34;, ge=0)
+        int | None, Field(description=&#39;Expected audio duration in milliseconds (if known)&#39;, ge=0)
     ] = None
     tracking_events: Annotated[
         list[daast_tracking_event.DaastTrackingEvent] | None,
-        Field(description=&#34;Tracking events supported by this DAAST tag&#34;),
+        Field(description=&#39;Tracking events supported by this DAAST tag&#39;),
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#34;URL endpoint that returns DAAST XML&#34;)]</code></pre>
+    transcript_url: Annotated[
+        AnyUrl | None, Field(description=&#39;URL to text transcript of the audio content&#39;)
+    ] = None
+    url: Annotated[AnyUrl, Field(description=&#39;URL endpoint that returns DAAST XML&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -1107,6 +1381,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.aliases.DaastAsset1.transcript_url"><code class="name">var <span class="ident">transcript_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.aliases.DaastAsset1.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
 <dd>
 <div class="desc"></div>
@@ -1134,25 +1412,28 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class DaastAsset2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     companion_ads: Annotated[
-        bool | None, Field(description=&#34;Whether companion display ads are included&#34;)
+        bool | None, Field(description=&#39;Whether companion display ads are included&#39;)
     ] = None
-    content: Annotated[str, Field(description=&#34;Inline DAAST XML content&#34;)]
+    content: Annotated[str, Field(description=&#39;Inline DAAST XML content&#39;)]
     daast_version: Annotated[
-        daast_version_1.DaastVersion | None, Field(description=&#34;DAAST specification version&#34;)
+        daast_version_1.DaastVersion | None, Field(description=&#39;DAAST specification version&#39;)
     ] = None
     delivery_type: Annotated[
-        Literal[&#34;inline&#34;],
-        Field(description=&#34;Discriminator indicating DAAST is delivered as inline XML content&#34;),
+        Literal[&#39;inline&#39;],
+        Field(description=&#39;Discriminator indicating DAAST is delivered as inline XML content&#39;),
     ]
     duration_ms: Annotated[
-        int | None, Field(description=&#34;Expected audio duration in milliseconds (if known)&#34;, ge=0)
+        int | None, Field(description=&#39;Expected audio duration in milliseconds (if known)&#39;, ge=0)
     ] = None
     tracking_events: Annotated[
         list[daast_tracking_event.DaastTrackingEvent] | None,
-        Field(description=&#34;Tracking events supported by this DAAST tag&#34;),
+        Field(description=&#39;Tracking events supported by this DAAST tag&#39;),
+    ] = None
+    transcript_url: Annotated[
+        AnyUrl | None, Field(description=&#39;URL to text transcript of the audio content&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1198,6 +1479,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.aliases.DaastAsset2.transcript_url"><code class="name">var <span class="ident">transcript_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
@@ -1221,33 +1506,33 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Deployment1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    account: Annotated[str | None, Field(description=&#34;Account identifier if applicable&#34;)] = None
+    account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
     activation_key: Annotated[
         activation_key_1.ActivationKey | None,
         Field(
-            description=&#34;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#34;
+            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;
         ),
     ] = None
     deployed_at: Annotated[
         AwareDatetime | None,
-        Field(description=&#34;Timestamp when activation completed (if is_live=true)&#34;),
+        Field(description=&#39;Timestamp when activation completed (if is_live=true)&#39;),
     ] = None
     estimated_activation_duration_minutes: Annotated[
         float | None,
         Field(
-            description=&#34;Estimated time to activate if not live, or to complete activation if in progress&#34;,
+            description=&#39;Estimated time to activate if not live, or to complete activation if in progress&#39;,
             ge=0.0,
         ),
     ] = None
     is_live: Annotated[
-        bool, Field(description=&#34;Whether signal is currently active on this deployment&#34;)
+        bool, Field(description=&#39;Whether signal is currently active on this deployment&#39;)
     ]
-    platform: Annotated[str, Field(description=&#34;Platform identifier for DSPs&#34;)]
+    platform: Annotated[str, Field(description=&#39;Platform identifier for DSPs&#39;)]
     type: Annotated[
-        Literal[&#34;platform&#34;],
-        Field(description=&#34;Discriminator indicating this is a platform-based deployment&#34;),
+        Literal[&#39;platform&#39;],
+        Field(description=&#39;Discriminator indicating this is a platform-based deployment&#39;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1320,33 +1605,33 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Deployment2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    account: Annotated[str | None, Field(description=&#34;Account identifier if applicable&#34;)] = None
+    account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
     activation_key: Annotated[
         activation_key_1.ActivationKey | None,
         Field(
-            description=&#34;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#34;
+            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;
         ),
     ] = None
-    agent_url: Annotated[AnyUrl, Field(description=&#34;URL identifying the deployment agent&#34;)]
+    agent_url: Annotated[AnyUrl, Field(description=&#39;URL identifying the deployment agent&#39;)]
     deployed_at: Annotated[
         AwareDatetime | None,
-        Field(description=&#34;Timestamp when activation completed (if is_live=true)&#34;),
+        Field(description=&#39;Timestamp when activation completed (if is_live=true)&#39;),
     ] = None
     estimated_activation_duration_minutes: Annotated[
         float | None,
         Field(
-            description=&#34;Estimated time to activate if not live, or to complete activation if in progress&#34;,
+            description=&#39;Estimated time to activate if not live, or to complete activation if in progress&#39;,
             ge=0.0,
         ),
     ] = None
     is_live: Annotated[
-        bool, Field(description=&#34;Whether signal is currently active on this deployment&#34;)
+        bool, Field(description=&#39;Whether signal is currently active on this deployment&#39;)
     ]
     type: Annotated[
-        Literal[&#34;agent&#34;],
-        Field(description=&#34;Discriminator indicating this is an agent URL-based deployment&#34;),
+        Literal[&#39;agent&#39;],
+        Field(description=&#39;Discriminator indicating this is an agent URL-based deployment&#39;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1419,18 +1704,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Destination1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     account: Annotated[
-        str | None, Field(description=&#34;Optional account identifier on the platform&#34;)
+        str | None, Field(description=&#39;Optional account identifier on the platform&#39;)
     ] = None
     platform: Annotated[
         str,
         Field(description=&#34;Platform identifier for DSPs (e.g., &#39;the-trade-desk&#39;, &#39;amazon-dsp&#39;)&#34;),
     ]
     type: Annotated[
-        Literal[&#34;platform&#34;],
-        Field(description=&#34;Discriminator indicating this is a platform-based deployment&#34;),
+        Literal[&#39;platform&#39;],
+        Field(description=&#39;Discriminator indicating this is a platform-based deployment&#39;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1487,17 +1772,17 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Destination2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     account: Annotated[
-        str | None, Field(description=&#34;Optional account identifier on the agent&#34;)
+        str | None, Field(description=&#39;Optional account identifier on the agent&#39;)
     ] = None
     agent_url: Annotated[
-        AnyUrl, Field(description=&#34;URL identifying the deployment agent (for sales agents, etc.)&#34;)
+        AnyUrl, Field(description=&#39;URL identifying the deployment agent (for sales agents, etc.)&#39;)
     ]
     type: Annotated[
-        Literal[&#34;agent&#34;],
-        Field(description=&#34;Discriminator indicating this is an agent URL-based deployment&#34;),
+        Literal[&#39;agent&#39;],
+        Field(description=&#39;Discriminator indicating this is an agent URL-based deployment&#39;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1543,6 +1828,987 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.aliases.GetContentStandardsResponse1"><code class="flex name class">
+<span>class <span class="ident">GetContentStandardsSuccessResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetContentStandardsResponse1(ContentStandards):
+    context: context_1.ContextObject | None = None
+    errors: Annotated[
+        Any | None, Field(description=&#39;Field must not be present in success response&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.content_standards.content_standards.ContentStandards" href="generated_poc/content_standards/content_standards.html#adcp.types.generated_poc.content_standards.content_standards.ContentStandards">ContentStandards</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.GetContentStandardsResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetContentStandardsResponse1.errors"><code class="name">var <span class="ident">errors</span> : typing.Any | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetContentStandardsResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.content_standards.content_standards.ContentStandards" href="generated_poc/content_standards/content_standards.html#adcp.types.generated_poc.content_standards.content_standards.ContentStandards">ContentStandards</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.content_standards.content_standards.ContentStandards.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.content_standards.ContentStandards.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.content_standards.ContentStandards.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.GetContentStandardsResponse2"><code class="flex name class">
+<span>class <span class="ident">GetContentStandardsErrorResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetContentStandardsResponse2(AdCPBaseModel):
+    context: context_1.ContextObject | None = None
+    errors: list[error.Error]
+    ext: ext_1.ExtensionObject | None = None
+    standards_id: Annotated[
+        Any | None, Field(description=&#39;Field must not be present in error response&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.GetContentStandardsResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetContentStandardsResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="generated_poc/core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetContentStandardsResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetContentStandardsResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetContentStandardsResponse2.standards_id"><code class="name">var <span class="ident">standards_id</span> : typing.Any | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest1"><code class="flex name class">
+<span>class <span class="ident">GetCreativeDeliveryByMediaBuyRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetCreativeDeliveryRequest1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    account_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Account context for routing and scoping. Limits results to creatives within this account. Optional if the agent has a single account or can determine routing from the media buy identifiers.&#39;
+        ),
+    ] = None
+    context: context_1.ContextObject | None = None
+    creative_ids: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Filter to specific creatives by ID. If omitted, returns delivery for all creatives matching the other filters.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    end_date: Annotated[
+        str | None,
+        Field(
+            description=&#34;End date for delivery period (YYYY-MM-DD). Interpreted in the platform&#39;s reporting timezone.&#34;,
+            pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;,
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    max_variants: Annotated[
+        int | None,
+        Field(
+            description=&#39;Maximum number of variants to return per creative. When omitted, the agent returns all variants. Use this to limit response size for generative creatives that may produce large numbers of variants.&#39;,
+            ge=1,
+        ),
+    ] = None
+    media_buy_buyer_refs: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Filter to specific media buys by buyer reference ID. Alternative to media_buy_ids when the buyer doesn&#39;t have the publisher&#39;s identifiers.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    media_buy_ids: Annotated[
+        list[str],
+        Field(
+            description=&#39;Filter to specific media buys by publisher ID. If omitted, returns creative delivery across all matching media buys.&#39;,
+            min_length=1,
+        ),
+    ]
+    pagination: Annotated[
+        Pagination | None,
+        Field(
+            description=&#39;Pagination parameters for the creatives array in the response. When omitted, the agent returns all matching creatives.&#39;
+        ),
+    ] = None
+    start_date: Annotated[
+        str | None,
+        Field(
+            description=&#34;Start date for delivery period (YYYY-MM-DD). Interpreted in the platform&#39;s reporting timezone.&#34;,
+            pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest1.account_id"><code class="name">var <span class="ident">account_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest1.creative_ids"><code class="name">var <span class="ident">creative_ids</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest1.end_date"><code class="name">var <span class="ident">end_date</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest1.max_variants"><code class="name">var <span class="ident">max_variants</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest1.media_buy_buyer_refs"><code class="name">var <span class="ident">media_buy_buyer_refs</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest1.media_buy_ids"><code class="name">var <span class="ident">media_buy_ids</span> : list[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest1.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination" href="generated_poc/creative/get_creative_delivery_request.html#adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination">Pagination</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest1.start_date"><code class="name">var <span class="ident">start_date</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest2"><code class="flex name class">
+<span>class <span class="ident">GetCreativeDeliveryByBuyerRefRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetCreativeDeliveryRequest2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    account_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Account context for routing and scoping. Limits results to creatives within this account. Optional if the agent has a single account or can determine routing from the media buy identifiers.&#39;
+        ),
+    ] = None
+    context: context_1.ContextObject | None = None
+    creative_ids: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Filter to specific creatives by ID. If omitted, returns delivery for all creatives matching the other filters.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    end_date: Annotated[
+        str | None,
+        Field(
+            description=&#34;End date for delivery period (YYYY-MM-DD). Interpreted in the platform&#39;s reporting timezone.&#34;,
+            pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;,
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    max_variants: Annotated[
+        int | None,
+        Field(
+            description=&#39;Maximum number of variants to return per creative. When omitted, the agent returns all variants. Use this to limit response size for generative creatives that may produce large numbers of variants.&#39;,
+            ge=1,
+        ),
+    ] = None
+    media_buy_buyer_refs: Annotated[
+        list[str],
+        Field(
+            description=&#34;Filter to specific media buys by buyer reference ID. Alternative to media_buy_ids when the buyer doesn&#39;t have the publisher&#39;s identifiers.&#34;,
+            min_length=1,
+        ),
+    ]
+    media_buy_ids: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Filter to specific media buys by publisher ID. If omitted, returns creative delivery across all matching media buys.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    pagination: Annotated[
+        Pagination | None,
+        Field(
+            description=&#39;Pagination parameters for the creatives array in the response. When omitted, the agent returns all matching creatives.&#39;
+        ),
+    ] = None
+    start_date: Annotated[
+        str | None,
+        Field(
+            description=&#34;Start date for delivery period (YYYY-MM-DD). Interpreted in the platform&#39;s reporting timezone.&#34;,
+            pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest2.account_id"><code class="name">var <span class="ident">account_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest2.creative_ids"><code class="name">var <span class="ident">creative_ids</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest2.end_date"><code class="name">var <span class="ident">end_date</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest2.max_variants"><code class="name">var <span class="ident">max_variants</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest2.media_buy_buyer_refs"><code class="name">var <span class="ident">media_buy_buyer_refs</span> : list[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest2.media_buy_ids"><code class="name">var <span class="ident">media_buy_ids</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest2.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination" href="generated_poc/creative/get_creative_delivery_request.html#adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination">Pagination</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest2.start_date"><code class="name">var <span class="ident">start_date</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest3"><code class="flex name class">
+<span>class <span class="ident">GetCreativeDeliveryByCreativeRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetCreativeDeliveryRequest3(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    account_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Account context for routing and scoping. Limits results to creatives within this account. Optional if the agent has a single account or can determine routing from the media buy identifiers.&#39;
+        ),
+    ] = None
+    context: context_1.ContextObject | None = None
+    creative_ids: Annotated[
+        list[str],
+        Field(
+            description=&#39;Filter to specific creatives by ID. If omitted, returns delivery for all creatives matching the other filters.&#39;,
+            min_length=1,
+        ),
+    ]
+    end_date: Annotated[
+        str | None,
+        Field(
+            description=&#34;End date for delivery period (YYYY-MM-DD). Interpreted in the platform&#39;s reporting timezone.&#34;,
+            pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;,
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    max_variants: Annotated[
+        int | None,
+        Field(
+            description=&#39;Maximum number of variants to return per creative. When omitted, the agent returns all variants. Use this to limit response size for generative creatives that may produce large numbers of variants.&#39;,
+            ge=1,
+        ),
+    ] = None
+    media_buy_buyer_refs: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Filter to specific media buys by buyer reference ID. Alternative to media_buy_ids when the buyer doesn&#39;t have the publisher&#39;s identifiers.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    media_buy_ids: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Filter to specific media buys by publisher ID. If omitted, returns creative delivery across all matching media buys.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    pagination: Annotated[
+        Pagination | None,
+        Field(
+            description=&#39;Pagination parameters for the creatives array in the response. When omitted, the agent returns all matching creatives.&#39;
+        ),
+    ] = None
+    start_date: Annotated[
+        str | None,
+        Field(
+            description=&#34;Start date for delivery period (YYYY-MM-DD). Interpreted in the platform&#39;s reporting timezone.&#34;,
+            pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest3.account_id"><code class="name">var <span class="ident">account_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest3.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest3.creative_ids"><code class="name">var <span class="ident">creative_ids</span> : list[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest3.end_date"><code class="name">var <span class="ident">end_date</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest3.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest3.max_variants"><code class="name">var <span class="ident">max_variants</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest3.media_buy_buyer_refs"><code class="name">var <span class="ident">media_buy_buyer_refs</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest3.media_buy_ids"><code class="name">var <span class="ident">media_buy_ids</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest3.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination" href="generated_poc/creative/get_creative_delivery_request.html#adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination">Pagination</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetCreativeDeliveryRequest3.start_date"><code class="name">var <span class="ident">start_date</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.GetMediaBuyArtifactsResponse1"><code class="flex name class">
+<span>class <span class="ident">GetMediaBuyArtifactsSuccessResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetMediaBuyArtifactsResponse1(AdCPBaseModel):
+    artifacts: Annotated[
+        list[Artifact], Field(description=&#39;Delivery records with full artifact content&#39;)
+    ]
+    context: context_1.ContextObject | None = None
+    errors: Annotated[
+        Any | None, Field(description=&#39;Field must not be present in success response&#39;)
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    media_buy_id: Annotated[str, Field(description=&#39;Media buy these artifacts belong to&#39;)]
+    pagination: pagination_response.PaginationResponse | None = None
+    sampling_info: Annotated[
+        SamplingInfo | None, Field(description=&#39;Information about how the sample was generated&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.GetMediaBuyArtifactsResponse1.artifacts"><code class="name">var <span class="ident">artifacts</span> : list[<a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Artifact" href="generated_poc/content_standards/get_media_buy_artifacts_response.html#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Artifact">Artifact</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetMediaBuyArtifactsResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetMediaBuyArtifactsResponse1.errors"><code class="name">var <span class="ident">errors</span> : typing.Any | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetMediaBuyArtifactsResponse1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetMediaBuyArtifactsResponse1.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetMediaBuyArtifactsResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetMediaBuyArtifactsResponse1.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_response.PaginationResponse" href="generated_poc/core/pagination_response.html#adcp.types.generated_poc.core.pagination_response.PaginationResponse">PaginationResponse</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetMediaBuyArtifactsResponse1.sampling_info"><code class="name">var <span class="ident">sampling_info</span> : <a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.SamplingInfo" href="generated_poc/content_standards/get_media_buy_artifacts_response.html#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.SamplingInfo">SamplingInfo</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.GetMediaBuyArtifactsResponse2"><code class="flex name class">
+<span>class <span class="ident">GetMediaBuyArtifactsErrorResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetMediaBuyArtifactsResponse2(AdCPBaseModel):
+    context: context_1.ContextObject | None = None
+    errors: list[error.Error]
+    ext: ext_1.ExtensionObject | None = None
+    media_buy_id: Annotated[
+        Any | None, Field(description=&#39;Field must not be present in error response&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.GetMediaBuyArtifactsResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetMediaBuyArtifactsResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="generated_poc/core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetMediaBuyArtifactsResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetMediaBuyArtifactsResponse2.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : typing.Any | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.GetMediaBuyArtifactsResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.ListContentStandardsResponse1"><code class="flex name class">
+<span>class <span class="ident">ListContentStandardsSuccessResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ListContentStandardsResponse1(AdCPBaseModel):
+    context: context_1.ContextObject | None = None
+    errors: Annotated[
+        Any | None, Field(description=&#39;Field must not be present in success response&#39;)
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    pagination: pagination_response.PaginationResponse | None = None
+    standards: Annotated[
+        list[content_standards.ContentStandards],
+        Field(description=&#39;Array of content standards configurations matching the filter criteria&#39;),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.ListContentStandardsResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ListContentStandardsResponse1.errors"><code class="name">var <span class="ident">errors</span> : typing.Any | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ListContentStandardsResponse1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ListContentStandardsResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ListContentStandardsResponse1.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_response.PaginationResponse" href="generated_poc/core/pagination_response.html#adcp.types.generated_poc.core.pagination_response.PaginationResponse">PaginationResponse</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ListContentStandardsResponse1.standards"><code class="name">var <span class="ident">standards</span> : list[<a title="adcp.types.generated_poc.content_standards.content_standards.ContentStandards" href="generated_poc/content_standards/content_standards.html#adcp.types.generated_poc.content_standards.content_standards.ContentStandards">ContentStandards</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.ListContentStandardsResponse2"><code class="flex name class">
+<span>class <span class="ident">ListContentStandardsErrorResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ListContentStandardsResponse2(AdCPBaseModel):
+    context: context_1.ContextObject | None = None
+    errors: list[error.Error]
+    ext: ext_1.ExtensionObject | None = None
+    standards: Annotated[
+        Any | None, Field(description=&#39;Field must not be present in error response&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.ListContentStandardsResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ListContentStandardsResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="generated_poc/core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ListContentStandardsResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ListContentStandardsResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ListContentStandardsResponse2.standards"><code class="name">var <span class="ident">standards</span> : typing.Any | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.LogEventResponse1"><code class="flex name class">
+<span>class <span class="ident">LogEventSuccessResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class LogEventResponse1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    context: context_1.ContextObject | None = None
+    events_processed: Annotated[
+        int, Field(description=&#39;Number of events successfully queued for processing&#39;, ge=0)
+    ]
+    events_received: Annotated[int, Field(description=&#39;Number of events received&#39;, ge=0)]
+    ext: ext_1.ExtensionObject | None = None
+    match_quality: Annotated[
+        float | None,
+        Field(
+            description=&#39;Overall match quality score for the batch (0.0 = no matches, 1.0 = all matched)&#39;,
+            ge=0.0,
+            le=1.0,
+        ),
+    ] = None
+    partial_failures: Annotated[
+        list[PartialFailure] | None, Field(description=&#39;Events that failed validation&#39;)
+    ] = None
+    warnings: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Non-fatal issues (low match quality, missing recommended fields, deprecation notices)&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.LogEventResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.LogEventResponse1.events_processed"><code class="name">var <span class="ident">events_processed</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.LogEventResponse1.events_received"><code class="name">var <span class="ident">events_received</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.LogEventResponse1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.LogEventResponse1.match_quality"><code class="name">var <span class="ident">match_quality</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.LogEventResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.LogEventResponse1.partial_failures"><code class="name">var <span class="ident">partial_failures</span> : list[<a title="adcp.types.generated_poc.media_buy.log_event_response.PartialFailure" href="generated_poc/media_buy/log_event_response.html#adcp.types.generated_poc.media_buy.log_event_response.PartialFailure">PartialFailure</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.LogEventResponse1.warnings"><code class="name">var <span class="ident">warnings</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.LogEventResponse2"><code class="flex name class">
+<span>class <span class="ident">LogEventErrorResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class LogEventResponse2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    context: context_1.ContextObject | None = None
+    errors: Annotated[list[error.Error], Field(description=&#39;Operation-level errors&#39;, min_length=1)]
+    ext: ext_1.ExtensionObject | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.LogEventResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.LogEventResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="generated_poc/core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.LogEventResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.LogEventResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.aliases.Package"><code class="flex name class">
 <span>class <span class="ident">Package</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -1554,19 +2820,19 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Package(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     bid_price: Annotated[
         float | None,
         Field(
-            description=&#34;Bid price for auction-based CPM pricing (present if using cpm-auction-option)&#34;,
+            description=&#39;Bid price for auction-based CPM pricing (present if using cpm-auction-option)&#39;,
             ge=0.0,
         ),
     ] = None
     budget: Annotated[
         float | None,
         Field(
-            description=&#34;Budget allocation for this package in the currency specified by the pricing option&#34;,
+            description=&#39;Budget allocation for this package in the currency specified by the pricing option&#39;,
             ge=0.0,
         ),
     ] = None
@@ -1575,22 +2841,23 @@ validated to form a valid model.</p>
     ] = None
     creative_assignments: Annotated[
         list[creative_assignment.CreativeAssignment] | None,
-        Field(description=&#34;Creative assets assigned to this package&#34;),
+        Field(description=&#39;Creative assets assigned to this package&#39;),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     format_ids_to_provide: Annotated[
         list[format_id.FormatId] | None,
-        Field(description=&#34;Format IDs that creative assets will be provided for this package&#34;),
+        Field(description=&#39;Format IDs that creative assets will be provided for this package&#39;),
     ] = None
     impressions: Annotated[
-        float | None, Field(description=&#34;Impression goal for this package&#34;, ge=0.0)
+        float | None, Field(description=&#39;Impression goal for this package&#39;, ge=0.0)
     ] = None
+    optimization_goal: optimization_goal_1.OptimizationGoal | None = None
     pacing: pacing_1.Pacing | None = None
     package_id: Annotated[str, Field(description=&#34;Publisher&#39;s unique identifier for the package&#34;)]
     paused: Annotated[
         bool | None,
         Field(
-            description=&#34;Whether this package is paused by the buyer. Paused packages do not deliver impressions. Defaults to false.&#34;
+            description=&#39;Whether this package is paused by the buyer. Paused packages do not deliver impressions. Defaults to false.&#39;
         ),
     ] = False
     pricing_option_id: Annotated[
@@ -1600,7 +2867,7 @@ validated to form a valid model.</p>
         ),
     ] = None
     product_id: Annotated[
-        str | None, Field(description=&#34;ID of the product this package is based on&#34;)
+        str | None, Field(description=&#39;ID of the product this package is based on&#39;)
     ] = None
     targeting_overlay: targeting.TargetingOverlay | None = None</code></pre>
 </details>
@@ -1651,6 +2918,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.aliases.Package.optimization_goal"><code class="name">var <span class="ident">optimization_goal</span> : <a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal" href="generated_poc/core/optimization_goal.html#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal">OptimizationGoal</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.aliases.Package.pacing"><code class="name">var <span class="ident">pacing</span> : <a title="adcp.types.generated_poc.enums.pacing.Pacing" href="generated_poc/enums/pacing.html#adcp.types.generated_poc.enums.pacing.Pacing">Pacing</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -1698,23 +2969,27 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewCreativeRequest1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest,
         Field(
-            description=&#34;Complete creative manifest with all required assets (including promoted_offerings if required by the format)&#34;
+            description=&#39;Complete creative manifest with all required assets (including promoted_offerings if required by the format)&#39;
         ),
     ]
     ext: ext_1.ExtensionObject | None = None
     format_id: Annotated[
-        format_id_1.FormatId, Field(description=&#34;Format identifier for rendering the preview&#34;)
-    ]
+        format_id_1.FormatId | None,
+        Field(
+            description=&#39;Format identifier for rendering the preview. Optional — defaults to creative_manifest_1.format_id if omitted.&#39;
+        ),
+    ] = None
     inputs: Annotated[
         list[Input] | None,
         Field(
-            description=&#34;Array of input sets for generating multiple preview variants. Each input set defines macros and context values for one preview rendering. If not provided, creative agent will generate default previews.&#34;
+            description=&#39;Array of input sets for generating multiple preview variants. Each input set defines macros and context values for one preview rendering. If not provided, creative agent will generate default previews.&#39;,
+            min_length=1,
         ),
     ] = None
     output_format: Annotated[
@@ -1724,11 +2999,11 @@ validated to form a valid model.</p>
         ),
     ] = preview_output_format.PreviewOutputFormat.url
     request_type: Annotated[
-        Literal[&#34;single&#34;],
-        Field(description=&#34;Discriminator indicating this is a single preview request&#34;),
+        Literal[&#39;single&#39;],
+        Field(description=&#39;Discriminator indicating this is a single preview request&#39;),
     ]
     template_id: Annotated[
-        str | None, Field(description=&#34;Specific template ID for custom format rendering&#34;)
+        str | None, Field(description=&#39;Specific template ID for custom format rendering&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1758,7 +3033,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.PreviewCreativeRequest1.format_id"><code class="name">var <span class="ident">format_id</span> : <a title="adcp.types.generated_poc.core.format_id.FormatId" href="generated_poc/core/format_id.html#adcp.types.generated_poc.core.format_id.FormatId">FormatId</a></code></dt>
+<dt id="adcp.types.aliases.PreviewCreativeRequest1.format_id"><code class="name">var <span class="ident">format_id</span> : <a title="adcp.types.generated_poc.core.format_id.FormatId" href="generated_poc/core/format_id.html#adcp.types.generated_poc.core.format_id.FormatId">FormatId</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1805,7 +3080,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewCreativeRequest2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
@@ -1816,13 +3091,13 @@ validated to form a valid model.</p>
         ),
     ] = preview_output_format.PreviewOutputFormat.url
     request_type: Annotated[
-        Literal[&#34;batch&#34;],
-        Field(description=&#34;Discriminator indicating this is a batch preview request&#34;),
+        Literal[&#39;batch&#39;],
+        Field(description=&#39;Discriminator indicating this is a batch preview request&#39;),
     ]
     requests: Annotated[
         list[Request],
         Field(
-            description=&#34;Array of preview requests (1-50 items). Each follows the single request structure.&#34;,
+            description=&#39;Array of preview requests (1-50 items). Each follows the single request structure.&#39;,
             max_length=50,
             min_length=1,
         ),
@@ -1890,29 +3165,29 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewCreativeResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     expires_at: Annotated[
-        AwareDatetime, Field(description=&#34;ISO 8601 timestamp when preview links expire&#34;)
+        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when preview links expire&#39;)
     ]
     ext: ext_1.ExtensionObject | None = None
     interactive_url: Annotated[
         AnyUrl | None,
         Field(
-            description=&#34;Optional URL to an interactive testing page that shows all preview variants with controls to switch between them, modify macro values, and test different scenarios.&#34;
+            description=&#39;Optional URL to an interactive testing page that shows all preview variants with controls to switch between them, modify macro values, and test different scenarios.&#39;
         ),
     ] = None
     previews: Annotated[
         list[Preview],
         Field(
-            description=&#34;Array of preview variants. Each preview corresponds to an input set from the request. If no inputs were provided, returns a single default preview.&#34;,
+            description=&#39;Array of preview variants. Each preview corresponds to an input set from the request. If no inputs were provided, returns a single default preview.&#39;,
             min_length=1,
         ),
     ]
     response_type: Annotated[
-        Literal[&#34;single&#34;],
-        Field(description=&#34;Discriminator indicating this is a single preview response&#34;),
+        Literal[&#39;single&#39;],
+        Field(description=&#39;Discriminator indicating this is a single preview response&#39;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1981,18 +3256,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewCreativeResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     response_type: Annotated[
-        Literal[&#34;batch&#34;],
-        Field(description=&#34;Discriminator indicating this is a batch preview response&#34;),
+        Literal[&#39;batch&#39;],
+        Field(description=&#39;Discriminator indicating this is a batch preview response&#39;),
     ]
     results: Annotated[
         list[Results | Results1],
         Field(
-            description=&#34;Array of preview results corresponding to each request in the same order. results[0] is the result for requests[0], results[1] for requests[1], etc. Order is guaranteed even when some requests fail. Each result contains either a successful preview response or an error.&#34;,
+            description=&#39;Array of preview results corresponding to each request in the same order. results[0] is the result for requests[0], results[1] for requests[1], etc. Order is guaranteed even when some requests fail. Each result contains either a successful preview response or an error.&#39;,
             min_length=1,
         ),
     ]</code></pre>
@@ -2055,26 +3330,26 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewRender1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     dimensions: Annotated[
-        Dimensions | None, Field(description=&#34;Dimensions for this rendered piece&#34;)
+        Dimensions | None, Field(description=&#39;Dimensions for this rendered piece&#39;)
     ] = None
     embedding: Annotated[
         Embedding | None,
-        Field(description=&#34;Optional security and embedding metadata for safe iframe integration&#34;),
+        Field(description=&#39;Optional security and embedding metadata for safe iframe integration&#39;),
     ] = None
     output_format: Annotated[
-        Literal[&#34;url&#34;], Field(description=&#34;Discriminator indicating preview_url is provided&#34;)
+        Literal[&#39;url&#39;], Field(description=&#39;Discriminator indicating preview_url is provided&#39;)
     ]
     preview_url: Annotated[
         AnyUrl,
         Field(
-            description=&#34;URL to an HTML page that renders this piece. Can be embedded in an iframe.&#34;
+            description=&#39;URL to an HTML page that renders this piece. Can be embedded in an iframe.&#39;
         ),
     ]
     render_id: Annotated[
-        str, Field(description=&#34;Unique identifier for this rendered piece within the variant&#34;)
+        str, Field(description=&#39;Unique identifier for this rendered piece within the variant&#39;)
     ]
     role: Annotated[
         str,
@@ -2149,25 +3424,25 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewRender2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     dimensions: Annotated[
-        Dimensions | None, Field(description=&#34;Dimensions for this rendered piece&#34;)
+        Dimensions | None, Field(description=&#39;Dimensions for this rendered piece&#39;)
     ] = None
     embedding: Annotated[
-        Embedding | None, Field(description=&#34;Optional security and embedding metadata&#34;)
+        Embedding | None, Field(description=&#39;Optional security and embedding metadata&#39;)
     ] = None
     output_format: Annotated[
-        Literal[&#34;html&#34;], Field(description=&#34;Discriminator indicating preview_html is provided&#34;)
+        Literal[&#39;html&#39;], Field(description=&#39;Discriminator indicating preview_html is provided&#39;)
     ]
     preview_html: Annotated[
         str,
         Field(
-            description=&#34;Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.&#34;
+            description=&#39;Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.&#39;
         ),
     ]
     render_id: Annotated[
-        str, Field(description=&#34;Unique identifier for this rendered piece within the variant&#34;)
+        str, Field(description=&#39;Unique identifier for this rendered piece within the variant&#39;)
     ]
     role: Annotated[
         str,
@@ -2242,35 +3517,35 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewRender3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     dimensions: Annotated[
-        Dimensions | None, Field(description=&#34;Dimensions for this rendered piece&#34;)
+        Dimensions | None, Field(description=&#39;Dimensions for this rendered piece&#39;)
     ] = None
     embedding: Annotated[
         Embedding | None,
-        Field(description=&#34;Optional security and embedding metadata for safe iframe integration&#34;),
+        Field(description=&#39;Optional security and embedding metadata for safe iframe integration&#39;),
     ] = None
     output_format: Annotated[
-        Literal[&#34;both&#34;],
+        Literal[&#39;both&#39;],
         Field(
-            description=&#34;Discriminator indicating both preview_url and preview_html are provided&#34;
+            description=&#39;Discriminator indicating both preview_url and preview_html are provided&#39;
         ),
     ]
     preview_html: Annotated[
         str,
         Field(
-            description=&#34;Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.&#34;
+            description=&#39;Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.&#39;
         ),
     ]
     preview_url: Annotated[
         AnyUrl,
         Field(
-            description=&#34;URL to an HTML page that renders this piece. Can be embedded in an iframe.&#34;
+            description=&#39;URL to an HTML page that renders this piece. Can be embedded in an iframe.&#39;
         ),
     ]
     render_id: Annotated[
-        str, Field(description=&#34;Unique identifier for this rendered piece within the variant&#34;)
+        str, Field(description=&#39;Unique identifier for this rendered piece within the variant&#39;)
     ]
     role: Annotated[
         str,
@@ -2351,10 +3626,10 @@ validated to form a valid model.</p>
     root: Annotated[
         str,
         Field(
-            description=&#34;Identifier for a publisher property. Must be lowercase alphanumeric with underscores only.&#34;,
-            examples=[&#34;cnn_ctv_app&#34;, &#34;homepage&#34;, &#34;mobile_ios&#34;, &#34;instagram&#34;],
-            pattern=&#34;^[a-z0-9_]+$&#34;,
-            title=&#34;Property ID&#34;,
+            description=&#39;Identifier for a publisher property. Must be lowercase alphanumeric with underscores only.&#39;,
+            examples=[&#39;cnn_ctv_app&#39;, &#39;homepage&#39;, &#39;mobile_ios&#39;, &#39;instagram&#39;],
+            pattern=&#39;^[a-z0-9_]+$&#39;,
+            title=&#39;Property ID&#39;,
         ),
     ]</code></pre>
 </details>
@@ -2410,10 +3685,10 @@ validated to form a valid model.</p>
     root: Annotated[
         str,
         Field(
-            description=&#34;Tag for categorizing publisher properties. Must be lowercase alphanumeric with underscores only.&#34;,
-            examples=[&#34;ctv&#34;, &#34;premium&#34;, &#34;news&#34;, &#34;sports&#34;, &#34;meta_network&#34;, &#34;social_media&#34;],
-            pattern=&#34;^[a-z0-9_]+$&#34;,
-            title=&#34;Property Tag&#34;,
+            description=&#39;Tag for categorizing publisher properties. Must be lowercase alphanumeric with underscores only.&#39;,
+            examples=[&#39;ctv&#39;, &#39;premium&#39;, &#39;news&#39;, &#39;sports&#39;, &#39;meta_network&#39;, &#39;social_media&#39;],
+            pattern=&#39;^[a-z0-9_]+$&#39;,
+            title=&#39;Property Tag&#39;,
         ),
     ]</code></pre>
 </details>
@@ -2467,13 +3742,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ProvidePerformanceFeedbackResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     success: Annotated[
         Literal[True],
-        Field(description=&#34;Whether the performance feedback was successfully received&#34;),
+        Field(description=&#39;Whether the performance feedback was successfully received&#39;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -2530,13 +3805,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ProvidePerformanceFeedbackResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
-            description=&#34;Array of errors explaining why feedback was rejected (e.g., invalid measurement period, missing campaign data)&#34;,
+            description=&#39;Array of errors explaining why feedback was rejected (e.g., invalid measurement period, missing campaign data)&#39;,
             min_length=1,
         ),
     ]
@@ -2596,19 +3871,19 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PublisherPropertySelector1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     publisher_domain: Annotated[
         str,
         Field(
             description=&#34;Domain where publisher&#39;s adagents.json is hosted (e.g., &#39;cnn.com&#39;)&#34;,
-            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
+            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
         ),
     ]
     selection_type: Annotated[
-        Literal[&#34;all&#34;],
+        Literal[&#39;all&#39;],
         Field(
-            description=&#34;Discriminator indicating all properties from this publisher are included&#34;
+            description=&#39;Discriminator indicating all properties from this publisher are included&#39;
         ),
     ]</code></pre>
 </details>
@@ -2662,7 +3937,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PublisherPropertySelector2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     property_ids: Annotated[
         list[property_id.PropertyId],
@@ -2672,12 +3947,12 @@ validated to form a valid model.</p>
         str,
         Field(
             description=&#34;Domain where publisher&#39;s adagents.json is hosted (e.g., &#39;cnn.com&#39;)&#34;,
-            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
+            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
         ),
     ]
     selection_type: Annotated[
-        Literal[&#34;by_id&#34;],
-        Field(description=&#34;Discriminator indicating selection by specific property IDs&#34;),
+        Literal[&#39;by_id&#39;],
+        Field(description=&#39;Discriminator indicating selection by specific property IDs&#39;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -2734,7 +4009,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PublisherPropertySelector3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     property_tags: Annotated[
         list[property_tag.PropertyTag],
@@ -2747,11 +4022,11 @@ validated to form a valid model.</p>
         str,
         Field(
             description=&#34;Domain where publisher&#39;s adagents.json is hosted (e.g., &#39;cnn.com&#39;)&#34;,
-            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
+            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
         ),
     ]
     selection_type: Annotated[
-        Literal[&#34;by_tag&#34;], Field(description=&#34;Discriminator indicating selection by property tags&#34;)
+        Literal[&#39;by_tag&#39;], Field(description=&#39;Discriminator indicating selection by property tags&#39;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -2808,22 +4083,22 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SubAsset1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     asset_id: Annotated[
-        str, Field(description=&#34;Unique identifier for the asset within the creative&#34;)
+        str, Field(description=&#39;Unique identifier for the asset within the creative&#39;)
     ]
     asset_kind: Annotated[
-        Literal[&#34;media&#34;],
-        Field(description=&#34;Discriminator indicating this is a media asset with content_uri&#34;),
+        Literal[&#39;media&#39;],
+        Field(description=&#39;Discriminator indicating this is a media asset with content_uri&#39;),
     ]
     asset_type: Annotated[
         str,
         Field(
-            description=&#34;Type of asset. Common types: thumbnail_image, product_image, featured_image, logo&#34;
+            description=&#39;Type of asset. Common types: thumbnail_image, product_image, featured_image, logo&#39;
         ),
     ]
-    content_uri: Annotated[AnyUrl, Field(description=&#34;URL for media assets (images, videos, etc.)&#34;)]</code></pre>
+    content_uri: Annotated[AnyUrl, Field(description=&#39;URL for media assets (images, videos, etc.)&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -2883,25 +4158,25 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SubAsset2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     asset_id: Annotated[
-        str, Field(description=&#34;Unique identifier for the asset within the creative&#34;)
+        str, Field(description=&#39;Unique identifier for the asset within the creative&#39;)
     ]
     asset_kind: Annotated[
-        Literal[&#34;text&#34;],
-        Field(description=&#34;Discriminator indicating this is a text asset with content&#34;),
+        Literal[&#39;text&#39;],
+        Field(description=&#39;Discriminator indicating this is a text asset with content&#39;),
     ]
     asset_type: Annotated[
         str,
         Field(
-            description=&#34;Type of asset. Common types: headline, body_text, cta_text, price_text, sponsor_name, author_name, click_url&#34;
+            description=&#39;Type of asset. Common types: headline, body_text, cta_text, price_text, sponsor_name, author_name, click_url&#39;
         ),
     ]
     content: Annotated[
         str | list[str],
         Field(
-            description=&#34;Text content for text-based assets like headlines, body text, CTA text, etc.&#34;
+            description=&#39;Text content for text-based assets like headlines, body text, CTA text, etc.&#39;
         ),
     ]</code></pre>
 </details>
@@ -2952,6 +4227,139 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.aliases.SyncAccountsResponse1"><code class="flex name class">
+<span>class <span class="ident">SyncAccountsSuccessResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SyncAccountsResponse1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    accounts: Annotated[list[Account], Field(description=&#39;Results for each account processed&#39;)]
+    context: context_1.ContextObject | None = None
+    dry_run: Annotated[
+        bool | None, Field(description=&#39;Whether this was a dry run (no actual changes made)&#39;)
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.SyncAccountsResponse1.accounts"><code class="name">var <span class="ident">accounts</span> : list[<a title="adcp.types.generated_poc.account.sync_accounts_response.Account" href="generated_poc/account/sync_accounts_response.html#adcp.types.generated_poc.account.sync_accounts_response.Account">Account</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncAccountsResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncAccountsResponse1.dry_run"><code class="name">var <span class="ident">dry_run</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncAccountsResponse1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncAccountsResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.SyncAccountsResponse2"><code class="flex name class">
+<span>class <span class="ident">SyncAccountsErrorResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SyncAccountsResponse2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    context: context_1.ContextObject | None = None
+    errors: Annotated[
+        list[error.Error],
+        Field(
+            description=&#39;Operation-level errors (e.g., authentication failure, service unavailable)&#39;,
+            min_length=1,
+        ),
+    ]
+    ext: ext_1.ExtensionObject | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.SyncAccountsResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncAccountsResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="generated_poc/core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncAccountsResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncAccountsResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.aliases.SyncCreativesResponse1"><code class="flex name class">
 <span>class <span class="ident">SyncCreativesSuccessResponse</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -2963,7 +4371,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SyncCreativesResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     creatives: Annotated[
@@ -2973,7 +4381,7 @@ validated to form a valid model.</p>
         ),
     ]
     dry_run: Annotated[
-        bool | None, Field(description=&#34;Whether this was a dry run (no actual changes made)&#34;)
+        bool | None, Field(description=&#39;Whether this was a dry run (no actual changes made)&#39;)
     ] = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
@@ -3035,13 +4443,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SyncCreativesResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
-            description=&#34;Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)&#34;,
+            description=&#39;Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)&#39;,
             min_length=1,
         ),
     ]
@@ -3090,6 +4498,134 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.aliases.SyncEventSourcesResponse1"><code class="flex name class">
+<span>class <span class="ident">SyncEventSourcesSuccessResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SyncEventSourcesResponse1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    context: context_1.ContextObject | None = None
+    event_sources: Annotated[
+        list[EventSource],
+        Field(
+            description=&#39;Results for each event source, including both synced and seller-managed sources on the account&#39;
+        ),
+    ]
+    ext: ext_1.ExtensionObject | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.SyncEventSourcesResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncEventSourcesResponse1.event_sources"><code class="name">var <span class="ident">event_sources</span> : list[<a title="adcp.types.generated_poc.media_buy.sync_event_sources_response.EventSource" href="generated_poc/media_buy/sync_event_sources_response.html#adcp.types.generated_poc.media_buy.sync_event_sources_response.EventSource">EventSource</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncEventSourcesResponse1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncEventSourcesResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.SyncEventSourcesResponse2"><code class="flex name class">
+<span>class <span class="ident">SyncEventSourcesErrorResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SyncEventSourcesResponse2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    context: context_1.ContextObject | None = None
+    errors: Annotated[
+        list[error.Error],
+        Field(description=&#39;Operation-level errors that prevented processing&#39;, min_length=1),
+    ]
+    ext: ext_1.ExtensionObject | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.SyncEventSourcesResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncEventSourcesResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="generated_poc/core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncEventSourcesResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncEventSourcesResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.aliases.UpdateMediaBuyRequest1"><code class="flex name class">
 <span>class <span class="ident">UpdateMediaBuyPackagesRequest</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -3101,34 +4637,35 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class UpdateMediaBuyRequest1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     buyer_ref: Annotated[
         str | None, Field(description=&#34;Buyer&#39;s reference for the media buy to update&#34;)
     ] = None
     context: context_1.ContextObject | None = None
     end_time: Annotated[
-        AwareDatetime | None, Field(description=&#34;New end date/time in ISO 8601 format&#34;)
+        AwareDatetime | None, Field(description=&#39;New end date/time in ISO 8601 format&#39;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
     media_buy_id: Annotated[str, Field(description=&#34;Publisher&#39;s ID of the media buy to update&#34;)]
     packages: Annotated[
-        list[package_update.PackageUpdate] | None, Field(description=&#34;Package-specific updates&#34;)
+        list[package_update.PackageUpdate] | None,
+        Field(description=&#39;Package-specific updates&#39;, min_length=1),
     ] = None
     paused: Annotated[
         bool | None,
-        Field(description=&#34;Pause/resume the entire media buy (true = paused, false = active)&#34;),
+        Field(description=&#39;Pause/resume the entire media buy (true = paused, false = active)&#39;),
     ] = None
     push_notification_config: Annotated[
         push_notification_config_1.PushNotificationConfig | None,
         Field(
-            description=&#34;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time. This is separate from reporting_webhook which configures ongoing campaign reporting.&#34;
+            description=&#39;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time. This is separate from reporting_webhook which configures ongoing campaign reporting.&#39;
         ),
     ] = None
     reporting_webhook: Annotated[
         reporting_webhook_1.ReportingWebhook | None,
         Field(
-            description=&#34;Optional webhook configuration for automated reporting delivery. Updates the reporting configuration for this media buy.&#34;
+            description=&#39;Optional webhook configuration for automated reporting delivery. Updates the reporting configuration for this media buy.&#39;
         ),
     ] = None
     start_time: start_timing.StartTiming | None = None</code></pre>
@@ -3215,34 +4752,35 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class UpdateMediaBuyRequest2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference for the media buy to update&#34;)]
     context: context_1.ContextObject | None = None
     end_time: Annotated[
-        AwareDatetime | None, Field(description=&#34;New end date/time in ISO 8601 format&#34;)
+        AwareDatetime | None, Field(description=&#39;New end date/time in ISO 8601 format&#39;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
     media_buy_id: Annotated[
         str | None, Field(description=&#34;Publisher&#39;s ID of the media buy to update&#34;)
     ] = None
     packages: Annotated[
-        list[package_update.PackageUpdate] | None, Field(description=&#34;Package-specific updates&#34;)
+        list[package_update.PackageUpdate] | None,
+        Field(description=&#39;Package-specific updates&#39;, min_length=1),
     ] = None
     paused: Annotated[
         bool | None,
-        Field(description=&#34;Pause/resume the entire media buy (true = paused, false = active)&#34;),
+        Field(description=&#39;Pause/resume the entire media buy (true = paused, false = active)&#39;),
     ] = None
     push_notification_config: Annotated[
         push_notification_config_1.PushNotificationConfig | None,
         Field(
-            description=&#34;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time. This is separate from reporting_webhook which configures ongoing campaign reporting.&#34;
+            description=&#39;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time. This is separate from reporting_webhook which configures ongoing campaign reporting.&#39;
         ),
     ] = None
     reporting_webhook: Annotated[
         reporting_webhook_1.ReportingWebhook | None,
         Field(
-            description=&#34;Optional webhook configuration for automated reporting delivery. Updates the reporting configuration for this media buy.&#34;
+            description=&#39;Optional webhook configuration for automated reporting delivery. Updates the reporting configuration for this media buy.&#39;
         ),
     ] = None
     start_time: start_timing.StartTiming | None = None</code></pre>
@@ -3329,18 +4867,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class UpdateMediaBuyResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     affected_packages: Annotated[
         list[package.Package] | None,
-        Field(description=&#34;Array of packages that were modified with complete state information&#34;),
+        Field(description=&#39;Array of packages that were modified with complete state information&#39;),
     ] = None
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for the media buy&#34;)]
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     implementation_date: Annotated[
         AwareDatetime | None,
-        Field(description=&#34;ISO 8601 timestamp when changes take effect (null if pending approval)&#34;),
+        Field(description=&#39;ISO 8601 timestamp when changes take effect (null if pending approval)&#39;),
     ] = None
     media_buy_id: Annotated[str, Field(description=&#34;Publisher&#39;s identifier for the media buy&#34;)]</code></pre>
 </details>
@@ -3410,12 +4948,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class UpdateMediaBuyResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
-        Field(description=&#34;Array of errors explaining why the operation failed&#34;, min_length=1),
+        Field(description=&#39;Array of errors explaining why the operation failed&#39;, min_length=1),
     ]
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
@@ -3462,8 +5000,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.aliases.VastAsset1"><code class="flex name class">
-<span>class <span class="ident">UrlVastAsset</span></span>
+<dt id="adcp.types.aliases.ValidateContentDeliveryResponse1"><code class="flex name class">
+<span>class <span class="ident">ValidateContentDeliverySuccessResponse</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -3471,28 +5009,81 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class VastAsset1(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#34;allow&#34;,
-    )
-    delivery_type: Annotated[
-        Literal[&#34;url&#34;],
-        Field(description=&#34;Discriminator indicating VAST is delivered via URL endpoint&#34;),
-    ]
-    duration_ms: Annotated[
-        int | None, Field(description=&#34;Expected video duration in milliseconds (if known)&#34;, ge=0)
+<pre><code class="python">class ValidateContentDeliveryResponse1(AdCPBaseModel):
+    context: context_1.ContextObject | None = None
+    errors: Annotated[
+        Any | None, Field(description=&#39;Field must not be present in success response&#39;)
     ] = None
-    tracking_events: Annotated[
-        list[vast_tracking_event.VastTrackingEvent] | None,
-        Field(description=&#34;Tracking events supported by this VAST tag&#34;),
-    ] = None
-    url: Annotated[AnyUrl, Field(description=&#34;URL endpoint that returns VAST XML&#34;)]
-    vast_version: Annotated[
-        vast_version_1.VastVersion | None, Field(description=&#34;VAST specification version&#34;)
-    ] = None
-    vpaid_enabled: Annotated[
-        bool | None,
-        Field(description=&#34;Whether VPAID (Video Player-Ad Interface Definition) is supported&#34;),
+    ext: ext_1.ExtensionObject | None = None
+    results: Annotated[list[Result], Field(description=&#39;Per-record evaluation results&#39;)]
+    summary: Annotated[Summary, Field(description=&#39;Summary counts across all records&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.ValidateContentDeliveryResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ValidateContentDeliveryResponse1.errors"><code class="name">var <span class="ident">errors</span> : typing.Any | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ValidateContentDeliveryResponse1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ValidateContentDeliveryResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ValidateContentDeliveryResponse1.results"><code class="name">var <span class="ident">results</span> : list[<a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Result" href="generated_poc/content_standards/validate_content_delivery_response.html#adcp.types.generated_poc.content_standards.validate_content_delivery_response.Result">Result</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ValidateContentDeliveryResponse1.summary"><code class="name">var <span class="ident">summary</span> : <a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Summary" href="generated_poc/content_standards/validate_content_delivery_response.html#adcp.types.generated_poc.content_standards.validate_content_delivery_response.Summary">Summary</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.ValidateContentDeliveryResponse2"><code class="flex name class">
+<span>class <span class="ident">ValidateContentDeliveryErrorResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ValidateContentDeliveryResponse2(AdCPBaseModel):
+    context: context_1.ContextObject | None = None
+    errors: list[error.Error]
+    ext: ext_1.ExtensionObject | None = None
+    summary: Annotated[
+        Any | None, Field(description=&#39;Field must not be present in error response&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -3510,6 +5101,101 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.aliases.ValidateContentDeliveryResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ValidateContentDeliveryResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="generated_poc/core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ValidateContentDeliveryResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ValidateContentDeliveryResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ValidateContentDeliveryResponse2.summary"><code class="name">var <span class="ident">summary</span> : typing.Any | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.VastAsset1"><code class="flex name class">
+<span>class <span class="ident">UrlVastAsset</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class VastAsset1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    audio_description_url: Annotated[
+        AnyUrl | None,
+        Field(description=&#39;URL to audio description track for visually impaired users&#39;),
+    ] = None
+    captions_url: Annotated[
+        AnyUrl | None, Field(description=&#39;URL to captions file (WebVTT, SRT, etc.)&#39;)
+    ] = None
+    delivery_type: Annotated[
+        Literal[&#39;url&#39;],
+        Field(description=&#39;Discriminator indicating VAST is delivered via URL endpoint&#39;),
+    ]
+    duration_ms: Annotated[
+        int | None, Field(description=&#39;Expected video duration in milliseconds (if known)&#39;, ge=0)
+    ] = None
+    tracking_events: Annotated[
+        list[vast_tracking_event.VastTrackingEvent] | None,
+        Field(description=&#39;Tracking events supported by this VAST tag&#39;),
+    ] = None
+    url: Annotated[AnyUrl, Field(description=&#39;URL endpoint that returns VAST XML&#39;)]
+    vast_version: Annotated[
+        vast_version_1.VastVersion | None, Field(description=&#39;VAST specification version&#39;)
+    ] = None
+    vpaid_enabled: Annotated[
+        bool | None,
+        Field(description=&#39;Whether VPAID (Video Player-Ad Interface Definition) is supported&#39;),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.VastAsset1.audio_description_url"><code class="name">var <span class="ident">audio_description_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.VastAsset1.captions_url"><code class="name">var <span class="ident">captions_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.aliases.VastAsset1.delivery_type"><code class="name">var <span class="ident">delivery_type</span> : Literal['url']</code></dt>
 <dd>
 <div class="desc"></div>
@@ -3561,26 +5247,33 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class VastAsset2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    content: Annotated[str, Field(description=&#34;Inline VAST XML content&#34;)]
+    audio_description_url: Annotated[
+        AnyUrl | None,
+        Field(description=&#39;URL to audio description track for visually impaired users&#39;),
+    ] = None
+    captions_url: Annotated[
+        AnyUrl | None, Field(description=&#39;URL to captions file (WebVTT, SRT, etc.)&#39;)
+    ] = None
+    content: Annotated[str, Field(description=&#39;Inline VAST XML content&#39;)]
     delivery_type: Annotated[
-        Literal[&#34;inline&#34;],
-        Field(description=&#34;Discriminator indicating VAST is delivered as inline XML content&#34;),
+        Literal[&#39;inline&#39;],
+        Field(description=&#39;Discriminator indicating VAST is delivered as inline XML content&#39;),
     ]
     duration_ms: Annotated[
-        int | None, Field(description=&#34;Expected video duration in milliseconds (if known)&#34;, ge=0)
+        int | None, Field(description=&#39;Expected video duration in milliseconds (if known)&#39;, ge=0)
     ] = None
     tracking_events: Annotated[
         list[vast_tracking_event.VastTrackingEvent] | None,
-        Field(description=&#34;Tracking events supported by this VAST tag&#34;),
+        Field(description=&#39;Tracking events supported by this VAST tag&#39;),
     ] = None
     vast_version: Annotated[
-        vast_version_1.VastVersion | None, Field(description=&#34;VAST specification version&#34;)
+        vast_version_1.VastVersion | None, Field(description=&#39;VAST specification version&#39;)
     ] = None
     vpaid_enabled: Annotated[
         bool | None,
-        Field(description=&#34;Whether VPAID (Video Player-Ad Interface Definition) is supported&#34;),
+        Field(description=&#39;Whether VPAID (Video Player-Ad Interface Definition) is supported&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -3598,6 +5291,14 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.aliases.VastAsset2.audio_description_url"><code class="name">var <span class="ident">audio_description_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.VastAsset2.captions_url"><code class="name">var <span class="ident">captions_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.aliases.VastAsset2.content"><code class="name">var <span class="ident">content</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
@@ -3739,6 +5440,46 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.aliases.CalibrateContentResponse1" href="#adcp.types.aliases.CalibrateContentResponse1">CalibrateContentResponse1</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.aliases.CalibrateContentResponse1.confidence" href="#adcp.types.aliases.CalibrateContentResponse1.confidence">confidence</a></code></li>
+<li><code><a title="adcp.types.aliases.CalibrateContentResponse1.errors" href="#adcp.types.aliases.CalibrateContentResponse1.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.CalibrateContentResponse1.explanation" href="#adcp.types.aliases.CalibrateContentResponse1.explanation">explanation</a></code></li>
+<li><code><a title="adcp.types.aliases.CalibrateContentResponse1.features" href="#adcp.types.aliases.CalibrateContentResponse1.features">features</a></code></li>
+<li><code><a title="adcp.types.aliases.CalibrateContentResponse1.model_config" href="#adcp.types.aliases.CalibrateContentResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.CalibrateContentResponse1.verdict" href="#adcp.types.aliases.CalibrateContentResponse1.verdict">verdict</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.CalibrateContentResponse2" href="#adcp.types.aliases.CalibrateContentResponse2">CalibrateContentResponse2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.CalibrateContentResponse2.errors" href="#adcp.types.aliases.CalibrateContentResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.CalibrateContentResponse2.model_config" href="#adcp.types.aliases.CalibrateContentResponse2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.CalibrateContentResponse2.verdict" href="#adcp.types.aliases.CalibrateContentResponse2.verdict">verdict</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.CreateContentStandardsResponse1" href="#adcp.types.aliases.CreateContentStandardsResponse1">CreateContentStandardsResponse1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.CreateContentStandardsResponse1.context" href="#adcp.types.aliases.CreateContentStandardsResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.CreateContentStandardsResponse1.errors" href="#adcp.types.aliases.CreateContentStandardsResponse1.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.CreateContentStandardsResponse1.ext" href="#adcp.types.aliases.CreateContentStandardsResponse1.ext">ext</a></code></li>
+<li><code><a title="adcp.types.aliases.CreateContentStandardsResponse1.model_config" href="#adcp.types.aliases.CreateContentStandardsResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.CreateContentStandardsResponse1.standards_id" href="#adcp.types.aliases.CreateContentStandardsResponse1.standards_id">standards_id</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.CreateContentStandardsResponse2" href="#adcp.types.aliases.CreateContentStandardsResponse2">CreateContentStandardsResponse2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.CreateContentStandardsResponse2.conflicting_standards_id" href="#adcp.types.aliases.CreateContentStandardsResponse2.conflicting_standards_id">conflicting_standards_id</a></code></li>
+<li><code><a title="adcp.types.aliases.CreateContentStandardsResponse2.context" href="#adcp.types.aliases.CreateContentStandardsResponse2.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.CreateContentStandardsResponse2.errors" href="#adcp.types.aliases.CreateContentStandardsResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.CreateContentStandardsResponse2.ext" href="#adcp.types.aliases.CreateContentStandardsResponse2.ext">ext</a></code></li>
+<li><code><a title="adcp.types.aliases.CreateContentStandardsResponse2.model_config" href="#adcp.types.aliases.CreateContentStandardsResponse2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.CreateContentStandardsResponse2.standards_id" href="#adcp.types.aliases.CreateContentStandardsResponse2.standards_id">standards_id</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.aliases.CreateMediaBuyResponse1" href="#adcp.types.aliases.CreateMediaBuyResponse1">CreateMediaBuyResponse1</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.account" href="#adcp.types.aliases.CreateMediaBuyResponse1.account">account</a></code></li>
@@ -3786,6 +5527,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.DaastAsset1.duration_ms" href="#adcp.types.aliases.DaastAsset1.duration_ms">duration_ms</a></code></li>
 <li><code><a title="adcp.types.aliases.DaastAsset1.model_config" href="#adcp.types.aliases.DaastAsset1.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.aliases.DaastAsset1.tracking_events" href="#adcp.types.aliases.DaastAsset1.tracking_events">tracking_events</a></code></li>
+<li><code><a title="adcp.types.aliases.DaastAsset1.transcript_url" href="#adcp.types.aliases.DaastAsset1.transcript_url">transcript_url</a></code></li>
 <li><code><a title="adcp.types.aliases.DaastAsset1.url" href="#adcp.types.aliases.DaastAsset1.url">url</a></code></li>
 </ul>
 </li>
@@ -3799,6 +5541,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.DaastAsset2.duration_ms" href="#adcp.types.aliases.DaastAsset2.duration_ms">duration_ms</a></code></li>
 <li><code><a title="adcp.types.aliases.DaastAsset2.model_config" href="#adcp.types.aliases.DaastAsset2.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.aliases.DaastAsset2.tracking_events" href="#adcp.types.aliases.DaastAsset2.tracking_events">tracking_events</a></code></li>
+<li><code><a title="adcp.types.aliases.DaastAsset2.transcript_url" href="#adcp.types.aliases.DaastAsset2.transcript_url">transcript_url</a></code></li>
 </ul>
 </li>
 <li>
@@ -3846,6 +5589,138 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.aliases.GetContentStandardsResponse1" href="#adcp.types.aliases.GetContentStandardsResponse1">GetContentStandardsResponse1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.GetContentStandardsResponse1.context" href="#adcp.types.aliases.GetContentStandardsResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.GetContentStandardsResponse1.errors" href="#adcp.types.aliases.GetContentStandardsResponse1.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.GetContentStandardsResponse1.model_config" href="#adcp.types.aliases.GetContentStandardsResponse1.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.GetContentStandardsResponse2" href="#adcp.types.aliases.GetContentStandardsResponse2">GetContentStandardsResponse2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.GetContentStandardsResponse2.context" href="#adcp.types.aliases.GetContentStandardsResponse2.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.GetContentStandardsResponse2.errors" href="#adcp.types.aliases.GetContentStandardsResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.GetContentStandardsResponse2.ext" href="#adcp.types.aliases.GetContentStandardsResponse2.ext">ext</a></code></li>
+<li><code><a title="adcp.types.aliases.GetContentStandardsResponse2.model_config" href="#adcp.types.aliases.GetContentStandardsResponse2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.GetContentStandardsResponse2.standards_id" href="#adcp.types.aliases.GetContentStandardsResponse2.standards_id">standards_id</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest1" href="#adcp.types.aliases.GetCreativeDeliveryRequest1">GetCreativeDeliveryRequest1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest1.account_id" href="#adcp.types.aliases.GetCreativeDeliveryRequest1.account_id">account_id</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest1.context" href="#adcp.types.aliases.GetCreativeDeliveryRequest1.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest1.creative_ids" href="#adcp.types.aliases.GetCreativeDeliveryRequest1.creative_ids">creative_ids</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest1.end_date" href="#adcp.types.aliases.GetCreativeDeliveryRequest1.end_date">end_date</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest1.ext" href="#adcp.types.aliases.GetCreativeDeliveryRequest1.ext">ext</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest1.max_variants" href="#adcp.types.aliases.GetCreativeDeliveryRequest1.max_variants">max_variants</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest1.media_buy_buyer_refs" href="#adcp.types.aliases.GetCreativeDeliveryRequest1.media_buy_buyer_refs">media_buy_buyer_refs</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest1.media_buy_ids" href="#adcp.types.aliases.GetCreativeDeliveryRequest1.media_buy_ids">media_buy_ids</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest1.model_config" href="#adcp.types.aliases.GetCreativeDeliveryRequest1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest1.pagination" href="#adcp.types.aliases.GetCreativeDeliveryRequest1.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest1.start_date" href="#adcp.types.aliases.GetCreativeDeliveryRequest1.start_date">start_date</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest2" href="#adcp.types.aliases.GetCreativeDeliveryRequest2">GetCreativeDeliveryRequest2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest2.account_id" href="#adcp.types.aliases.GetCreativeDeliveryRequest2.account_id">account_id</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest2.context" href="#adcp.types.aliases.GetCreativeDeliveryRequest2.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest2.creative_ids" href="#adcp.types.aliases.GetCreativeDeliveryRequest2.creative_ids">creative_ids</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest2.end_date" href="#adcp.types.aliases.GetCreativeDeliveryRequest2.end_date">end_date</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest2.ext" href="#adcp.types.aliases.GetCreativeDeliveryRequest2.ext">ext</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest2.max_variants" href="#adcp.types.aliases.GetCreativeDeliveryRequest2.max_variants">max_variants</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest2.media_buy_buyer_refs" href="#adcp.types.aliases.GetCreativeDeliveryRequest2.media_buy_buyer_refs">media_buy_buyer_refs</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest2.media_buy_ids" href="#adcp.types.aliases.GetCreativeDeliveryRequest2.media_buy_ids">media_buy_ids</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest2.model_config" href="#adcp.types.aliases.GetCreativeDeliveryRequest2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest2.pagination" href="#adcp.types.aliases.GetCreativeDeliveryRequest2.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest2.start_date" href="#adcp.types.aliases.GetCreativeDeliveryRequest2.start_date">start_date</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest3" href="#adcp.types.aliases.GetCreativeDeliveryRequest3">GetCreativeDeliveryRequest3</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest3.account_id" href="#adcp.types.aliases.GetCreativeDeliveryRequest3.account_id">account_id</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest3.context" href="#adcp.types.aliases.GetCreativeDeliveryRequest3.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest3.creative_ids" href="#adcp.types.aliases.GetCreativeDeliveryRequest3.creative_ids">creative_ids</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest3.end_date" href="#adcp.types.aliases.GetCreativeDeliveryRequest3.end_date">end_date</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest3.ext" href="#adcp.types.aliases.GetCreativeDeliveryRequest3.ext">ext</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest3.max_variants" href="#adcp.types.aliases.GetCreativeDeliveryRequest3.max_variants">max_variants</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest3.media_buy_buyer_refs" href="#adcp.types.aliases.GetCreativeDeliveryRequest3.media_buy_buyer_refs">media_buy_buyer_refs</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest3.media_buy_ids" href="#adcp.types.aliases.GetCreativeDeliveryRequest3.media_buy_ids">media_buy_ids</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest3.model_config" href="#adcp.types.aliases.GetCreativeDeliveryRequest3.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest3.pagination" href="#adcp.types.aliases.GetCreativeDeliveryRequest3.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.aliases.GetCreativeDeliveryRequest3.start_date" href="#adcp.types.aliases.GetCreativeDeliveryRequest3.start_date">start_date</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.GetMediaBuyArtifactsResponse1" href="#adcp.types.aliases.GetMediaBuyArtifactsResponse1">GetMediaBuyArtifactsResponse1</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.aliases.GetMediaBuyArtifactsResponse1.artifacts" href="#adcp.types.aliases.GetMediaBuyArtifactsResponse1.artifacts">artifacts</a></code></li>
+<li><code><a title="adcp.types.aliases.GetMediaBuyArtifactsResponse1.context" href="#adcp.types.aliases.GetMediaBuyArtifactsResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.GetMediaBuyArtifactsResponse1.errors" href="#adcp.types.aliases.GetMediaBuyArtifactsResponse1.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.GetMediaBuyArtifactsResponse1.ext" href="#adcp.types.aliases.GetMediaBuyArtifactsResponse1.ext">ext</a></code></li>
+<li><code><a title="adcp.types.aliases.GetMediaBuyArtifactsResponse1.media_buy_id" href="#adcp.types.aliases.GetMediaBuyArtifactsResponse1.media_buy_id">media_buy_id</a></code></li>
+<li><code><a title="adcp.types.aliases.GetMediaBuyArtifactsResponse1.model_config" href="#adcp.types.aliases.GetMediaBuyArtifactsResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.GetMediaBuyArtifactsResponse1.pagination" href="#adcp.types.aliases.GetMediaBuyArtifactsResponse1.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.aliases.GetMediaBuyArtifactsResponse1.sampling_info" href="#adcp.types.aliases.GetMediaBuyArtifactsResponse1.sampling_info">sampling_info</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.GetMediaBuyArtifactsResponse2" href="#adcp.types.aliases.GetMediaBuyArtifactsResponse2">GetMediaBuyArtifactsResponse2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.GetMediaBuyArtifactsResponse2.context" href="#adcp.types.aliases.GetMediaBuyArtifactsResponse2.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.GetMediaBuyArtifactsResponse2.errors" href="#adcp.types.aliases.GetMediaBuyArtifactsResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.GetMediaBuyArtifactsResponse2.ext" href="#adcp.types.aliases.GetMediaBuyArtifactsResponse2.ext">ext</a></code></li>
+<li><code><a title="adcp.types.aliases.GetMediaBuyArtifactsResponse2.media_buy_id" href="#adcp.types.aliases.GetMediaBuyArtifactsResponse2.media_buy_id">media_buy_id</a></code></li>
+<li><code><a title="adcp.types.aliases.GetMediaBuyArtifactsResponse2.model_config" href="#adcp.types.aliases.GetMediaBuyArtifactsResponse2.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.ListContentStandardsResponse1" href="#adcp.types.aliases.ListContentStandardsResponse1">ListContentStandardsResponse1</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.aliases.ListContentStandardsResponse1.context" href="#adcp.types.aliases.ListContentStandardsResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.ListContentStandardsResponse1.errors" href="#adcp.types.aliases.ListContentStandardsResponse1.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.ListContentStandardsResponse1.ext" href="#adcp.types.aliases.ListContentStandardsResponse1.ext">ext</a></code></li>
+<li><code><a title="adcp.types.aliases.ListContentStandardsResponse1.model_config" href="#adcp.types.aliases.ListContentStandardsResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.ListContentStandardsResponse1.pagination" href="#adcp.types.aliases.ListContentStandardsResponse1.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.aliases.ListContentStandardsResponse1.standards" href="#adcp.types.aliases.ListContentStandardsResponse1.standards">standards</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.ListContentStandardsResponse2" href="#adcp.types.aliases.ListContentStandardsResponse2">ListContentStandardsResponse2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.ListContentStandardsResponse2.context" href="#adcp.types.aliases.ListContentStandardsResponse2.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.ListContentStandardsResponse2.errors" href="#adcp.types.aliases.ListContentStandardsResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.ListContentStandardsResponse2.ext" href="#adcp.types.aliases.ListContentStandardsResponse2.ext">ext</a></code></li>
+<li><code><a title="adcp.types.aliases.ListContentStandardsResponse2.model_config" href="#adcp.types.aliases.ListContentStandardsResponse2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.ListContentStandardsResponse2.standards" href="#adcp.types.aliases.ListContentStandardsResponse2.standards">standards</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.LogEventResponse1" href="#adcp.types.aliases.LogEventResponse1">LogEventResponse1</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.aliases.LogEventResponse1.context" href="#adcp.types.aliases.LogEventResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.LogEventResponse1.events_processed" href="#adcp.types.aliases.LogEventResponse1.events_processed">events_processed</a></code></li>
+<li><code><a title="adcp.types.aliases.LogEventResponse1.events_received" href="#adcp.types.aliases.LogEventResponse1.events_received">events_received</a></code></li>
+<li><code><a title="adcp.types.aliases.LogEventResponse1.ext" href="#adcp.types.aliases.LogEventResponse1.ext">ext</a></code></li>
+<li><code><a title="adcp.types.aliases.LogEventResponse1.match_quality" href="#adcp.types.aliases.LogEventResponse1.match_quality">match_quality</a></code></li>
+<li><code><a title="adcp.types.aliases.LogEventResponse1.model_config" href="#adcp.types.aliases.LogEventResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.LogEventResponse1.partial_failures" href="#adcp.types.aliases.LogEventResponse1.partial_failures">partial_failures</a></code></li>
+<li><code><a title="adcp.types.aliases.LogEventResponse1.warnings" href="#adcp.types.aliases.LogEventResponse1.warnings">warnings</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.LogEventResponse2" href="#adcp.types.aliases.LogEventResponse2">LogEventResponse2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.LogEventResponse2.context" href="#adcp.types.aliases.LogEventResponse2.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.LogEventResponse2.errors" href="#adcp.types.aliases.LogEventResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.LogEventResponse2.ext" href="#adcp.types.aliases.LogEventResponse2.ext">ext</a></code></li>
+<li><code><a title="adcp.types.aliases.LogEventResponse2.model_config" href="#adcp.types.aliases.LogEventResponse2.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.aliases.Package" href="#adcp.types.aliases.Package">Package</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.aliases.Package.bid_price" href="#adcp.types.aliases.Package.bid_price">bid_price</a></code></li>
@@ -3856,6 +5731,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.Package.format_ids_to_provide" href="#adcp.types.aliases.Package.format_ids_to_provide">format_ids_to_provide</a></code></li>
 <li><code><a title="adcp.types.aliases.Package.impressions" href="#adcp.types.aliases.Package.impressions">impressions</a></code></li>
 <li><code><a title="adcp.types.aliases.Package.model_config" href="#adcp.types.aliases.Package.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.Package.optimization_goal" href="#adcp.types.aliases.Package.optimization_goal">optimization_goal</a></code></li>
 <li><code><a title="adcp.types.aliases.Package.pacing" href="#adcp.types.aliases.Package.pacing">pacing</a></code></li>
 <li><code><a title="adcp.types.aliases.Package.package_id" href="#adcp.types.aliases.Package.package_id">package_id</a></code></li>
 <li><code><a title="adcp.types.aliases.Package.paused" href="#adcp.types.aliases.Package.paused">paused</a></code></li>
@@ -4027,6 +5903,25 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.aliases.SyncAccountsResponse1" href="#adcp.types.aliases.SyncAccountsResponse1">SyncAccountsResponse1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.SyncAccountsResponse1.accounts" href="#adcp.types.aliases.SyncAccountsResponse1.accounts">accounts</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncAccountsResponse1.context" href="#adcp.types.aliases.SyncAccountsResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncAccountsResponse1.dry_run" href="#adcp.types.aliases.SyncAccountsResponse1.dry_run">dry_run</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncAccountsResponse1.ext" href="#adcp.types.aliases.SyncAccountsResponse1.ext">ext</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncAccountsResponse1.model_config" href="#adcp.types.aliases.SyncAccountsResponse1.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.SyncAccountsResponse2" href="#adcp.types.aliases.SyncAccountsResponse2">SyncAccountsResponse2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.SyncAccountsResponse2.context" href="#adcp.types.aliases.SyncAccountsResponse2.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncAccountsResponse2.errors" href="#adcp.types.aliases.SyncAccountsResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncAccountsResponse2.ext" href="#adcp.types.aliases.SyncAccountsResponse2.ext">ext</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncAccountsResponse2.model_config" href="#adcp.types.aliases.SyncAccountsResponse2.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.aliases.SyncCreativesResponse1" href="#adcp.types.aliases.SyncCreativesResponse1">SyncCreativesResponse1</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.aliases.SyncCreativesResponse1.context" href="#adcp.types.aliases.SyncCreativesResponse1.context">context</a></code></li>
@@ -4043,6 +5938,24 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.SyncCreativesResponse2.errors" href="#adcp.types.aliases.SyncCreativesResponse2.errors">errors</a></code></li>
 <li><code><a title="adcp.types.aliases.SyncCreativesResponse2.ext" href="#adcp.types.aliases.SyncCreativesResponse2.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.SyncCreativesResponse2.model_config" href="#adcp.types.aliases.SyncCreativesResponse2.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.SyncEventSourcesResponse1" href="#adcp.types.aliases.SyncEventSourcesResponse1">SyncEventSourcesResponse1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.SyncEventSourcesResponse1.context" href="#adcp.types.aliases.SyncEventSourcesResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncEventSourcesResponse1.event_sources" href="#adcp.types.aliases.SyncEventSourcesResponse1.event_sources">event_sources</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncEventSourcesResponse1.ext" href="#adcp.types.aliases.SyncEventSourcesResponse1.ext">ext</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncEventSourcesResponse1.model_config" href="#adcp.types.aliases.SyncEventSourcesResponse1.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.SyncEventSourcesResponse2" href="#adcp.types.aliases.SyncEventSourcesResponse2">SyncEventSourcesResponse2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.SyncEventSourcesResponse2.context" href="#adcp.types.aliases.SyncEventSourcesResponse2.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncEventSourcesResponse2.errors" href="#adcp.types.aliases.SyncEventSourcesResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncEventSourcesResponse2.ext" href="#adcp.types.aliases.SyncEventSourcesResponse2.ext">ext</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncEventSourcesResponse2.model_config" href="#adcp.types.aliases.SyncEventSourcesResponse2.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
@@ -4099,8 +6012,31 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.aliases.VastAsset1" href="#adcp.types.aliases.VastAsset1">VastAsset1</a></code></h4>
+<h4><code><a title="adcp.types.aliases.ValidateContentDeliveryResponse1" href="#adcp.types.aliases.ValidateContentDeliveryResponse1">ValidateContentDeliveryResponse1</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.aliases.ValidateContentDeliveryResponse1.context" href="#adcp.types.aliases.ValidateContentDeliveryResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.ValidateContentDeliveryResponse1.errors" href="#adcp.types.aliases.ValidateContentDeliveryResponse1.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.ValidateContentDeliveryResponse1.ext" href="#adcp.types.aliases.ValidateContentDeliveryResponse1.ext">ext</a></code></li>
+<li><code><a title="adcp.types.aliases.ValidateContentDeliveryResponse1.model_config" href="#adcp.types.aliases.ValidateContentDeliveryResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.ValidateContentDeliveryResponse1.results" href="#adcp.types.aliases.ValidateContentDeliveryResponse1.results">results</a></code></li>
+<li><code><a title="adcp.types.aliases.ValidateContentDeliveryResponse1.summary" href="#adcp.types.aliases.ValidateContentDeliveryResponse1.summary">summary</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.ValidateContentDeliveryResponse2" href="#adcp.types.aliases.ValidateContentDeliveryResponse2">ValidateContentDeliveryResponse2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.ValidateContentDeliveryResponse2.context" href="#adcp.types.aliases.ValidateContentDeliveryResponse2.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.ValidateContentDeliveryResponse2.errors" href="#adcp.types.aliases.ValidateContentDeliveryResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.ValidateContentDeliveryResponse2.ext" href="#adcp.types.aliases.ValidateContentDeliveryResponse2.ext">ext</a></code></li>
+<li><code><a title="adcp.types.aliases.ValidateContentDeliveryResponse2.model_config" href="#adcp.types.aliases.ValidateContentDeliveryResponse2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.ValidateContentDeliveryResponse2.summary" href="#adcp.types.aliases.ValidateContentDeliveryResponse2.summary">summary</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.VastAsset1" href="#adcp.types.aliases.VastAsset1">VastAsset1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.VastAsset1.audio_description_url" href="#adcp.types.aliases.VastAsset1.audio_description_url">audio_description_url</a></code></li>
+<li><code><a title="adcp.types.aliases.VastAsset1.captions_url" href="#adcp.types.aliases.VastAsset1.captions_url">captions_url</a></code></li>
 <li><code><a title="adcp.types.aliases.VastAsset1.delivery_type" href="#adcp.types.aliases.VastAsset1.delivery_type">delivery_type</a></code></li>
 <li><code><a title="adcp.types.aliases.VastAsset1.duration_ms" href="#adcp.types.aliases.VastAsset1.duration_ms">duration_ms</a></code></li>
 <li><code><a title="adcp.types.aliases.VastAsset1.model_config" href="#adcp.types.aliases.VastAsset1.model_config">model_config</a></code></li>
@@ -4112,7 +6048,9 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.aliases.VastAsset2" href="#adcp.types.aliases.VastAsset2">VastAsset2</a></code></h4>
-<ul class="two-column">
+<ul class="">
+<li><code><a title="adcp.types.aliases.VastAsset2.audio_description_url" href="#adcp.types.aliases.VastAsset2.audio_description_url">audio_description_url</a></code></li>
+<li><code><a title="adcp.types.aliases.VastAsset2.captions_url" href="#adcp.types.aliases.VastAsset2.captions_url">captions_url</a></code></li>
 <li><code><a title="adcp.types.aliases.VastAsset2.content" href="#adcp.types.aliases.VastAsset2.content">content</a></code></li>
 <li><code><a title="adcp.types.aliases.VastAsset2.delivery_type" href="#adcp.types.aliases.VastAsset2.delivery_type">delivery_type</a></code></li>
 <li><code><a title="adcp.types.aliases.VastAsset2.duration_ms" href="#adcp.types.aliases.VastAsset2.duration_ms">duration_ms</a></code></li>

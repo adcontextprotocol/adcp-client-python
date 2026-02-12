@@ -57,23 +57,23 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class A2UiSurface(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     catalogId: Annotated[
-        str | None, Field(description=&#34;Component catalog to use for rendering&#34;)
-    ] = &#34;standard&#34;
+        str | None, Field(description=&#39;Component catalog to use for rendering&#39;)
+    ] = &#39;standard&#39;
     components: Annotated[
         list[component.A2UiComponent],
-        Field(description=&#34;Flat list of components (adjacency list structure)&#34;),
+        Field(description=&#39;Flat list of components (adjacency list structure)&#39;),
     ]
     dataModel: Annotated[
-        dict[str, Any] | None, Field(description=&#34;Application data that components can bind to&#34;)
+        dict[str, Any] | None, Field(description=&#39;Application data that components can bind to&#39;)
     ] = None
     rootId: Annotated[
         str | None,
-        Field(description=&#34;ID of the root component (if not specified, first component is root)&#34;),
+        Field(description=&#39;ID of the root component (if not specified, first component is root)&#39;),
     ] = None
-    surfaceId: Annotated[str, Field(description=&#34;Unique identifier for this surface&#34;)]</code></pre>
+    surfaceId: Annotated[str, Field(description=&#39;Unique identifier for this surface&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null

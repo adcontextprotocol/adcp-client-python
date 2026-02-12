@@ -57,17 +57,17 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class PropertyListReference(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;forbid&#39;,
     )
-    agent_url: Annotated[AnyUrl, Field(description=&#34;URL of the agent managing the property list&#34;)]
+    agent_url: Annotated[AnyUrl, Field(description=&#39;URL of the agent managing the property list&#39;)]
     auth_token: Annotated[
         str | None,
         Field(
-            description=&#34;JWT or other authorization token for accessing the list. Optional if the list is public or caller has implicit access.&#34;
+            description=&#39;JWT or other authorization token for accessing the list. Optional if the list is public or caller has implicit access.&#39;
         ),
     ] = None
     list_id: Annotated[
-        str, Field(description=&#34;Identifier for the property list within the agent&#34;, min_length=1)
+        str, Field(description=&#39;Identifier for the property list within the agent&#39;, min_length=1)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

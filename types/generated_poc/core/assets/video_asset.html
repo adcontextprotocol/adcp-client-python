@@ -94,10 +94,10 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class AudioChannels(Enum):
-    mono = &#34;mono&#34;
-    stereo = &#34;stereo&#34;
-    field_5_1 = &#34;5.1&#34;
-    field_7_1 = &#34;7.1&#34;</code></pre>
+    mono = &#39;mono&#39;
+    stereo = &#39;stereo&#39;
+    field_5_1 = &#39;5.1&#39;
+    field_7_1 = &#39;7.1&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -168,9 +168,9 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ChromaSubsampling(Enum):
-    field_4_2_0 = &#34;4:2:0&#34;
-    field_4_2_2 = &#34;4:2:2&#34;
-    field_4_4_4 = &#34;4:4:4&#34;</code></pre>
+    field_4_2_0 = &#39;4:2:0&#39;
+    field_4_2_2 = &#39;4:2:2&#39;
+    field_4_4_4 = &#39;4:4:4&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -237,11 +237,11 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ColorSpace(Enum):
-    rec709 = &#34;rec709&#34;
-    rec2020 = &#34;rec2020&#34;
-    rec2100 = &#34;rec2100&#34;
-    srgb = &#34;srgb&#34;
-    dci_p3 = &#34;dci_p3&#34;</code></pre>
+    rec709 = &#39;rec709&#39;
+    rec2020 = &#39;rec2020&#39;
+    rec2100 = &#39;rec2100&#39;
+    srgb = &#39;srgb&#39;
+    dci_p3 = &#39;dci_p3&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -316,8 +316,8 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class FrameRateType(Enum):
-    constant = &#34;constant&#34;
-    variable = &#34;variable&#34;</code></pre>
+    constant = &#39;constant&#39;
+    variable = &#39;variable&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -380,8 +380,8 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class GopType(Enum):
-    closed = &#34;closed&#34;
-    open = &#34;open&#34;</code></pre>
+    closed = &#39;closed&#39;
+    open = &#39;open&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -444,11 +444,11 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class HdrFormat(Enum):
-    sdr = &#34;sdr&#34;
-    hdr10 = &#34;hdr10&#34;
-    hdr10_plus = &#34;hdr10_plus&#34;
-    hlg = &#34;hlg&#34;
-    dolby_vision = &#34;dolby_vision&#34;</code></pre>
+    sdr = &#39;sdr&#39;
+    hdr10 = &#39;hdr10&#39;
+    hdr10_plus = &#39;hdr10_plus&#39;
+    hlg = &#39;hlg&#39;
+    dolby_vision = &#39;dolby_vision&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -523,8 +523,8 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class MoovAtomPosition(Enum):
-    start = &#34;start&#34;
-    end = &#34;end&#34;</code></pre>
+    start = &#39;start&#39;
+    end = &#39;end&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -587,8 +587,8 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ScanType(Enum):
-    progressive = &#34;progressive&#34;
-    interlaced = &#34;interlaced&#34;</code></pre>
+    progressive = &#39;progressive&#39;
+    interlaced = &#39;interlaced&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -652,39 +652,46 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class VideoAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    audio_bit_depth: Annotated[AudioBitDepth | None, Field(description=&#34;Audio bit depth&#34;)] = None
+    audio_bit_depth: Annotated[AudioBitDepth | None, Field(description=&#39;Audio bit depth&#39;)] = None
     audio_bitrate_kbps: Annotated[
-        int | None, Field(description=&#34;Audio bitrate in kilobits per second&#34;, ge=1)
+        int | None, Field(description=&#39;Audio bitrate in kilobits per second&#39;, ge=1)
     ] = None
     audio_channels: Annotated[
-        AudioChannels | None, Field(description=&#34;Audio channel configuration&#34;)
+        AudioChannels | None, Field(description=&#39;Audio channel configuration&#39;)
     ] = None
     audio_codec: Annotated[
         str | None,
-        Field(description=&#34;Audio codec used (aac, aac_lc, he_aac, pcm, mp3, ac3, eac3, etc.)&#34;),
+        Field(description=&#39;Audio codec used (aac, aac_lc, he_aac, pcm, mp3, ac3, eac3, etc.)&#39;),
+    ] = None
+    audio_description_url: Annotated[
+        AnyUrl | None,
+        Field(description=&#39;URL to audio description track for visually impaired users&#39;),
     ] = None
     audio_loudness_lufs: Annotated[
-        float | None, Field(description=&#34;Integrated loudness in LUFS&#34;)
+        float | None, Field(description=&#39;Integrated loudness in LUFS&#39;)
     ] = None
     audio_sampling_rate_hz: Annotated[
-        int | None, Field(description=&#34;Audio sampling rate in Hz (e.g., 44100, 48000)&#34;)
+        int | None, Field(description=&#39;Audio sampling rate in Hz (e.g., 44100, 48000)&#39;)
     ] = None
-    audio_true_peak_dbfs: Annotated[float | None, Field(description=&#34;True peak level in dBFS&#34;)] = (
+    audio_true_peak_dbfs: Annotated[float | None, Field(description=&#39;True peak level in dBFS&#39;)] = (
         None
     )
-    chroma_subsampling: Annotated[
-        ChromaSubsampling | None, Field(description=&#34;Chroma subsampling format&#34;)
+    captions_url: Annotated[
+        AnyUrl | None, Field(description=&#39;URL to captions file (WebVTT, SRT, etc.)&#39;)
     ] = None
-    color_space: Annotated[ColorSpace | None, Field(description=&#34;Color space of the video&#34;)] = None
+    chroma_subsampling: Annotated[
+        ChromaSubsampling | None, Field(description=&#39;Chroma subsampling format&#39;)
+    ] = None
+    color_space: Annotated[ColorSpace | None, Field(description=&#39;Color space of the video&#39;)] = None
     container_format: Annotated[
-        str | None, Field(description=&#34;Video container format (mp4, webm, mov, etc.)&#34;)
+        str | None, Field(description=&#39;Video container format (mp4, webm, mov, etc.)&#39;)
     ] = None
     duration_ms: Annotated[
-        int | None, Field(description=&#34;Video duration in milliseconds&#34;, ge=1)
+        int | None, Field(description=&#39;Video duration in milliseconds&#39;, ge=1)
     ] = None
-    file_size_bytes: Annotated[int | None, Field(description=&#34;File size in bytes&#34;, ge=1)] = None
+    file_size_bytes: Annotated[int | None, Field(description=&#39;File size in bytes&#39;, ge=1)] = None
     frame_rate: Annotated[
         str | None,
         Field(
@@ -693,33 +700,36 @@ attributes &ndash; see the documentation for details.</p></div>
     ] = None
     frame_rate_type: Annotated[
         FrameRateType | None,
-        Field(description=&#34;Whether the video uses constant (CFR) or variable (VFR) frame rate&#34;),
+        Field(description=&#39;Whether the video uses constant (CFR) or variable (VFR) frame rate&#39;),
     ] = None
     gop_interval_seconds: Annotated[
-        float | None, Field(description=&#34;GOP/keyframe interval in seconds&#34;)
+        float | None, Field(description=&#39;GOP/keyframe interval in seconds&#39;)
     ] = None
-    gop_type: Annotated[GopType | None, Field(description=&#34;GOP structure type&#34;)] = None
+    gop_type: Annotated[GopType | None, Field(description=&#39;GOP structure type&#39;)] = None
     has_audio: Annotated[
-        bool | None, Field(description=&#34;Whether the video contains an audio track&#34;)
+        bool | None, Field(description=&#39;Whether the video contains an audio track&#39;)
     ] = None
     hdr_format: Annotated[
         HdrFormat | None,
         Field(description=&#34;HDR format if applicable, or &#39;sdr&#39; for standard dynamic range&#34;),
     ] = None
-    height: Annotated[int, Field(description=&#34;Height in pixels&#34;, ge=1)]
+    height: Annotated[int, Field(description=&#39;Height in pixels&#39;, ge=1)]
     moov_atom_position: Annotated[
-        MoovAtomPosition | None, Field(description=&#34;Position of moov atom in MP4 container&#34;)
+        MoovAtomPosition | None, Field(description=&#39;Position of moov atom in MP4 container&#39;)
     ] = None
-    scan_type: Annotated[ScanType | None, Field(description=&#34;Scan type of the video&#34;)] = None
-    url: Annotated[AnyUrl, Field(description=&#34;URL to the video asset&#34;)]
-    video_bit_depth: Annotated[VideoBitDepth | None, Field(description=&#34;Video bit depth&#34;)] = None
+    scan_type: Annotated[ScanType | None, Field(description=&#39;Scan type of the video&#39;)] = None
+    transcript_url: Annotated[
+        AnyUrl | None, Field(description=&#39;URL to text transcript of the video content&#39;)
+    ] = None
+    url: Annotated[AnyUrl, Field(description=&#39;URL to the video asset&#39;)]
+    video_bit_depth: Annotated[VideoBitDepth | None, Field(description=&#39;Video bit depth&#39;)] = None
     video_bitrate_kbps: Annotated[
-        int | None, Field(description=&#34;Video stream bitrate in kilobits per second&#34;, ge=1)
+        int | None, Field(description=&#39;Video stream bitrate in kilobits per second&#39;, ge=1)
     ] = None
     video_codec: Annotated[
-        str | None, Field(description=&#34;Video codec used (h264, h265, vp9, av1, prores, etc.)&#34;)
+        str | None, Field(description=&#39;Video codec used (h264, h265, vp9, av1, prores, etc.)&#39;)
     ] = None
-    width: Annotated[int, Field(description=&#34;Width in pixels&#34;, ge=1)]</code></pre>
+    width: Annotated[int, Field(description=&#39;Width in pixels&#39;, ge=1)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -752,6 +762,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_description_url"><code class="name">var <span class="ident">audio_description_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_loudness_lufs"><code class="name">var <span class="ident">audio_loudness_lufs</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -761,6 +775,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_true_peak_dbfs"><code class="name">var <span class="ident">audio_true_peak_dbfs</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.captions_url"><code class="name">var <span class="ident">captions_url</span> : pydantic.networks.AnyUrl | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -821,6 +839,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.scan_type"><code class="name">var <span class="ident">scan_type</span> : <a title="adcp.types.generated_poc.core.assets.video_asset.ScanType" href="#adcp.types.generated_poc.core.assets.video_asset.ScanType">ScanType</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.transcript_url"><code class="name">var <span class="ident">transcript_url</span> : pydantic.networks.AnyUrl | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -989,9 +1011,11 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_bitrate_kbps" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_bitrate_kbps">audio_bitrate_kbps</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_channels" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_channels">audio_channels</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_codec" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_codec">audio_codec</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_description_url" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_description_url">audio_description_url</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_loudness_lufs" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_loudness_lufs">audio_loudness_lufs</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_sampling_rate_hz" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_sampling_rate_hz">audio_sampling_rate_hz</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_true_peak_dbfs" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.audio_true_peak_dbfs">audio_true_peak_dbfs</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.captions_url" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.captions_url">captions_url</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.chroma_subsampling" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.chroma_subsampling">chroma_subsampling</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.color_space" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.color_space">color_space</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.container_format" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.container_format">container_format</a></code></li>
@@ -1007,6 +1031,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.model_config" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.moov_atom_position" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.moov_atom_position">moov_atom_position</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.scan_type" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.scan_type">scan_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.transcript_url" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.transcript_url">transcript_url</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.url" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.url">url</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.video_bit_depth" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.video_bit_depth">video_bit_depth</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.video_bitrate_kbps" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.video_bitrate_kbps">video_bitrate_kbps</a></code></li>

@@ -57,18 +57,18 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class GetProductsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     account_id: Annotated[
         str | None,
         Field(
-            description=&#34;Account context for product lookup. When provided, returns products with pricing specific to this account&#39;s rate card. Optional if the agent has a single account.&#34;
+            description=&#34;Account ID for product lookup. Required when the seller declares account.required_for_products = true in capabilities. Returns products with pricing specific to this account&#39;s rate card.&#34;
         ),
     ] = None
     brand_manifest: Annotated[
         brand_manifest_ref.BrandManifestReference | None,
         Field(
-            description=&#34;Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest.&#34;
+            description=&#39;Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest.&#39;
         ),
     ] = None
     brief: Annotated[
@@ -80,16 +80,23 @@ el.replaceWith(d);
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     filters: product_filters.ProductFilters | None = None
+    pagination: pagination_request.PaginationRequest | None = None
+    product_selectors: Annotated[
+        promoted_products.PromotedProducts | None,
+        Field(
+            description=&#39;Selectors to filter the brand manifest product catalog for product discovery. When provided, sellers should only return advertising products where the selected catalog items have matches. Uses the same selection methods as promoted-offerings.&#39;
+        ),
+    ] = None
     property_list: Annotated[
         property_list_ref.PropertyListReference | None,
         Field(
-            description=&#34;[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list.&#34;
+            description=&#39;[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list.&#39;
         ),
     ] = None
     proposal_id: Annotated[
         str | None,
         Field(
-            description=&#34;Optional proposal ID to refine. When provided with a brief, the publisher will use the brief as refinement instructions for the specified proposal and return an updated version.&#34;
+            description=&#39;Optional proposal ID to refine. When provided with a brief, the publisher will use the brief as refinement instructions for the specified proposal and return an updated version.&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -133,6 +140,14 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="../core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.product_selectors"><code class="name">var <span class="ident">product_selectors</span> : <a title="adcp.types.generated_poc.core.promoted_products.PromotedProducts" href="../core/promoted_products.html#adcp.types.generated_poc.core.promoted_products.PromotedProducts">PromotedProducts</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -181,6 +196,8 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.ext" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.filters" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.filters">filters</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.model_config" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.pagination" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.product_selectors" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.product_selectors">product_selectors</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.property_list" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.property_list">property_list</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.proposal_id" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.proposal_id">proposal_id</a></code></li>
 </ul>

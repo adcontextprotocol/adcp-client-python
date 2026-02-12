@@ -57,46 +57,46 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class VcpmPricingOption(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     currency: Annotated[
         str,
         Field(
-            description=&#34;ISO 4217 currency code&#34;,
-            examples=[&#34;USD&#34;, &#34;EUR&#34;, &#34;GBP&#34;, &#34;JPY&#34;],
-            pattern=&#34;^[A-Z]{3}$&#34;,
+            description=&#39;ISO 4217 currency code&#39;,
+            examples=[&#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;, &#39;JPY&#39;],
+            pattern=&#39;^[A-Z]{3}$&#39;,
         ),
     ]
     fixed_price: Annotated[
         float | None,
         Field(
-            description=&#34;Fixed price per unit. If present, this is fixed pricing. If absent, auction-based.&#34;,
+            description=&#39;Fixed price per unit. If present, this is fixed pricing. If absent, auction-based.&#39;,
             ge=0.0,
         ),
     ] = None
     floor_price: Annotated[
         float | None,
         Field(
-            description=&#34;Minimum acceptable bid for auction pricing (mutually exclusive with fixed_price). Bids below this value will be rejected.&#34;,
+            description=&#39;Minimum acceptable bid for auction pricing (mutually exclusive with fixed_price). Bids below this value will be rejected.&#39;,
             ge=0.0,
         ),
     ] = None
     min_spend_per_package: Annotated[
         float | None,
         Field(
-            description=&#34;Minimum spend requirement per package using this pricing option, in the specified currency&#34;,
+            description=&#39;Minimum spend requirement per package using this pricing option, in the specified currency&#39;,
             ge=0.0,
         ),
     ] = None
     price_guidance: Annotated[
         price_guidance_1.PriceGuidance | None,
-        Field(description=&#34;Optional pricing guidance for auction-based bidding&#34;),
+        Field(description=&#39;Optional pricing guidance for auction-based bidding&#39;),
     ] = None
     pricing_model: Annotated[
-        Literal[&#34;vcpm&#34;], Field(description=&#34;Cost per 1,000 viewable impressions (MRC standard)&#34;)
+        Literal[&#39;vcpm&#39;], Field(description=&#39;Cost per 1,000 viewable impressions (MRC standard)&#39;)
     ]
     pricing_option_id: Annotated[
-        str, Field(description=&#34;Unique identifier for this pricing option within the product&#34;)
+        str, Field(description=&#39;Unique identifier for this pricing option within the product&#39;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

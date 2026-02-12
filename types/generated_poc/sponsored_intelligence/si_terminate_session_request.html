@@ -56,8 +56,8 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Action(Enum):
-    purchase = &#34;purchase&#34;
-    subscribe = &#34;subscribe&#34;</code></pre>
+    purchase = &#39;purchase&#39;
+    subscribe = &#39;subscribe&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -120,11 +120,11 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Reason(Enum):
-    handoff_transaction = &#34;handoff_transaction&#34;
-    handoff_complete = &#34;handoff_complete&#34;
-    user_exit = &#34;user_exit&#34;
-    session_timeout = &#34;session_timeout&#34;
-    host_terminated = &#34;host_terminated&#34;</code></pre>
+    handoff_transaction = &#39;handoff_transaction&#39;
+    handoff_complete = &#39;handoff_complete&#39;
+    user_exit = &#39;user_exit&#39;
+    session_timeout = &#39;session_timeout&#39;
+    host_terminated = &#39;host_terminated&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -200,13 +200,13 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class SiTerminateSessionRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     ext: ext_1.ExtensionObject | None = None
-    reason: Annotated[Reason, Field(description=&#34;Reason for termination&#34;)]
-    session_id: Annotated[str, Field(description=&#34;Session identifier to terminate&#34;)]
+    reason: Annotated[Reason, Field(description=&#39;Reason for termination&#39;)]
+    session_id: Annotated[str, Field(description=&#39;Session identifier to terminate&#39;)]
     termination_context: Annotated[
-        TerminationContext | None, Field(description=&#34;Context for the termination&#34;)
+        TerminationContext | None, Field(description=&#39;Context for the termination&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -267,15 +267,15 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class TerminationContext(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     cause: Annotated[
-        str | None, Field(description=&#34;For host_terminated - why host ended session&#34;)
+        str | None, Field(description=&#39;For host_terminated - why host ended session&#39;)
     ] = None
-    summary: Annotated[str | None, Field(description=&#34;Summary of the conversation&#34;)] = None
+    summary: Annotated[str | None, Field(description=&#39;Summary of the conversation&#39;)] = None
     transaction_intent: Annotated[
         TransactionIntent | None,
-        Field(description=&#34;For handoff_transaction - what user wants to buy&#34;),
+        Field(description=&#39;For handoff_transaction - what user wants to buy&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -332,10 +332,10 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class TransactionIntent(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     action: Action | None = None
-    product: Annotated[dict[str, Any] | None, Field(description=&#34;Product/service details&#34;)] = None</code></pre>
+    product: Annotated[dict[str, Any] | None, Field(description=&#39;Product/service details&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null

@@ -56,15 +56,28 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class AvailableMetric(Enum):
-    impressions = &#34;impressions&#34;
-    spend = &#34;spend&#34;
-    clicks = &#34;clicks&#34;
-    ctr = &#34;ctr&#34;
-    video_completions = &#34;video_completions&#34;
-    completion_rate = &#34;completion_rate&#34;
-    conversions = &#34;conversions&#34;
-    viewability = &#34;viewability&#34;
-    engagement_rate = &#34;engagement_rate&#34;</code></pre>
+    impressions = &#39;impressions&#39;
+    spend = &#39;spend&#39;
+    clicks = &#39;clicks&#39;
+    ctr = &#39;ctr&#39;
+    video_completions = &#39;video_completions&#39;
+    completion_rate = &#39;completion_rate&#39;
+    conversions = &#39;conversions&#39;
+    conversion_value = &#39;conversion_value&#39;
+    roas = &#39;roas&#39;
+    cost_per_acquisition = &#39;cost_per_acquisition&#39;
+    new_to_brand_rate = &#39;new_to_brand_rate&#39;
+    viewability = &#39;viewability&#39;
+    engagement_rate = &#39;engagement_rate&#39;
+    views = &#39;views&#39;
+    completed_views = &#39;completed_views&#39;
+    leads = &#39;leads&#39;
+    reach = &#39;reach&#39;
+    frequency = &#39;frequency&#39;
+    grps = &#39;grps&#39;
+    quartile_data = &#39;quartile_data&#39;
+    dooh_metrics = &#39;dooh_metrics&#39;
+    cost_per_click = &#39;cost_per_click&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -111,7 +124,15 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.enums.available_metric.AvailableMetric.completed_views"><code class="name">var <span class="ident">completed_views</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.enums.available_metric.AvailableMetric.completion_rate"><code class="name">var <span class="ident">completion_rate</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.available_metric.AvailableMetric.conversion_value"><code class="name">var <span class="ident">conversion_value</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -119,7 +140,19 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.enums.available_metric.AvailableMetric.cost_per_acquisition"><code class="name">var <span class="ident">cost_per_acquisition</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.available_metric.AvailableMetric.cost_per_click"><code class="name">var <span class="ident">cost_per_click</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.enums.available_metric.AvailableMetric.ctr"><code class="name">var <span class="ident">ctr</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.available_metric.AvailableMetric.dooh_metrics"><code class="name">var <span class="ident">dooh_metrics</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -127,7 +160,35 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.enums.available_metric.AvailableMetric.frequency"><code class="name">var <span class="ident">frequency</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.available_metric.AvailableMetric.grps"><code class="name">var <span class="ident">grps</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.enums.available_metric.AvailableMetric.impressions"><code class="name">var <span class="ident">impressions</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.available_metric.AvailableMetric.leads"><code class="name">var <span class="ident">leads</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.available_metric.AvailableMetric.new_to_brand_rate"><code class="name">var <span class="ident">new_to_brand_rate</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.available_metric.AvailableMetric.quartile_data"><code class="name">var <span class="ident">quartile_data</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.available_metric.AvailableMetric.reach"><code class="name">var <span class="ident">reach</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.available_metric.AvailableMetric.roas"><code class="name">var <span class="ident">roas</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -140,6 +201,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.enums.available_metric.AvailableMetric.viewability"><code class="name">var <span class="ident">viewability</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.available_metric.AvailableMetric.views"><code class="name">var <span class="ident">views</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -162,16 +227,29 @@ attributes &ndash; see the documentation for details.</p></div>
 <ul>
 <li>
 <h4><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric">AvailableMetric</a></code></h4>
-<ul class="two-column">
+<ul class="">
 <li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.clicks" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.clicks">clicks</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.completed_views" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.completed_views">completed_views</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.completion_rate" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.completion_rate">completion_rate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.conversion_value" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.conversion_value">conversion_value</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.conversions" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.conversions">conversions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.cost_per_acquisition" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.cost_per_acquisition">cost_per_acquisition</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.cost_per_click" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.cost_per_click">cost_per_click</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.ctr" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.ctr">ctr</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.dooh_metrics" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.dooh_metrics">dooh_metrics</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.engagement_rate" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.engagement_rate">engagement_rate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.frequency" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.frequency">frequency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.grps" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.grps">grps</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.impressions" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.impressions">impressions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.leads" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.leads">leads</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.new_to_brand_rate" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.new_to_brand_rate">new_to_brand_rate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.quartile_data" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.quartile_data">quartile_data</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.reach" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.reach">reach</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.roas" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.roas">roas</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.spend" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.spend">spend</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.video_completions" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.video_completions">video_completions</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.viewability" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.viewability">viewability</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.available_metric.AvailableMetric.views" href="#adcp.types.generated_poc.enums.available_metric.AvailableMetric.views">views</a></code></li>
 </ul>
 </li>
 </ul>

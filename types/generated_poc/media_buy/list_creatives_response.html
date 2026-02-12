@@ -57,13 +57,13 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class AssignedPackage(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    assigned_date: Annotated[AwareDatetime, Field(description=&#34;When this assignment was created&#34;)]
+    assigned_date: Annotated[AwareDatetime, Field(description=&#39;When this assignment was created&#39;)]
     buyer_ref: Annotated[
         str | None, Field(description=&#34;Buyer&#39;s reference identifier for this package&#34;)
     ] = None
-    package_id: Annotated[str, Field(description=&#34;Package identifier&#34;)]</code></pre>
+    package_id: Annotated[str, Field(description=&#39;Package identifier&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -119,14 +119,14 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Assignments(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     assigned_packages: Annotated[
         list[AssignedPackage] | None,
-        Field(description=&#34;List of packages this creative is assigned to&#34;),
+        Field(description=&#39;List of packages this creative is assigned to&#39;),
     ] = None
     assignment_count: Annotated[
-        int, Field(description=&#34;Total number of active package assignments&#34;, ge=0)
+        int, Field(description=&#39;Total number of active package assignments&#39;, ge=0)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -179,10 +179,10 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Creative(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     account: Annotated[
-        account_1.Account | None, Field(description=&#34;Account that owns this creative&#34;)
+        account_1.Account | None, Field(description=&#39;Account that owns this creative&#39;)
     ] = None
     assets: Annotated[
         dict[
@@ -200,40 +200,40 @@ validated to form a valid model.</p>
             | url_asset.UrlAsset,
         ]
         | None,
-        Field(description=&#34;Assets for this creative, keyed by asset_role&#34;),
+        Field(description=&#39;Assets for this creative, keyed by asset_role&#39;),
     ] = None
     assignments: Annotated[
         Assignments | None,
-        Field(description=&#34;Current package assignments (included when include_assignments=true)&#34;),
+        Field(description=&#39;Current package assignments (included when include_assignments=true)&#39;),
     ] = None
     created_date: Annotated[
-        AwareDatetime, Field(description=&#34;When the creative was uploaded to the library&#34;)
+        AwareDatetime, Field(description=&#39;When the creative was uploaded to the library&#39;)
     ]
-    creative_id: Annotated[str, Field(description=&#34;Unique identifier for the creative&#34;)]
+    creative_id: Annotated[str, Field(description=&#39;Unique identifier for the creative&#39;)]
     format_id: Annotated[
         format_id_1.FormatId,
-        Field(description=&#34;Format identifier specifying which format this creative conforms to&#34;),
+        Field(description=&#39;Format identifier specifying which format this creative conforms to&#39;),
     ]
-    name: Annotated[str, Field(description=&#34;Human-readable creative name&#34;)]
+    name: Annotated[str, Field(description=&#39;Human-readable creative name&#39;)]
     performance: Annotated[
         Performance | None,
         Field(
-            description=&#34;Aggregated performance metrics (included when include_performance=true)&#34;
+            description=&#39;Aggregated performance metrics (included when include_performance=true)&#39;
         ),
     ] = None
     status: Annotated[
-        creative_status.CreativeStatus, Field(description=&#34;Current approval status of the creative&#34;)
+        creative_status.CreativeStatus, Field(description=&#39;Current approval status of the creative&#39;)
     ]
     sub_assets: Annotated[
         list[sub_asset.SubAsset] | None,
         Field(
-            description=&#34;Sub-assets for multi-asset formats (included when include_sub_assets=true)&#34;
+            description=&#39;Sub-assets for multi-asset formats (included when include_sub_assets=true)&#39;
         ),
     ] = None
     tags: Annotated[
-        list[str] | None, Field(description=&#34;User-defined tags for organization and searchability&#34;)
+        list[str] | None, Field(description=&#39;User-defined tags for organization and searchability&#39;)
     ] = None
-    updated_date: Annotated[AwareDatetime, Field(description=&#34;When the creative was last modified&#34;)]</code></pre>
+    updated_date: Annotated[AwareDatetime, Field(description=&#39;When the creative was last modified&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -325,24 +325,22 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ListCreativesResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     creatives: Annotated[
-        list[Creative], Field(description=&#34;Array of creative assets matching the query&#34;)
+        list[Creative], Field(description=&#39;Array of creative assets matching the query&#39;)
     ]
     ext: ext_1.ExtensionObject | None = None
     format_summary: Annotated[
-        dict[str, int] | None, Field(description=&#34;Breakdown of creatives by format type&#34;)
+        dict[str, int] | None, Field(description=&#39;Breakdown of creatives by format type&#39;)
     ] = None
-    pagination: Annotated[
-        Pagination, Field(description=&#34;Pagination information for navigating results&#34;)
-    ]
+    pagination: pagination_response.PaginationResponse
     query_summary: Annotated[
-        QuerySummary, Field(description=&#34;Summary of the query that was executed&#34;)
+        QuerySummary, Field(description=&#39;Summary of the query that was executed&#39;)
     ]
     status_summary: Annotated[
-        StatusSummary | None, Field(description=&#34;Breakdown of creatives by status&#34;)
+        StatusSummary | None, Field(description=&#39;Breakdown of creatives by status&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -380,7 +378,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.media_buy.list_creatives_response.Pagination" href="#adcp.types.generated_poc.media_buy.list_creatives_response.Pagination">Pagination</a></code></dt>
+<dt id="adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_response.PaginationResponse" href="../core/pagination_response.html#adcp.types.generated_poc.core.pagination_response.PaginationResponse">PaginationResponse</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -389,80 +387,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse.status_summary"><code class="name">var <span class="ident">status_summary</span> : <a title="adcp.types.generated_poc.media_buy.list_creatives_response.StatusSummary" href="#adcp.types.generated_poc.media_buy.list_creatives_response.StatusSummary">StatusSummary</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.list_creatives_response.Pagination"><code class="flex name class">
-<span>class <span class="ident">Pagination</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Pagination(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#34;allow&#34;,
-    )
-    current_page: Annotated[
-        int | None, Field(description=&#34;Current page number (1-based)&#34;, ge=1)
-    ] = None
-    has_more: Annotated[bool, Field(description=&#34;Whether more results are available&#34;)]
-    limit: Annotated[int, Field(description=&#34;Maximum number of results requested&#34;, ge=1)]
-    offset: Annotated[int, Field(description=&#34;Number of results skipped&#34;, ge=0)]
-    total_pages: Annotated[
-        int | None, Field(description=&#34;Total number of pages available&#34;, ge=0)
-    ] = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.media_buy.list_creatives_response.Pagination.current_page"><code class="name">var <span class="ident">current_page</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.list_creatives_response.Pagination.has_more"><code class="name">var <span class="ident">has_more</span> : bool</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.list_creatives_response.Pagination.limit"><code class="name">var <span class="ident">limit</span> : int</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.list_creatives_response.Pagination.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.list_creatives_response.Pagination.offset"><code class="name">var <span class="ident">offset</span> : int</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.list_creatives_response.Pagination.total_pages"><code class="name">var <span class="ident">total_pages</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -489,25 +413,25 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Performance(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     clicks: Annotated[
-        int | None, Field(description=&#34;Total clicks across all assignments&#34;, ge=0)
+        int | None, Field(description=&#39;Total clicks across all assignments&#39;, ge=0)
     ] = None
     conversion_rate: Annotated[
-        float | None, Field(description=&#34;Conversion rate across all assignments&#34;, ge=0.0, le=1.0)
+        float | None, Field(description=&#39;Conversion rate across all assignments&#39;, ge=0.0, le=1.0)
     ] = None
     ctr: Annotated[
-        float | None, Field(description=&#34;Click-through rate (clicks/impressions)&#34;, ge=0.0, le=1.0)
+        float | None, Field(description=&#39;Click-through rate (clicks/impressions)&#39;, ge=0.0, le=1.0)
     ] = None
     impressions: Annotated[
-        int | None, Field(description=&#34;Total impressions across all assignments&#34;, ge=0)
+        int | None, Field(description=&#39;Total impressions across all assignments&#39;, ge=0)
     ] = None
     last_updated: Annotated[
-        AwareDatetime, Field(description=&#34;When performance data was last updated&#34;)
+        AwareDatetime, Field(description=&#39;When performance data was last updated&#39;)
     ]
     performance_score: Annotated[
-        float | None, Field(description=&#34;Aggregated performance score (0-100)&#34;, ge=0.0, le=100.0)
+        float | None, Field(description=&#39;Aggregated performance score (0-100)&#39;, ge=0.0, le=100.0)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -576,21 +500,21 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class QuerySummary(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     filters_applied: Annotated[
-        list[str] | None, Field(description=&#34;List of filters that were applied to the query&#34;)
+        list[str] | None, Field(description=&#39;List of filters that were applied to the query&#39;)
     ] = None
     returned: Annotated[
-        int, Field(description=&#34;Number of creatives returned in this response&#34;, ge=0)
-    ]
+        int | None, Field(description=&#39;Number of creatives returned in this response&#39;, ge=0)
+    ] = None
     sort_applied: Annotated[
-        SortApplied | None, Field(description=&#34;Sort order that was applied&#34;)
+        SortApplied | None, Field(description=&#39;Sort order that was applied&#39;)
     ] = None
     total_matching: Annotated[
-        int,
-        Field(description=&#34;Total number of creatives matching filters (across all pages)&#34;, ge=0),
-    ]</code></pre>
+        int | None,
+        Field(description=&#39;Total number of creatives matching filters (across all pages)&#39;, ge=0),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -615,7 +539,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.list_creatives_response.QuerySummary.returned"><code class="name">var <span class="ident">returned</span> : int</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.list_creatives_response.QuerySummary.returned"><code class="name">var <span class="ident">returned</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -623,7 +547,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.list_creatives_response.QuerySummary.total_matching"><code class="name">var <span class="ident">total_matching</span> : int</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.list_creatives_response.QuerySummary.total_matching"><code class="name">var <span class="ident">total_matching</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -702,17 +626,17 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class StatusSummary(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    approved: Annotated[int | None, Field(description=&#34;Number of approved creatives&#34;, ge=0)] = None
-    archived: Annotated[int | None, Field(description=&#34;Number of archived creatives&#34;, ge=0)] = None
+    approved: Annotated[int | None, Field(description=&#39;Number of approved creatives&#39;, ge=0)] = None
+    archived: Annotated[int | None, Field(description=&#39;Number of archived creatives&#39;, ge=0)] = None
     pending_review: Annotated[
-        int | None, Field(description=&#34;Number of creatives pending review&#34;, ge=0)
+        int | None, Field(description=&#39;Number of creatives pending review&#39;, ge=0)
     ] = None
     processing: Annotated[
-        int | None, Field(description=&#34;Number of creatives being processed&#34;, ge=0)
+        int | None, Field(description=&#39;Number of creatives being processed&#39;, ge=0)
     ] = None
-    rejected: Annotated[int | None, Field(description=&#34;Number of rejected creatives&#34;, ge=0)] = None</code></pre>
+    rejected: Annotated[int | None, Field(description=&#39;Number of rejected creatives&#39;, ge=0)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -826,17 +750,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse.pagination" href="#adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse.pagination">pagination</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse.query_summary" href="#adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse.query_summary">query_summary</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse.status_summary" href="#adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse.status_summary">status_summary</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.Pagination" href="#adcp.types.generated_poc.media_buy.list_creatives_response.Pagination">Pagination</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.Pagination.current_page" href="#adcp.types.generated_poc.media_buy.list_creatives_response.Pagination.current_page">current_page</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.Pagination.has_more" href="#adcp.types.generated_poc.media_buy.list_creatives_response.Pagination.has_more">has_more</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.Pagination.limit" href="#adcp.types.generated_poc.media_buy.list_creatives_response.Pagination.limit">limit</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.Pagination.model_config" href="#adcp.types.generated_poc.media_buy.list_creatives_response.Pagination.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.Pagination.offset" href="#adcp.types.generated_poc.media_buy.list_creatives_response.Pagination.offset">offset</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.Pagination.total_pages" href="#adcp.types.generated_poc.media_buy.list_creatives_response.Pagination.total_pages">total_pages</a></code></li>
 </ul>
 </li>
 <li>

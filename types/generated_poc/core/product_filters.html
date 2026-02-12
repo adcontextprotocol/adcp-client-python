@@ -57,16 +57,16 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class BudgetRange(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     currency: Annotated[
         str,
         Field(
-            description=&#34;ISO 4217 currency code (e.g., &#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;)&#34;, pattern=&#34;^[A-Z]{3}$&#34;
+            description=&#34;ISO 4217 currency code (e.g., &#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;)&#34;, pattern=&#39;^[A-Z]{3}$&#39;
         ),
     ]
-    max: Annotated[float | None, Field(description=&#34;Maximum budget amount&#34;, ge=0.0)] = None
-    min: Annotated[float, Field(description=&#34;Minimum budget amount&#34;, ge=0.0)]</code></pre>
+    max: Annotated[float | None, Field(description=&#39;Maximum budget amount&#39;, ge=0.0)] = None
+    min: Annotated[float, Field(description=&#39;Minimum budget amount&#39;, ge=0.0)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -122,16 +122,16 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BudgetRange1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     currency: Annotated[
         str,
         Field(
-            description=&#34;ISO 4217 currency code (e.g., &#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;)&#34;, pattern=&#34;^[A-Z]{3}$&#34;
+            description=&#34;ISO 4217 currency code (e.g., &#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;)&#34;, pattern=&#39;^[A-Z]{3}$&#39;
         ),
     ]
-    max: Annotated[float, Field(description=&#34;Maximum budget amount&#34;, ge=0.0)]
-    min: Annotated[float | None, Field(description=&#34;Minimum budget amount&#34;, ge=0.0)] = None</code></pre>
+    max: Annotated[float, Field(description=&#39;Maximum budget amount&#39;, ge=0.0)]
+    min: Annotated[float | None, Field(description=&#39;Minimum budget amount&#39;, ge=0.0)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -186,7 +186,7 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Country(RootModel[str]):
-    root: Annotated[str, Field(pattern=&#34;^[A-Z]{2}$&#34;)]</code></pre>
+    root: Annotated[str, Field(pattern=&#39;^[A-Z]{2}$&#39;)]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -238,13 +238,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Metro(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;forbid&#39;,
     )
     code: Annotated[
         str, Field(description=&#34;Metro code within the system (e.g., &#39;501&#39; for NYC DMA)&#34;)
     ]
     system: Annotated[
-        metro_system.MetroAreaSystem, Field(description=&#34;Metro classification system&#34;)
+        metro_system.MetroAreaSystem, Field(description=&#39;Metro classification system&#39;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -297,82 +297,98 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ProductFilters(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     budget_range: Annotated[
         BudgetRange | BudgetRange1 | None,
-        Field(description=&#34;Budget range to filter appropriate products&#34;),
+        Field(description=&#39;Budget range to filter appropriate products&#39;),
     ] = None
     channels: Annotated[
         list[channels_1.MediaChannel] | None,
-        Field(description=&#34;Filter by advertising channels (e.g., [&#39;display&#39;, &#39;video&#39;, &#39;dooh&#39;])&#34;),
+        Field(
+            description=&#34;Filter by advertising channels (e.g., [&#39;display&#39;, &#39;ctv&#39;, &#39;dooh&#39;])&#34;,
+            min_length=1,
+        ),
     ] = None
     countries: Annotated[
         list[Country] | None,
         Field(
-            description=&#34;Filter by country coverage using ISO 3166-1 alpha-2 codes (e.g., [&#39;US&#39;, &#39;CA&#39;, &#39;GB&#39;]). Works for all inventory types.&#34;
+            description=&#34;Filter by country coverage using ISO 3166-1 alpha-2 codes (e.g., [&#39;US&#39;, &#39;CA&#39;, &#39;GB&#39;]). Works for all inventory types.&#34;,
+            min_length=1,
         ),
     ] = None
     delivery_type: delivery_type_1.DeliveryType | None = None
     end_date: Annotated[
         date | None,
         Field(
-            description=&#34;Campaign end date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#34;
+            description=&#39;Campaign end date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#39;
         ),
     ] = None
     format_ids: Annotated[
-        list[format_id.FormatId] | None, Field(description=&#34;Filter by specific format IDs&#34;)
+        list[format_id.FormatId] | None,
+        Field(description=&#39;Filter by specific format IDs&#39;, min_length=1),
     ] = None
     format_types: Annotated[
-        list[format_category.FormatCategory] | None, Field(description=&#34;Filter by format types&#34;)
+        list[format_category.FormatCategory] | None,
+        Field(description=&#39;Filter by format types&#39;, min_length=1),
     ] = None
     is_fixed_price: Annotated[
         bool | None,
         Field(
-            description=&#34;Filter by pricing availability: true = products offering fixed pricing (at least one option with fixed_price), false = products offering auction pricing (at least one option without fixed_price). Products with both fixed and auction options match both true and false.&#34;
+            description=&#39;Filter by pricing availability: true = products offering fixed pricing (at least one option with fixed_price), false = products offering auction pricing (at least one option without fixed_price). Products with both fixed and auction options match both true and false.&#39;
         ),
     ] = None
     metros: Annotated[
         list[Metro] | None,
         Field(
-            description=&#34;Filter by metro coverage for locally-bound inventory (radio, DOOH, local TV). Use when products have DMA/metro-specific coverage. For digital inventory where products have broad coverage, use required_geo_targeting instead to filter by seller capability.&#34;
+            description=&#39;Filter by metro coverage for locally-bound inventory (radio, DOOH, local TV). Use when products have DMA/metro-specific coverage. For digital inventory where products have broad coverage, use required_geo_targeting instead to filter by seller capability.&#39;,
+            min_length=1,
         ),
     ] = None
     min_exposures: Annotated[
         int | None,
-        Field(description=&#34;Minimum exposures/impressions needed for measurement validity&#34;, ge=1),
+        Field(description=&#39;Minimum exposures/impressions needed for measurement validity&#39;, ge=1),
     ] = None
     regions: Annotated[
         list[Region] | None,
         Field(
-            description=&#34;Filter by region coverage using ISO 3166-2 codes (e.g., [&#39;US-NY&#39;, &#39;US-CA&#39;, &#39;GB-SCT&#39;]). Use for locally-bound inventory (regional OOH, local TV) where products have region-specific coverage.&#34;
+            description=&#34;Filter by region coverage using ISO 3166-2 codes (e.g., [&#39;US-NY&#39;, &#39;US-CA&#39;, &#39;GB-SCT&#39;]). Use for locally-bound inventory (regional OOH, local TV) where products have region-specific coverage.&#34;,
+            min_length=1,
         ),
     ] = None
     required_axe_integrations: Annotated[
         list[AnyUrl] | None,
         Field(
-            description=&#34;Filter to products executable through specific agentic ad exchanges. URLs are canonical identifiers.&#34;
+            description=&#39;Filter to products executable through specific agentic ad exchanges. URLs are canonical identifiers.&#39;
         ),
     ] = None
     required_features: Annotated[
         media_buy_features.MediaBuyFeatures | None,
         Field(
-            description=&#34;Filter to products from sellers supporting specific protocol features. Only features set to true are used for filtering.&#34;
+            description=&#39;Filter to products from sellers supporting specific protocol features. Only features set to true are used for filtering.&#39;
         ),
     ] = None
     required_geo_targeting: Annotated[
         list[RequiredGeoTargetingItem] | None,
         Field(
-            description=&#34;Filter to products from sellers supporting specific geo targeting capabilities. Each entry specifies a targeting level (country, region, metro, postal_area) and optionally a system for levels that have multiple classification systems.&#34;
+            description=&#39;Filter to products from sellers supporting specific geo targeting capabilities. Each entry specifies a targeting level (country, region, metro, postal_area) and optionally a system for levels that have multiple classification systems.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    signal_targeting: Annotated[
+        list[signal_targeting_1.SignalTargeting] | None,
+        Field(
+            description=&#39;Filter to products supporting specific signals from data provider catalogs. Products must have the requested signals in their data_provider_signals and signal_targeting_allowed must be true (or all signals requested).&#39;,
+            min_length=1,
         ),
     ] = None
     standard_formats_only: Annotated[
-        bool | None, Field(description=&#34;Only return products accepting IAB standard formats&#34;)
+        bool | None, Field(description=&#39;Only return products accepting IAB standard formats&#39;)
     ] = None
     start_date: Annotated[
         date | None,
         Field(
-            description=&#34;Campaign start date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#34;
+            description=&#39;Campaign start date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -451,6 +467,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.product_filters.ProductFilters.signal_targeting"><code class="name">var <span class="ident">signal_targeting</span> : list[<a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting" href="signal_targeting.html#adcp.types.generated_poc.core.signal_targeting.SignalTargeting">SignalTargeting</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.product_filters.ProductFilters.standard_formats_only"><code class="name">var <span class="ident">standard_formats_only</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -481,7 +501,7 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Region(RootModel[str]):
-    root: Annotated[str, Field(pattern=&#34;^[A-Z]{2}-[A-Z0-9]+$&#34;)]</code></pre>
+    root: Annotated[str, Field(pattern=&#39;^[A-Z]{2}-[A-Z0-9]+$&#39;)]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -533,11 +553,11 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class RequiredGeoTargetingItem(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;forbid&#39;,
     )
     level: Annotated[
         geo_level.GeographicTargetingLevel,
-        Field(description=&#34;Geographic targeting level (country, region, metro, postal_area)&#34;),
+        Field(description=&#39;Geographic targeting level (country, region, metro, postal_area)&#39;),
     ]
     system: Annotated[
         str | None,
@@ -651,6 +671,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.required_axe_integrations" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.required_axe_integrations">required_axe_integrations</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.required_features" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.required_features">required_features</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.required_geo_targeting" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.required_geo_targeting">required_geo_targeting</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.signal_targeting" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.signal_targeting">signal_targeting</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.standard_formats_only" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.standard_formats_only">standard_formats_only</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.start_date" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.start_date">start_date</a></code></li>
 </ul>

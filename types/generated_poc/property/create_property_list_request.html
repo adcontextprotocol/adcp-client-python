@@ -57,18 +57,19 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class CreatePropertyListRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;forbid&#39;,
     )
     base_properties: Annotated[
         list[base_property_source.BasePropertySource] | None,
         Field(
-            description=&#34;Array of property sources to evaluate. Each entry is a discriminated union: publisher_tags (publisher_domain + tags), publisher_ids (publisher_domain + property_ids), or identifiers (direct identifiers). If omitted, queries the agent&#39;s entire property database.&#34;
+            description=&#34;Array of property sources to evaluate. Each entry is a discriminated union: publisher_tags (publisher_domain + tags), publisher_ids (publisher_domain + property_ids), or identifiers (direct identifiers). If omitted, queries the agent&#39;s entire property database.&#34;,
+            min_length=1,
         ),
     ] = None
     brand_manifest: Annotated[
         brand_manifest_1.BrandManifest | None,
         Field(
-            description=&#34;Brand identity and requirements. When provided, the agent automatically applies appropriate rules based on brand characteristics (industry, target_audience, etc.).&#34;
+            description=&#39;Brand identity and requirements. When provided, the agent automatically applies appropriate rules based on brand characteristics (industry, target_audience, etc.).&#39;
         ),
     ] = None
     context: context_1.ContextObject | None = None
@@ -78,9 +79,9 @@ el.replaceWith(d);
     ext: ext_1.ExtensionObject | None = None
     filters: Annotated[
         property_list_filters.PropertyListFilters | None,
-        Field(description=&#34;Dynamic filters to apply when resolving the list&#34;),
+        Field(description=&#39;Dynamic filters to apply when resolving the list&#39;),
     ] = None
-    name: Annotated[str, Field(description=&#34;Human-readable name for the list&#34;)]</code></pre>
+    name: Annotated[str, Field(description=&#39;Human-readable name for the list&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null

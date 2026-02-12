@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class CreativeAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     assets: Annotated[
         dict[
@@ -74,22 +74,22 @@ el.replaceWith(d);
             | promoted_offerings.PromotedOfferings
             | url_asset.UrlAsset,
         ],
-        Field(description=&#34;Assets required by the format, keyed by asset_role&#34;),
+        Field(description=&#39;Assets required by the format, keyed by asset_role&#39;),
     ]
-    creative_id: Annotated[str, Field(description=&#34;Unique identifier for the creative&#34;)]
+    creative_id: Annotated[str, Field(description=&#39;Unique identifier for the creative&#39;)]
     format_id: Annotated[
         format_id_1.FormatId,
         Field(
-            description=&#34;Format identifier specifying which format this creative conforms to. Can be: (1) concrete format_id referencing a format with fixed dimensions, (2) template format_id referencing a template format, or (3) parameterized format_id with dimensions/duration parameters for template formats.&#34;
+            description=&#39;Format identifier specifying which format this creative conforms to. Can be: (1) concrete format_id referencing a format with fixed dimensions, (2) template format_id referencing a template format, or (3) parameterized format_id with dimensions/duration parameters for template formats.&#39;
         ),
     ]
     inputs: Annotated[
         list[Input] | None,
         Field(
-            description=&#34;Preview contexts for generative formats - defines what scenarios to generate previews for&#34;
+            description=&#39;Preview contexts for generative formats - defines what scenarios to generate previews for&#39;
         ),
     ] = None
-    name: Annotated[str, Field(description=&#34;Human-readable creative name&#34;)]
+    name: Annotated[str, Field(description=&#39;Human-readable creative name&#39;)]
     placement_ids: Annotated[
         list[str] | None,
         Field(
@@ -104,12 +104,12 @@ el.replaceWith(d);
         ),
     ] = None
     tags: Annotated[
-        list[str] | None, Field(description=&#34;User-defined tags for organization and searchability&#34;)
+        list[str] | None, Field(description=&#39;User-defined tags for organization and searchability&#39;)
     ] = None
     weight: Annotated[
         float | None,
         Field(
-            description=&#34;Optional delivery weight for creative rotation when uploading via create_media_buy or update_media_buy (0-100). If omitted, platform determines rotation. Only used during upload to media buy - not stored in creative library.&#34;,
+            description=&#39;Optional delivery weight for creative rotation when uploading via create_media_buy or update_media_buy (0-100). If omitted, platform determines rotation. Only used during upload to media buy - not stored in creative library.&#39;,
             ge=0.0,
             le=100.0,
         ),
@@ -193,16 +193,16 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Input(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context_description: Annotated[
         str | None,
-        Field(description=&#34;Natural language description of the context for AI-generated content&#34;),
+        Field(description=&#39;Natural language description of the context for AI-generated content&#39;),
     ] = None
     macros: Annotated[
-        dict[str, str] | None, Field(description=&#34;Macro values to apply for this preview&#34;)
+        dict[str, str] | None, Field(description=&#39;Macro values to apply for this preview&#39;)
     ] = None
-    name: Annotated[str, Field(description=&#34;Human-readable name for this preview variant&#34;)]</code></pre>
+    name: Annotated[str, Field(description=&#39;Human-readable name for this preview variant&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null

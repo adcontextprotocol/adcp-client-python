@@ -57,13 +57,13 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class ContextForCheckout(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     applied_offers: Annotated[
-        list[str] | None, Field(description=&#34;Offer IDs that were applied during the conversation&#34;)
+        list[str] | None, Field(description=&#39;Offer IDs that were applied during the conversation&#39;)
     ] = None
     conversation_summary: Annotated[
-        str | None, Field(description=&#34;Summary of the conversation leading to purchase&#34;)
+        str | None, Field(description=&#39;Summary of the conversation leading to purchase&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -116,19 +116,19 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Handoff(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context_for_checkout: Annotated[
-        ContextForCheckout | None, Field(description=&#34;Context to pass to ACP for seamless checkout&#34;)
+        ContextForCheckout | None, Field(description=&#39;Context to pass to ACP for seamless checkout&#39;)
     ] = None
     intent: Annotated[
         Intent | None,
-        Field(description=&#34;For transaction handoffs: what the user wants to purchase&#34;),
+        Field(description=&#39;For transaction handoffs: what the user wants to purchase&#39;),
     ] = None
     type: Annotated[
         Type | None,
         Field(
-            description=&#34;Type of handoff: transaction (ready for ACP checkout) or complete (conversation done)&#34;
+            description=&#39;Type of handoff: transaction (ready for ACP checkout) or complete (conversation done)&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -186,13 +186,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Intent(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     action: Annotated[str | None, Field(description=&#34;The commerce action (e.g., &#39;purchase&#39;)&#34;)] = (
         None
     )
-    price: Annotated[Price | None, Field(description=&#34;Price information&#34;)] = None
-    product: Annotated[dict[str, Any] | None, Field(description=&#34;Product details for checkout&#34;)] = (
+    price: Annotated[Price | None, Field(description=&#39;Price information&#39;)] = None
+    product: Annotated[dict[str, Any] | None, Field(description=&#39;Product details for checkout&#39;)] = (
         None
     )</code></pre>
 </details>
@@ -302,19 +302,19 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Response(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    message: Annotated[str | None, Field(description=&#34;Conversational message from brand agent&#34;)] = (
+    message: Annotated[str | None, Field(description=&#39;Conversational message from brand agent&#39;)] = (
         None
     )
     surface: Annotated[
-        surface_1.A2UiSurface | None, Field(description=&#34;A2UI surface with interactive components&#34;)
+        surface_1.A2UiSurface | None, Field(description=&#39;A2UI surface with interactive components&#39;)
     ] = None
     ui_elements: Annotated[
         list[si_ui_element.SiUiElement] | None,
         Field(
             deprecated=True,
-            description=&#34;Visual components to render (DEPRECATED: use surface instead)&#34;,
+            description=&#39;Visual components to render (DEPRECATED: use surface instead)&#39;,
         ),
     ] = None</code></pre>
 </details>
@@ -399,9 +399,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class SessionStatus(Enum):
-    active = &#34;active&#34;
-    pending_handoff = &#34;pending_handoff&#34;
-    complete = &#34;complete&#34;</code></pre>
+    active = &#39;active&#39;
+    pending_handoff = &#39;pending_handoff&#39;
+    complete = &#39;complete&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -469,22 +469,22 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class SiSendMessageResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     errors: list[error.Error] | None = None
     ext: ext_1.ExtensionObject | None = None
     handoff: Annotated[
-        Handoff | None, Field(description=&#34;Handoff request when session_status is pending_handoff&#34;)
+        Handoff | None, Field(description=&#39;Handoff request when session_status is pending_handoff&#39;)
     ] = None
     mcp_resource_uri: Annotated[
         str | None,
         Field(
-            description=&#34;MCP resource URI for hosts with MCP Apps support (e.g., ui://si/session-abc123)&#34;
+            description=&#39;MCP resource URI for hosts with MCP Apps support (e.g., ui://si/session-abc123)&#39;
         ),
     ] = None
     response: Annotated[Response | None, Field(description=&#34;Brand agent&#39;s response&#34;)] = None
-    session_id: Annotated[str, Field(description=&#34;Session identifier&#34;)]
-    session_status: Annotated[SessionStatus, Field(description=&#34;Current session status&#34;)]</code></pre>
+    session_id: Annotated[str, Field(description=&#39;Session identifier&#39;)]
+    session_status: Annotated[SessionStatus, Field(description=&#39;Current session status&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -555,8 +555,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Type(Enum):
-    transaction = &#34;transaction&#34;
-    complete = &#34;complete&#34;</code></pre>
+    transaction = &#39;transaction&#39;
+    complete = &#39;complete&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>

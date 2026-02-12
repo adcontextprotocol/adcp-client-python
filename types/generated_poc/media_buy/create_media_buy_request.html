@@ -57,11 +57,11 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class ArtifactWebhook(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     authentication: Annotated[
         Authentication,
-        Field(description=&#34;Authentication configuration for webhook delivery (A2A-compatible)&#34;),
+        Field(description=&#39;Authentication configuration for webhook delivery (A2A-compatible)&#39;),
     ]
     batch_frequency: Annotated[
         BatchFrequency | None,
@@ -78,7 +78,7 @@ el.replaceWith(d);
     sampling_rate: Annotated[
         float | None,
         Field(
-            description=&#34;Fraction of impressions to include (0-1). 1.0 = all impressions, 0.1 = 10% sample. Default: 1.0&#34;,
+            description=&#39;Fraction of impressions to include (0-1). 1.0 = all impressions, 0.1 = 10% sample. Default: 1.0&#39;,
             ge=0.0,
             le=1.0,
         ),
@@ -86,11 +86,11 @@ el.replaceWith(d);
     token: Annotated[
         str | None,
         Field(
-            description=&#34;Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.&#34;,
+            description=&#39;Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.&#39;,
             min_length=16,
         ),
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#34;Webhook endpoint URL for artifact delivery&#34;)]</code></pre>
+    url: Annotated[AnyUrl, Field(description=&#39;Webhook endpoint URL for artifact delivery&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -158,12 +158,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Authentication(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;forbid&#39;,
     )
     credentials: Annotated[
         str,
         Field(
-            description=&#34;Credentials for authentication. For Bearer: token sent in Authorization header. For HMAC-SHA256: shared secret used to generate signature. Minimum 32 characters. Exchanged out-of-band during onboarding.&#34;,
+            description=&#39;Credentials for authentication. For Bearer: token sent in Authorization header. For HMAC-SHA256: shared secret used to generate signature. Minimum 32 characters. Exchanged out-of-band during onboarding.&#39;,
             min_length=32,
         ),
     ]
@@ -225,8 +225,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class BatchFrequency(Enum):
-    hourly = &#34;hourly&#34;
-    daily = &#34;daily&#34;</code></pre>
+    hourly = &#39;hourly&#39;
+    daily = &#39;daily&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -290,39 +290,40 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class CreateMediaBuyRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     account_id: Annotated[
         str | None,
         Field(
-            description=&#34;Account to bill for this media buy. Optional if the agent has a single account or the seller can determine the account from context (brand + agent). Required if the agent has multiple accounts and the seller cannot route automatically.&#34;
+            description=&#34;Account to bill for this media buy. Required when the agent has access to multiple accounts; when omitted, the seller uses the agent&#39;s sole account. The seller maps the agent&#39;s brand + operator to an account during sync_accounts; the agent passes that account_id here.&#34;
         ),
     ] = None
     artifact_webhook: Annotated[
         ArtifactWebhook | None,
         Field(
-            description=&#34;Optional webhook configuration for content artifact delivery. Used by governance agents to validate content adjacency. Seller pushes artifacts to this endpoint; orchestrator forwards to governance agent for validation.&#34;
+            description=&#39;Optional webhook configuration for content artifact delivery. Used by governance agents to validate content adjacency. Seller pushes artifacts to this endpoint; orchestrator forwards to governance agent for validation.&#39;
         ),
     ] = None
     brand_manifest: Annotated[
         brand_manifest_ref.BrandManifestReference,
         Field(
-            description=&#34;Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests.&#34;
+            description=&#39;Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests.&#39;
         ),
     ]
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
     context: context_1.ContextObject | None = None
     end_time: Annotated[
-        AwareDatetime, Field(description=&#34;Campaign end date/time in ISO 8601 format&#34;)
+        AwareDatetime, Field(description=&#39;Campaign end date/time in ISO 8601 format&#39;)
     ]
     ext: ext_1.ExtensionObject | None = None
     packages: Annotated[
         list[package_request.PackageRequest] | None,
         Field(
-            description=&#34;Array of package configurations. Required when not using proposal_id. When executing a proposal, this can be omitted and packages will be derived from the proposal&#39;s allocations.&#34;
+            description=&#34;Array of package configurations. Required when not using proposal_id. When executing a proposal, this can be omitted and packages will be derived from the proposal&#39;s allocations.&#34;,
+            min_length=1,
         ),
     ] = None
-    po_number: Annotated[str | None, Field(description=&#34;Purchase order number for tracking&#34;)] = None
+    po_number: Annotated[str | None, Field(description=&#39;Purchase order number for tracking&#39;)] = None
     proposal_id: Annotated[
         str | None,
         Field(
@@ -331,7 +332,7 @@ attributes &ndash; see the documentation for details.</p></div>
     ] = None
     reporting_webhook: Annotated[
         reporting_webhook_1.ReportingWebhook | None,
-        Field(description=&#34;Optional webhook configuration for automated reporting delivery&#34;),
+        Field(description=&#39;Optional webhook configuration for automated reporting delivery&#39;),
     ] = None
     start_time: start_timing.StartTiming
     total_budget: Annotated[
@@ -434,8 +435,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class DeliveryMode(Enum):
-    realtime = &#34;realtime&#34;
-    batched = &#34;batched&#34;</code></pre>
+    realtime = &#39;realtime&#39;
+    batched = &#39;batched&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -499,10 +500,10 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class TotalBudget(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;forbid&#39;,
     )
-    amount: Annotated[float, Field(description=&#34;Total budget amount&#34;, ge=0.0)]
-    currency: Annotated[str, Field(description=&#34;ISO 4217 currency code&#34;)]</code></pre>
+    amount: Annotated[float, Field(description=&#39;Total budget amount&#39;, ge=0.0)]
+    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null

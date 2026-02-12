@@ -57,17 +57,16 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class ListPropertyListsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;forbid&#39;,
     )
     context: context_1.ContextObject | None = None
-    cursor: Annotated[str | None, Field(description=&#34;Pagination cursor&#34;)] = None
     ext: ext_1.ExtensionObject | None = None
-    max_results: Annotated[int | None, Field(description=&#34;Maximum lists to return&#34;, ge=1)] = 100
     name_contains: Annotated[
-        str | None, Field(description=&#34;Filter to lists whose name contains this string&#34;)
+        str | None, Field(description=&#39;Filter to lists whose name contains this string&#39;)
     ] = None
+    pagination: pagination_request.PaginationRequest | None = None
     principal: Annotated[
-        str | None, Field(description=&#34;Filter to lists owned by this principal&#34;)
+        str | None, Field(description=&#39;Filter to lists owned by this principal&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -89,15 +88,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.cursor"><code class="name">var <span class="ident">cursor</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.max_results"><code class="name">var <span class="ident">max_results</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -106,6 +97,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.name_contains"><code class="name">var <span class="ident">name_contains</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="../core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -144,11 +139,10 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest" href="#adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest">ListPropertyListsRequest</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.context" href="#adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.cursor" href="#adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.cursor">cursor</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.ext" href="#adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.max_results" href="#adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.max_results">max_results</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.model_config" href="#adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.name_contains" href="#adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.name_contains">name_contains</a></code></li>
+<li><code><a title="adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.pagination" href="#adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.pagination">pagination</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.principal" href="#adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.principal">principal</a></code></li>
 </ul>
 </li>

@@ -57,34 +57,43 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class GetMediaBuyDeliveryRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
+    account_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Filter delivery data to a specific account. When provided, only returns media buys belonging to this account. When omitted, returns data across all accessible accounts. Optional if the agent has a single account.&#39;
+        ),
+    ] = None
     buyer_refs: Annotated[
-        list[str] | None, Field(description=&#34;Array of buyer reference IDs to get delivery data for&#34;)
+        list[str] | None,
+        Field(description=&#39;Array of buyer reference IDs to get delivery data for&#39;, min_length=1),
     ] = None
     context: context_1.ContextObject | None = None
     end_date: Annotated[
         str | None,
         Field(
-            description=&#34;End date for reporting period (YYYY-MM-DD)&#34;,
-            pattern=&#34;^\\d{4}-\\d{2}-\\d{2}$&#34;,
+            description=&#34;End date for reporting period (YYYY-MM-DD). When omitted along with start_date, returns campaign lifetime data. Only accepted when the product&#39;s reporting_capabilities.date_range_support is &#39;date_range&#39;.&#34;,
+            pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;,
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     media_buy_ids: Annotated[
         list[str] | None,
-        Field(description=&#34;Array of publisher media buy IDs to get delivery data for&#34;),
+        Field(
+            description=&#39;Array of publisher media buy IDs to get delivery data for&#39;, min_length=1
+        ),
     ] = None
     start_date: Annotated[
         str | None,
         Field(
-            description=&#34;Start date for reporting period (YYYY-MM-DD)&#34;,
-            pattern=&#34;^\\d{4}-\\d{2}-\\d{2}$&#34;,
+            description=&#34;Start date for reporting period (YYYY-MM-DD). When omitted along with end_date, returns campaign lifetime data. Only accepted when the product&#39;s reporting_capabilities.date_range_support is &#39;date_range&#39;.&#34;,
+            pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;,
         ),
     ] = None
     status_filter: Annotated[
-        media_buy_status.MediaBuyStatus | list[media_buy_status.MediaBuyStatus] | None,
-        Field(description=&#34;Filter by status. Can be a single status or array of statuses&#34;),
+        media_buy_status.MediaBuyStatus | StatusFilter | None,
+        Field(description=&#39;Filter by status. Can be a single status or array of statuses&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -102,6 +111,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.account_id"><code class="name">var <span class="ident">account_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.buyer_refs"><code class="name">var <span class="ident">buyer_refs</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -130,7 +143,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.status_filter"><code class="name">var <span class="ident">status_filter</span> : <a title="adcp.types.generated_poc.enums.media_buy_status.MediaBuyStatus" href="../enums/media_buy_status.html#adcp.types.generated_poc.enums.media_buy_status.MediaBuyStatus">MediaBuyStatus</a> | list[<a title="adcp.types.generated_poc.enums.media_buy_status.MediaBuyStatus" href="../enums/media_buy_status.html#adcp.types.generated_poc.enums.media_buy_status.MediaBuyStatus">MediaBuyStatus</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.status_filter"><code class="name">var <span class="ident">status_filter</span> : <a title="adcp.types.generated_poc.enums.media_buy_status.MediaBuyStatus" href="../enums/media_buy_status.html#adcp.types.generated_poc.enums.media_buy_status.MediaBuyStatus">MediaBuyStatus</a> | <a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.StatusFilter" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.StatusFilter">StatusFilter</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -145,6 +158,63 @@ validated to form a valid model.</p>
 </ul>
 </li>
 </ul>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.StatusFilter"><code class="flex name class">
+<span>class <span class="ident">StatusFilter</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class StatusFilter(RootModel[list[media_buy_status.MediaBuyStatus]]):
+    root: Annotated[
+        list[media_buy_status.MediaBuyStatus],
+        Field(
+            description=&#39;Filter by status. Can be a single status or array of statuses&#39;,
+            min_length=1,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[list[MediaBuyStatus]]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.StatusFilter.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.StatusFilter.root"><code class="name">var <span class="ident">root</span> : list[<a title="adcp.types.generated_poc.enums.media_buy_status.MediaBuyStatus" href="../enums/media_buy_status.html#adcp.types.generated_poc.enums.media_buy_status.MediaBuyStatus">MediaBuyStatus</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
 </dd>
 </dl>
 </section>
@@ -164,6 +234,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest">GetMediaBuyDeliveryRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.account_id" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.account_id">account_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.buyer_refs" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.buyer_refs">buyer_refs</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.context" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.end_date" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.end_date">end_date</a></code></li>
@@ -172,6 +243,13 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.model_config" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.start_date" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.start_date">start_date</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.status_filter" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.status_filter">status_filter</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.StatusFilter" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.StatusFilter">StatusFilter</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.StatusFilter.model_config" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.StatusFilter.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.StatusFilter.root" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.StatusFilter.root">root</a></code></li>
 </ul>
 </li>
 </ul>

@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class MatchingProduct(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     availability_summary: Annotated[
         str | None,
@@ -65,12 +65,12 @@ el.replaceWith(d);
             description=&#34;Brief availability info (e.g., &#39;In stock&#39;, &#39;Size 14 available&#39;, &#39;3 left&#39;)&#34;
         ),
     ] = None
-    image_url: Annotated[AnyUrl | None, Field(description=&#34;Product image&#34;)] = None
-    name: Annotated[str, Field(description=&#34;Product name&#34;)]
-    original_price: Annotated[str | None, Field(description=&#34;Original price if on sale&#34;)] = None
+    image_url: Annotated[AnyUrl | None, Field(description=&#39;Product image&#39;)] = None
+    name: Annotated[str, Field(description=&#39;Product name&#39;)]
+    original_price: Annotated[str | None, Field(description=&#39;Original price if on sale&#39;)] = None
     price: Annotated[str | None, Field(description=&#34;Display price (e.g., &#39;$129&#39;, &#39;$89.99&#39;)&#34;)] = None
-    product_id: Annotated[str, Field(description=&#34;Product identifier&#34;)]
-    url: Annotated[AnyUrl | None, Field(description=&#34;Product detail page URL&#34;)] = None</code></pre>
+    product_id: Annotated[str, Field(description=&#39;Product identifier&#39;)]
+    url: Annotated[AnyUrl | None, Field(description=&#39;Product detail page URL&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -142,20 +142,20 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Offering(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    expires_at: Annotated[AwareDatetime | None, Field(description=&#34;When this offering expires&#34;)] = (
+    expires_at: Annotated[AwareDatetime | None, Field(description=&#39;When this offering expires&#39;)] = (
         None
     )
-    image_url: Annotated[AnyUrl | None, Field(description=&#34;Hero image for the offering&#34;)] = None
-    landing_url: Annotated[AnyUrl | None, Field(description=&#34;Landing page URL&#34;)] = None
-    offering_id: Annotated[str | None, Field(description=&#34;Offering identifier&#34;)] = None
+    image_url: Annotated[AnyUrl | None, Field(description=&#39;Hero image for the offering&#39;)] = None
+    landing_url: Annotated[AnyUrl | None, Field(description=&#39;Landing page URL&#39;)] = None
+    offering_id: Annotated[str | None, Field(description=&#39;Offering identifier&#39;)] = None
     price_hint: Annotated[
         str | None, Field(description=&#34;Price indication (e.g., &#39;from $199&#39;, &#39;50% off&#39;)&#34;)
     ] = None
-    summary: Annotated[str | None, Field(description=&#34;Brief summary of the offering&#34;)] = None
-    tagline: Annotated[str | None, Field(description=&#34;Short promotional tagline&#34;)] = None
-    title: Annotated[str | None, Field(description=&#34;Offering title&#34;)] = None</code></pre>
+    summary: Annotated[str | None, Field(description=&#39;Brief summary of the offering&#39;)] = None
+    tagline: Annotated[str | None, Field(description=&#39;Short promotional tagline&#39;)] = None
+    title: Annotated[str | None, Field(description=&#39;Offering title&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -231,27 +231,27 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SiGetOfferingResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     alternative_offering_ids: Annotated[
         list[str] | None,
-        Field(description=&#34;Alternative offerings to consider if this one is unavailable&#34;),
+        Field(description=&#39;Alternative offerings to consider if this one is unavailable&#39;),
     ] = None
-    available: Annotated[bool, Field(description=&#34;Whether the offering is currently available&#34;)]
+    available: Annotated[bool, Field(description=&#39;Whether the offering is currently available&#39;)]
     checked_at: Annotated[
-        AwareDatetime | None, Field(description=&#34;When this offering information was retrieved&#34;)
+        AwareDatetime | None, Field(description=&#39;When this offering information was retrieved&#39;)
     ] = None
     errors: Annotated[
-        list[error.Error] | None, Field(description=&#34;Errors during offering lookup&#34;)
+        list[error.Error] | None, Field(description=&#39;Errors during offering lookup&#39;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
     matching_products: Annotated[
         list[MatchingProduct] | None,
         Field(
-            description=&#34;Products matching the request context. Only included if include_products was true.&#34;
+            description=&#39;Products matching the request context. Only included if include_products was true.&#39;
         ),
     ] = None
-    offering: Annotated[Offering | None, Field(description=&#34;Offering details&#34;)] = None
+    offering: Annotated[Offering | None, Field(description=&#39;Offering details&#39;)] = None
     offering_token: Annotated[
         str | None,
         Field(
@@ -261,14 +261,14 @@ validated to form a valid model.</p>
     total_matching: Annotated[
         int | None,
         Field(
-            description=&#34;Total number of products matching the context (may be more than returned in matching_products)&#34;,
+            description=&#39;Total number of products matching the context (may be more than returned in matching_products)&#39;,
             ge=0,
         ),
     ] = None
     ttl_seconds: Annotated[
         int | None,
         Field(
-            description=&#34;How long this offering information is valid (seconds). Host should re-fetch after TTL expires.&#34;,
+            description=&#39;How long this offering information is valid (seconds). Host should re-fetch after TTL expires.&#39;,
             ge=0,
         ),
     ] = None

@@ -421,12 +421,6 @@ Non-Content-Standards operations return 'not supported' by default.</p>
         &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
         return not_supported(&#34;list_creative_formats is not supported by Content Standards agents.&#34;)
 
-    async def list_accounts(
-        self, params: dict[str, Any], context: ToolContext | None = None
-    ) -&gt; NotImplementedResponse:
-        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
-        return not_supported(&#34;list_accounts is not supported by Content Standards agents.&#34;)
-
     async def sync_creatives(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
@@ -444,6 +438,18 @@ Non-Content-Standards operations return 'not supported' by default.</p>
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
         return not_supported(&#34;build_creative is not supported by Content Standards agents.&#34;)
+
+    async def preview_creative(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(&#34;preview_creative is not supported by Content Standards agents.&#34;)
+
+    async def get_creative_delivery(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(&#34;get_creative_delivery is not supported by Content Standards agents.&#34;)
 
     async def create_media_buy(
         self, params: dict[str, Any], context: ToolContext | None = None
@@ -485,6 +491,30 @@ Non-Content-Standards operations return 'not supported' by default.</p>
         return not_supported(
             &#34;provide_performance_feedback is not supported by Content Standards agents.&#34;
         )
+
+    async def list_accounts(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(&#34;list_accounts is not supported by Content Standards agents.&#34;)
+
+    async def sync_accounts(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(&#34;sync_accounts is not supported by Content Standards agents.&#34;)
+
+    async def log_event(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(&#34;log_event is not supported by Content Standards agents.&#34;)
+
+    async def sync_event_sources(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+        return not_supported(&#34;sync_event_sources is not supported by Content Standards agents.&#34;)
 
     # ========================================================================
     # V3 Sponsored Intelligence - Not supported
@@ -800,6 +830,22 @@ return CreateContentStandardsResponse(&hellip;)</p></div>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>Content standards response, or error response</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.get_creative_delivery"><code class="name flex">
+<span>async def <span class="ident">get_creative_delivery</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_creative_delivery(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(&#34;get_creative_delivery is not supported by Content Standards agents.&#34;)</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
 </dd>
 <dt id="adcp.server.content_standards.ContentStandardsHandler.get_media_buy_artifacts"><code class="name flex">
 <span>async def <span class="ident">get_media_buy_artifacts</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse" href="../types/generated_poc/content_standards/get_media_buy_artifacts_response.html#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse">GetMediaBuyArtifactsResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
@@ -1297,6 +1343,38 @@ async def handle_validate_content_delivery(
 </details>
 <div class="desc"><p>Not supported by Content Standards agents.</p></div>
 </dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.log_event"><code class="name flex">
+<span>async def <span class="ident">log_event</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def log_event(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(&#34;log_event is not supported by Content Standards agents.&#34;)</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.preview_creative"><code class="name flex">
+<span>async def <span class="ident">preview_creative</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def preview_creative(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(&#34;preview_creative is not supported by Content Standards agents.&#34;)</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
 <dt id="adcp.server.content_standards.ContentStandardsHandler.provide_performance_feedback"><code class="name flex">
 <span>async def <span class="ident">provide_performance_feedback</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
@@ -1382,6 +1460,22 @@ async def handle_validate_content_delivery(
 </details>
 <div class="desc"><p>Not supported by Content Standards agents.</p></div>
 </dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.sync_accounts"><code class="name flex">
+<span>async def <span class="ident">sync_accounts</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def sync_accounts(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(&#34;sync_accounts is not supported by Content Standards agents.&#34;)</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
 <dt id="adcp.server.content_standards.ContentStandardsHandler.sync_creatives"><code class="name flex">
 <span>async def <span class="ident">sync_creatives</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
@@ -1395,6 +1489,22 @@ async def handle_validate_content_delivery(
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
     return not_supported(&#34;sync_creatives is not supported by Content Standards agents.&#34;)</code></pre>
+</details>
+<div class="desc"><p>Not supported by Content Standards agents.</p></div>
+</dd>
+<dt id="adcp.server.content_standards.ContentStandardsHandler.sync_event_sources"><code class="name flex">
+<span>async def <span class="ident">sync_event_sources</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def sync_event_sources(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Content Standards agents.&#34;&#34;&#34;
+    return not_supported(&#34;sync_event_sources is not supported by Content Standards agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Content Standards agents.</p></div>
 </dd>
@@ -1558,6 +1668,7 @@ async def handle_validate_content_delivery(
 <li><code><a title="adcp.server.content_standards.ContentStandardsHandler.create_property_list" href="#adcp.server.content_standards.ContentStandardsHandler.create_property_list">create_property_list</a></code></li>
 <li><code><a title="adcp.server.content_standards.ContentStandardsHandler.delete_property_list" href="#adcp.server.content_standards.ContentStandardsHandler.delete_property_list">delete_property_list</a></code></li>
 <li><code><a title="adcp.server.content_standards.ContentStandardsHandler.get_content_standards" href="#adcp.server.content_standards.ContentStandardsHandler.get_content_standards">get_content_standards</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.get_creative_delivery" href="#adcp.server.content_standards.ContentStandardsHandler.get_creative_delivery">get_creative_delivery</a></code></li>
 <li><code><a title="adcp.server.content_standards.ContentStandardsHandler.get_media_buy_artifacts" href="#adcp.server.content_standards.ContentStandardsHandler.get_media_buy_artifacts">get_media_buy_artifacts</a></code></li>
 <li><code><a title="adcp.server.content_standards.ContentStandardsHandler.get_media_buy_delivery" href="#adcp.server.content_standards.ContentStandardsHandler.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
 <li><code><a title="adcp.server.content_standards.ContentStandardsHandler.get_products" href="#adcp.server.content_standards.ContentStandardsHandler.get_products">get_products</a></code></li>
@@ -1575,12 +1686,16 @@ async def handle_validate_content_delivery(
 <li><code><a title="adcp.server.content_standards.ContentStandardsHandler.list_creative_formats" href="#adcp.server.content_standards.ContentStandardsHandler.list_creative_formats">list_creative_formats</a></code></li>
 <li><code><a title="adcp.server.content_standards.ContentStandardsHandler.list_creatives" href="#adcp.server.content_standards.ContentStandardsHandler.list_creatives">list_creatives</a></code></li>
 <li><code><a title="adcp.server.content_standards.ContentStandardsHandler.list_property_lists" href="#adcp.server.content_standards.ContentStandardsHandler.list_property_lists">list_property_lists</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.log_event" href="#adcp.server.content_standards.ContentStandardsHandler.log_event">log_event</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.preview_creative" href="#adcp.server.content_standards.ContentStandardsHandler.preview_creative">preview_creative</a></code></li>
 <li><code><a title="adcp.server.content_standards.ContentStandardsHandler.provide_performance_feedback" href="#adcp.server.content_standards.ContentStandardsHandler.provide_performance_feedback">provide_performance_feedback</a></code></li>
 <li><code><a title="adcp.server.content_standards.ContentStandardsHandler.si_get_offering" href="#adcp.server.content_standards.ContentStandardsHandler.si_get_offering">si_get_offering</a></code></li>
 <li><code><a title="adcp.server.content_standards.ContentStandardsHandler.si_initiate_session" href="#adcp.server.content_standards.ContentStandardsHandler.si_initiate_session">si_initiate_session</a></code></li>
 <li><code><a title="adcp.server.content_standards.ContentStandardsHandler.si_send_message" href="#adcp.server.content_standards.ContentStandardsHandler.si_send_message">si_send_message</a></code></li>
 <li><code><a title="adcp.server.content_standards.ContentStandardsHandler.si_terminate_session" href="#adcp.server.content_standards.ContentStandardsHandler.si_terminate_session">si_terminate_session</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.sync_accounts" href="#adcp.server.content_standards.ContentStandardsHandler.sync_accounts">sync_accounts</a></code></li>
 <li><code><a title="adcp.server.content_standards.ContentStandardsHandler.sync_creatives" href="#adcp.server.content_standards.ContentStandardsHandler.sync_creatives">sync_creatives</a></code></li>
+<li><code><a title="adcp.server.content_standards.ContentStandardsHandler.sync_event_sources" href="#adcp.server.content_standards.ContentStandardsHandler.sync_event_sources">sync_event_sources</a></code></li>
 <li><code><a title="adcp.server.content_standards.ContentStandardsHandler.update_content_standards" href="#adcp.server.content_standards.ContentStandardsHandler.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.server.content_standards.ContentStandardsHandler.update_media_buy" href="#adcp.server.content_standards.ContentStandardsHandler.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.server.content_standards.ContentStandardsHandler.update_property_list" href="#adcp.server.content_standards.ContentStandardsHandler.update_property_list">update_property_list</a></code></li>

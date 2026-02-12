@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Artifact(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     artifact_id: Annotated[
         str,
@@ -68,36 +68,36 @@ el.replaceWith(d);
     assets: Annotated[
         list[Assets | Assets1 | Assets2 | Assets3],
         Field(
-            description=&#34;Artifact assets in document flow order - text blocks, images, video, audio&#34;
+            description=&#39;Artifact assets in document flow order - text blocks, images, video, audio&#39;
         ),
     ]
     format_id: Annotated[
         format_id_1.FormatId | None,
         Field(
-            description=&#34;Optional reference to a format definition. Uses the same format registry as creative formats.&#34;
+            description=&#39;Optional reference to a format definition. Uses the same format registry as creative formats.&#39;
         ),
     ] = None
     identifiers: Annotated[
-        Identifiers | None, Field(description=&#34;Platform-specific identifiers for this artifact&#34;)
+        Identifiers | None, Field(description=&#39;Platform-specific identifiers for this artifact&#39;)
     ] = None
     last_update_time: Annotated[
         AwareDatetime | None,
-        Field(description=&#34;When the artifact was last modified (ISO 8601 format)&#34;),
+        Field(description=&#39;When the artifact was last modified (ISO 8601 format)&#39;),
     ] = None
     metadata: Annotated[
-        Metadata | None, Field(description=&#34;Rich metadata extracted from the artifact&#34;)
+        Metadata | None, Field(description=&#39;Rich metadata extracted from the artifact&#39;)
     ] = None
     property_id: Annotated[
         identifier.Identifier,
-        Field(description=&#34;Identifier for the property where this artifact appears&#34;),
+        Field(description=&#39;Identifier for the property where this artifact appears&#39;),
     ]
     published_time: Annotated[
-        AwareDatetime | None, Field(description=&#34;When the artifact was published (ISO 8601 format)&#34;)
+        AwareDatetime | None, Field(description=&#39;When the artifact was published (ISO 8601 format)&#39;)
     ] = None
     url: Annotated[
         AnyUrl | None,
         Field(
-            description=&#34;Optional URL for this artifact (web page, podcast feed, video page). Not all artifacts have URLs (e.g., Instagram content, podcast segments, TV scenes).&#34;
+            description=&#39;Optional URL for this artifact (web page, podcast feed, video page). Not all artifacts have URLs (e.g., Instagram content, podcast segments, TV scenes).&#39;
         ),
     ] = None
     variant_id: Annotated[
@@ -190,7 +190,7 @@ validated to form a valid model.</p>
 <pre><code class="python">class AssetAccess(RootModel[AssetAccess1 | AssetAccess2 | AssetAccess3]):
     root: Annotated[
         AssetAccess1 | AssetAccess2 | AssetAccess3,
-        Field(description=&#34;Authentication for accessing secured asset URLs&#34;),
+        Field(description=&#39;Authentication for accessing secured asset URLs&#39;),
     ]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
@@ -242,8 +242,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class AssetAccess1(AdCPBaseModel):
-    method: Literal[&#34;bearer_token&#34;]
-    token: Annotated[str, Field(description=&#34;OAuth2 bearer token for Authorization header&#34;)]</code></pre>
+    method: Literal[&#39;bearer_token&#39;]
+    token: Annotated[str, Field(description=&#39;OAuth2 bearer token for Authorization header&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -295,10 +295,10 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AssetAccess2(AdCPBaseModel):
     credentials: Annotated[
-        dict[str, Any] | None, Field(description=&#34;Service account credentials&#34;)
+        dict[str, Any] | None, Field(description=&#39;Service account credentials&#39;)
     ] = None
-    method: Literal[&#34;service_account&#34;]
-    provider: Annotated[Provider, Field(description=&#34;Cloud provider&#34;)]</code></pre>
+    method: Literal[&#39;service_account&#39;]
+    provider: Annotated[Provider, Field(description=&#39;Cloud provider&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -353,7 +353,7 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class AssetAccess3(AdCPBaseModel):
-    method: Literal[&#34;signed_url&#34;]</code></pre>
+    method: Literal[&#39;signed_url&#39;]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -400,9 +400,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets(AdCPBaseModel):
-    content: Annotated[str, Field(description=&#34;Text content&#34;)]
+    content: Annotated[str, Field(description=&#39;Text content&#39;)]
     heading_level: Annotated[
-        int | None, Field(description=&#34;Heading level (1-6), only for role=heading&#34;, ge=1, le=6)
+        int | None, Field(description=&#39;Heading level (1-6), only for role=heading&#39;, ge=1, le=6)
     ] = None
     language: Annotated[
         str | None,
@@ -416,7 +416,7 @@ validated to form a valid model.</p>
             description=&#34;Role of this text in the document. Use &#39;title&#39; for the main artifact title, &#39;description&#39; for summaries.&#34;
         ),
     ] = None
-    type: Literal[&#34;text&#34;]</code></pre>
+    type: Literal[&#39;text&#39;]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -479,15 +479,15 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets1(AdCPBaseModel):
-    access: Annotated[AssetAccess | None, Field(description=&#34;Authentication for secured URLs&#34;)] = (
+    access: Annotated[AssetAccess | None, Field(description=&#39;Authentication for secured URLs&#39;)] = (
         None
     )
-    alt_text: Annotated[str | None, Field(description=&#34;Alt text or image description&#34;)] = None
-    caption: Annotated[str | None, Field(description=&#34;Image caption&#34;)] = None
-    height: Annotated[int | None, Field(description=&#34;Image height in pixels&#34;)] = None
-    type: Literal[&#34;image&#34;]
-    url: Annotated[AnyUrl, Field(description=&#34;Image URL&#34;)]
-    width: Annotated[int | None, Field(description=&#34;Image width in pixels&#34;)] = None</code></pre>
+    alt_text: Annotated[str | None, Field(description=&#39;Alt text or image description&#39;)] = None
+    caption: Annotated[str | None, Field(description=&#39;Image caption&#39;)] = None
+    height: Annotated[int | None, Field(description=&#39;Image height in pixels&#39;)] = None
+    type: Literal[&#39;image&#39;]
+    url: Annotated[AnyUrl, Field(description=&#39;Image URL&#39;)]
+    width: Annotated[int | None, Field(description=&#39;Image width in pixels&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -558,17 +558,17 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets2(AdCPBaseModel):
-    access: Annotated[AssetAccess | None, Field(description=&#34;Authentication for secured URLs&#34;)] = (
+    access: Annotated[AssetAccess | None, Field(description=&#39;Authentication for secured URLs&#39;)] = (
         None
     )
-    duration_ms: Annotated[int | None, Field(description=&#34;Video duration in milliseconds&#34;)] = None
-    thumbnail_url: Annotated[AnyUrl | None, Field(description=&#34;Video thumbnail URL&#34;)] = None
-    transcript: Annotated[str | None, Field(description=&#34;Video transcript&#34;)] = None
+    duration_ms: Annotated[int | None, Field(description=&#39;Video duration in milliseconds&#39;)] = None
+    thumbnail_url: Annotated[AnyUrl | None, Field(description=&#39;Video thumbnail URL&#39;)] = None
+    transcript: Annotated[str | None, Field(description=&#39;Video transcript&#39;)] = None
     transcript_source: Annotated[
-        TranscriptSource | None, Field(description=&#34;How the transcript was generated&#34;)
+        TranscriptSource | None, Field(description=&#39;How the transcript was generated&#39;)
     ] = None
-    type: Literal[&#34;video&#34;]
-    url: Annotated[AnyUrl, Field(description=&#34;Video URL&#34;)]</code></pre>
+    type: Literal[&#39;video&#39;]
+    url: Annotated[AnyUrl, Field(description=&#39;Video URL&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -639,16 +639,16 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets3(AdCPBaseModel):
-    access: Annotated[AssetAccess | None, Field(description=&#34;Authentication for secured URLs&#34;)] = (
+    access: Annotated[AssetAccess | None, Field(description=&#39;Authentication for secured URLs&#39;)] = (
         None
     )
-    duration_ms: Annotated[int | None, Field(description=&#34;Audio duration in milliseconds&#34;)] = None
-    transcript: Annotated[str | None, Field(description=&#34;Audio transcript&#34;)] = None
+    duration_ms: Annotated[int | None, Field(description=&#39;Audio duration in milliseconds&#39;)] = None
+    transcript: Annotated[str | None, Field(description=&#39;Audio transcript&#39;)] = None
     transcript_source: Annotated[
-        TranscriptSource1 | None, Field(description=&#34;How the transcript was generated&#34;)
+        TranscriptSource1 | None, Field(description=&#39;How the transcript was generated&#39;)
     ] = None
-    type: Literal[&#34;audio&#34;]
-    url: Annotated[AnyUrl, Field(description=&#34;Audio URL&#34;)]</code></pre>
+    type: Literal[&#39;audio&#39;]
+    url: Annotated[AnyUrl, Field(description=&#39;Audio URL&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -716,13 +716,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Identifiers(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    apple_podcast_id: Annotated[str | None, Field(description=&#34;Apple Podcasts ID&#34;)] = None
-    podcast_guid: Annotated[str | None, Field(description=&#34;Podcast GUID (from RSS feed)&#34;)] = None
-    rss_url: Annotated[AnyUrl | None, Field(description=&#34;RSS feed URL&#34;)] = None
-    spotify_show_id: Annotated[str | None, Field(description=&#34;Spotify show ID&#34;)] = None
-    youtube_video_id: Annotated[str | None, Field(description=&#34;YouTube video ID&#34;)] = None</code></pre>
+    apple_podcast_id: Annotated[str | None, Field(description=&#39;Apple Podcasts ID&#39;)] = None
+    podcast_guid: Annotated[str | None, Field(description=&#39;Podcast GUID (from RSS feed)&#39;)] = None
+    rss_url: Annotated[AnyUrl | None, Field(description=&#39;RSS feed URL&#39;)] = None
+    spotify_show_id: Annotated[str | None, Field(description=&#39;Spotify show ID&#39;)] = None
+    youtube_video_id: Annotated[str | None, Field(description=&#39;YouTube video ID&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -786,18 +786,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Metadata(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    author: Annotated[str | None, Field(description=&#34;Artifact author name&#34;)] = None
-    canonical: Annotated[AnyUrl | None, Field(description=&#34;Canonical URL&#34;)] = None
+    author: Annotated[str | None, Field(description=&#39;Artifact author name&#39;)] = None
+    canonical: Annotated[AnyUrl | None, Field(description=&#39;Canonical URL&#39;)] = None
     json_ld: Annotated[
-        list[dict[str, Any]] | None, Field(description=&#34;JSON-LD structured data (schema.org)&#34;)
+        list[dict[str, Any]] | None, Field(description=&#39;JSON-LD structured data (schema.org)&#39;)
     ] = None
-    keywords: Annotated[str | None, Field(description=&#34;Artifact keywords&#34;)] = None
+    keywords: Annotated[str | None, Field(description=&#39;Artifact keywords&#39;)] = None
     open_graph: Annotated[
-        dict[str, Any] | None, Field(description=&#34;Open Graph protocol metadata&#34;)
+        dict[str, Any] | None, Field(description=&#39;Open Graph protocol metadata&#39;)
     ] = None
-    twitter_card: Annotated[dict[str, Any] | None, Field(description=&#34;Twitter Card metadata&#34;)] = (
+    twitter_card: Annotated[dict[str, Any] | None, Field(description=&#39;Twitter Card metadata&#39;)] = (
         None
     )</code></pre>
 </details>
@@ -866,8 +866,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Provider(Enum):
-    gcp = &#34;gcp&#34;
-    aws = &#34;aws&#34;</code></pre>
+    gcp = &#39;gcp&#39;
+    aws = &#39;aws&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -930,13 +930,13 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Role(Enum):
-    title_ = &#34;title&#34;
-    paragraph = &#34;paragraph&#34;
-    heading = &#34;heading&#34;
-    caption = &#34;caption&#34;
-    quote = &#34;quote&#34;
-    list_item = &#34;list_item&#34;
-    description = &#34;description&#34;</code></pre>
+    title_ = &#39;title&#39;
+    paragraph = &#39;paragraph&#39;
+    heading = &#39;heading&#39;
+    caption = &#39;caption&#39;
+    quote = &#39;quote&#39;
+    list_item = &#39;list_item&#39;
+    description = &#39;description&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1019,11 +1019,11 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class TranscriptSource(Enum):
-    original_script = &#34;original_script&#34;
-    subtitles = &#34;subtitles&#34;
-    closed_captions = &#34;closed_captions&#34;
-    dub = &#34;dub&#34;
-    generated = &#34;generated&#34;</code></pre>
+    original_script = &#39;original_script&#39;
+    subtitles = &#39;subtitles&#39;
+    closed_captions = &#39;closed_captions&#39;
+    dub = &#39;dub&#39;
+    generated = &#39;generated&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1098,9 +1098,9 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class TranscriptSource1(Enum):
-    original_script = &#34;original_script&#34;
-    closed_captions = &#34;closed_captions&#34;
-    generated = &#34;generated&#34;</code></pre>
+    original_script = &#39;original_script&#39;
+    closed_captions = &#39;closed_captions&#39;
+    generated = &#39;generated&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>

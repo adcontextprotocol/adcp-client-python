@@ -57,17 +57,18 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class ListAccountsResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     accounts: Annotated[
         list[account.Account],
-        Field(description=&#34;Array of accounts accessible to the authenticated agent&#34;),
+        Field(description=&#39;Array of accounts accessible to the authenticated agent&#39;),
     ]
     context: context_1.ContextObject | None = None
     errors: Annotated[
-        list[error.Error] | None, Field(description=&#34;Task-specific errors and warnings&#34;)
+        list[error.Error] | None, Field(description=&#39;Task-specific errors and warnings&#39;)
     ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None
+    pagination: pagination_response.PaginationResponse | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -104,6 +105,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.account.list_accounts_response.ListAccountsResponse.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_response.PaginationResponse" href="../core/pagination_response.html#adcp.types.generated_poc.core.pagination_response.PaginationResponse">PaginationResponse</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
@@ -133,12 +138,13 @@ validated to form a valid model.</p>
 <ul>
 <li>
 <h4><code><a title="adcp.types.generated_poc.account.list_accounts_response.ListAccountsResponse" href="#adcp.types.generated_poc.account.list_accounts_response.ListAccountsResponse">ListAccountsResponse</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.account.list_accounts_response.ListAccountsResponse.accounts" href="#adcp.types.generated_poc.account.list_accounts_response.ListAccountsResponse.accounts">accounts</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.list_accounts_response.ListAccountsResponse.context" href="#adcp.types.generated_poc.account.list_accounts_response.ListAccountsResponse.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.list_accounts_response.ListAccountsResponse.errors" href="#adcp.types.generated_poc.account.list_accounts_response.ListAccountsResponse.errors">errors</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.list_accounts_response.ListAccountsResponse.ext" href="#adcp.types.generated_poc.account.list_accounts_response.ListAccountsResponse.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.list_accounts_response.ListAccountsResponse.model_config" href="#adcp.types.generated_poc.account.list_accounts_response.ListAccountsResponse.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.list_accounts_response.ListAccountsResponse.pagination" href="#adcp.types.generated_poc.account.list_accounts_response.ListAccountsResponse.pagination">pagination</a></code></li>
 </ul>
 </li>
 </ul>

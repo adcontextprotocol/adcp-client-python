@@ -61,8 +61,8 @@ el.replaceWith(d);
     root: Annotated[
         ListContentStandardsResponse1 | ListContentStandardsResponse2,
         Field(
-            description=&#34;Response payload with list of content standards configurations&#34;,
-            title=&#34;List Content Standards Response&#34;,
+            description=&#39;Response payload with list of content standards configurations&#39;,
+            title=&#39;List Content Standards Response&#39;,
         ),
     ]</code></pre>
 </details>
@@ -117,12 +117,13 @@ validated to form a valid model.</p>
 <pre><code class="python">class ListContentStandardsResponse1(AdCPBaseModel):
     context: context_1.ContextObject | None = None
     errors: Annotated[
-        Any | None, Field(description=&#34;Field must not be present in success response&#34;)
+        Any | None, Field(description=&#39;Field must not be present in success response&#39;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
+    pagination: pagination_response.PaginationResponse | None = None
     standards: Annotated[
         list[content_standards.ContentStandards],
-        Field(description=&#34;Array of content standards configurations matching the filter criteria&#34;),
+        Field(description=&#39;Array of content standards configurations matching the filter criteria&#39;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -156,6 +157,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse1.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_response.PaginationResponse" href="../core/pagination_response.html#adcp.types.generated_poc.core.pagination_response.PaginationResponse">PaginationResponse</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse1.standards"><code class="name">var <span class="ident">standards</span> : list[<a title="adcp.types.generated_poc.content_standards.content_standards.ContentStandards" href="content_standards.html#adcp.types.generated_poc.content_standards.content_standards.ContentStandards">ContentStandards</a>]</code></dt>
 <dd>
 <div class="desc"></div>
@@ -186,7 +191,7 @@ validated to form a valid model.</p>
     errors: list[error.Error]
     ext: ext_1.ExtensionObject | None = None
     standards: Annotated[
-        Any | None, Field(description=&#34;Field must not be present in error response&#34;)
+        Any | None, Field(description=&#39;Field must not be present in error response&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -260,11 +265,12 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse1" href="#adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse1">ListContentStandardsResponse1</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse1.context" href="#adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse1.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse1.errors" href="#adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse1.errors">errors</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse1.ext" href="#adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse1.model_config" href="#adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse1.pagination" href="#adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse1.pagination">pagination</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse1.standards" href="#adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse1.standards">standards</a></code></li>
 </ul>
 </li>

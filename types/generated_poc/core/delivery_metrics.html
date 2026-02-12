@@ -46,6 +46,155 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.ByActionSourceItem"><code class="flex name class">
+<span>class <span class="ident">ByActionSourceItem</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ByActionSourceItem(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    action_source: Annotated[
+        action_source_1.ActionSource, Field(description=&#39;Where the conversion occurred&#39;)
+    ]
+    count: Annotated[
+        float, Field(description=&#39;Number of conversions from this action source&#39;, ge=0.0)
+    ]
+    event_source_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Event source that produced these conversions (for disambiguation when multiple event sources are configured)&#39;
+        ),
+    ] = None
+    value: Annotated[
+        float | None,
+        Field(description=&#39;Total monetary value of conversions from this action source&#39;, ge=0.0),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.ByActionSourceItem.action_source"><code class="name">var <span class="ident">action_source</span> : <a title="adcp.types.generated_poc.enums.action_source.ActionSource" href="../enums/action_source.html#adcp.types.generated_poc.enums.action_source.ActionSource">ActionSource</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.ByActionSourceItem.count"><code class="name">var <span class="ident">count</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.ByActionSourceItem.event_source_id"><code class="name">var <span class="ident">event_source_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.ByActionSourceItem.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.ByActionSourceItem.value"><code class="name">var <span class="ident">value</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.ByEventTypeItem"><code class="flex name class">
+<span>class <span class="ident">ByEventTypeItem</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ByEventTypeItem(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    count: Annotated[float, Field(description=&#39;Number of events of this type&#39;, ge=0.0)]
+    event_source_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Event source that produced these conversions (for disambiguation when multiple event sources are configured)&#39;
+        ),
+    ] = None
+    event_type: Annotated[event_type_1.EventType, Field(description=&#39;The event type&#39;)]
+    value: Annotated[
+        float | None, Field(description=&#39;Total monetary value of events of this type&#39;, ge=0.0)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.ByEventTypeItem.count"><code class="name">var <span class="ident">count</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.ByEventTypeItem.event_source_id"><code class="name">var <span class="ident">event_source_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.ByEventTypeItem.event_type"><code class="name">var <span class="ident">event_type</span> : <a title="adcp.types.generated_poc.enums.event_type.EventType" href="../enums/event_type.html#adcp.types.generated_poc.enums.event_type.EventType">EventType</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.ByEventTypeItem.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.ByEventTypeItem.value"><code class="name">var <span class="ident">value</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics"><code class="flex name class">
 <span>class <span class="ident">DeliveryMetrics</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -57,54 +206,110 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class DeliveryMetrics(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    clicks: Annotated[float | None, Field(description=&#34;Total clicks&#34;, ge=0.0)] = None
+    by_action_source: Annotated[
+        list[ByActionSourceItem] | None,
+        Field(
+            description=&#39;Conversion metrics broken down by action source (website, app, in_store, etc.). Useful for omnichannel sellers where conversions occur across digital and physical channels.&#39;
+        ),
+    ] = None
+    by_event_type: Annotated[
+        list[ByEventTypeItem] | None,
+        Field(
+            description=&#39;Conversion metrics broken down by event type. Spend-derived metrics (ROAS, CPA) are only available at the package/totals level since spend cannot be attributed to individual event types.&#39;
+        ),
+    ] = None
+    clicks: Annotated[float | None, Field(description=&#39;Total clicks&#39;, ge=0.0)] = None
     completed_views: Annotated[
-        float | None, Field(description=&#34;100% completions (for CPCV)&#34;, ge=0.0)
+        float | None, Field(description=&#39;100% completions (for CPCV)&#39;, ge=0.0)
     ] = None
     completion_rate: Annotated[
         float | None,
-        Field(description=&#34;Completion rate (completed_views/impressions)&#34;, ge=0.0, le=1.0),
+        Field(description=&#39;Completion rate (completed_views/impressions)&#39;, ge=0.0, le=1.0),
+    ] = None
+    conversion_value: Annotated[
+        float | None,
+        Field(
+            description=&#39;Total monetary value of attributed conversions (in the reporting currency)&#39;,
+            ge=0.0,
+        ),
     ] = None
     conversions: Annotated[
         float | None,
-        Field(description=&#34;Conversions (reserved for future CPA pricing support)&#34;, ge=0.0),
+        Field(
+            description=&#39;Total conversions attributed to this delivery. When by_event_type is present, this equals the sum of all by_event_type[].count entries.&#39;,
+            ge=0.0,
+        ),
+    ] = None
+    cost_per_acquisition: Annotated[
+        float | None, Field(description=&#39;Cost per conversion (spend / conversions)&#39;, ge=0.0)
+    ] = None
+    cost_per_click: Annotated[
+        float | None, Field(description=&#39;Cost per click (spend / clicks)&#39;, ge=0.0)
     ] = None
     ctr: Annotated[
-        float | None, Field(description=&#34;Click-through rate (clicks/impressions)&#34;, ge=0.0, le=1.0)
+        float | None, Field(description=&#39;Click-through rate (clicks/impressions)&#39;, ge=0.0, le=1.0)
     ] = None
     dooh_metrics: Annotated[
         DoohMetrics | None,
-        Field(description=&#34;DOOH-specific metrics (only included for DOOH campaigns)&#34;),
+        Field(description=&#39;DOOH-specific metrics (only included for DOOH campaigns)&#39;),
+    ] = None
+    engagement_rate: Annotated[
+        float | None,
+        Field(
+            description=&#39;Platform-specific engagement rate (0.0 to 1.0). Definition varies by platform (e.g., likes+comments+shares/impressions on social, interactions/impressions on rich media).&#39;,
+            ge=0.0,
+            le=1.0,
+        ),
     ] = None
     frequency: Annotated[
         float | None,
         Field(
-            description=&#34;Average frequency per individual (typically measured over campaign duration, but can vary by measurement provider)&#34;,
+            description=&#39;Average frequency per individual (typically measured over campaign duration, but can vary by measurement provider)&#39;,
             ge=0.0,
         ),
     ] = None
     grps: Annotated[
-        float | None, Field(description=&#34;Gross Rating Points delivered (for CPP)&#34;, ge=0.0)
+        float | None, Field(description=&#39;Gross Rating Points delivered (for CPP)&#39;, ge=0.0)
     ] = None
-    impressions: Annotated[float | None, Field(description=&#34;Impressions delivered&#34;, ge=0.0)] = None
+    impressions: Annotated[float | None, Field(description=&#39;Impressions delivered&#39;, ge=0.0)] = None
     leads: Annotated[
         float | None,
-        Field(description=&#34;Leads generated (reserved for future CPL pricing support)&#34;, ge=0.0),
+        Field(
+            description=&#34;Leads generated (convenience alias for by_event_type where event_type=&#39;lead&#39;)&#34;,
+            ge=0.0,
+        ),
+    ] = None
+    new_to_brand_rate: Annotated[
+        float | None,
+        Field(
+            description=&#39;Fraction of conversions from first-time brand buyers (0 = none, 1 = all)&#39;,
+            ge=0.0,
+            le=1.0,
+        ),
     ] = None
     quartile_data: Annotated[
-        QuartileData | None, Field(description=&#34;Video quartile completion data&#34;)
+        QuartileData | None, Field(description=&#39;Video quartile completion data&#39;)
     ] = None
     reach: Annotated[
         float | None,
         Field(
-            description=&#34;Unique reach - units depend on measurement provider (e.g., individuals, households, devices, cookies). See delivery_measurement.provider for methodology.&#34;,
+            description=&#39;Unique reach - units depend on measurement provider (e.g., individuals, households, devices, cookies). See delivery_measurement.provider for methodology.&#39;,
             ge=0.0,
         ),
     ] = None
-    spend: Annotated[float | None, Field(description=&#34;Amount spent&#34;, ge=0.0)] = None
-    views: Annotated[float | None, Field(description=&#34;Views at threshold (for CPV)&#34;, ge=0.0)] = None</code></pre>
+    roas: Annotated[
+        float | None, Field(description=&#39;Return on ad spend (conversion_value / spend)&#39;, ge=0.0)
+    ] = None
+    spend: Annotated[float | None, Field(description=&#39;Amount spent&#39;, ge=0.0)] = None
+    viewability: Annotated[
+        Viewability | None,
+        Field(
+            description=&#39;Viewability metrics. Viewable rate should be calculated as viewable_impressions / measurable_impressions (not total impressions), since some environments cannot measure viewability.&#39;
+        ),
+    ] = None
+    views: Annotated[float | None, Field(description=&#39;Views at threshold (for CPV)&#39;, ge=0.0)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -121,11 +326,21 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
+<li><a title="adcp.types.generated_poc.core.creative_variant.CreativeVariant" href="creative_variant.html#adcp.types.generated_poc.core.creative_variant.CreativeVariant">CreativeVariant</a></li>
+<li><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCreativeItem" href="../media_buy/get_media_buy_delivery_response.html#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCreativeItem">ByCreativeItem</a></li>
 <li><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem" href="../media_buy/get_media_buy_delivery_response.html#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem">ByPackageItem</a></li>
 <li><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Totals" href="../media_buy/get_media_buy_delivery_response.html#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Totals">Totals</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.by_action_source"><code class="name">var <span class="ident">by_action_source</span> : list[<a title="adcp.types.generated_poc.core.delivery_metrics.ByActionSourceItem" href="#adcp.types.generated_poc.core.delivery_metrics.ByActionSourceItem">ByActionSourceItem</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.by_event_type"><code class="name">var <span class="ident">by_event_type</span> : list[<a title="adcp.types.generated_poc.core.delivery_metrics.ByEventTypeItem" href="#adcp.types.generated_poc.core.delivery_metrics.ByEventTypeItem">ByEventTypeItem</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.clicks"><code class="name">var <span class="ident">clicks</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -138,7 +353,19 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.conversion_value"><code class="name">var <span class="ident">conversion_value</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.conversions"><code class="name">var <span class="ident">conversions</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.cost_per_acquisition"><code class="name">var <span class="ident">cost_per_acquisition</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.cost_per_click"><code class="name">var <span class="ident">cost_per_click</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -147,6 +374,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.dooh_metrics"><code class="name">var <span class="ident">dooh_metrics</span> : <a title="adcp.types.generated_poc.core.delivery_metrics.DoohMetrics" href="#adcp.types.generated_poc.core.delivery_metrics.DoohMetrics">DoohMetrics</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.engagement_rate"><code class="name">var <span class="ident">engagement_rate</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -170,6 +401,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.new_to_brand_rate"><code class="name">var <span class="ident">new_to_brand_rate</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.quartile_data"><code class="name">var <span class="ident">quartile_data</span> : <a title="adcp.types.generated_poc.core.delivery_metrics.QuartileData" href="#adcp.types.generated_poc.core.delivery_metrics.QuartileData">QuartileData</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -178,7 +413,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.roas"><code class="name">var <span class="ident">roas</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.spend"><code class="name">var <span class="ident">spend</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.viewability"><code class="name">var <span class="ident">viewability</span> : <a title="adcp.types.generated_poc.core.delivery_metrics.Viewability" href="#adcp.types.generated_poc.core.delivery_metrics.Viewability">Viewability</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -209,26 +452,26 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class DoohMetrics(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     calculation_notes: Annotated[
-        str | None, Field(description=&#34;Explanation of how DOOH impressions were calculated&#34;)
+        str | None, Field(description=&#39;Explanation of how DOOH impressions were calculated&#39;)
     ] = None
     loop_plays: Annotated[
-        int | None, Field(description=&#34;Number of times ad played in rotation&#34;, ge=0)
+        int | None, Field(description=&#39;Number of times ad played in rotation&#39;, ge=0)
     ] = None
     screen_time_seconds: Annotated[
-        int | None, Field(description=&#34;Total display time in seconds&#34;, ge=0)
+        int | None, Field(description=&#39;Total display time in seconds&#39;, ge=0)
     ] = None
     screens_used: Annotated[
-        int | None, Field(description=&#34;Number of unique screens displaying the ad&#34;, ge=0)
+        int | None, Field(description=&#39;Number of unique screens displaying the ad&#39;, ge=0)
     ] = None
     sov_achieved: Annotated[
         float | None,
-        Field(description=&#34;Actual share of voice delivered (0.0 to 1.0)&#34;, ge=0.0, le=1.0),
+        Field(description=&#39;Actual share of voice delivered (0.0 to 1.0)&#39;, ge=0.0, le=1.0),
     ] = None
     venue_breakdown: Annotated[
-        list[VenueBreakdownItem] | None, Field(description=&#34;Per-venue performance breakdown&#34;)
+        list[VenueBreakdownItem] | None, Field(description=&#39;Per-venue performance breakdown&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -296,10 +539,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class QuartileData(AdCPBaseModel):
-    q1_views: Annotated[float | None, Field(description=&#34;25% completion views&#34;, ge=0.0)] = None
-    q2_views: Annotated[float | None, Field(description=&#34;50% completion views&#34;, ge=0.0)] = None
-    q3_views: Annotated[float | None, Field(description=&#34;75% completion views&#34;, ge=0.0)] = None
-    q4_views: Annotated[float | None, Field(description=&#34;100% completion views&#34;, ge=0.0)] = None</code></pre>
+    q1_views: Annotated[float | None, Field(description=&#39;25% completion views&#39;, ge=0.0)] = None
+    q2_views: Annotated[float | None, Field(description=&#39;50% completion views&#39;, ge=0.0)] = None
+    q3_views: Annotated[float | None, Field(description=&#39;75% completion views&#39;, ge=0.0)] = None
+    q4_views: Annotated[float | None, Field(description=&#39;100% completion views&#39;, ge=0.0)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -348,6 +591,70 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.Standard"><code class="flex name class">
+<span>class <span class="ident">Standard</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Standard(Enum):
+    mrc = &#39;mrc&#39;
+    groupm = &#39;groupm&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.Standard.groupm"><code class="name">var <span class="ident">groupm</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.Standard.mrc"><code class="name">var <span class="ident">mrc</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.generated_poc.core.delivery_metrics.VenueBreakdownItem"><code class="flex name class">
 <span>class <span class="ident">VenueBreakdownItem</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -359,15 +666,15 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class VenueBreakdownItem(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    impressions: Annotated[int, Field(description=&#34;Impressions delivered at this venue&#34;, ge=0)]
-    loop_plays: Annotated[int | None, Field(description=&#34;Loop plays at this venue&#34;, ge=0)] = None
+    impressions: Annotated[int, Field(description=&#39;Impressions delivered at this venue&#39;, ge=0)]
+    loop_plays: Annotated[int | None, Field(description=&#39;Loop plays at this venue&#39;, ge=0)] = None
     screens_used: Annotated[
-        int | None, Field(description=&#34;Number of screens used at this venue&#34;, ge=0)
+        int | None, Field(description=&#39;Number of screens used at this venue&#39;, ge=0)
     ] = None
-    venue_id: Annotated[str, Field(description=&#34;Venue identifier&#34;)]
-    venue_name: Annotated[str | None, Field(description=&#34;Human-readable venue name&#34;)] = None
+    venue_id: Annotated[str, Field(description=&#39;Venue identifier&#39;)]
+    venue_name: Annotated[str | None, Field(description=&#39;Human-readable venue name&#39;)] = None
     venue_type: Annotated[
         str | None,
         Field(description=&#34;Venue type (e.g., &#39;airport&#39;, &#39;transit&#39;, &#39;retail&#39;, &#39;billboard&#39;)&#34;),
@@ -428,6 +735,95 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.Viewability"><code class="flex name class">
+<span>class <span class="ident">Viewability</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Viewability(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    measurable_impressions: Annotated[
+        float | None,
+        Field(
+            description=&#39;Impressions where viewability could be measured. Excludes environments without measurement capability (e.g., non-Intersection Observer browsers, certain app environments).&#39;,
+            ge=0.0,
+        ),
+    ] = None
+    standard: Annotated[
+        Standard | None,
+        Field(
+            description=&#34;Viewability measurement standard. &#39;mrc&#39;: 50% of pixels in view for 1 second (display) or 2 seconds (video), per MRC/IAB guidelines. &#39;groupm&#39;: 100% of pixels in view for the same durations. These are materially different thresholds and should not be compared across standards.&#34;
+        ),
+    ] = None
+    viewable_impressions: Annotated[
+        float | None,
+        Field(
+            description=&#39;Impressions that met the viewability threshold defined by the measurement standard.&#39;,
+            ge=0.0,
+        ),
+    ] = None
+    viewable_rate: Annotated[
+        float | None,
+        Field(
+            description=&#39;Viewable impression rate (viewable_impressions / measurable_impressions). Range 0.0 to 1.0.&#39;,
+            ge=0.0,
+            le=1.0,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.Viewability.measurable_impressions"><code class="name">var <span class="ident">measurable_impressions</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.Viewability.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.Viewability.standard"><code class="name">var <span class="ident">standard</span> : <a title="adcp.types.generated_poc.core.delivery_metrics.Standard" href="#adcp.types.generated_poc.core.delivery_metrics.Standard">Standard</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.Viewability.viewable_impressions"><code class="name">var <span class="ident">viewable_impressions</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.Viewability.viewable_rate"><code class="name">var <span class="ident">viewable_rate</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 </dl>
 </section>
 </article>
@@ -444,22 +840,51 @@ validated to form a valid model.</p>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
+<h4><code><a title="adcp.types.generated_poc.core.delivery_metrics.ByActionSourceItem" href="#adcp.types.generated_poc.core.delivery_metrics.ByActionSourceItem">ByActionSourceItem</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.ByActionSourceItem.action_source" href="#adcp.types.generated_poc.core.delivery_metrics.ByActionSourceItem.action_source">action_source</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.ByActionSourceItem.count" href="#adcp.types.generated_poc.core.delivery_metrics.ByActionSourceItem.count">count</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.ByActionSourceItem.event_source_id" href="#adcp.types.generated_poc.core.delivery_metrics.ByActionSourceItem.event_source_id">event_source_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.ByActionSourceItem.model_config" href="#adcp.types.generated_poc.core.delivery_metrics.ByActionSourceItem.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.ByActionSourceItem.value" href="#adcp.types.generated_poc.core.delivery_metrics.ByActionSourceItem.value">value</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.delivery_metrics.ByEventTypeItem" href="#adcp.types.generated_poc.core.delivery_metrics.ByEventTypeItem">ByEventTypeItem</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.ByEventTypeItem.count" href="#adcp.types.generated_poc.core.delivery_metrics.ByEventTypeItem.count">count</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.ByEventTypeItem.event_source_id" href="#adcp.types.generated_poc.core.delivery_metrics.ByEventTypeItem.event_source_id">event_source_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.ByEventTypeItem.event_type" href="#adcp.types.generated_poc.core.delivery_metrics.ByEventTypeItem.event_type">event_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.ByEventTypeItem.model_config" href="#adcp.types.generated_poc.core.delivery_metrics.ByEventTypeItem.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.ByEventTypeItem.value" href="#adcp.types.generated_poc.core.delivery_metrics.ByEventTypeItem.value">value</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics">DeliveryMetrics</a></code></h4>
-<ul class="two-column">
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.by_action_source" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.by_action_source">by_action_source</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.by_event_type" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.by_event_type">by_event_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.clicks" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.clicks">clicks</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.completed_views" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.completed_views">completed_views</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.completion_rate" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.completion_rate">completion_rate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.conversion_value" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.conversion_value">conversion_value</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.conversions" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.conversions">conversions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.cost_per_acquisition" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.cost_per_acquisition">cost_per_acquisition</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.cost_per_click" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.cost_per_click">cost_per_click</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.ctr" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.ctr">ctr</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.dooh_metrics" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.dooh_metrics">dooh_metrics</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.engagement_rate" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.engagement_rate">engagement_rate</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.frequency" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.frequency">frequency</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.grps" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.grps">grps</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.impressions" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.impressions">impressions</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.leads" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.leads">leads</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.model_config" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.new_to_brand_rate" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.new_to_brand_rate">new_to_brand_rate</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.quartile_data" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.quartile_data">quartile_data</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.reach" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.reach">reach</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.roas" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.roas">roas</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.spend" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.spend">spend</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.viewability" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.viewability">viewability</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.views" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.views">views</a></code></li>
 </ul>
 </li>
@@ -486,6 +911,13 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.generated_poc.core.delivery_metrics.Standard" href="#adcp.types.generated_poc.core.delivery_metrics.Standard">Standard</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.Standard.groupm" href="#adcp.types.generated_poc.core.delivery_metrics.Standard.groupm">groupm</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.Standard.mrc" href="#adcp.types.generated_poc.core.delivery_metrics.Standard.mrc">mrc</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.core.delivery_metrics.VenueBreakdownItem" href="#adcp.types.generated_poc.core.delivery_metrics.VenueBreakdownItem">VenueBreakdownItem</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.VenueBreakdownItem.impressions" href="#adcp.types.generated_poc.core.delivery_metrics.VenueBreakdownItem.impressions">impressions</a></code></li>
@@ -495,6 +927,16 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.VenueBreakdownItem.venue_id" href="#adcp.types.generated_poc.core.delivery_metrics.VenueBreakdownItem.venue_id">venue_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.VenueBreakdownItem.venue_name" href="#adcp.types.generated_poc.core.delivery_metrics.VenueBreakdownItem.venue_name">venue_name</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.VenueBreakdownItem.venue_type" href="#adcp.types.generated_poc.core.delivery_metrics.VenueBreakdownItem.venue_type">venue_type</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.delivery_metrics.Viewability" href="#adcp.types.generated_poc.core.delivery_metrics.Viewability">Viewability</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.Viewability.measurable_impressions" href="#adcp.types.generated_poc.core.delivery_metrics.Viewability.measurable_impressions">measurable_impressions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.Viewability.model_config" href="#adcp.types.generated_poc.core.delivery_metrics.Viewability.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.Viewability.standard" href="#adcp.types.generated_poc.core.delivery_metrics.Viewability.standard">standard</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.Viewability.viewable_impressions" href="#adcp.types.generated_poc.core.delivery_metrics.Viewability.viewable_impressions">viewable_impressions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.Viewability.viewable_rate" href="#adcp.types.generated_poc.core.delivery_metrics.Viewability.viewable_rate">viewable_rate</a></code></li>
 </ul>
 </li>
 </ul>

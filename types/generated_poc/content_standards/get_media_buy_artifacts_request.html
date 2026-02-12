@@ -56,25 +56,32 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class GetMediaBuyArtifactsRequest(AdCPBaseModel):
-    context: context_1.ContextObject | None = None
-    cursor: Annotated[
-        str | None, Field(description=&#34;Pagination cursor for fetching subsequent pages&#34;)
+    account_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Filter artifacts to a specific account. When provided, only returns artifacts for media buys belonging to this account. When omitted, returns artifacts across all accessible accounts. Optional if the agent has a single account.&#39;
+        ),
     ] = None
+    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
-    limit: Annotated[
-        int | None, Field(description=&#34;Maximum artifacts to return per request&#34;, ge=1, le=10000)
-    ] = 1000
-    media_buy_id: Annotated[str, Field(description=&#34;Media buy to get artifacts from&#34;)]
+    media_buy_id: Annotated[str, Field(description=&#39;Media buy to get artifacts from&#39;)]
     package_ids: Annotated[
-        list[str] | None, Field(description=&#34;Filter to specific packages within the media buy&#34;)
+        list[str] | None,
+        Field(description=&#39;Filter to specific packages within the media buy&#39;, min_length=1),
+    ] = None
+    pagination: Annotated[
+        Pagination | None,
+        Field(
+            description=&#39;Pagination parameters. Uses higher limits than standard pagination because artifact result sets can be very large.&#39;
+        ),
     ] = None
     sampling: Annotated[
         Sampling | None,
         Field(
-            description=&#34;Sampling parameters. Defaults to the sampling rate agreed in the media buy.&#34;
+            description=&#39;Sampling parameters. Defaults to the sampling rate agreed in the media buy.&#39;
         ),
     ] = None
-    time_range: Annotated[TimeRange | None, Field(description=&#34;Filter to specific time period&#34;)] = (
+    time_range: Annotated[TimeRange | None, Field(description=&#39;Filter to specific time period&#39;)] = (
         None
     )</code></pre>
 </details>
@@ -93,19 +100,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.account_id"><code class="name">var <span class="ident">account_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.cursor"><code class="name">var <span class="ident">cursor</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.limit"><code class="name">var <span class="ident">limit</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -118,6 +121,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.package_ids"><code class="name">var <span class="ident">package_ids</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.Pagination" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.Pagination">Pagination</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -151,10 +158,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Method(Enum):
-    random = &#34;random&#34;
-    stratified = &#34;stratified&#34;
-    recent = &#34;recent&#34;
-    failures_only = &#34;failures_only&#34;</code></pre>
+    random = &#39;random&#39;
+    stratified = &#39;stratified&#39;
+    recent = &#39;recent&#39;
+    failures_only = &#39;failures_only&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -215,6 +222,67 @@ attributes &ndash; see the documentation for details.</p></div>
 </dd>
 </dl>
 </dd>
+<dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.Pagination"><code class="flex name class">
+<span>class <span class="ident">Pagination</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Pagination(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    cursor: Annotated[
+        str | None,
+        Field(description=&#39;Opaque cursor from a previous response to fetch the next page&#39;),
+    ] = None
+    max_results: Annotated[
+        int | None,
+        Field(description=&#39;Maximum number of artifacts to return per page&#39;, ge=1, le=10000),
+    ] = 1000</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.Pagination.cursor"><code class="name">var <span class="ident">cursor</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.Pagination.max_results"><code class="name">var <span class="ident">max_results</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.Pagination.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.Sampling"><code class="flex name class">
 <span>class <span class="ident">Sampling</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -225,11 +293,11 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Sampling(AdCPBaseModel):
-    method: Annotated[Method | None, Field(description=&#34;How to select the sample&#34;)] = None
+    method: Annotated[Method | None, Field(description=&#39;How to select the sample&#39;)] = None
     rate: Annotated[
         float | None,
         Field(
-            description=&#34;Sampling rate (0-1). 1.0 = all deliveries, 0.25 = 25% sample.&#34;,
+            description=&#39;Sampling rate (0-1). 1.0 = all deliveries, 0.25 = 25% sample.&#39;,
             ge=0.0,
             le=1.0,
         ),
@@ -284,8 +352,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class TimeRange(AdCPBaseModel):
-    end: Annotated[AwareDatetime | None, Field(description=&#34;End of time range (exclusive)&#34;)] = None
-    start: Annotated[AwareDatetime | None, Field(description=&#34;Start of time range (inclusive)&#34;)] = (
+    end: Annotated[AwareDatetime | None, Field(description=&#39;End of time range (exclusive)&#39;)] = None
+    start: Annotated[AwareDatetime | None, Field(description=&#39;Start of time range (inclusive)&#39;)] = (
         None
     )</code></pre>
 </details>
@@ -346,13 +414,13 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest">GetMediaBuyArtifactsRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.account_id" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.account_id">account_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.context" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.cursor" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.cursor">cursor</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.ext" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.limit" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.limit">limit</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.media_buy_id" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.model_config" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.package_ids" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.package_ids">package_ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.pagination" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.pagination">pagination</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.sampling" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.sampling">sampling</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.time_range" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.time_range">time_range</a></code></li>
 </ul>
@@ -364,6 +432,14 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.Method.random" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.Method.random">random</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.Method.recent" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.Method.recent">recent</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.Method.stratified" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.Method.stratified">stratified</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.Pagination" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.Pagination">Pagination</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.Pagination.cursor" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.Pagination.cursor">cursor</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.Pagination.max_results" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.Pagination.max_results">max_results</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.Pagination.model_config" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.Pagination.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>

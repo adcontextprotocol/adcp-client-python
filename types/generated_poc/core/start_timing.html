@@ -55,11 +55,11 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class StartTiming(RootModel[Literal[&#34;asap&#34;] | AwareDatetime]):
+<pre><code class="python">class StartTiming(RootModel[Literal[&#39;asap&#39;] | AwareDatetime]):
     root: Annotated[
-        Literal[&#34;asap&#34;] | AwareDatetime,
+        Literal[&#39;asap&#39;] | AwareDatetime,
         Field(
-            description=&#34;Campaign start timing: &#39;asap&#39; or ISO 8601 date-time&#34;, title=&#34;Start Timing&#34;
+            description=&#34;Campaign start timing: &#39;asap&#39; or ISO 8601 date-time&#34;, title=&#39;Start Timing&#39;
         ),
     ]</code></pre>
 </details>

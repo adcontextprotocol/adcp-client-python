@@ -56,27 +56,27 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Artifact(AdCPBaseModel):
-    artifact: Annotated[artifact_1.Artifact, Field(description=&#34;Full artifact with content assets&#34;)]
+    artifact: Annotated[artifact_1.Artifact, Field(description=&#39;Full artifact with content assets&#39;)]
     brand_context: Annotated[
         BrandContext | None,
         Field(
-            description=&#34;Brand information for policy evaluation. Schema TBD - placeholder for brand identifiers.&#34;
+            description=&#39;Brand information for policy evaluation. Schema TBD - placeholder for brand identifiers.&#39;
         ),
     ] = None
     channel: Annotated[
-        str | None, Field(description=&#34;Channel type (e.g., display, video, audio, social)&#34;)
+        str | None, Field(description=&#39;Channel type (e.g., display, video, audio, social)&#39;)
     ] = None
     country: Annotated[
-        str | None, Field(description=&#34;ISO 3166-1 alpha-2 country code where delivery occurred&#34;)
+        str | None, Field(description=&#39;ISO 3166-1 alpha-2 country code where delivery occurred&#39;)
     ] = None
     local_verdict: Annotated[
         LocalVerdict | None, Field(description=&#34;Seller&#39;s local model verdict for this artifact&#34;)
     ] = None
     package_id: Annotated[
-        str | None, Field(description=&#34;Which package this delivery belongs to&#34;)
+        str | None, Field(description=&#39;Which package this delivery belongs to&#39;)
     ] = None
-    record_id: Annotated[str, Field(description=&#34;Unique identifier for this delivery record&#34;)]
-    timestamp: Annotated[AwareDatetime | None, Field(description=&#34;When the delivery occurred&#34;)] = (
+    record_id: Annotated[str, Field(description=&#39;Unique identifier for this delivery record&#39;)]
+    timestamp: Annotated[AwareDatetime | None, Field(description=&#39;When the delivery occurred&#39;)] = (
         None
     )</code></pre>
 </details>
@@ -153,8 +153,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class BrandContext(AdCPBaseModel):
-    brand_id: Annotated[str | None, Field(description=&#34;Brand identifier&#34;)] = None
-    sku_id: Annotated[str | None, Field(description=&#34;Product/SKU identifier if applicable&#34;)] = None</code></pre>
+    brand_id: Annotated[str | None, Field(description=&#39;Brand identifier&#39;)] = None
+    sku_id: Annotated[str | None, Field(description=&#39;Product/SKU identifier if applicable&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -210,8 +210,8 @@ validated to form a valid model.</p>
     root: Annotated[
         GetMediaBuyArtifactsResponse1 | GetMediaBuyArtifactsResponse2,
         Field(
-            description=&#34;Response containing content artifacts from a media buy for validation&#34;,
-            title=&#34;Get Media Buy Artifacts Response&#34;,
+            description=&#39;Response containing content artifacts from a media buy for validation&#39;,
+            title=&#39;Get Media Buy Artifacts Response&#39;,
         ),
     ]</code></pre>
 </details>
@@ -265,19 +265,17 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetMediaBuyArtifactsResponse1(AdCPBaseModel):
     artifacts: Annotated[
-        list[Artifact], Field(description=&#34;Delivery records with full artifact content&#34;)
+        list[Artifact], Field(description=&#39;Delivery records with full artifact content&#39;)
     ]
     context: context_1.ContextObject | None = None
     errors: Annotated[
-        Any | None, Field(description=&#34;Field must not be present in success response&#34;)
+        Any | None, Field(description=&#39;Field must not be present in success response&#39;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
-    media_buy_id: Annotated[str, Field(description=&#34;Media buy these artifacts belong to&#34;)]
-    pagination: Annotated[
-        Pagination | None, Field(description=&#34;Pagination information for large result sets&#34;)
-    ] = None
+    media_buy_id: Annotated[str, Field(description=&#39;Media buy these artifacts belong to&#39;)]
+    pagination: pagination_response.PaginationResponse | None = None
     sampling_info: Annotated[
-        SamplingInfo | None, Field(description=&#34;Information about how the sample was generated&#34;)
+        SamplingInfo | None, Field(description=&#39;Information about how the sample was generated&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -319,7 +317,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse1.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Pagination" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Pagination">Pagination</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse1.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_response.PaginationResponse" href="../core/pagination_response.html#adcp.types.generated_poc.core.pagination_response.PaginationResponse">PaginationResponse</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -353,7 +351,7 @@ validated to form a valid model.</p>
     errors: list[error.Error]
     ext: ext_1.ExtensionObject | None = None
     media_buy_id: Annotated[
-        Any | None, Field(description=&#34;Field must not be present in error response&#34;)
+        Any | None, Field(description=&#39;Field must not be present in error response&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -413,9 +411,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class LocalVerdict(Enum):
-    pass_ = &#34;pass&#34;
-    fail = &#34;fail&#34;
-    unevaluated = &#34;unevaluated&#34;</code></pre>
+    pass_ = &#39;pass&#39;
+    fail = &#39;fail&#39;
+    unevaluated = &#39;unevaluated&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -482,10 +480,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Method(Enum):
-    random = &#34;random&#34;
-    stratified = &#34;stratified&#34;
-    recent = &#34;recent&#34;
-    failures_only = &#34;failures_only&#34;</code></pre>
+    random = &#39;random&#39;
+    stratified = &#39;stratified&#39;
+    recent = &#39;recent&#39;
+    failures_only = &#39;failures_only&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -546,58 +544,6 @@ attributes &ndash; see the documentation for details.</p></div>
 </dd>
 </dl>
 </dd>
-<dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Pagination"><code class="flex name class">
-<span>class <span class="ident">Pagination</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Pagination(AdCPBaseModel):
-    cursor: Annotated[str | None, Field(description=&#34;Cursor for fetching the next page&#34;)] = None
-    has_more: Annotated[bool | None, Field(description=&#34;Whether more results are available&#34;)] = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Pagination.cursor"><code class="name">var <span class="ident">cursor</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Pagination.has_more"><code class="name">var <span class="ident">has_more</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Pagination.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
 <dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.SamplingInfo"><code class="flex name class">
 <span>class <span class="ident">SamplingInfo</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -608,15 +554,15 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class SamplingInfo(AdCPBaseModel):
-    effective_rate: Annotated[float | None, Field(description=&#34;Actual sampling rate achieved&#34;)] = (
+    effective_rate: Annotated[float | None, Field(description=&#39;Actual sampling rate achieved&#39;)] = (
         None
     )
-    method: Annotated[Method | None, Field(description=&#34;Sampling method used&#34;)] = None
+    method: Annotated[Method | None, Field(description=&#39;Sampling method used&#39;)] = None
     sampled_count: Annotated[
-        int | None, Field(description=&#34;Number of artifacts in this response&#34;)
+        int | None, Field(description=&#39;Number of artifacts in this response&#39;)
     ] = None
     total_deliveries: Annotated[
-        int | None, Field(description=&#34;Total deliveries in the time range&#34;)
+        int | None, Field(description=&#39;Total deliveries in the time range&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -748,14 +694,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Method.random" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Method.random">random</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Method.recent" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Method.recent">recent</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Method.stratified" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Method.stratified">stratified</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Pagination" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Pagination">Pagination</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Pagination.cursor" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Pagination.cursor">cursor</a></code></li>
-<li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Pagination.has_more" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Pagination.has_more">has_more</a></code></li>
-<li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Pagination.model_config" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.Pagination.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>

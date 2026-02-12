@@ -57,32 +57,64 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Account(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;allow&#39;,
     )
-    account_id: Annotated[str, Field(description=&#34;Unique identifier for this account&#34;)]
+    account_id: Annotated[str, Field(description=&#39;Unique identifier for this account&#39;)]
     advertiser: Annotated[
-        str | None, Field(description=&#34;The advertiser whose rates apply to this account&#34;)
+        str | None, Field(description=&#39;The advertiser whose rates apply to this account&#39;)
+    ] = None
+    billing: Annotated[
+        Billing | None,
+        Field(
+            description=&#39;Who is invoiced on this account. brand: seller invoices the brand directly. operator: seller invoices the operator (agency). agent: agent consolidates billing.&#39;
+        ),
     ] = None
     billing_proxy: Annotated[
         str | None,
         Field(
-            description=&#34;Optional intermediary who receives invoices on behalf of the advertiser (e.g., agency)&#34;
+            description=&#39;Optional intermediary who receives invoices on behalf of the advertiser (e.g., agency)&#39;
+        ),
+    ] = None
+    brand_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Brand ID within the house portfolio (from brand.json)&#39;,
+            pattern=&#39;^[a-z0-9_]+$&#39;,
         ),
     ] = None
     credit_limit: Annotated[
-        CreditLimit | None, Field(description=&#34;Maximum outstanding balance allowed&#34;)
+        CreditLimit | None, Field(description=&#39;Maximum outstanding balance allowed&#39;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
+    house: Annotated[
+        str | None,
+        Field(
+            description=&#39;House domain where brand.json is hosted. Canonical identity anchor for the brand.&#39;,
+            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+        ),
+    ] = None
     name: Annotated[
-        str, Field(description=&#34;Human-readable account name (e.g., &#39;Coke&#39;, &#39;Coke c/o Publicis&#39;)&#34;)
+        str, Field(description=&#34;Human-readable account name (e.g., &#39;Acme&#39;, &#39;Acme c/o Pinnacle&#39;)&#34;)
     ]
+    operator: Annotated[
+        str | None,
+        Field(
+            description=&#39;Domain of the entity operating this account&#39;,
+            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+        ),
+    ] = None
     payment_terms: Annotated[
         str | None, Field(description=&#34;Payment terms (e.g., &#39;net_30&#39;, &#39;prepay&#39;)&#34;)
     ] = None
     rate_card: Annotated[
-        str | None, Field(description=&#34;Identifier for the rate card applied to this account&#34;)
+        str | None, Field(description=&#39;Identifier for the rate card applied to this account&#39;)
     ] = None
-    status: Annotated[Status, Field(description=&#34;Account status&#34;)]</code></pre>
+    status: Annotated[
+        Status,
+        Field(
+            description=&#39;Account status. pending_approval: seller reviewing (credit, contracts). payment_required: credit limit reached or funds depleted. suspended: was active, now paused. closed: terminated.&#39;
+        ),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -107,7 +139,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.account.Account.billing"><code class="name">var <span class="ident">billing</span> : <a title="adcp.types.generated_poc.core.account.Billing" href="#adcp.types.generated_poc.core.account.Billing">Billing</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.account.Account.billing_proxy"><code class="name">var <span class="ident">billing_proxy</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.Account.brand_id"><code class="name">var <span class="ident">brand_id</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -119,11 +159,19 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.account.Account.house"><code class="name">var <span class="ident">house</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.account.Account.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.account.Account.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.Account.operator"><code class="name">var <span class="ident">operator</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -151,6 +199,75 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.core.account.Billing"><code class="flex name class">
+<span>class <span class="ident">Billing</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Billing(Enum):
+    brand = &#39;brand&#39;
+    operator = &#39;operator&#39;
+    agent = &#39;agent&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.account.Billing.agent"><code class="name">var <span class="ident">agent</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.Billing.brand"><code class="name">var <span class="ident">brand</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.Billing.operator"><code class="name">var <span class="ident">operator</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.generated_poc.core.account.CreditLimit"><code class="flex name class">
 <span>class <span class="ident">CreditLimit</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -162,7 +279,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreditLimit(AdCPBaseModel):
     amount: Annotated[float, Field(ge=0.0)]
-    currency: Annotated[str, Field(pattern=&#34;^[A-Z]{3}$&#34;)]</code></pre>
+    currency: Annotated[str, Field(pattern=&#39;^[A-Z]{3}$&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -213,9 +330,11 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Status(Enum):
-    active = &#34;active&#34;
-    suspended = &#34;suspended&#34;
-    closed = &#34;closed&#34;</code></pre>
+    active = &#39;active&#39;
+    pending_approval = &#39;pending_approval&#39;
+    payment_required = &#39;payment_required&#39;
+    suspended = &#39;suspended&#39;
+    closed = &#39;closed&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -266,6 +385,14 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.account.Status.payment_required"><code class="name">var <span class="ident">payment_required</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.Status.pending_approval"><code class="name">var <span class="ident">pending_approval</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.account.Status.suspended"><code class="name">var <span class="ident">suspended</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -292,14 +419,26 @@ attributes &ndash; see the documentation for details.</p></div>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.account.Account.account_id" href="#adcp.types.generated_poc.core.account.Account.account_id">account_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.advertiser" href="#adcp.types.generated_poc.core.account.Account.advertiser">advertiser</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Account.billing" href="#adcp.types.generated_poc.core.account.Account.billing">billing</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.billing_proxy" href="#adcp.types.generated_poc.core.account.Account.billing_proxy">billing_proxy</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Account.brand_id" href="#adcp.types.generated_poc.core.account.Account.brand_id">brand_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.credit_limit" href="#adcp.types.generated_poc.core.account.Account.credit_limit">credit_limit</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.ext" href="#adcp.types.generated_poc.core.account.Account.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Account.house" href="#adcp.types.generated_poc.core.account.Account.house">house</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.model_config" href="#adcp.types.generated_poc.core.account.Account.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.name" href="#adcp.types.generated_poc.core.account.Account.name">name</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Account.operator" href="#adcp.types.generated_poc.core.account.Account.operator">operator</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.payment_terms" href="#adcp.types.generated_poc.core.account.Account.payment_terms">payment_terms</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.rate_card" href="#adcp.types.generated_poc.core.account.Account.rate_card">rate_card</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.status" href="#adcp.types.generated_poc.core.account.Account.status">status</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.account.Billing" href="#adcp.types.generated_poc.core.account.Billing">Billing</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.account.Billing.agent" href="#adcp.types.generated_poc.core.account.Billing.agent">agent</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Billing.brand" href="#adcp.types.generated_poc.core.account.Billing.brand">brand</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Billing.operator" href="#adcp.types.generated_poc.core.account.Billing.operator">operator</a></code></li>
 </ul>
 </li>
 <li>
@@ -315,6 +454,8 @@ attributes &ndash; see the documentation for details.</p></div>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.account.Status.active" href="#adcp.types.generated_poc.core.account.Status.active">active</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Status.closed" href="#adcp.types.generated_poc.core.account.Status.closed">closed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Status.payment_required" href="#adcp.types.generated_poc.core.account.Status.payment_required">payment_required</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Status.pending_approval" href="#adcp.types.generated_poc.core.account.Status.pending_approval">pending_approval</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Status.suspended" href="#adcp.types.generated_poc.core.account.Status.suspended">suspended</a></code></li>
 </ul>
 </li>

@@ -259,8 +259,6 @@ to enable connection pooling and improve performance.</p></div>
     properties your agent can access.
 
     This is the &#34;pull&#34; approach - you query publishers to see if they&#39;ve authorized you.
-    For the &#34;push&#34; approach where the agent tells you what billing accounts you can use,
-    use the agent&#39;s list_accounts endpoint via ADCPClient.
 
     Args:
         agent_url: URL of your sales agent
@@ -282,9 +280,6 @@ to enable connection pooling and improve performance.</p></div>
         ...     print(f&#34;{domain}:&#34;)
         ...     print(f&#34;  Property IDs: {ctx.property_ids}&#34;)
         ...     print(f&#34;  Tags: {ctx.property_tags}&#34;)
-
-    See Also:
-        ADCPClient.list_accounts: &#34;Push&#34; approach using the agent&#39;s API to list billing accounts
 
     Notes:
         - Silently skips domains where adagents.json is not found or invalid
@@ -327,9 +322,7 @@ to enable connection pooling and improve performance.</p></div>
 <p>This function discovers what publishers have authorized your agent by fetching
 their adagents.json files from the .well-known directory and extracting the
 properties your agent can access.</p>
-<p>This is the "pull" approach - you query publishers to see if they've authorized you.
-For the "push" approach where the agent tells you what billing accounts you can use,
-use the agent's list_accounts endpoint via ADCPClient.</p>
+<p>This is the "pull" approach - you query publishers to see if they've authorized you.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>agent_url</code></strong></dt>
@@ -355,8 +348,6 @@ Only includes domains where the agent is authorized.</p>
 ...     print(f&quot;  Property IDs: {ctx.property_ids}&quot;)
 ...     print(f&quot;  Tags: {ctx.property_tags}&quot;)
 </code></pre>
-<p>See Also:
-ADCPClient.list_accounts: "Push" approach using the agent's API to list billing accounts</p>
 <h2 id="notes">Notes</h2>
 <ul>
 <li>Silently skips domains where adagents.json is not found or invalid</li>

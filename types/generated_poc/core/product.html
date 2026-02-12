@@ -46,6 +46,152 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.types.generated_poc.core.product.CatalogMatch"><code class="flex name class">
+<span>class <span class="ident">CatalogMatch</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class CatalogMatch(AdCPBaseModel):
+    matched_gtins: Annotated[
+        list[MatchedGtin] | None,
+        Field(
+            description=&#34;GTINs from the buyer&#39;s catalog that are eligible on this product&#39;s inventory. Buyers can use these values in product_selectors.manifest_gtins when creating media buys. Standard GTIN formats (GTIN-8 through GTIN-14).&#34;
+        ),
+    ] = None
+    matched_skus: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;SKUs from the buyer&#39;s catalog that are eligible on this product&#39;s inventory. Buyers can use these values in product_selectors.manifest_skus when creating media buys.&#34;
+        ),
+    ] = None
+    submitted_count: Annotated[
+        int, Field(description=&#34;Total catalog items evaluated from the buyer&#39;s feed.&#34;, ge=0)
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.product.CatalogMatch.matched_gtins"><code class="name">var <span class="ident">matched_gtins</span> : list[<a title="adcp.types.generated_poc.core.product.MatchedGtin" href="#adcp.types.generated_poc.core.product.MatchedGtin">MatchedGtin</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.CatalogMatch.matched_skus"><code class="name">var <span class="ident">matched_skus</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.CatalogMatch.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.CatalogMatch.submitted_count"><code class="name">var <span class="ident">submitted_count</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.ConversionTracking"><code class="flex name class">
+<span>class <span class="ident">ConversionTracking</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ConversionTracking(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    action_sources: Annotated[
+        list[action_source.ActionSource] | None,
+        Field(
+            description=&#34;Action sources relevant to this product (e.g. a retail media product might have &#39;in_store&#39; and &#39;website&#39;, while a display product might only have &#39;website&#39;)&#34;,
+            min_length=1,
+        ),
+    ] = None
+    platform_managed: Annotated[
+        bool | None,
+        Field(
+            description=&#34;Whether the seller provides its own always-on measurement (e.g. Amazon sales attribution for Amazon advertisers). When true, sync_event_sources response will include seller-managed event sources with managed_by=&#39;seller&#39;.&#34;
+        ),
+    ] = None
+    supported_optimization_strategies: Annotated[
+        list[SupportedOptimizationStrategy] | None,
+        Field(
+            description=&#39;Optimization strategies this product supports when an optimization_goal is set on a package&#39;,
+            min_length=1,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.product.ConversionTracking.action_sources"><code class="name">var <span class="ident">action_sources</span> : list[<a title="adcp.types.generated_poc.enums.action_source.ActionSource" href="../enums/action_source.html#adcp.types.generated_poc.enums.action_source.ActionSource">ActionSource</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.ConversionTracking.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.ConversionTracking.platform_managed"><code class="name">var <span class="ident">platform_managed</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.ConversionTracking.supported_optimization_strategies"><code class="name">var <span class="ident">supported_optimization_strategies</span> : list[<a title="adcp.types.generated_poc.core.product.SupportedOptimizationStrategy" href="#adcp.types.generated_poc.core.product.SupportedOptimizationStrategy">SupportedOptimizationStrategy</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.core.product.DeliveryMeasurement"><code class="flex name class">
 <span>class <span class="ident">DeliveryMeasurement</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -108,6 +254,57 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.core.product.MatchedGtin"><code class="flex name class">
+<span>class <span class="ident">MatchedGtin</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MatchedGtin(RootModel[str]):
+    root: Annotated[str, Field(pattern=&#39;^[0-9]{8,14}$&#39;)]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[str]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.product.MatchedGtin.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.MatchedGtin.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.generated_poc.core.product.Product"><code class="flex name class">
 <span>class <span class="ident">Product</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -119,66 +316,90 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Product(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     brief_relevance: Annotated[
         str | None,
         Field(
-            description=&#34;Explanation of why this product matches the brief (only included when brief is provided)&#34;
+            description=&#39;Explanation of why this product matches the brief (only included when brief is provided)&#39;
+        ),
+    ] = None
+    catalog_match: Annotated[
+        CatalogMatch | None,
+        Field(
+            description=&#34;When the buyer provides a brand_manifest with product_catalog, indicates which of the buyer&#39;s catalog items are eligible for this product. Enables buyers to make informed product_selector choices in create_media_buy. Only present for products where catalog matching is relevant (e.g. sponsored product listings on retail media). Sellers SHOULD include at least one of matched_gtins or matched_skus.&#34;
+        ),
+    ] = None
+    channels: Annotated[
+        list[channels_1.MediaChannel] | None,
+        Field(
+            description=&#34;Advertising channels this product is sold as. Products inherit from their properties&#39; supported_channels but may narrow the scope. For example, a product covering YouTube properties might be sold as [&#39;ctv&#39;] even though those properties support [&#39;olv&#39;, &#39;social&#39;, &#39;ctv&#39;].&#34;
+        ),
+    ] = None
+    conversion_tracking: Annotated[
+        ConversionTracking | None,
+        Field(
+            description=&#39;Conversion tracking for this product. Presence indicates the product supports conversion-optimized delivery. Seller-level capabilities (supported event types, UID types, attribution windows) are declared in get_adcp_capabilities.&#39;
         ),
     ] = None
     creative_policy: creative_policy_1.CreativePolicy | None = None
+    data_provider_signals: Annotated[
+        list[data_provider_signal_selector.DataProviderSignalSelector] | None,
+        Field(
+            description=&#34;Data provider signals available for this product. Buyers fetch signal definitions from each data provider&#39;s adagents.json and can verify agent authorization.&#34;
+        ),
+    ] = None
     delivery_measurement: Annotated[
         DeliveryMeasurement,
         Field(
-            description=&#34;Measurement provider and methodology for delivery metrics. The buyer accepts the declared provider as the source of truth for the buy. REQUIRED for all products.&#34;
+            description=&#39;Measurement provider and methodology for delivery metrics. The buyer accepts the declared provider as the source of truth for the buy. REQUIRED for all products.&#39;
         ),
     ]
     delivery_type: delivery_type_1.DeliveryType
     description: Annotated[
-        str, Field(description=&#34;Detailed description of the product and its inventory&#34;)
+        str, Field(description=&#39;Detailed description of the product and its inventory&#39;)
     ]
     estimated_exposures: Annotated[
         int | None,
-        Field(description=&#34;Estimated exposures/impressions for guaranteed products&#34;, ge=0),
+        Field(description=&#39;Estimated exposures/impressions for guaranteed products&#39;, ge=0),
     ] = None
     expires_at: Annotated[
-        AwareDatetime | None, Field(description=&#34;Expiration timestamp for custom products&#34;)
+        AwareDatetime | None, Field(description=&#39;Expiration timestamp for custom products&#39;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
     format_ids: Annotated[
         list[format_id_1.FormatId],
         Field(
-            description=&#34;Array of supported creative format IDs - structured format_id objects with agent_url and id&#34;
+            description=&#39;Array of supported creative format IDs - structured format_id objects with agent_url and id&#39;
         ),
     ]
-    is_custom: Annotated[bool | None, Field(description=&#34;Whether this is a custom product&#34;)] = None
+    is_custom: Annotated[bool | None, Field(description=&#39;Whether this is a custom product&#39;)] = None
     measurement: measurement_1.Measurement | None = None
-    name: Annotated[str, Field(description=&#34;Human-readable product name&#34;)]
+    name: Annotated[str, Field(description=&#39;Human-readable product name&#39;)]
     placements: Annotated[
         list[placement.Placement] | None,
         Field(
-            description=&#34;Optional array of specific placements within this product. When provided, buyers can target specific placements when assigning creatives.&#34;,
+            description=&#39;Optional array of specific placements within this product. When provided, buyers can target specific placements when assigning creatives.&#39;,
             min_length=1,
         ),
     ] = None
     pricing_options: Annotated[
         list[pricing_option.PricingOption],
-        Field(description=&#34;Available pricing models for this product&#34;, min_length=1),
+        Field(description=&#39;Available pricing models for this product&#39;, min_length=1),
     ]
     product_card: Annotated[
         ProductCard | None,
         Field(
-            description=&#34;Optional standard visual card (300x400px) for displaying this product in user interfaces. Can be rendered via preview_creative or pre-generated.&#34;
+            description=&#39;Optional standard visual card (300x400px) for displaying this product in user interfaces. Can be rendered via preview_creative or pre-generated.&#39;
         ),
     ] = None
     product_card_detailed: Annotated[
         ProductCardDetailed | None,
         Field(
-            description=&#34;Optional detailed card with carousel and full specifications. Provides rich product presentation similar to media kit pages.&#34;
+            description=&#39;Optional detailed card with carousel and full specifications. Provides rich product presentation similar to media kit pages.&#39;
         ),
     ] = None
-    product_id: Annotated[str, Field(description=&#34;Unique identifier for the product&#34;)]
+    product_id: Annotated[str, Field(description=&#39;Unique identifier for the product&#39;)]
     property_targeting_allowed: Annotated[
         bool | None,
         Field(
@@ -192,7 +413,13 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ]
-    reporting_capabilities: reporting_capabilities_1.ReportingCapabilities | None = None</code></pre>
+    reporting_capabilities: reporting_capabilities_1.ReportingCapabilities | None = None
+    signal_targeting_allowed: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether buyers can filter this product to a subset of its data_provider_signals. When false (default), the product includes all listed signals as a bundle. When true, buyers can target specific signals.&#39;
+        ),
+    ] = False</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -213,7 +440,23 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.product.Product.catalog_match"><code class="name">var <span class="ident">catalog_match</span> : <a title="adcp.types.generated_poc.core.product.CatalogMatch" href="#adcp.types.generated_poc.core.product.CatalogMatch">CatalogMatch</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.Product.channels"><code class="name">var <span class="ident">channels</span> : list[<a title="adcp.types.generated_poc.enums.channels.MediaChannel" href="../enums/channels.html#adcp.types.generated_poc.enums.channels.MediaChannel">MediaChannel</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.Product.conversion_tracking"><code class="name">var <span class="ident">conversion_tracking</span> : <a title="adcp.types.generated_poc.core.product.ConversionTracking" href="#adcp.types.generated_poc.core.product.ConversionTracking">ConversionTracking</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.product.Product.creative_policy"><code class="name">var <span class="ident">creative_policy</span> : <a title="adcp.types.generated_poc.core.creative_policy.CreativePolicy" href="creative_policy.html#adcp.types.generated_poc.core.creative_policy.CreativePolicy">CreativePolicy</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.Product.data_provider_signals"><code class="name">var <span class="ident">data_provider_signals</span> : list[<a title="adcp.types.generated_poc.core.data_provider_signal_selector.DataProviderSignalSelector" href="data_provider_signal_selector.html#adcp.types.generated_poc.core.data_provider_signal_selector.DataProviderSignalSelector">DataProviderSignalSelector</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -293,6 +536,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.product.Product.signal_targeting_allowed"><code class="name">var <span class="ident">signal_targeting_allowed</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
@@ -316,17 +563,17 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ProductCard(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     format_id: Annotated[
         format_id_1.FormatId,
         Field(
-            description=&#34;Creative format defining the card layout (typically product_card_standard)&#34;
+            description=&#39;Creative format defining the card layout (typically product_card_standard)&#39;
         ),
     ]
     manifest: Annotated[
         dict[str, Any],
-        Field(description=&#34;Asset manifest for rendering the card, structure defined by the format&#34;),
+        Field(description=&#39;Asset manifest for rendering the card, structure defined by the format&#39;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -379,18 +626,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ProductCardDetailed(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     format_id: Annotated[
         format_id_1.FormatId,
         Field(
-            description=&#34;Creative format defining the detailed card layout (typically product_card_detailed)&#34;
+            description=&#39;Creative format defining the detailed card layout (typically product_card_detailed)&#39;
         ),
     ]
     manifest: Annotated[
         dict[str, Any],
         Field(
-            description=&#34;Asset manifest for rendering the detailed card, structure defined by the format&#34;
+            description=&#39;Asset manifest for rendering the detailed card, structure defined by the format&#39;
         ),
     ]</code></pre>
 </details>
@@ -433,6 +680,75 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.core.product.SupportedOptimizationStrategy"><code class="flex name class">
+<span>class <span class="ident">SupportedOptimizationStrategy</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SupportedOptimizationStrategy(Enum):
+    maximize_conversions = &#39;maximize_conversions&#39;
+    target_cpa = &#39;target_cpa&#39;
+    target_roas = &#39;target_roas&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.product.SupportedOptimizationStrategy.maximize_conversions"><code class="name">var <span class="ident">maximize_conversions</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.SupportedOptimizationStrategy.target_cpa"><code class="name">var <span class="ident">target_cpa</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.SupportedOptimizationStrategy.target_roas"><code class="name">var <span class="ident">target_roas</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 </dl>
 </section>
 </article>
@@ -449,6 +765,24 @@ validated to form a valid model.</p>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
+<h4><code><a title="adcp.types.generated_poc.core.product.CatalogMatch" href="#adcp.types.generated_poc.core.product.CatalogMatch">CatalogMatch</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.product.CatalogMatch.matched_gtins" href="#adcp.types.generated_poc.core.product.CatalogMatch.matched_gtins">matched_gtins</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.CatalogMatch.matched_skus" href="#adcp.types.generated_poc.core.product.CatalogMatch.matched_skus">matched_skus</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.CatalogMatch.model_config" href="#adcp.types.generated_poc.core.product.CatalogMatch.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.CatalogMatch.submitted_count" href="#adcp.types.generated_poc.core.product.CatalogMatch.submitted_count">submitted_count</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.product.ConversionTracking" href="#adcp.types.generated_poc.core.product.ConversionTracking">ConversionTracking</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.product.ConversionTracking.action_sources" href="#adcp.types.generated_poc.core.product.ConversionTracking.action_sources">action_sources</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.ConversionTracking.model_config" href="#adcp.types.generated_poc.core.product.ConversionTracking.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.ConversionTracking.platform_managed" href="#adcp.types.generated_poc.core.product.ConversionTracking.platform_managed">platform_managed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.ConversionTracking.supported_optimization_strategies" href="#adcp.types.generated_poc.core.product.ConversionTracking.supported_optimization_strategies">supported_optimization_strategies</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.core.product.DeliveryMeasurement" href="#adcp.types.generated_poc.core.product.DeliveryMeasurement">DeliveryMeasurement</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.product.DeliveryMeasurement.model_config" href="#adcp.types.generated_poc.core.product.DeliveryMeasurement.model_config">model_config</a></code></li>
@@ -457,10 +791,21 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.generated_poc.core.product.MatchedGtin" href="#adcp.types.generated_poc.core.product.MatchedGtin">MatchedGtin</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.product.MatchedGtin.model_config" href="#adcp.types.generated_poc.core.product.MatchedGtin.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.MatchedGtin.root" href="#adcp.types.generated_poc.core.product.MatchedGtin.root">root</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.core.product.Product" href="#adcp.types.generated_poc.core.product.Product">Product</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.product.Product.brief_relevance" href="#adcp.types.generated_poc.core.product.Product.brief_relevance">brief_relevance</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.Product.catalog_match" href="#adcp.types.generated_poc.core.product.Product.catalog_match">catalog_match</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.Product.channels" href="#adcp.types.generated_poc.core.product.Product.channels">channels</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.Product.conversion_tracking" href="#adcp.types.generated_poc.core.product.Product.conversion_tracking">conversion_tracking</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.creative_policy" href="#adcp.types.generated_poc.core.product.Product.creative_policy">creative_policy</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.Product.data_provider_signals" href="#adcp.types.generated_poc.core.product.Product.data_provider_signals">data_provider_signals</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.delivery_measurement" href="#adcp.types.generated_poc.core.product.Product.delivery_measurement">delivery_measurement</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.delivery_type" href="#adcp.types.generated_poc.core.product.Product.delivery_type">delivery_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.description" href="#adcp.types.generated_poc.core.product.Product.description">description</a></code></li>
@@ -480,6 +825,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.property_targeting_allowed" href="#adcp.types.generated_poc.core.product.Product.property_targeting_allowed">property_targeting_allowed</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.publisher_properties" href="#adcp.types.generated_poc.core.product.Product.publisher_properties">publisher_properties</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.reporting_capabilities" href="#adcp.types.generated_poc.core.product.Product.reporting_capabilities">reporting_capabilities</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.Product.signal_targeting_allowed" href="#adcp.types.generated_poc.core.product.Product.signal_targeting_allowed">signal_targeting_allowed</a></code></li>
 </ul>
 </li>
 <li>
@@ -496,6 +842,14 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.product.ProductCardDetailed.format_id" href="#adcp.types.generated_poc.core.product.ProductCardDetailed.format_id">format_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.ProductCardDetailed.manifest" href="#adcp.types.generated_poc.core.product.ProductCardDetailed.manifest">manifest</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.ProductCardDetailed.model_config" href="#adcp.types.generated_poc.core.product.ProductCardDetailed.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.product.SupportedOptimizationStrategy" href="#adcp.types.generated_poc.core.product.SupportedOptimizationStrategy">SupportedOptimizationStrategy</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedOptimizationStrategy.maximize_conversions" href="#adcp.types.generated_poc.core.product.SupportedOptimizationStrategy.maximize_conversions">maximize_conversions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedOptimizationStrategy.target_cpa" href="#adcp.types.generated_poc.core.product.SupportedOptimizationStrategy.target_cpa">target_cpa</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedOptimizationStrategy.target_roas" href="#adcp.types.generated_poc.core.product.SupportedOptimizationStrategy.target_roas">target_roas</a></code></li>
 </ul>
 </li>
 </ul>

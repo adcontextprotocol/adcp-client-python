@@ -338,12 +338,6 @@ property lists for brand safety, compliance, and quality filtering.</p>
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
         return not_supported(&#34;list_creative_formats is not supported by Governance agents.&#34;)
 
-    async def list_accounts(
-        self, params: dict[str, Any], context: ToolContext | None = None
-    ) -&gt; NotImplementedResponse:
-        &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
-        return not_supported(&#34;list_accounts is not supported by Governance agents.&#34;)
-
     async def sync_creatives(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
@@ -361,6 +355,18 @@ property lists for brand safety, compliance, and quality filtering.</p>
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
         return not_supported(&#34;build_creative is not supported by Governance agents.&#34;)
+
+    async def preview_creative(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
+        return not_supported(&#34;preview_creative is not supported by Governance agents.&#34;)
+
+    async def get_creative_delivery(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
+        return not_supported(&#34;get_creative_delivery is not supported by Governance agents.&#34;)
 
     async def create_media_buy(
         self, params: dict[str, Any], context: ToolContext | None = None
@@ -400,6 +406,30 @@ property lists for brand safety, compliance, and quality filtering.</p>
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
         return not_supported(&#34;provide_performance_feedback is not supported by Governance agents.&#34;)
+
+    async def list_accounts(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
+        return not_supported(&#34;list_accounts is not supported by Governance agents.&#34;)
+
+    async def sync_accounts(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
+        return not_supported(&#34;sync_accounts is not supported by Governance agents.&#34;)
+
+    async def log_event(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
+        return not_supported(&#34;log_event is not supported by Governance agents.&#34;)
+
+    async def sync_event_sources(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; NotImplementedResponse:
+        &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
+        return not_supported(&#34;sync_event_sources is not supported by Governance agents.&#34;)
 
     # ========================================================================
     # V3 Content Standards - Not supported
@@ -698,6 +728,22 @@ return CreatePropertyListResponse(list=PropertyList(&hellip;))</p></div>
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
     return not_supported(&#34;get_content_standards is not supported by Governance agents.&#34;)</code></pre>
+</details>
+<div class="desc"><p>Not supported by Governance agents.</p></div>
+</dd>
+<dt id="adcp.server.governance.GovernanceHandler.get_creative_delivery"><code class="name flex">
+<span>async def <span class="ident">get_creative_delivery</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_creative_delivery(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
+    return not_supported(&#34;get_creative_delivery is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
@@ -1124,6 +1170,38 @@ async def handle_update_property_list(
 <h2 id="returns">Returns</h2>
 <p>Response with array of property list metadata</p></div>
 </dd>
+<dt id="adcp.server.governance.GovernanceHandler.log_event"><code class="name flex">
+<span>async def <span class="ident">log_event</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def log_event(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
+    return not_supported(&#34;log_event is not supported by Governance agents.&#34;)</code></pre>
+</details>
+<div class="desc"><p>Not supported by Governance agents.</p></div>
+</dd>
+<dt id="adcp.server.governance.GovernanceHandler.preview_creative"><code class="name flex">
+<span>async def <span class="ident">preview_creative</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def preview_creative(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
+    return not_supported(&#34;preview_creative is not supported by Governance agents.&#34;)</code></pre>
+</details>
+<div class="desc"><p>Not supported by Governance agents.</p></div>
+</dd>
 <dt id="adcp.server.governance.GovernanceHandler.provide_performance_feedback"><code class="name flex">
 <span>async def <span class="ident">provide_performance_feedback</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
@@ -1207,6 +1285,22 @@ async def handle_update_property_list(
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
+<dt id="adcp.server.governance.GovernanceHandler.sync_accounts"><code class="name flex">
+<span>async def <span class="ident">sync_accounts</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def sync_accounts(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
+    return not_supported(&#34;sync_accounts is not supported by Governance agents.&#34;)</code></pre>
+</details>
+<div class="desc"><p>Not supported by Governance agents.</p></div>
+</dd>
 <dt id="adcp.server.governance.GovernanceHandler.sync_creatives"><code class="name flex">
 <span>async def <span class="ident">sync_creatives</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
@@ -1220,6 +1314,22 @@ async def handle_update_property_list(
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
     return not_supported(&#34;sync_creatives is not supported by Governance agents.&#34;)</code></pre>
+</details>
+<div class="desc"><p>Not supported by Governance agents.</p></div>
+</dd>
+<dt id="adcp.server.governance.GovernanceHandler.sync_event_sources"><code class="name flex">
+<span>async def <span class="ident">sync_event_sources</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def sync_event_sources(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; NotImplementedResponse:
+    &#34;&#34;&#34;Not supported by Governance agents.&#34;&#34;&#34;
+    return not_supported(&#34;sync_event_sources is not supported by Governance agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Governance agents.</p></div>
 </dd>
@@ -1353,6 +1463,7 @@ async def handle_update_property_list(
 <li><code><a title="adcp.server.governance.GovernanceHandler.create_property_list" href="#adcp.server.governance.GovernanceHandler.create_property_list">create_property_list</a></code></li>
 <li><code><a title="adcp.server.governance.GovernanceHandler.delete_property_list" href="#adcp.server.governance.GovernanceHandler.delete_property_list">delete_property_list</a></code></li>
 <li><code><a title="adcp.server.governance.GovernanceHandler.get_content_standards" href="#adcp.server.governance.GovernanceHandler.get_content_standards">get_content_standards</a></code></li>
+<li><code><a title="adcp.server.governance.GovernanceHandler.get_creative_delivery" href="#adcp.server.governance.GovernanceHandler.get_creative_delivery">get_creative_delivery</a></code></li>
 <li><code><a title="adcp.server.governance.GovernanceHandler.get_media_buy_artifacts" href="#adcp.server.governance.GovernanceHandler.get_media_buy_artifacts">get_media_buy_artifacts</a></code></li>
 <li><code><a title="adcp.server.governance.GovernanceHandler.get_media_buy_delivery" href="#adcp.server.governance.GovernanceHandler.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
 <li><code><a title="adcp.server.governance.GovernanceHandler.get_products" href="#adcp.server.governance.GovernanceHandler.get_products">get_products</a></code></li>
@@ -1368,12 +1479,16 @@ async def handle_update_property_list(
 <li><code><a title="adcp.server.governance.GovernanceHandler.list_creative_formats" href="#adcp.server.governance.GovernanceHandler.list_creative_formats">list_creative_formats</a></code></li>
 <li><code><a title="adcp.server.governance.GovernanceHandler.list_creatives" href="#adcp.server.governance.GovernanceHandler.list_creatives">list_creatives</a></code></li>
 <li><code><a title="adcp.server.governance.GovernanceHandler.list_property_lists" href="#adcp.server.governance.GovernanceHandler.list_property_lists">list_property_lists</a></code></li>
+<li><code><a title="adcp.server.governance.GovernanceHandler.log_event" href="#adcp.server.governance.GovernanceHandler.log_event">log_event</a></code></li>
+<li><code><a title="adcp.server.governance.GovernanceHandler.preview_creative" href="#adcp.server.governance.GovernanceHandler.preview_creative">preview_creative</a></code></li>
 <li><code><a title="adcp.server.governance.GovernanceHandler.provide_performance_feedback" href="#adcp.server.governance.GovernanceHandler.provide_performance_feedback">provide_performance_feedback</a></code></li>
 <li><code><a title="adcp.server.governance.GovernanceHandler.si_get_offering" href="#adcp.server.governance.GovernanceHandler.si_get_offering">si_get_offering</a></code></li>
 <li><code><a title="adcp.server.governance.GovernanceHandler.si_initiate_session" href="#adcp.server.governance.GovernanceHandler.si_initiate_session">si_initiate_session</a></code></li>
 <li><code><a title="adcp.server.governance.GovernanceHandler.si_send_message" href="#adcp.server.governance.GovernanceHandler.si_send_message">si_send_message</a></code></li>
 <li><code><a title="adcp.server.governance.GovernanceHandler.si_terminate_session" href="#adcp.server.governance.GovernanceHandler.si_terminate_session">si_terminate_session</a></code></li>
+<li><code><a title="adcp.server.governance.GovernanceHandler.sync_accounts" href="#adcp.server.governance.GovernanceHandler.sync_accounts">sync_accounts</a></code></li>
 <li><code><a title="adcp.server.governance.GovernanceHandler.sync_creatives" href="#adcp.server.governance.GovernanceHandler.sync_creatives">sync_creatives</a></code></li>
+<li><code><a title="adcp.server.governance.GovernanceHandler.sync_event_sources" href="#adcp.server.governance.GovernanceHandler.sync_event_sources">sync_event_sources</a></code></li>
 <li><code><a title="adcp.server.governance.GovernanceHandler.update_content_standards" href="#adcp.server.governance.GovernanceHandler.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.server.governance.GovernanceHandler.update_media_buy" href="#adcp.server.governance.GovernanceHandler.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.server.governance.GovernanceHandler.update_property_list" href="#adcp.server.governance.GovernanceHandler.update_property_list">update_property_list</a></code></li>

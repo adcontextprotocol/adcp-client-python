@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Input(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context_description: Annotated[
         str | None,
@@ -132,16 +132,16 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Input2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context_description: Annotated[
         str | None,
-        Field(description=&#34;Natural language description of the context for AI-generated content&#34;),
+        Field(description=&#39;Natural language description of the context for AI-generated content&#39;),
     ] = None
     macros: Annotated[
-        dict[str, str] | None, Field(description=&#34;Macro values to use for this preview&#34;)
+        dict[str, str] | None, Field(description=&#39;Macro values to use for this preview&#39;)
     ] = None
-    name: Annotated[str, Field(description=&#34;Human-readable name for this input set&#34;)]</code></pre>
+    name: Annotated[str, Field(description=&#39;Human-readable name for this input set&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -195,13 +195,15 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PreviewCreativeRequest(RootModel[PreviewCreativeRequest1 | PreviewCreativeRequest2]):
+<pre><code class="python">class PreviewCreativeRequest(
+    RootModel[PreviewCreativeRequest1 | PreviewCreativeRequest2 | PreviewCreativeRequest3]
+):
     root: Annotated[
-        PreviewCreativeRequest1 | PreviewCreativeRequest2,
+        PreviewCreativeRequest1 | PreviewCreativeRequest2 | PreviewCreativeRequest3,
         Field(
-            discriminator=&#34;request_type&#34;,
-            description=&#34;Request to generate previews of one or more creative manifests. Accepts either a single creative request or an array of requests for batch processing.&#34;,
-            title=&#34;Preview Creative Request&#34;,
+            discriminator=&#39;request_type&#39;,
+            description=&#39;Request to generate previews of one or more creative manifests. Accepts either a single creative request or an array of requests for batch processing.&#39;,
+            title=&#39;Preview Creative Request&#39;,
         ),
     ]</code></pre>
 </details>
@@ -227,7 +229,7 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li>pydantic.root_model.RootModel[Union[PreviewCreativeRequest1, PreviewCreativeRequest2]]</li>
+<li>pydantic.root_model.RootModel[Union[PreviewCreativeRequest1, PreviewCreativeRequest2, PreviewCreativeRequest3]]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
 <li>typing.Generic</li>
@@ -238,7 +240,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest1" href="#adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest1">PreviewCreativeRequest1</a> | <a title="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest2" href="#adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest2">PreviewCreativeRequest2</a></code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest1" href="#adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest1">PreviewCreativeRequest1</a> | <a title="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest2" href="#adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest2">PreviewCreativeRequest2</a> | <a title="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3" href="#adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3">PreviewCreativeRequest3</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -255,23 +257,27 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewCreativeRequest1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest,
         Field(
-            description=&#34;Complete creative manifest with all required assets (including promoted_offerings if required by the format)&#34;
+            description=&#39;Complete creative manifest with all required assets (including promoted_offerings if required by the format)&#39;
         ),
     ]
     ext: ext_1.ExtensionObject | None = None
     format_id: Annotated[
-        format_id_1.FormatId, Field(description=&#34;Format identifier for rendering the preview&#34;)
-    ]
+        format_id_1.FormatId | None,
+        Field(
+            description=&#39;Format identifier for rendering the preview. Optional — defaults to creative_manifest_1.format_id if omitted.&#39;
+        ),
+    ] = None
     inputs: Annotated[
         list[Input] | None,
         Field(
-            description=&#34;Array of input sets for generating multiple preview variants. Each input set defines macros and context values for one preview rendering. If not provided, creative agent will generate default previews.&#34;
+            description=&#39;Array of input sets for generating multiple preview variants. Each input set defines macros and context values for one preview rendering. If not provided, creative agent will generate default previews.&#39;,
+            min_length=1,
         ),
     ] = None
     output_format: Annotated[
@@ -281,11 +287,11 @@ validated to form a valid model.</p>
         ),
     ] = preview_output_format.PreviewOutputFormat.url
     request_type: Annotated[
-        Literal[&#34;single&#34;],
-        Field(description=&#34;Discriminator indicating this is a single preview request&#34;),
+        Literal[&#39;single&#39;],
+        Field(description=&#39;Discriminator indicating this is a single preview request&#39;),
     ]
     template_id: Annotated[
-        str | None, Field(description=&#34;Specific template ID for custom format rendering&#34;)
+        str | None, Field(description=&#39;Specific template ID for custom format rendering&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -315,7 +321,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest1.format_id"><code class="name">var <span class="ident">format_id</span> : <a title="adcp.types.generated_poc.core.format_id.FormatId" href="../core/format_id.html#adcp.types.generated_poc.core.format_id.FormatId">FormatId</a></code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest1.format_id"><code class="name">var <span class="ident">format_id</span> : <a title="adcp.types.generated_poc.core.format_id.FormatId" href="../core/format_id.html#adcp.types.generated_poc.core.format_id.FormatId">FormatId</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -362,7 +368,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PreviewCreativeRequest2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
@@ -373,13 +379,13 @@ validated to form a valid model.</p>
         ),
     ] = preview_output_format.PreviewOutputFormat.url
     request_type: Annotated[
-        Literal[&#34;batch&#34;],
-        Field(description=&#34;Discriminator indicating this is a batch preview request&#34;),
+        Literal[&#39;batch&#39;],
+        Field(description=&#39;Discriminator indicating this is a batch preview request&#39;),
     ]
     requests: Annotated[
         list[Request],
         Field(
-            description=&#34;Array of preview requests (1-50 items). Each follows the single request structure.&#34;,
+            description=&#39;Array of preview requests (1-50 items). Each follows the single request structure.&#39;,
             max_length=50,
             min_length=1,
         ),
@@ -436,6 +442,94 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3"><code class="flex name class">
+<span>class <span class="ident">PreviewCreativeRequest3</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PreviewCreativeRequest3(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    context: context_1.ContextObject | None = None
+    creative_id: Annotated[str | None, Field(description=&#39;Creative identifier for context&#39;)] = None
+    ext: ext_1.ExtensionObject | None = None
+    output_format: Annotated[
+        preview_output_format.PreviewOutputFormat | None,
+        Field(
+            description=&#34;Output format for the preview. &#39;url&#39; returns preview_url (iframe-embeddable URL), &#39;html&#39; returns preview_html (raw HTML for direct embedding).&#34;
+        ),
+    ] = preview_output_format.PreviewOutputFormat.url
+    request_type: Annotated[
+        Literal[&#39;variant&#39;],
+        Field(description=&#39;Discriminator indicating this is a variant preview request&#39;),
+    ]
+    variant_id: Annotated[
+        str,
+        Field(
+            description=&#39;Platform-assigned variant identifier from get_creative_delivery response&#39;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3.creative_id"><code class="name">var <span class="ident">creative_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3.output_format"><code class="name">var <span class="ident">output_format</span> : <a title="adcp.types.generated_poc.enums.preview_output_format.PreviewOutputFormat" href="../enums/preview_output_format.html#adcp.types.generated_poc.enums.preview_output_format.PreviewOutputFormat">PreviewOutputFormat</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3.request_type"><code class="name">var <span class="ident">request_type</span> : Literal['variant']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3.variant_id"><code class="name">var <span class="ident">variant_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.creative.preview_creative_request.Request"><code class="flex name class">
 <span>class <span class="ident">Request</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -447,18 +541,23 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Request(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest,
-        Field(description=&#34;Complete creative manifest with all required assets&#34;),
+        Field(description=&#39;Complete creative manifest with all required assets&#39;),
     ]
     format_id: Annotated[
-        format_id_1.FormatId, Field(description=&#34;Format identifier for rendering the preview&#34;)
-    ]
+        format_id_1.FormatId | None,
+        Field(
+            description=&#39;Format identifier for rendering the preview. Optional — defaults to creative_manifest_1.format_id if omitted.&#39;
+        ),
+    ] = None
     inputs: Annotated[
         list[Input2] | None,
-        Field(description=&#34;Array of input sets for generating multiple preview variants&#34;),
+        Field(
+            description=&#39;Array of input sets for generating multiple preview variants&#39;, min_length=1
+        ),
     ] = None
     output_format: Annotated[
         preview_output_format.PreviewOutputFormat | None,
@@ -467,7 +566,7 @@ validated to form a valid model.</p>
         ),
     ] = preview_output_format.PreviewOutputFormat.url
     template_id: Annotated[
-        str | None, Field(description=&#34;Specific template ID for custom format rendering&#34;)
+        str | None, Field(description=&#39;Specific template ID for custom format rendering&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -489,7 +588,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_request.Request.format_id"><code class="name">var <span class="ident">format_id</span> : <a title="adcp.types.generated_poc.core.format_id.FormatId" href="../core/format_id.html#adcp.types.generated_poc.core.format_id.FormatId">FormatId</a></code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_request.Request.format_id"><code class="name">var <span class="ident">format_id</span> : <a title="adcp.types.generated_poc.core.format_id.FormatId" href="../core/format_id.html#adcp.types.generated_poc.core.format_id.FormatId">FormatId</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -584,6 +683,18 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest2.output_format" href="#adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest2.output_format">output_format</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest2.request_type" href="#adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest2.request_type">request_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest2.requests" href="#adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest2.requests">requests</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3" href="#adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3">PreviewCreativeRequest3</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3.context" href="#adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3.creative_id" href="#adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3.creative_id">creative_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3.ext" href="#adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3.model_config" href="#adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3.output_format" href="#adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3.output_format">output_format</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3.request_type" href="#adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3.request_type">request_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3.variant_id" href="#adcp.types.generated_poc.creative.preview_creative_request.PreviewCreativeRequest3.variant_id">variant_id</a></code></li>
 </ul>
 </li>
 <li>

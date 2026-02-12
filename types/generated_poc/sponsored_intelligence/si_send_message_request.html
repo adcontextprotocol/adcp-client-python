@@ -57,11 +57,11 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class ActionResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    action: Annotated[str | None, Field(description=&#34;The action that was triggered&#34;)] = None
+    action: Annotated[str | None, Field(description=&#39;The action that was triggered&#39;)] = None
     payload: Annotated[
-        dict[str, Any] | None, Field(description=&#34;Action-specific response data&#34;)
+        dict[str, Any] | None, Field(description=&#39;Action-specific response data&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -116,8 +116,8 @@ validated to form a valid model.</p>
     root: Annotated[
         SiSendMessageRequest1 | SiSendMessageRequest2,
         Field(
-            description=&#34;Send a message to the brand agent within an active session&#34;,
-            title=&#34;SI Send Message Request&#34;,
+            description=&#39;Send a message to the brand agent within an active session&#39;,
+            title=&#39;SI Send Message Request&#39;,
         ),
     ]</code></pre>
 </details>
@@ -171,15 +171,15 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SiSendMessageRequest1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     action_response: Annotated[
         ActionResponse | None,
-        Field(description=&#34;Response to a previous action_button (e.g., user clicked checkout)&#34;),
+        Field(description=&#39;Response to a previous action_button (e.g., user clicked checkout)&#39;),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     message: Annotated[str, Field(description=&#34;User&#39;s message to the brand agent&#34;)]
-    session_id: Annotated[str, Field(description=&#34;Active session identifier&#34;)]</code></pre>
+    session_id: Annotated[str, Field(description=&#39;Active session identifier&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -239,15 +239,15 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SiSendMessageRequest2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     action_response: Annotated[
         ActionResponse,
-        Field(description=&#34;Response to a previous action_button (e.g., user clicked checkout)&#34;),
+        Field(description=&#39;Response to a previous action_button (e.g., user clicked checkout)&#39;),
     ]
     ext: ext_1.ExtensionObject | None = None
     message: Annotated[str | None, Field(description=&#34;User&#39;s message to the brand agent&#34;)] = None
-    session_id: Annotated[str, Field(description=&#34;Active session identifier&#34;)]</code></pre>
+    session_id: Annotated[str, Field(description=&#39;Active session identifier&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null

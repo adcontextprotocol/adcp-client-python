@@ -57,13 +57,13 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class A2ui(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     catalogs: Annotated[
         list[str] | None,
         Field(description=&#34;Supported A2UI component catalogs (e.g., &#39;si-standard&#39;, &#39;standard&#39;)&#34;),
     ] = None
-    supported: Annotated[bool | None, Field(description=&#34;Supports A2UI surface rendering&#34;)] = False</code></pre>
+    supported: Annotated[bool | None, Field(description=&#39;Supports A2UI surface rendering&#39;)] = False</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -115,11 +115,11 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Avatar(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    avatar_id: Annotated[str | None, Field(description=&#34;Brand avatar identifier&#34;)] = None
+    avatar_id: Annotated[str | None, Field(description=&#39;Brand avatar identifier&#39;)] = None
     provider: Annotated[
-        str | None, Field(description=&#34;Avatar provider (d-id, heygen, synthesia, etc.)&#34;)
+        str | None, Field(description=&#39;Avatar provider (d-id, heygen, synthesia, etc.)&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -172,10 +172,10 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Commerce(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     acp_checkout: Annotated[
-        bool | None, Field(description=&#34;Supports ACP (Agentic Commerce Protocol) checkout handoff&#34;)
+        bool | None, Field(description=&#39;Supports ACP (Agentic Commerce Protocol) checkout handoff&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -224,15 +224,15 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Components(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     extensions: Annotated[
         dict[str, Any] | None,
-        Field(description=&#34;Platform-specific extensions (chatgpt_apps_sdk, maps, forms, etc.)&#34;),
+        Field(description=&#39;Platform-specific extensions (chatgpt_apps_sdk, maps, forms, etc.)&#39;),
     ] = None
     standard: Annotated[
         list[StandardEnum] | None,
-        Field(description=&#34;Standard components that all SI hosts must render&#34;),
+        Field(description=&#39;Standard components that all SI hosts must render&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -285,17 +285,17 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Modalities(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     avatar: Annotated[
-        bool | Avatar | None, Field(description=&#34;Animated video presence with brand avatar&#34;)
+        bool | Avatar | None, Field(description=&#39;Animated video presence with brand avatar&#39;)
     ] = None
     conversational: Annotated[
-        bool | None, Field(description=&#34;Pure text exchange - the baseline modality&#34;)
+        bool | None, Field(description=&#39;Pure text exchange - the baseline modality&#39;)
     ] = True
-    video: Annotated[bool | Video | None, Field(description=&#34;Brand video content playback&#34;)] = None
+    video: Annotated[bool | Video | None, Field(description=&#39;Brand video content playback&#39;)] = None
     voice: Annotated[
-        bool | Voice | None, Field(description=&#34;Audio-based interaction using brand voice&#34;)
+        bool | Voice | None, Field(description=&#39;Audio-based interaction using brand voice&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -356,18 +356,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SiCapabilities(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    a2ui: Annotated[A2ui | None, Field(description=&#34;A2UI (Agent-to-UI) capabilities&#34;)] = None
-    commerce: Annotated[Commerce | None, Field(description=&#34;Commerce capabilities&#34;)] = None
-    components: Annotated[Components | None, Field(description=&#34;Visual components supported&#34;)] = (
+    a2ui: Annotated[A2ui | None, Field(description=&#39;A2UI (Agent-to-UI) capabilities&#39;)] = None
+    commerce: Annotated[Commerce | None, Field(description=&#39;Commerce capabilities&#39;)] = None
+    components: Annotated[Components | None, Field(description=&#39;Visual components supported&#39;)] = (
         None
     )
     mcp_apps: Annotated[
-        bool | None, Field(description=&#34;Supports MCP Apps for rendering A2UI surfaces in iframes&#34;)
+        bool | None, Field(description=&#39;Supports MCP Apps for rendering A2UI surfaces in iframes&#39;)
     ] = False
     modalities: Annotated[
-        Modalities | None, Field(description=&#34;Interaction modalities supported&#34;)
+        Modalities | None, Field(description=&#39;Interaction modalities supported&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -431,12 +431,12 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class StandardEnum(Enum):
-    text = &#34;text&#34;
-    link = &#34;link&#34;
-    image = &#34;image&#34;
-    product_card = &#34;product_card&#34;
-    carousel = &#34;carousel&#34;
-    action_button = &#34;action_button&#34;</code></pre>
+    text = &#39;text&#39;
+    link = &#39;link&#39;
+    image = &#39;image&#39;
+    product_card = &#39;product_card&#39;
+    carousel = &#39;carousel&#39;
+    action_button = &#39;action_button&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -516,12 +516,12 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Video(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     formats: Annotated[
-        list[str] | None, Field(description=&#34;Supported video formats (mp4, webm, etc.)&#34;)
+        list[str] | None, Field(description=&#39;Supported video formats (mp4, webm, etc.)&#39;)
     ] = None
-    max_duration_seconds: Annotated[int | None, Field(description=&#34;Maximum video duration&#34;)] = None</code></pre>
+    max_duration_seconds: Annotated[int | None, Field(description=&#39;Maximum video duration&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -573,12 +573,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Voice(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     provider: Annotated[
-        str | None, Field(description=&#34;TTS provider (elevenlabs, openai, etc.)&#34;)
+        str | None, Field(description=&#39;TTS provider (elevenlabs, openai, etc.)&#39;)
     ] = None
-    voice_id: Annotated[str | None, Field(description=&#34;Brand voice identifier&#34;)] = None</code></pre>
+    voice_id: Annotated[str | None, Field(description=&#39;Brand voice identifier&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null

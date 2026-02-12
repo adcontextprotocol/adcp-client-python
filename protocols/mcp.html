@@ -318,6 +318,7 @@ el.replaceWith(d);
         &#34;&#34;&#34;Call a tool using MCP protocol.&#34;&#34;&#34;
         start_time = time.time() if self.agent_config.debug else None
         debug_info = None
+        debug_request: dict[str, Any] = {}
 
         try:
             session = await self._get_session()
@@ -406,7 +407,7 @@ el.replaceWith(d);
             if self.agent_config.debug and start_time:
                 duration_ms = (time.time() - start_time) * 1000
                 debug_info = DebugInfo(
-                    request=debug_request if self.agent_config.debug else {},
+                    request=debug_request,
                     response={&#34;error&#34;: str(e)},
                     duration_ms=duration_ms,
                 )
@@ -441,10 +442,6 @@ el.replaceWith(d);
         &#34;&#34;&#34;Get media buy delivery.&#34;&#34;&#34;
         return await self._call_mcp_tool(&#34;get_media_buy_delivery&#34;, params)
 
-    async def list_accounts(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
-        &#34;&#34;&#34;List billing accounts accessible to the authenticated agent.&#34;&#34;&#34;
-        return await self._call_mcp_tool(&#34;list_accounts&#34;, params)
-
     async def get_signals(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
         &#34;&#34;&#34;Get signals.&#34;&#34;&#34;
         return await self._call_mcp_tool(&#34;get_signals&#34;, params)
@@ -456,6 +453,14 @@ el.replaceWith(d);
     async def provide_performance_feedback(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
         &#34;&#34;&#34;Provide performance feedback.&#34;&#34;&#34;
         return await self._call_mcp_tool(&#34;provide_performance_feedback&#34;, params)
+
+    async def log_event(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Log event.&#34;&#34;&#34;
+        return await self._call_mcp_tool(&#34;log_event&#34;, params)
+
+    async def sync_event_sources(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Sync event sources.&#34;&#34;&#34;
+        return await self._call_mcp_tool(&#34;sync_event_sources&#34;, params)
 
     async def preview_creative(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
         &#34;&#34;&#34;Generate preview URLs for a creative manifest.&#34;&#34;&#34;
@@ -472,6 +477,18 @@ el.replaceWith(d);
     async def build_creative(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
         &#34;&#34;&#34;Build creative.&#34;&#34;&#34;
         return await self._call_mcp_tool(&#34;build_creative&#34;, params)
+
+    async def get_creative_delivery(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get creative delivery.&#34;&#34;&#34;
+        return await self._call_mcp_tool(&#34;get_creative_delivery&#34;, params)
+
+    async def list_accounts(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;List accounts.&#34;&#34;&#34;
+        return await self._call_mcp_tool(&#34;list_accounts&#34;, params)
+
+    async def sync_accounts(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Sync accounts.&#34;&#34;&#34;
+        return await self._call_mcp_tool(&#34;sync_accounts&#34;, params)
 
     async def list_tools(self) -&gt; list[str]:
         &#34;&#34;&#34;List available tools from MCP agent.&#34;&#34;&#34;
@@ -738,6 +755,7 @@ el.replaceWith(d);
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.delete_property_list" href="base.html#adcp.protocols.base.ProtocolAdapter.delete_property_list">delete_property_list</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_adcp_capabilities" href="base.html#adcp.protocols.base.ProtocolAdapter.get_adcp_capabilities">get_adcp_capabilities</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_content_standards" href="base.html#adcp.protocols.base.ProtocolAdapter.get_content_standards">get_content_standards</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_creative_delivery" href="base.html#adcp.protocols.base.ProtocolAdapter.get_creative_delivery">get_creative_delivery</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_media_buy_artifacts" href="base.html#adcp.protocols.base.ProtocolAdapter.get_media_buy_artifacts">get_media_buy_artifacts</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery" href="base.html#adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_products" href="base.html#adcp.protocols.base.ProtocolAdapter.get_products">get_products</a></code></li>
@@ -748,12 +766,15 @@ el.replaceWith(d);
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_creative_formats" href="base.html#adcp.protocols.base.ProtocolAdapter.list_creative_formats">list_creative_formats</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_creatives" href="base.html#adcp.protocols.base.ProtocolAdapter.list_creatives">list_creatives</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_property_lists" href="base.html#adcp.protocols.base.ProtocolAdapter.list_property_lists">list_property_lists</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.log_event" href="base.html#adcp.protocols.base.ProtocolAdapter.log_event">log_event</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.provide_performance_feedback" href="base.html#adcp.protocols.base.ProtocolAdapter.provide_performance_feedback">provide_performance_feedback</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.si_get_offering" href="base.html#adcp.protocols.base.ProtocolAdapter.si_get_offering">si_get_offering</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.si_initiate_session" href="base.html#adcp.protocols.base.ProtocolAdapter.si_initiate_session">si_initiate_session</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.si_send_message" href="base.html#adcp.protocols.base.ProtocolAdapter.si_send_message">si_send_message</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.si_terminate_session" href="base.html#adcp.protocols.base.ProtocolAdapter.si_terminate_session">si_terminate_session</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.sync_accounts" href="base.html#adcp.protocols.base.ProtocolAdapter.sync_accounts">sync_accounts</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.sync_creatives" href="base.html#adcp.protocols.base.ProtocolAdapter.sync_creatives">sync_creatives</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.sync_event_sources" href="base.html#adcp.protocols.base.ProtocolAdapter.sync_event_sources">sync_event_sources</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.update_content_standards" href="base.html#adcp.protocols.base.ProtocolAdapter.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.update_media_buy" href="base.html#adcp.protocols.base.ProtocolAdapter.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.update_property_list" href="base.html#adcp.protocols.base.ProtocolAdapter.update_property_list">update_property_list</a></code></li>

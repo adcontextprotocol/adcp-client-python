@@ -57,18 +57,18 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class CreateMediaBuyInputRequired(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error] | None,
         Field(
-            description=&#34;Optional validation errors or warnings for debugging purposes. Helps explain why input is required.&#34;
+            description=&#39;Optional validation errors or warnings for debugging purposes. Helps explain why input is required.&#39;
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     reason: Annotated[
-        Reason | None, Field(description=&#34;Reason code indicating why input is needed&#34;)
+        Reason | None, Field(description=&#39;Reason code indicating why input is needed&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -128,8 +128,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Reason(Enum):
-    APPROVAL_REQUIRED = &#34;APPROVAL_REQUIRED&#34;
-    BUDGET_EXCEEDS_LIMIT = &#34;BUDGET_EXCEEDS_LIMIT&#34;</code></pre>
+    APPROVAL_REQUIRED = &#39;APPROVAL_REQUIRED&#39;
+    BUDGET_EXCEEDS_LIMIT = &#39;BUDGET_EXCEEDS_LIMIT&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>

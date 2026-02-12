@@ -330,7 +330,7 @@ print(f&quot;Must provide {len(required_assets)} assets&quot;)
 <p>True if format has assets, False otherwise</p></div>
 </dd>
 <dt id="adcp.utils.normalize_assets_required"><code class="name flex">
-<span>def <span class="ident">normalize_assets_required</span></span>(<span>assets_required: list[Any]) ‑> list[FormatAsset]</span>
+<span>def <span class="ident">normalize_assets_required</span></span>(<span>assets_required: list[Any]) ‑> list[typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -369,13 +369,16 @@ print(f&quot;Must provide {len(required_assets)} assets&quot;)
         else:
             asset_dict = asset.model_dump() if hasattr(asset, &#34;model_dump&#34;) else dict(asset)
 
-        # Check if it&#39;s a repeatable group (has asset_group_id) or individual asset
-        if &#34;asset_group_id&#34; in asset_dict:
-            # Repeatable group - use Assets5Model
-            normalized.append(Assets5Model(**{**asset_dict, &#34;required&#34;: True}))
-        else:
-            # Individual asset - use AssetsModel
-            normalized.append(AssetsModel(**{**asset_dict, &#34;required&#34;: True}))
+        # Map old fields to new schema format
+        mapped = {**asset_dict, &#34;required&#34;: True}
+        # Ensure asset_id is present (map from asset_group_id if needed)
+        if &#34;asset_group_id&#34; in mapped and &#34;asset_id&#34; not in mapped:
+            mapped[&#34;asset_id&#34;] = mapped.pop(&#34;asset_group_id&#34;)
+        # Remove fields that don&#39;t exist in the new schema
+        for old_field in (&#34;min_count&#34;, &#34;max_count&#34;, &#34;assets&#34;):
+            mapped.pop(old_field, None)
+        # Use AssetsModel (individual asset type)
+        normalized.append(AssetsModel(**mapped))
 
     return normalized</code></pre>
 </details>

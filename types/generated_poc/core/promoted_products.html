@@ -46,6 +46,57 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.types.generated_poc.core.promoted_products.ManifestGtin"><code class="flex name class">
+<span>class <span class="ident">ManifestGtin</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ManifestGtin(RootModel[str]):
+    root: Annotated[str, Field(pattern=&#39;^[0-9]{8,14}$&#39;)]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[str]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.promoted_products.ManifestGtin.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.promoted_products.ManifestGtin.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.generated_poc.core.promoted_products.PromotedProducts"><code class="flex name class">
 <span>class <span class="ident">PromotedProducts</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -57,12 +108,18 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class PromotedProducts(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     manifest_category: Annotated[
         str | None,
         Field(
             description=&#34;Select products from a specific category in the brand manifest product catalog (e.g., &#39;beverages/soft-drinks&#39;, &#39;food/sauces&#39;)&#34;
+        ),
+    ] = None
+    manifest_gtins: Annotated[
+        list[ManifestGtin] | None,
+        Field(
+            description=&#39;GTIN product identifiers for cross-retailer catalog matching. Accepts standard GTIN formats (GTIN-8, UPC-A/GTIN-12, EAN-13/GTIN-13, GTIN-14).&#39;
         ),
     ] = None
     manifest_query: Annotated[
@@ -73,7 +130,7 @@ el.replaceWith(d);
     ] = None
     manifest_skus: Annotated[
         list[str] | None,
-        Field(description=&#34;Direct product SKU references from the brand manifest product catalog&#34;),
+        Field(description=&#39;Direct product SKU references from the brand manifest product catalog&#39;),
     ] = None
     manifest_tags: Annotated[
         list[str] | None,
@@ -98,6 +155,10 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_category"><code class="name">var <span class="ident">manifest_category</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_gtins"><code class="name">var <span class="ident">manifest_gtins</span> : list[<a title="adcp.types.generated_poc.core.promoted_products.ManifestGtin" href="#adcp.types.generated_poc.core.promoted_products.ManifestGtin">ManifestGtin</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -145,9 +206,17 @@ validated to form a valid model.</p>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.promoted_products.PromotedProducts" href="#adcp.types.generated_poc.core.promoted_products.PromotedProducts">PromotedProducts</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.promoted_products.ManifestGtin" href="#adcp.types.generated_poc.core.promoted_products.ManifestGtin">ManifestGtin</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.core.promoted_products.ManifestGtin.model_config" href="#adcp.types.generated_poc.core.promoted_products.ManifestGtin.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.promoted_products.ManifestGtin.root" href="#adcp.types.generated_poc.core.promoted_products.ManifestGtin.root">root</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.promoted_products.PromotedProducts" href="#adcp.types.generated_poc.core.promoted_products.PromotedProducts">PromotedProducts</a></code></h4>
+<ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_category" href="#adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_category">manifest_category</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_gtins" href="#adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_gtins">manifest_gtins</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_query" href="#adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_query">manifest_query</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_skus" href="#adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_skus">manifest_skus</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_tags" href="#adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_tags">manifest_tags</a></code></li>

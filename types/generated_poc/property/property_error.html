@@ -56,12 +56,12 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Code(Enum):
-    PROPERTY_NOT_FOUND = &#34;PROPERTY_NOT_FOUND&#34;
-    PROPERTY_NOT_MONITORED = &#34;PROPERTY_NOT_MONITORED&#34;
-    LIST_NOT_FOUND = &#34;LIST_NOT_FOUND&#34;
-    LIST_ACCESS_DENIED = &#34;LIST_ACCESS_DENIED&#34;
-    METHODOLOGY_NOT_SUPPORTED = &#34;METHODOLOGY_NOT_SUPPORTED&#34;
-    JURISDICTION_NOT_SUPPORTED = &#34;JURISDICTION_NOT_SUPPORTED&#34;</code></pre>
+    PROPERTY_NOT_FOUND = &#39;PROPERTY_NOT_FOUND&#39;
+    PROPERTY_NOT_MONITORED = &#39;PROPERTY_NOT_MONITORED&#39;
+    LIST_NOT_FOUND = &#39;LIST_NOT_FOUND&#39;
+    LIST_ACCESS_DENIED = &#39;LIST_ACCESS_DENIED&#39;
+    METHODOLOGY_NOT_SUPPORTED = &#39;METHODOLOGY_NOT_SUPPORTED&#39;
+    JURISDICTION_NOT_SUPPORTED = &#39;JURISDICTION_NOT_SUPPORTED&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -141,12 +141,12 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class PropertyError(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;forbid&#39;,
     )
-    code: Annotated[Code, Field(description=&#34;Error code&#34;)]
-    message: Annotated[str, Field(description=&#34;Human-readable error message&#34;)]
+    code: Annotated[Code, Field(description=&#39;Error code&#39;)]
+    message: Annotated[str, Field(description=&#39;Human-readable error message&#39;)]
     property: Annotated[
-        property_1.Property | None, Field(description=&#34;The property that caused the error&#34;)
+        property_1.Property | None, Field(description=&#39;The property that caused the error&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

@@ -46,6 +46,572 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization"><code class="flex name class">
+<span>class <span class="ident">AdcpAgentsAuthorization</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AdcpAgentsAuthorization(RootModel[AdcpAgentsAuthorization1 | AdcpAgentsAuthorization2]):
+    root: Annotated[
+        AdcpAgentsAuthorization1 | AdcpAgentsAuthorization2,
+        Field(
+            description=&#39;Declaration of authorized agents for advertising inventory and data signals. Hosted at /.well-known/adagents.json on publisher domains (for properties) or data provider domains (for signals). Can either contain the full structure inline or reference an authoritative URL.&#39;,
+            examples=[
+                {
+                    &#39;$schema&#39;: &#39;/schemas/3.0.0-beta.3/adagents.json&#39;,
+                    &#39;authoritative_location&#39;: &#39;https://cdn.example.com/adagents/v2/adagents.json&#39;,
+                    &#39;last_updated&#39;: &#39;2025-01-15T10:00:00Z&#39;,
+                },
+                {
+                    &#39;$schema&#39;: &#39;/schemas/3.0.0-beta.3/adagents.json&#39;,
+                    &#39;authorized_agents&#39;: [
+                        {
+                            &#39;authorization_type&#39;: &#39;property_tags&#39;,
+                            &#39;authorized_for&#39;: &#39;Official sales agent&#39;,
+                            &#39;property_tags&#39;: [&#39;all&#39;],
+                            &#39;url&#39;: &#39;https://agent.example.com&#39;,
+                        }
+                    ],
+                    &#39;last_updated&#39;: &#39;2025-01-10T12:00:00Z&#39;,
+                    &#39;properties&#39;: [
+                        {
+                            &#39;identifiers&#39;: [{&#39;type&#39;: &#39;domain&#39;, &#39;value&#39;: &#39;example.com&#39;}],
+                            &#39;name&#39;: &#39;Example Site&#39;,
+                            &#39;property_type&#39;: &#39;website&#39;,
+                            &#39;publisher_domain&#39;: &#39;example.com&#39;,
+                        }
+                    ],
+                    &#39;tags&#39;: {
+                        &#39;all&#39;: {
+                            &#39;description&#39;: &#39;All properties in this file&#39;,
+                            &#39;name&#39;: &#39;All Properties&#39;,
+                        }
+                    },
+                },
+                {
+                    &#39;$schema&#39;: &#39;/schemas/3.0.0-beta.3/adagents.json&#39;,
+                    &#39;authorized_agents&#39;: [
+                        {
+                            &#39;authorization_type&#39;: &#39;property_tags&#39;,
+                            &#39;authorized_for&#39;: &#39;All Meta properties&#39;,
+                            &#39;property_tags&#39;: [&#39;meta_network&#39;],
+                            &#39;url&#39;: &#39;https://meta-ads.com&#39;,
+                        }
+                    ],
+                    &#39;contact&#39;: {
+                        &#39;domain&#39;: &#39;meta.com&#39;,
+                        &#39;email&#39;: &#39;adops@meta.com&#39;,
+                        &#39;name&#39;: &#39;Meta Advertising Operations&#39;,
+                        &#39;privacy_policy_url&#39;: &#39;https://www.meta.com/privacy/policy&#39;,
+                        &#39;seller_id&#39;: &#39;pub-meta-12345&#39;,
+                        &#39;tag_id&#39;: &#39;12345&#39;,
+                    },
+                    &#39;last_updated&#39;: &#39;2025-01-10T15:30:00Z&#39;,
+                    &#39;properties&#39;: [
+                        {
+                            &#39;identifiers&#39;: [
+                                {&#39;type&#39;: &#39;ios_bundle&#39;, &#39;value&#39;: &#39;com.burbn.instagram&#39;},
+                                {&#39;type&#39;: &#39;android_package&#39;, &#39;value&#39;: &#39;com.instagram.android&#39;},
+                            ],
+                            &#39;name&#39;: &#39;Instagram&#39;,
+                            &#39;property_type&#39;: &#39;mobile_app&#39;,
+                            &#39;publisher_domain&#39;: &#39;instagram.com&#39;,
+                            &#39;supported_channels&#39;: [&#39;social&#39;, &#39;display&#39;, &#39;olv&#39;],
+                            &#39;tags&#39;: [&#39;meta_network&#39;, &#39;social_media&#39;],
+                        },
+                        {
+                            &#39;identifiers&#39;: [
+                                {&#39;type&#39;: &#39;ios_bundle&#39;, &#39;value&#39;: &#39;com.facebook.Facebook&#39;},
+                                {&#39;type&#39;: &#39;android_package&#39;, &#39;value&#39;: &#39;com.facebook.katana&#39;},
+                            ],
+                            &#39;name&#39;: &#39;Facebook&#39;,
+                            &#39;property_type&#39;: &#39;mobile_app&#39;,
+                            &#39;publisher_domain&#39;: &#39;facebook.com&#39;,
+                            &#39;supported_channels&#39;: [&#39;social&#39;, &#39;display&#39;, &#39;olv&#39;],
+                            &#39;tags&#39;: [&#39;meta_network&#39;, &#39;social_media&#39;],
+                        },
+                        {
+                            &#39;identifiers&#39;: [
+                                {&#39;type&#39;: &#39;ios_bundle&#39;, &#39;value&#39;: &#39;net.whatsapp.WhatsApp&#39;},
+                                {&#39;type&#39;: &#39;android_package&#39;, &#39;value&#39;: &#39;com.whatsapp&#39;},
+                            ],
+                            &#39;name&#39;: &#39;WhatsApp&#39;,
+                            &#39;property_type&#39;: &#39;mobile_app&#39;,
+                            &#39;publisher_domain&#39;: &#39;whatsapp.com&#39;,
+                            &#39;supported_channels&#39;: [&#39;social&#39;, &#39;display&#39;],
+                            &#39;tags&#39;: [&#39;meta_network&#39;, &#39;messaging&#39;],
+                        },
+                    ],
+                    &#39;tags&#39;: {
+                        &#39;messaging&#39;: {
+                            &#39;description&#39;: &#39;Messaging and communication apps&#39;,
+                            &#39;name&#39;: &#39;Messaging Apps&#39;,
+                        },
+                        &#39;meta_network&#39;: {
+                            &#39;description&#39;: &#39;All Meta-owned properties&#39;,
+                            &#39;name&#39;: &#39;Meta Network&#39;,
+                        },
+                        &#39;social_media&#39;: {
+                            &#39;description&#39;: &#39;Social networking applications&#39;,
+                            &#39;name&#39;: &#39;Social Media Apps&#39;,
+                        },
+                    },
+                },
+                {
+                    &#39;$schema&#39;: &#39;/schemas/3.0.0-beta.3/adagents.json&#39;,
+                    &#39;authorized_agents&#39;: [
+                        {
+                            &#39;authorization_type&#39;: &#39;property_tags&#39;,
+                            &#39;authorized_for&#39;: &#39;Tumblr corporate properties only&#39;,
+                            &#39;property_tags&#39;: [&#39;corporate&#39;],
+                            &#39;url&#39;: &#39;https://tumblr-sales.com&#39;,
+                        }
+                    ],
+                    &#39;contact&#39;: {&#39;name&#39;: &#39;Tumblr Advertising&#39;},
+                    &#39;last_updated&#39;: &#39;2025-01-10T16:00:00Z&#39;,
+                    &#39;properties&#39;: [
+                        {
+                            &#39;identifiers&#39;: [{&#39;type&#39;: &#39;domain&#39;, &#39;value&#39;: &#39;tumblr.com&#39;}],
+                            &#39;name&#39;: &#39;Tumblr Corporate&#39;,
+                            &#39;property_type&#39;: &#39;website&#39;,
+                            &#39;publisher_domain&#39;: &#39;tumblr.com&#39;,
+                            &#39;tags&#39;: [&#39;corporate&#39;],
+                        }
+                    ],
+                    &#39;tags&#39;: {
+                        &#39;corporate&#39;: {
+                            &#39;description&#39;: &#39;Tumblr-owned corporate properties (not user blogs)&#39;,
+                            &#39;name&#39;: &#39;Corporate Properties&#39;,
+                        }
+                    },
+                },
+                {
+                    &#39;$schema&#39;: &#39;/schemas/3.0.0-beta.3/adagents.json&#39;,
+                    &#39;authorized_agents&#39;: [
+                        {
+                            &#39;authorization_type&#39;: &#39;publisher_properties&#39;,
+                            &#39;authorized_for&#39;: &#39;CNN CTV properties via publisher authorization&#39;,
+                            &#39;publisher_properties&#39;: [
+                                {
+                                    &#39;property_ids&#39;: [&#39;cnn_ctv_app&#39;],
+                                    &#39;publisher_domain&#39;: &#39;cnn.com&#39;,
+                                    &#39;selection_type&#39;: &#39;by_id&#39;,
+                                }
+                            ],
+                            &#39;url&#39;: &#39;https://agent.example/api&#39;,
+                        },
+                        {
+                            &#39;authorization_type&#39;: &#39;publisher_properties&#39;,
+                            &#39;authorized_for&#39;: &#39;All CTV properties from multiple publishers&#39;,
+                            &#39;publisher_properties&#39;: [
+                                {
+                                    &#39;property_tags&#39;: [&#39;ctv&#39;],
+                                    &#39;publisher_domain&#39;: &#39;cnn.com&#39;,
+                                    &#39;selection_type&#39;: &#39;by_tag&#39;,
+                                },
+                                {
+                                    &#39;property_tags&#39;: [&#39;ctv&#39;],
+                                    &#39;publisher_domain&#39;: &#39;espn.com&#39;,
+                                    &#39;selection_type&#39;: &#39;by_tag&#39;,
+                                },
+                            ],
+                            &#39;url&#39;: &#39;https://agent.example/api&#39;,
+                        },
+                    ],
+                    &#39;contact&#39;: {
+                        &#39;domain&#39;: &#39;agent.example&#39;,
+                        &#39;email&#39;: &#39;sales@agent.example&#39;,
+                        &#39;name&#39;: &#39;Example Third-Party Sales Agent&#39;,
+                    },
+                    &#39;last_updated&#39;: &#39;2025-01-10T17:00:00Z&#39;,
+                },
+                {
+                    &#39;$schema&#39;: &#39;/schemas/3.0.0-beta.3/adagents.json&#39;,
+                    &#39;authorized_agents&#39;: [
+                        {
+                            &#39;authorization_type&#39;: &#39;property_tags&#39;,
+                            &#39;authorized_for&#39;: &#39;All news properties&#39;,
+                            &#39;property_tags&#39;: [&#39;news&#39;],
+                            &#39;url&#39;: &#39;https://sales.news.example.com&#39;,
+                        }
+                    ],
+                    &#39;contact&#39;: {
+                        &#39;domain&#39;: &#39;news.example.com&#39;,
+                        &#39;email&#39;: &#39;adops@news.example.com&#39;,
+                        &#39;name&#39;: &#39;Premium News Publisher&#39;,
+                    },
+                    &#39;last_updated&#39;: &#39;2025-01-10T18:00:00Z&#39;,
+                    &#39;properties&#39;: [
+                        {
+                            &#39;identifiers&#39;: [{&#39;type&#39;: &#39;domain&#39;, &#39;value&#39;: &#39;news.example.com&#39;}],
+                            &#39;name&#39;: &#39;News Example&#39;,
+                            &#39;property_type&#39;: &#39;website&#39;,
+                            &#39;publisher_domain&#39;: &#39;news.example.com&#39;,
+                            &#39;tags&#39;: [&#39;premium&#39;, &#39;news&#39;],
+                        }
+                    ],
+                    &#39;property_features&#39;: [
+                        {
+                            &#39;features&#39;: [&#39;carbon_score&#39;, &#39;sustainability_grade&#39;],
+                            &#39;name&#39;: &#39;Scope3&#39;,
+                            &#39;publisher_id&#39;: &#39;pub_news_12345&#39;,
+                            &#39;url&#39;: &#39;https://api.scope3.com&#39;,
+                        },
+                        {
+                            &#39;features&#39;: [
+                                &#39;tag_certified_against_fraud&#39;,
+                                &#39;tag_brand_safety_certified&#39;,
+                            ],
+                            &#39;name&#39;: &#39;TAG&#39;,
+                            &#39;url&#39;: &#39;https://api.tagtoday.net&#39;,
+                        },
+                        {
+                            &#39;features&#39;: [&#39;gdpr_compliant&#39;, &#39;tcf_registered&#39;, &#39;ccpa_compliant&#39;],
+                            &#39;name&#39;: &#39;OneTrust&#39;,
+                            &#39;publisher_id&#39;: &#39;ot_news_67890&#39;,
+                            &#39;url&#39;: &#39;https://api.onetrust.com&#39;,
+                        },
+                    ],
+                    &#39;tags&#39;: {
+                        &#39;news&#39;: {
+                            &#39;description&#39;: &#39;News and journalism content&#39;,
+                            &#39;name&#39;: &#39;News Properties&#39;,
+                        },
+                        &#39;premium&#39;: {
+                            &#39;description&#39;: &#39;High-quality, brand-safe properties&#39;,
+                            &#39;name&#39;: &#39;Premium Properties&#39;,
+                        },
+                    },
+                },
+                {
+                    &#39;$schema&#39;: &#39;/schemas/3.0.0-beta.3/adagents.json&#39;,
+                    &#39;authorized_agents&#39;: [
+                        {
+                            &#39;authorization_type&#39;: &#39;signal_tags&#39;,
+                            &#39;authorized_for&#39;: &#39;All Polk automotive signals via LiveRamp&#39;,
+                            &#39;signal_tags&#39;: [&#39;automotive&#39;],
+                            &#39;url&#39;: &#39;https://liveramp.com/.well-known/adcp/signals&#39;,
+                        },
+                        {
+                            &#39;authorization_type&#39;: &#39;signal_ids&#39;,
+                            &#39;authorized_for&#39;: &#39;Polk premium signals only&#39;,
+                            &#39;signal_ids&#39;: [&#39;likely_tesla_buyers&#39;],
+                            &#39;url&#39;: &#39;https://the-trade-desk.com/.well-known/adcp/signals&#39;,
+                        },
+                    ],
+                    &#39;contact&#39;: {
+                        &#39;domain&#39;: &#39;polk.com&#39;,
+                        &#39;email&#39;: &#39;partnerships@polk.com&#39;,
+                        &#39;name&#39;: &#39;Polk Automotive Data&#39;,
+                    },
+                    &#39;last_updated&#39;: &#39;2025-01-15T10:00:00Z&#39;,
+                    &#39;signal_tags&#39;: {
+                        &#39;automotive&#39;: {
+                            &#39;description&#39;: &#39;Vehicle-related audience segments&#39;,
+                            &#39;name&#39;: &#39;Automotive Signals&#39;,
+                        },
+                        &#39;premium&#39;: {
+                            &#39;description&#39;: &#39;High-value premium audience segments&#39;,
+                            &#39;name&#39;: &#39;Premium Signals&#39;,
+                        },
+                    },
+                    &#39;signals&#39;: [
+                        {
+                            &#39;category&#39;: &#39;purchase_intent&#39;,
+                            &#39;description&#39;: &#39;Consumers modeled as likely to purchase a Tesla in the next 12 months based on vehicle registration, financial, and behavioral data&#39;,
+                            &#39;id&#39;: &#39;likely_tesla_buyers&#39;,
+                            &#39;name&#39;: &#39;Likely Tesla Buyers&#39;,
+                            &#39;tags&#39;: [&#39;automotive&#39;, &#39;premium&#39;],
+                            &#39;value_type&#39;: &#39;binary&#39;,
+                        },
+                        {
+                            &#39;allowed_values&#39;: [
+                                &#39;tesla&#39;,
+                                &#39;bmw&#39;,
+                                &#39;mercedes&#39;,
+                                &#39;audi&#39;,
+                                &#39;lexus&#39;,
+                                &#39;other_luxury&#39;,
+                                &#39;non_luxury&#39;,
+                            ],
+                            &#39;category&#39;: &#39;ownership&#39;,
+                            &#39;description&#39;: &#39;Current vehicle make owned by the consumer&#39;,
+                            &#39;id&#39;: &#39;vehicle_ownership&#39;,
+                            &#39;name&#39;: &#39;Current Vehicle Ownership&#39;,
+                            &#39;tags&#39;: [&#39;automotive&#39;],
+                            &#39;value_type&#39;: &#39;categorical&#39;,
+                        },
+                        {
+                            &#39;category&#39;: &#39;purchase_intent&#39;,
+                            &#39;description&#39;: &#39;Likelihood score of purchasing any new vehicle in the next 6 months&#39;,
+                            &#39;id&#39;: &#39;purchase_propensity&#39;,
+                            &#39;name&#39;: &#39;Auto Purchase Propensity&#39;,
+                            &#39;range&#39;: {&#39;max&#39;: 1, &#39;min&#39;: 0, &#39;unit&#39;: &#39;score&#39;},
+                            &#39;tags&#39;: [&#39;automotive&#39;],
+                            &#39;value_type&#39;: &#39;numeric&#39;,
+                        },
+                    ],
+                },
+            ],
+            title=&#39;AdCP Agents Authorization&#39;,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[Union[AdcpAgentsAuthorization1, AdcpAgentsAuthorization2]]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization1" href="#adcp.types.generated_poc.adagents.AdcpAgentsAuthorization1">AdcpAgentsAuthorization1</a> | <a title="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2" href="#adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2">AdcpAgentsAuthorization2</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization1"><code class="flex name class">
+<span>class <span class="ident">AdcpAgentsAuthorization1</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AdcpAgentsAuthorization1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    field_schema: Annotated[
+        str | None,
+        Field(alias=&#39;$schema&#39;, description=&#39;JSON Schema identifier for this adagents.json file&#39;),
+    ] = None
+    authoritative_location: Annotated[
+        AnyUrl,
+        Field(
+            description=&#39;HTTPS URL of the authoritative adagents.json file. When present, this file is a reference and the authoritative location contains the actual agent authorization data.&#39;
+        ),
+    ]
+    last_updated: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;ISO 8601 timestamp indicating when this reference was last updated&#39;),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization1.authoritative_location"><code class="name">var <span class="ident">authoritative_location</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization1.field_schema"><code class="name">var <span class="ident">field_schema</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization1.last_updated"><code class="name">var <span class="ident">last_updated</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2"><code class="flex name class">
+<span>class <span class="ident">AdcpAgentsAuthorization2</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AdcpAgentsAuthorization2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    field_schema: Annotated[
+        str | None,
+        Field(alias=&#39;$schema&#39;, description=&#39;JSON Schema identifier for this adagents.json file&#39;),
+    ] = None
+    authorized_agents: Annotated[
+        list[
+            AuthorizedAgents
+            | AuthorizedAgents1
+            | AuthorizedAgents2
+            | AuthorizedAgents3
+            | AuthorizedAgents4
+            | AuthorizedAgents5
+        ],
+        Field(
+            description=&#39;Array of sales agents authorized to sell inventory for properties in this file&#39;,
+            min_length=1,
+        ),
+    ]
+    contact: Annotated[
+        Contact | None,
+        Field(
+            description=&#39;Contact information for the entity managing this adagents.json file (may be publisher or third-party operator)&#39;
+        ),
+    ] = None
+    last_updated: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;ISO 8601 timestamp indicating when this file was last updated&#39;),
+    ] = None
+    properties: Annotated[
+        list[property.Property] | None,
+        Field(
+            description=&#39;Array of all properties covered by this adagents.json file. Defines the canonical property list that authorized agents reference.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    property_features: Annotated[
+        list[PropertyFeature] | None,
+        Field(
+            description=&#34;[AdCP 3.0] Optional list of agents that provide property feature data (certifications, scores, compliance status). Used for discovery - actual data comes from querying the agent&#39;s get_property_features task.&#34;
+        ),
+    ] = None
+    signal_tags: Annotated[
+        dict[str, SignalTags] | None,
+        Field(
+            description=&#39;Metadata for each tag referenced by signals. Provides human-readable context for signal tag values.&#39;
+        ),
+    ] = None
+    signals: Annotated[
+        list[signal_definition.SignalDefinition] | None,
+        Field(
+            description=&#39;Signal catalog published by this data provider. Signals agents reference these signals via data_provider_domain + signal_id.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    tags: Annotated[
+        dict[str, Tags] | None,
+        Field(
+            description=&#39;Metadata for each tag referenced by properties. Provides human-readable context for property tag values.&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.authorized_agents"><code class="name">var <span class="ident">authorized_agents</span> : list[<a title="adcp.types.generated_poc.adagents.AuthorizedAgents" href="#adcp.types.generated_poc.adagents.AuthorizedAgents">AuthorizedAgents</a> | <a title="adcp.types.generated_poc.adagents.AuthorizedAgents1" href="#adcp.types.generated_poc.adagents.AuthorizedAgents1">AuthorizedAgents1</a> | <a title="adcp.types.generated_poc.adagents.AuthorizedAgents2" href="#adcp.types.generated_poc.adagents.AuthorizedAgents2">AuthorizedAgents2</a> | <a title="adcp.types.generated_poc.adagents.AuthorizedAgents3" href="#adcp.types.generated_poc.adagents.AuthorizedAgents3">AuthorizedAgents3</a> | <a title="adcp.types.generated_poc.adagents.AuthorizedAgents4" href="#adcp.types.generated_poc.adagents.AuthorizedAgents4">AuthorizedAgents4</a> | <a title="adcp.types.generated_poc.adagents.AuthorizedAgents5" href="#adcp.types.generated_poc.adagents.AuthorizedAgents5">AuthorizedAgents5</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.contact"><code class="name">var <span class="ident">contact</span> : <a title="adcp.types.generated_poc.adagents.Contact" href="#adcp.types.generated_poc.adagents.Contact">Contact</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.field_schema"><code class="name">var <span class="ident">field_schema</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.last_updated"><code class="name">var <span class="ident">last_updated</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.properties"><code class="name">var <span class="ident">properties</span> : list[<a title="adcp.types.generated_poc.core.property.Property" href="core/property.html#adcp.types.generated_poc.core.property.Property">Property</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.property_features"><code class="name">var <span class="ident">property_features</span> : list[<a title="adcp.types.generated_poc.adagents.PropertyFeature" href="#adcp.types.generated_poc.adagents.PropertyFeature">PropertyFeature</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.signal_tags"><code class="name">var <span class="ident">signal_tags</span> : dict[str, <a title="adcp.types.generated_poc.adagents.SignalTags" href="#adcp.types.generated_poc.adagents.SignalTags">SignalTags</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.signals"><code class="name">var <span class="ident">signals</span> : list[<a title="adcp.types.generated_poc.core.signal_definition.SignalDefinition" href="core/signal_definition.html#adcp.types.generated_poc.core.signal_definition.SignalDefinition">SignalDefinition</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.tags"><code class="name">var <span class="ident">tags</span> : dict[str, <a title="adcp.types.generated_poc.adagents.Tags" href="#adcp.types.generated_poc.adagents.Tags">Tags</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.adagents.AuthorizedAgents"><code class="flex name class">
 <span>class <span class="ident">AuthorizedAgents</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -57,16 +623,16 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class AuthorizedAgents(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     authorization_type: Annotated[
-        Literal[&#34;property_ids&#34;],
-        Field(description=&#34;Discriminator indicating authorization by specific property IDs&#34;),
+        Literal[&#39;property_ids&#39;],
+        Field(description=&#39;Discriminator indicating authorization by specific property IDs&#39;),
     ]
     authorized_for: Annotated[
         str,
         Field(
-            description=&#34;Human-readable description of what this agent is authorized to sell&#34;,
+            description=&#39;Human-readable description of what this agent is authorized to sell&#39;,
             max_length=500,
             min_length=1,
         ),
@@ -74,7 +640,7 @@ el.replaceWith(d);
     property_ids: Annotated[
         list[property_id.PropertyId],
         Field(
-            description=&#34;Property IDs this agent is authorized for. Resolved against the top-level properties array in this file&#34;,
+            description=&#39;Property IDs this agent is authorized for. Resolved against the top-level properties array in this file&#39;,
             min_length=1,
         ),
     ]
@@ -138,16 +704,16 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizedAgents1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     authorization_type: Annotated[
-        Literal[&#34;property_tags&#34;],
-        Field(description=&#34;Discriminator indicating authorization by property tags&#34;),
+        Literal[&#39;property_tags&#39;],
+        Field(description=&#39;Discriminator indicating authorization by property tags&#39;),
     ]
     authorized_for: Annotated[
         str,
         Field(
-            description=&#34;Human-readable description of what this agent is authorized to sell&#34;,
+            description=&#39;Human-readable description of what this agent is authorized to sell&#39;,
             max_length=500,
             min_length=1,
         ),
@@ -155,7 +721,7 @@ validated to form a valid model.</p>
     property_tags: Annotated[
         list[property_tag.PropertyTag],
         Field(
-            description=&#34;Tags identifying which properties this agent is authorized for. Resolved against the top-level properties array in this file using tag matching&#34;,
+            description=&#39;Tags identifying which properties this agent is authorized for. Resolved against the top-level properties array in this file using tag matching&#39;,
             min_length=1,
         ),
     ]
@@ -219,16 +785,16 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizedAgents2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     authorization_type: Annotated[
-        Literal[&#34;inline_properties&#34;],
-        Field(description=&#34;Discriminator indicating authorization by inline property definitions&#34;),
+        Literal[&#39;inline_properties&#39;],
+        Field(description=&#39;Discriminator indicating authorization by inline property definitions&#39;),
     ]
     authorized_for: Annotated[
         str,
         Field(
-            description=&#34;Human-readable description of what this agent is authorized to sell&#34;,
+            description=&#39;Human-readable description of what this agent is authorized to sell&#39;,
             max_length=500,
             min_length=1,
         ),
@@ -236,7 +802,7 @@ validated to form a valid model.</p>
     properties: Annotated[
         list[property.Property],
         Field(
-            description=&#34;Specific properties this agent is authorized for (alternative to property_ids/property_tags)&#34;,
+            description=&#39;Specific properties this agent is authorized for (alternative to property_ids/property_tags)&#39;,
             min_length=1,
         ),
     ]
@@ -300,18 +866,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizedAgents3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     authorization_type: Annotated[
-        Literal[&#34;publisher_properties&#34;],
+        Literal[&#39;publisher_properties&#39;],
         Field(
-            description=&#34;Discriminator indicating authorization for properties from other publisher domains&#34;
+            description=&#39;Discriminator indicating authorization for properties from other publisher domains&#39;
         ),
     ]
     authorized_for: Annotated[
         str,
         Field(
-            description=&#34;Human-readable description of what this agent is authorized to sell&#34;,
+            description=&#39;Human-readable description of what this agent is authorized to sell&#39;,
             max_length=500,
             min_length=1,
         ),
@@ -319,7 +885,7 @@ validated to form a valid model.</p>
     publisher_properties: Annotated[
         list[publisher_property_selector.PublisherPropertySelector],
         Field(
-            description=&#34;Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell&#34;,
+            description=&#39;Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell&#39;,
             min_length=1,
         ),
     ]
@@ -372,290 +938,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.adagents.AuthorizedSalesAgents"><code class="flex name class">
-<span>class <span class="ident">AuthorizedSalesAgents</span></span>
-<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class AuthorizedSalesAgents(RootModel[AuthorizedSalesAgents1 | AuthorizedSalesAgents2]):
-    root: Annotated[
-        AuthorizedSalesAgents1 | AuthorizedSalesAgents2,
-        Field(
-            description=&#34;Declaration of authorized sales agents for advertising inventory. Hosted at /.well-known/adagents.json on publisher domains. Can either contain the full structure inline or reference an authoritative URL.&#34;,
-            examples=[
-                {
-                    &#34;$schema&#34;: &#34;/schemas/3.0.0-beta.2/adagents.json&#34;,
-                    &#34;authoritative_location&#34;: &#34;https://cdn.example.com/adagents/v2/adagents.json&#34;,
-                    &#34;last_updated&#34;: &#34;2025-01-15T10:00:00Z&#34;,
-                },
-                {
-                    &#34;$schema&#34;: &#34;/schemas/3.0.0-beta.2/adagents.json&#34;,
-                    &#34;authorized_agents&#34;: [
-                        {
-                            &#34;authorization_type&#34;: &#34;property_tags&#34;,
-                            &#34;authorized_for&#34;: &#34;Official sales agent&#34;,
-                            &#34;property_tags&#34;: [&#34;all&#34;],
-                            &#34;url&#34;: &#34;https://agent.example.com&#34;,
-                        }
-                    ],
-                    &#34;last_updated&#34;: &#34;2025-01-10T12:00:00Z&#34;,
-                    &#34;properties&#34;: [
-                        {
-                            &#34;identifiers&#34;: [{&#34;type&#34;: &#34;domain&#34;, &#34;value&#34;: &#34;example.com&#34;}],
-                            &#34;name&#34;: &#34;Example Site&#34;,
-                            &#34;property_type&#34;: &#34;website&#34;,
-                            &#34;publisher_domain&#34;: &#34;example.com&#34;,
-                        }
-                    ],
-                    &#34;tags&#34;: {
-                        &#34;all&#34;: {
-                            &#34;description&#34;: &#34;All properties in this file&#34;,
-                            &#34;name&#34;: &#34;All Properties&#34;,
-                        }
-                    },
-                },
-                {
-                    &#34;$schema&#34;: &#34;/schemas/3.0.0-beta.2/adagents.json&#34;,
-                    &#34;authorized_agents&#34;: [
-                        {
-                            &#34;authorization_type&#34;: &#34;property_tags&#34;,
-                            &#34;authorized_for&#34;: &#34;All Meta properties&#34;,
-                            &#34;property_tags&#34;: [&#34;meta_network&#34;],
-                            &#34;url&#34;: &#34;https://meta-ads.com&#34;,
-                        }
-                    ],
-                    &#34;contact&#34;: {
-                        &#34;domain&#34;: &#34;meta.com&#34;,
-                        &#34;email&#34;: &#34;adops@meta.com&#34;,
-                        &#34;name&#34;: &#34;Meta Advertising Operations&#34;,
-                        &#34;privacy_policy_url&#34;: &#34;https://www.meta.com/privacy/policy&#34;,
-                        &#34;seller_id&#34;: &#34;pub-meta-12345&#34;,
-                        &#34;tag_id&#34;: &#34;12345&#34;,
-                    },
-                    &#34;last_updated&#34;: &#34;2025-01-10T15:30:00Z&#34;,
-                    &#34;properties&#34;: [
-                        {
-                            &#34;identifiers&#34;: [
-                                {&#34;type&#34;: &#34;ios_bundle&#34;, &#34;value&#34;: &#34;com.burbn.instagram&#34;},
-                                {&#34;type&#34;: &#34;android_package&#34;, &#34;value&#34;: &#34;com.instagram.android&#34;},
-                            ],
-                            &#34;name&#34;: &#34;Instagram&#34;,
-                            &#34;property_type&#34;: &#34;mobile_app&#34;,
-                            &#34;publisher_domain&#34;: &#34;instagram.com&#34;,
-                            &#34;tags&#34;: [&#34;meta_network&#34;, &#34;social_media&#34;],
-                        },
-                        {
-                            &#34;identifiers&#34;: [
-                                {&#34;type&#34;: &#34;ios_bundle&#34;, &#34;value&#34;: &#34;com.facebook.Facebook&#34;},
-                                {&#34;type&#34;: &#34;android_package&#34;, &#34;value&#34;: &#34;com.facebook.katana&#34;},
-                            ],
-                            &#34;name&#34;: &#34;Facebook&#34;,
-                            &#34;property_type&#34;: &#34;mobile_app&#34;,
-                            &#34;publisher_domain&#34;: &#34;facebook.com&#34;,
-                            &#34;tags&#34;: [&#34;meta_network&#34;, &#34;social_media&#34;],
-                        },
-                        {
-                            &#34;identifiers&#34;: [
-                                {&#34;type&#34;: &#34;ios_bundle&#34;, &#34;value&#34;: &#34;net.whatsapp.WhatsApp&#34;},
-                                {&#34;type&#34;: &#34;android_package&#34;, &#34;value&#34;: &#34;com.whatsapp&#34;},
-                            ],
-                            &#34;name&#34;: &#34;WhatsApp&#34;,
-                            &#34;property_type&#34;: &#34;mobile_app&#34;,
-                            &#34;publisher_domain&#34;: &#34;whatsapp.com&#34;,
-                            &#34;tags&#34;: [&#34;meta_network&#34;, &#34;messaging&#34;],
-                        },
-                    ],
-                    &#34;tags&#34;: {
-                        &#34;messaging&#34;: {
-                            &#34;description&#34;: &#34;Messaging and communication apps&#34;,
-                            &#34;name&#34;: &#34;Messaging Apps&#34;,
-                        },
-                        &#34;meta_network&#34;: {
-                            &#34;description&#34;: &#34;All Meta-owned properties&#34;,
-                            &#34;name&#34;: &#34;Meta Network&#34;,
-                        },
-                        &#34;social_media&#34;: {
-                            &#34;description&#34;: &#34;Social networking applications&#34;,
-                            &#34;name&#34;: &#34;Social Media Apps&#34;,
-                        },
-                    },
-                },
-                {
-                    &#34;$schema&#34;: &#34;/schemas/3.0.0-beta.2/adagents.json&#34;,
-                    &#34;authorized_agents&#34;: [
-                        {
-                            &#34;authorization_type&#34;: &#34;property_tags&#34;,
-                            &#34;authorized_for&#34;: &#34;Tumblr corporate properties only&#34;,
-                            &#34;property_tags&#34;: [&#34;corporate&#34;],
-                            &#34;url&#34;: &#34;https://tumblr-sales.com&#34;,
-                        }
-                    ],
-                    &#34;contact&#34;: {&#34;name&#34;: &#34;Tumblr Advertising&#34;},
-                    &#34;last_updated&#34;: &#34;2025-01-10T16:00:00Z&#34;,
-                    &#34;properties&#34;: [
-                        {
-                            &#34;identifiers&#34;: [{&#34;type&#34;: &#34;domain&#34;, &#34;value&#34;: &#34;tumblr.com&#34;}],
-                            &#34;name&#34;: &#34;Tumblr Corporate&#34;,
-                            &#34;property_type&#34;: &#34;website&#34;,
-                            &#34;publisher_domain&#34;: &#34;tumblr.com&#34;,
-                            &#34;tags&#34;: [&#34;corporate&#34;],
-                        }
-                    ],
-                    &#34;tags&#34;: {
-                        &#34;corporate&#34;: {
-                            &#34;description&#34;: &#34;Tumblr-owned corporate properties (not user blogs)&#34;,
-                            &#34;name&#34;: &#34;Corporate Properties&#34;,
-                        }
-                    },
-                },
-                {
-                    &#34;$schema&#34;: &#34;/schemas/3.0.0-beta.2/adagents.json&#34;,
-                    &#34;authorized_agents&#34;: [
-                        {
-                            &#34;authorization_type&#34;: &#34;publisher_properties&#34;,
-                            &#34;authorized_for&#34;: &#34;CNN CTV properties via publisher authorization&#34;,
-                            &#34;publisher_properties&#34;: [
-                                {
-                                    &#34;property_ids&#34;: [&#34;cnn_ctv_app&#34;],
-                                    &#34;publisher_domain&#34;: &#34;cnn.com&#34;,
-                                    &#34;selection_type&#34;: &#34;by_id&#34;,
-                                }
-                            ],
-                            &#34;url&#34;: &#34;https://agent.example/api&#34;,
-                        },
-                        {
-                            &#34;authorization_type&#34;: &#34;publisher_properties&#34;,
-                            &#34;authorized_for&#34;: &#34;All CTV properties from multiple publishers&#34;,
-                            &#34;publisher_properties&#34;: [
-                                {
-                                    &#34;property_tags&#34;: [&#34;ctv&#34;],
-                                    &#34;publisher_domain&#34;: &#34;cnn.com&#34;,
-                                    &#34;selection_type&#34;: &#34;by_tag&#34;,
-                                },
-                                {
-                                    &#34;property_tags&#34;: [&#34;ctv&#34;],
-                                    &#34;publisher_domain&#34;: &#34;espn.com&#34;,
-                                    &#34;selection_type&#34;: &#34;by_tag&#34;,
-                                },
-                            ],
-                            &#34;url&#34;: &#34;https://agent.example/api&#34;,
-                        },
-                    ],
-                    &#34;contact&#34;: {
-                        &#34;domain&#34;: &#34;agent.example&#34;,
-                        &#34;email&#34;: &#34;sales@agent.example&#34;,
-                        &#34;name&#34;: &#34;Example Third-Party Sales Agent&#34;,
-                    },
-                    &#34;last_updated&#34;: &#34;2025-01-10T17:00:00Z&#34;,
-                },
-                {
-                    &#34;$schema&#34;: &#34;/schemas/3.0.0-beta.2/adagents.json&#34;,
-                    &#34;authorized_agents&#34;: [
-                        {
-                            &#34;authorization_type&#34;: &#34;property_tags&#34;,
-                            &#34;authorized_for&#34;: &#34;All news properties&#34;,
-                            &#34;property_tags&#34;: [&#34;news&#34;],
-                            &#34;url&#34;: &#34;https://sales.news.example.com&#34;,
-                        }
-                    ],
-                    &#34;contact&#34;: {
-                        &#34;domain&#34;: &#34;news.example.com&#34;,
-                        &#34;email&#34;: &#34;adops@news.example.com&#34;,
-                        &#34;name&#34;: &#34;Premium News Publisher&#34;,
-                    },
-                    &#34;last_updated&#34;: &#34;2025-01-10T18:00:00Z&#34;,
-                    &#34;properties&#34;: [
-                        {
-                            &#34;identifiers&#34;: [{&#34;type&#34;: &#34;domain&#34;, &#34;value&#34;: &#34;news.example.com&#34;}],
-                            &#34;name&#34;: &#34;News Example&#34;,
-                            &#34;property_type&#34;: &#34;website&#34;,
-                            &#34;publisher_domain&#34;: &#34;news.example.com&#34;,
-                            &#34;tags&#34;: [&#34;premium&#34;, &#34;news&#34;],
-                        }
-                    ],
-                    &#34;property_features&#34;: [
-                        {
-                            &#34;features&#34;: [&#34;carbon_score&#34;, &#34;sustainability_grade&#34;],
-                            &#34;name&#34;: &#34;Scope3&#34;,
-                            &#34;publisher_id&#34;: &#34;pub_news_12345&#34;,
-                            &#34;url&#34;: &#34;https://api.scope3.com&#34;,
-                        },
-                        {
-                            &#34;features&#34;: [
-                                &#34;tag_certified_against_fraud&#34;,
-                                &#34;tag_brand_safety_certified&#34;,
-                            ],
-                            &#34;name&#34;: &#34;TAG&#34;,
-                            &#34;url&#34;: &#34;https://api.tagtoday.net&#34;,
-                        },
-                        {
-                            &#34;features&#34;: [&#34;gdpr_compliant&#34;, &#34;tcf_registered&#34;, &#34;ccpa_compliant&#34;],
-                            &#34;name&#34;: &#34;OneTrust&#34;,
-                            &#34;publisher_id&#34;: &#34;ot_news_67890&#34;,
-                            &#34;url&#34;: &#34;https://api.onetrust.com&#34;,
-                        },
-                    ],
-                    &#34;tags&#34;: {
-                        &#34;news&#34;: {
-                            &#34;description&#34;: &#34;News and journalism content&#34;,
-                            &#34;name&#34;: &#34;News Properties&#34;,
-                        },
-                        &#34;premium&#34;: {
-                            &#34;description&#34;: &#34;High-quality, brand-safe properties&#34;,
-                            &#34;name&#34;: &#34;Premium Properties&#34;,
-                        },
-                    },
-                },
-            ],
-            title=&#34;Authorized Sales Agents&#34;,
-        ),
-    ]</code></pre>
-</details>
-<div class="desc"><div class="admonition abstract">
-<p class="admonition-title">Usage Documentation</p>
-<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
-</div>
-<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
-<h2 id="attributes">Attributes</h2>
-<dl>
-<dt><strong><code>root</code></strong></dt>
-<dd>The root object of the model.</dd>
-<dt><strong><code>__pydantic_root_model__</code></strong></dt>
-<dd>Whether the model is a RootModel.</dd>
-<dt><strong><code>__pydantic_private__</code></strong></dt>
-<dd>Private fields in the model.</dd>
-<dt><strong><code>__pydantic_extra__</code></strong></dt>
-<dd>Extra fields in the model.</dd>
-</dl>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>pydantic.root_model.RootModel[Union[AuthorizedSalesAgents1, AuthorizedSalesAgents2]]</li>
-<li>pydantic.root_model.RootModel</li>
-<li>pydantic.main.BaseModel</li>
-<li>typing.Generic</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.adagents.AuthorizedSalesAgents.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.adagents.AuthorizedSalesAgents.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents1" href="#adcp.types.generated_poc.adagents.AuthorizedSalesAgents1">AuthorizedSalesAgents1</a> | <a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents2" href="#adcp.types.generated_poc.adagents.AuthorizedSalesAgents2">AuthorizedSalesAgents2</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.adagents.AuthorizedSalesAgents1"><code class="flex name class">
-<span>class <span class="ident">AuthorizedSalesAgents1</span></span>
+<dt id="adcp.types.generated_poc.adagents.AuthorizedAgents4"><code class="flex name class">
+<span>class <span class="ident">AuthorizedAgents4</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -663,24 +947,30 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class AuthorizedSalesAgents1(AdCPBaseModel):
+<pre><code class="python">class AuthorizedAgents4(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    field_schema: Annotated[
-        str | None,
-        Field(alias=&#34;$schema&#34;, description=&#34;JSON Schema identifier for this adagents.json file&#34;),
-    ] = None
-    authoritative_location: Annotated[
-        AnyUrl,
+    authorization_type: Annotated[
+        Literal[&#39;signal_ids&#39;],
+        Field(description=&#39;Discriminator indicating authorization by specific signal IDs&#39;),
+    ]
+    authorized_for: Annotated[
+        str,
         Field(
-            description=&#34;HTTPS URL of the authoritative adagents.json file. When present, this file is a reference and the authoritative location contains the actual agent authorization data.&#34;
+            description=&#39;Human-readable description of what signals this agent is authorized to resell&#39;,
+            max_length=500,
+            min_length=1,
         ),
     ]
-    last_updated: Annotated[
-        AwareDatetime | None,
-        Field(description=&#34;ISO 8601 timestamp indicating when this reference was last updated&#34;),
-    ] = None</code></pre>
+    signal_ids: Annotated[
+        list[SignalId],
+        Field(
+            description=&#39;Signal IDs this agent is authorized to resell. Resolved against the top-level signals array in this file&#39;,
+            min_length=1,
+        ),
+    ]
+    url: Annotated[AnyUrl, Field(description=&#34;The authorized signals agent&#39;s API endpoint URL&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -697,19 +987,23 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.adagents.AuthorizedSalesAgents1.authoritative_location"><code class="name">var <span class="ident">authoritative_location</span> : pydantic.networks.AnyUrl</code></dt>
+<dt id="adcp.types.generated_poc.adagents.AuthorizedAgents4.authorization_type"><code class="name">var <span class="ident">authorization_type</span> : Literal['signal_ids']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.adagents.AuthorizedSalesAgents1.field_schema"><code class="name">var <span class="ident">field_schema</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.adagents.AuthorizedAgents4.authorized_for"><code class="name">var <span class="ident">authorized_for</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.adagents.AuthorizedSalesAgents1.last_updated"><code class="name">var <span class="ident">last_updated</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dt id="adcp.types.generated_poc.adagents.AuthorizedAgents4.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.adagents.AuthorizedSalesAgents1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.adagents.AuthorizedAgents4.signal_ids"><code class="name">var <span class="ident">signal_ids</span> : list[<a title="adcp.types.generated_poc.adagents.SignalId" href="#adcp.types.generated_poc.adagents.SignalId">SignalId</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AuthorizedAgents4.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -725,8 +1019,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.adagents.AuthorizedSalesAgents2"><code class="flex name class">
-<span>class <span class="ident">AuthorizedSalesAgents2</span></span>
+<dt id="adcp.types.generated_poc.adagents.AuthorizedAgents5"><code class="flex name class">
+<span>class <span class="ident">AuthorizedAgents5</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -734,50 +1028,30 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class AuthorizedSalesAgents2(AdCPBaseModel):
+<pre><code class="python">class AuthorizedAgents5(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    field_schema: Annotated[
-        str | None,
-        Field(alias=&#34;$schema&#34;, description=&#34;JSON Schema identifier for this adagents.json file&#34;),
-    ] = None
-    authorized_agents: Annotated[
-        list[AuthorizedAgents | AuthorizedAgents1 | AuthorizedAgents2 | AuthorizedAgents3],
+    authorization_type: Annotated[
+        Literal[&#39;signal_tags&#39;],
+        Field(description=&#39;Discriminator indicating authorization by signal tags&#39;),
+    ]
+    authorized_for: Annotated[
+        str,
         Field(
-            description=&#34;Array of sales agents authorized to sell inventory for properties in this file&#34;,
+            description=&#39;Human-readable description of what signals this agent is authorized to resell&#39;,
+            max_length=500,
             min_length=1,
         ),
     ]
-    contact: Annotated[
-        Contact | None,
+    signal_tags: Annotated[
+        list[SignalTag],
         Field(
-            description=&#34;Contact information for the entity managing this adagents.json file (may be publisher or third-party operator)&#34;
-        ),
-    ] = None
-    last_updated: Annotated[
-        AwareDatetime | None,
-        Field(description=&#34;ISO 8601 timestamp indicating when this file was last updated&#34;),
-    ] = None
-    properties: Annotated[
-        list[property.Property] | None,
-        Field(
-            description=&#34;Array of all properties covered by this adagents.json file. Defines the canonical property list that authorized agents reference.&#34;,
+            description=&#39;Signal tags this agent is authorized for. Agent can resell all signals with these tags&#39;,
             min_length=1,
         ),
-    ] = None
-    property_features: Annotated[
-        list[PropertyFeature] | None,
-        Field(
-            description=&#34;[AdCP 3.0] Optional list of agents that provide property feature data (certifications, scores, compliance status). Used for discovery - actual data comes from querying the agent&#39;s get_property_features task.&#34;
-        ),
-    ] = None
-    tags: Annotated[
-        dict[str, Tags] | None,
-        Field(
-            description=&#34;Metadata for each tag referenced by properties. Provides human-readable context for property tag values.&#34;
-        ),
-    ] = None</code></pre>
+    ]
+    url: Annotated[AnyUrl, Field(description=&#34;The authorized signals agent&#39;s API endpoint URL&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -794,35 +1068,23 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.authorized_agents"><code class="name">var <span class="ident">authorized_agents</span> : list[<a title="adcp.types.generated_poc.adagents.AuthorizedAgents" href="#adcp.types.generated_poc.adagents.AuthorizedAgents">AuthorizedAgents</a> | <a title="adcp.types.generated_poc.adagents.AuthorizedAgents1" href="#adcp.types.generated_poc.adagents.AuthorizedAgents1">AuthorizedAgents1</a> | <a title="adcp.types.generated_poc.adagents.AuthorizedAgents2" href="#adcp.types.generated_poc.adagents.AuthorizedAgents2">AuthorizedAgents2</a> | <a title="adcp.types.generated_poc.adagents.AuthorizedAgents3" href="#adcp.types.generated_poc.adagents.AuthorizedAgents3">AuthorizedAgents3</a>]</code></dt>
+<dt id="adcp.types.generated_poc.adagents.AuthorizedAgents5.authorization_type"><code class="name">var <span class="ident">authorization_type</span> : Literal['signal_tags']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.contact"><code class="name">var <span class="ident">contact</span> : <a title="adcp.types.generated_poc.adagents.Contact" href="#adcp.types.generated_poc.adagents.Contact">Contact</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.adagents.AuthorizedAgents5.authorized_for"><code class="name">var <span class="ident">authorized_for</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.field_schema"><code class="name">var <span class="ident">field_schema</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.adagents.AuthorizedAgents5.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.last_updated"><code class="name">var <span class="ident">last_updated</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dt id="adcp.types.generated_poc.adagents.AuthorizedAgents5.signal_tags"><code class="name">var <span class="ident">signal_tags</span> : list[<a title="adcp.types.generated_poc.adagents.SignalTag" href="#adcp.types.generated_poc.adagents.SignalTag">SignalTag</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.properties"><code class="name">var <span class="ident">properties</span> : list[<a title="adcp.types.generated_poc.core.property.Property" href="core/property.html#adcp.types.generated_poc.core.property.Property">Property</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.property_features"><code class="name">var <span class="ident">property_features</span> : list[<a title="adcp.types.generated_poc.adagents.PropertyFeature" href="#adcp.types.generated_poc.adagents.PropertyFeature">PropertyFeature</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.tags"><code class="name">var <span class="ident">tags</span> : dict[str, <a title="adcp.types.generated_poc.adagents.Tags" href="#adcp.types.generated_poc.adagents.Tags">Tags</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.adagents.AuthorizedAgents5.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -849,19 +1111,19 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Contact(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     domain: Annotated[
         str | None,
         Field(
-            description=&#34;Primary domain of the entity managing this file&#34;,
-            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
+            description=&#39;Primary domain of the entity managing this file&#39;,
+            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
         ),
     ] = None
     email: Annotated[
         EmailStr | None,
         Field(
-            description=&#34;Contact email for questions or issues with this authorization file&#34;,
+            description=&#39;Contact email for questions or issues with this authorization file&#39;,
             max_length=255,
             min_length=1,
         ),
@@ -883,7 +1145,7 @@ validated to form a valid model.</p>
     seller_id: Annotated[
         str | None,
         Field(
-            description=&#34;Seller ID from IAB Tech Lab sellers.json (if applicable)&#34;,
+            description=&#39;Seller ID from IAB Tech Lab sellers.json (if applicable)&#39;,
             max_length=255,
             min_length=1,
         ),
@@ -891,7 +1153,7 @@ validated to form a valid model.</p>
     tag_id: Annotated[
         str | None,
         Field(
-            description=&#34;TAG Certified Against Fraud ID for verification (if applicable)&#34;,
+            description=&#39;TAG Certified Against Fraud ID for verification (if applicable)&#39;,
             max_length=100,
             min_length=1,
         ),
@@ -963,7 +1225,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PropertyFeature(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     features: Annotated[
         list[str],
@@ -979,7 +1241,7 @@ validated to form a valid model.</p>
         ),
     ]
     publisher_id: Annotated[
-        str | None, Field(description=&#34;Optional publisher identifier at this agent (for lookup)&#34;)
+        str | None, Field(description=&#39;Optional publisher identifier at this agent (for lookup)&#39;)
     ] = None
     url: Annotated[AnyUrl, Field(description=&#34;The agent&#39;s API endpoint URL&#34;)]</code></pre>
 </details>
@@ -1030,8 +1292,110 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.adagents.Tags"><code class="flex name class">
-<span>class <span class="ident">Tags</span></span>
+<dt id="adcp.types.generated_poc.adagents.SignalId"><code class="flex name class">
+<span>class <span class="ident">SignalId</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SignalId(RootModel[str]):
+    root: Annotated[str, Field(pattern=&#39;^[a-zA-Z0-9_-]+$&#39;)]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[str]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.adagents.SignalId.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.SignalId.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.SignalTag"><code class="flex name class">
+<span>class <span class="ident">SignalTag</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SignalTag(RootModel[str]):
+    root: Annotated[str, Field(pattern=&#39;^[a-z0-9_-]+$&#39;)]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[str]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.adagents.SignalTag.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.SignalTag.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.SignalTags"><code class="flex name class">
+<span>class <span class="ident">SignalTags</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -1039,12 +1403,12 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Tags(AdCPBaseModel):
+<pre><code class="python">class SignalTags(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    description: Annotated[str, Field(description=&#34;Description of what this tag represents&#34;)]
-    name: Annotated[str, Field(description=&#34;Human-readable name for this tag&#34;)]</code></pre>
+    description: Annotated[str, Field(description=&#39;Description of what this tag represents&#39;)]
+    name: Annotated[str, Field(description=&#39;Human-readable name for this tag&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -1059,17 +1423,21 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.adagents.Tags" href="#adcp.types.generated_poc.adagents.Tags">Tags</a></li>
+</ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.adagents.Tags.description"><code class="name">var <span class="ident">description</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.adagents.SignalTags.description"><code class="name">var <span class="ident">description</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.adagents.Tags.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.adagents.SignalTags.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.adagents.Tags.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.adagents.SignalTags.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1081,6 +1449,50 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.Tags"><code class="flex name class">
+<span>class <span class="ident">Tags</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Tags(SignalTags):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.adagents.SignalTags" href="#adcp.types.generated_poc.adagents.SignalTags">SignalTags</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.adagents.Tags.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.adagents.SignalTags" href="#adcp.types.generated_poc.adagents.SignalTags">SignalTags</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.adagents.SignalTags.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.SignalTags.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.SignalTags.model_summary" href="../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -1100,6 +1512,37 @@ validated to form a valid model.</p>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization" href="#adcp.types.generated_poc.adagents.AdcpAgentsAuthorization">AdcpAgentsAuthorization</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization.model_config" href="#adcp.types.generated_poc.adagents.AdcpAgentsAuthorization.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization.root" href="#adcp.types.generated_poc.adagents.AdcpAgentsAuthorization.root">root</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization1" href="#adcp.types.generated_poc.adagents.AdcpAgentsAuthorization1">AdcpAgentsAuthorization1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization1.authoritative_location" href="#adcp.types.generated_poc.adagents.AdcpAgentsAuthorization1.authoritative_location">authoritative_location</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization1.field_schema" href="#adcp.types.generated_poc.adagents.AdcpAgentsAuthorization1.field_schema">field_schema</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization1.last_updated" href="#adcp.types.generated_poc.adagents.AdcpAgentsAuthorization1.last_updated">last_updated</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization1.model_config" href="#adcp.types.generated_poc.adagents.AdcpAgentsAuthorization1.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2" href="#adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2">AdcpAgentsAuthorization2</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.authorized_agents" href="#adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.authorized_agents">authorized_agents</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.contact" href="#adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.contact">contact</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.field_schema" href="#adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.field_schema">field_schema</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.last_updated" href="#adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.last_updated">last_updated</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.model_config" href="#adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.properties" href="#adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.properties">properties</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.property_features" href="#adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.property_features">property_features</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.signal_tags" href="#adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.signal_tags">signal_tags</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.signals" href="#adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.signals">signals</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.tags" href="#adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.tags">tags</a></code></li>
+</ul>
+</li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents" href="#adcp.types.generated_poc.adagents.AuthorizedAgents">AuthorizedAgents</a></code></h4>
 <ul class="">
@@ -1141,32 +1584,23 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents" href="#adcp.types.generated_poc.adagents.AuthorizedSalesAgents">AuthorizedSalesAgents</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents4" href="#adcp.types.generated_poc.adagents.AuthorizedAgents4">AuthorizedAgents4</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents.model_config" href="#adcp.types.generated_poc.adagents.AuthorizedSalesAgents.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents.root" href="#adcp.types.generated_poc.adagents.AuthorizedSalesAgents.root">root</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents4.authorization_type" href="#adcp.types.generated_poc.adagents.AuthorizedAgents4.authorization_type">authorization_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents4.authorized_for" href="#adcp.types.generated_poc.adagents.AuthorizedAgents4.authorized_for">authorized_for</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents4.model_config" href="#adcp.types.generated_poc.adagents.AuthorizedAgents4.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents4.signal_ids" href="#adcp.types.generated_poc.adagents.AuthorizedAgents4.signal_ids">signal_ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents4.url" href="#adcp.types.generated_poc.adagents.AuthorizedAgents4.url">url</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents1" href="#adcp.types.generated_poc.adagents.AuthorizedSalesAgents1">AuthorizedSalesAgents1</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents5" href="#adcp.types.generated_poc.adagents.AuthorizedAgents5">AuthorizedAgents5</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents1.authoritative_location" href="#adcp.types.generated_poc.adagents.AuthorizedSalesAgents1.authoritative_location">authoritative_location</a></code></li>
-<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents1.field_schema" href="#adcp.types.generated_poc.adagents.AuthorizedSalesAgents1.field_schema">field_schema</a></code></li>
-<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents1.last_updated" href="#adcp.types.generated_poc.adagents.AuthorizedSalesAgents1.last_updated">last_updated</a></code></li>
-<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents1.model_config" href="#adcp.types.generated_poc.adagents.AuthorizedSalesAgents1.model_config">model_config</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents2" href="#adcp.types.generated_poc.adagents.AuthorizedSalesAgents2">AuthorizedSalesAgents2</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.authorized_agents" href="#adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.authorized_agents">authorized_agents</a></code></li>
-<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.contact" href="#adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.contact">contact</a></code></li>
-<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.field_schema" href="#adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.field_schema">field_schema</a></code></li>
-<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.last_updated" href="#adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.last_updated">last_updated</a></code></li>
-<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.model_config" href="#adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.properties" href="#adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.properties">properties</a></code></li>
-<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.property_features" href="#adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.property_features">property_features</a></code></li>
-<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.tags" href="#adcp.types.generated_poc.adagents.AuthorizedSalesAgents2.tags">tags</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents5.authorization_type" href="#adcp.types.generated_poc.adagents.AuthorizedAgents5.authorization_type">authorization_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents5.authorized_for" href="#adcp.types.generated_poc.adagents.AuthorizedAgents5.authorized_for">authorized_for</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents5.model_config" href="#adcp.types.generated_poc.adagents.AuthorizedAgents5.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents5.signal_tags" href="#adcp.types.generated_poc.adagents.AuthorizedAgents5.signal_tags">signal_tags</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents5.url" href="#adcp.types.generated_poc.adagents.AuthorizedAgents5.url">url</a></code></li>
 </ul>
 </li>
 <li>
@@ -1192,11 +1626,31 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.generated_poc.adagents.SignalId" href="#adcp.types.generated_poc.adagents.SignalId">SignalId</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.adagents.SignalId.model_config" href="#adcp.types.generated_poc.adagents.SignalId.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.SignalId.root" href="#adcp.types.generated_poc.adagents.SignalId.root">root</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.adagents.SignalTag" href="#adcp.types.generated_poc.adagents.SignalTag">SignalTag</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.adagents.SignalTag.model_config" href="#adcp.types.generated_poc.adagents.SignalTag.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.SignalTag.root" href="#adcp.types.generated_poc.adagents.SignalTag.root">root</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.adagents.SignalTags" href="#adcp.types.generated_poc.adagents.SignalTags">SignalTags</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.adagents.SignalTags.description" href="#adcp.types.generated_poc.adagents.SignalTags.description">description</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.SignalTags.model_config" href="#adcp.types.generated_poc.adagents.SignalTags.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.SignalTags.name" href="#adcp.types.generated_poc.adagents.SignalTags.name">name</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.adagents.Tags" href="#adcp.types.generated_poc.adagents.Tags">Tags</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.adagents.Tags.description" href="#adcp.types.generated_poc.adagents.Tags.description">description</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.Tags.model_config" href="#adcp.types.generated_poc.adagents.Tags.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.adagents.Tags.name" href="#adcp.types.generated_poc.adagents.Tags.name">name</a></code></li>
 </ul>
 </li>
 </ul>

@@ -57,16 +57,16 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class ChangeSummary(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;forbid&#39;,
     )
     properties_added: Annotated[
-        int | None, Field(description=&#34;Number of properties added since last resolution&#34;)
+        int | None, Field(description=&#39;Number of properties added since last resolution&#39;)
     ] = None
     properties_removed: Annotated[
-        int | None, Field(description=&#34;Number of properties removed since last resolution&#34;)
+        int | None, Field(description=&#39;Number of properties removed since last resolution&#39;)
     ] = None
     total_properties: Annotated[
-        int | None, Field(description=&#34;Total properties in the resolved list&#34;)
+        int | None, Field(description=&#39;Total properties in the resolved list&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -123,20 +123,20 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PropertyListChangedWebhook(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
+        extra=&#39;forbid&#39;,
     )
     cache_valid_until: Annotated[
         AwareDatetime | None,
-        Field(description=&#34;When the consumer should refresh from the governance agent&#34;),
+        Field(description=&#39;When the consumer should refresh from the governance agent&#39;),
     ] = None
     change_summary: Annotated[
-        ChangeSummary | None, Field(description=&#34;Summary of changes to the resolved list&#34;)
+        ChangeSummary | None, Field(description=&#39;Summary of changes to the resolved list&#39;)
     ] = None
-    event: Annotated[Literal[&#34;property_list_changed&#34;], Field(description=&#34;The event type&#34;)]
+    event: Annotated[Literal[&#39;property_list_changed&#39;], Field(description=&#39;The event type&#39;)]
     ext: ext_1.ExtensionObject | None = None
-    list_id: Annotated[str, Field(description=&#34;ID of the property list that changed&#34;)]
-    list_name: Annotated[str | None, Field(description=&#34;Name of the property list&#34;)] = None
-    resolved_at: Annotated[AwareDatetime, Field(description=&#34;When the list was re-resolved&#34;)]
+    list_id: Annotated[str, Field(description=&#39;ID of the property list that changed&#39;)]
+    list_name: Annotated[str | None, Field(description=&#39;Name of the property list&#39;)] = None
+    resolved_at: Annotated[AwareDatetime, Field(description=&#39;When the list was re-resolved&#39;)]
     signature: Annotated[
         str,
         Field(

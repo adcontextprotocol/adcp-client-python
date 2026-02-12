@@ -59,8 +59,8 @@ el.replaceWith(d);
     root: Annotated[
         DaastAsset1 | DaastAsset2,
         Field(
-            description=&#34;DAAST (Digital Audio Ad Serving Template) tag for third-party audio ad serving&#34;,
-            title=&#34;DAAST Asset&#34;,
+            description=&#39;DAAST (Digital Audio Ad Serving Template) tag for third-party audio ad serving&#39;,
+            title=&#39;DAAST Asset&#39;,
         ),
     ]</code></pre>
 </details>
@@ -114,26 +114,29 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class DaastAsset1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     companion_ads: Annotated[
-        bool | None, Field(description=&#34;Whether companion display ads are included&#34;)
+        bool | None, Field(description=&#39;Whether companion display ads are included&#39;)
     ] = None
     daast_version: Annotated[
-        daast_version_1.DaastVersion | None, Field(description=&#34;DAAST specification version&#34;)
+        daast_version_1.DaastVersion | None, Field(description=&#39;DAAST specification version&#39;)
     ] = None
     delivery_type: Annotated[
-        Literal[&#34;url&#34;],
-        Field(description=&#34;Discriminator indicating DAAST is delivered via URL endpoint&#34;),
+        Literal[&#39;url&#39;],
+        Field(description=&#39;Discriminator indicating DAAST is delivered via URL endpoint&#39;),
     ]
     duration_ms: Annotated[
-        int | None, Field(description=&#34;Expected audio duration in milliseconds (if known)&#34;, ge=0)
+        int | None, Field(description=&#39;Expected audio duration in milliseconds (if known)&#39;, ge=0)
     ] = None
     tracking_events: Annotated[
         list[daast_tracking_event.DaastTrackingEvent] | None,
-        Field(description=&#34;Tracking events supported by this DAAST tag&#34;),
+        Field(description=&#39;Tracking events supported by this DAAST tag&#39;),
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#34;URL endpoint that returns DAAST XML&#34;)]</code></pre>
+    transcript_url: Annotated[
+        AnyUrl | None, Field(description=&#39;URL to text transcript of the audio content&#39;)
+    ] = None
+    url: Annotated[AnyUrl, Field(description=&#39;URL endpoint that returns DAAST XML&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -174,6 +177,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset1.transcript_url"><code class="name">var <span class="ident">transcript_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset1.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
 <dd>
 <div class="desc"></div>
@@ -201,25 +208,28 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class DaastAsset2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     companion_ads: Annotated[
-        bool | None, Field(description=&#34;Whether companion display ads are included&#34;)
+        bool | None, Field(description=&#39;Whether companion display ads are included&#39;)
     ] = None
-    content: Annotated[str, Field(description=&#34;Inline DAAST XML content&#34;)]
+    content: Annotated[str, Field(description=&#39;Inline DAAST XML content&#39;)]
     daast_version: Annotated[
-        daast_version_1.DaastVersion | None, Field(description=&#34;DAAST specification version&#34;)
+        daast_version_1.DaastVersion | None, Field(description=&#39;DAAST specification version&#39;)
     ] = None
     delivery_type: Annotated[
-        Literal[&#34;inline&#34;],
-        Field(description=&#34;Discriminator indicating DAAST is delivered as inline XML content&#34;),
+        Literal[&#39;inline&#39;],
+        Field(description=&#39;Discriminator indicating DAAST is delivered as inline XML content&#39;),
     ]
     duration_ms: Annotated[
-        int | None, Field(description=&#34;Expected audio duration in milliseconds (if known)&#34;, ge=0)
+        int | None, Field(description=&#39;Expected audio duration in milliseconds (if known)&#39;, ge=0)
     ] = None
     tracking_events: Annotated[
         list[daast_tracking_event.DaastTrackingEvent] | None,
-        Field(description=&#34;Tracking events supported by this DAAST tag&#34;),
+        Field(description=&#39;Tracking events supported by this DAAST tag&#39;),
+    ] = None
+    transcript_url: Annotated[
+        AnyUrl | None, Field(description=&#39;URL to text transcript of the audio content&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -262,6 +272,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset2.tracking_events"><code class="name">var <span class="ident">tracking_events</span> : list[<a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent" href="../../enums/daast_tracking_event.html#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent">DaastTrackingEvent</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset2.transcript_url"><code class="name">var <span class="ident">transcript_url</span> : pydantic.networks.AnyUrl | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -308,6 +322,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset1.duration_ms" href="#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset1.duration_ms">duration_ms</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset1.model_config" href="#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset1.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset1.tracking_events" href="#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset1.tracking_events">tracking_events</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset1.transcript_url" href="#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset1.transcript_url">transcript_url</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset1.url" href="#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset1.url">url</a></code></li>
 </ul>
 </li>
@@ -321,6 +336,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset2.duration_ms" href="#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset2.duration_ms">duration_ms</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset2.model_config" href="#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset2.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset2.tracking_events" href="#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset2.tracking_events">tracking_events</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset2.transcript_url" href="#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset2.transcript_url">transcript_url</a></code></li>
 </ul>
 </li>
 </ul>

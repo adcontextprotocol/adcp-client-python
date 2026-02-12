@@ -57,11 +57,15 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class ListAccountsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
-    status: Annotated[Status | None, Field(description=&#34;Filter accounts by status&#34;)] = Status.active</code></pre>
+    pagination: pagination_request.PaginationRequest | None = None
+    status: Annotated[
+        Status | None,
+        Field(description=&#39;Filter accounts by status. Omit to return accounts in all statuses.&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -87,6 +91,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.account.list_accounts_request.ListAccountsRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.list_accounts_request.ListAccountsRequest.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="../core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -116,10 +124,11 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Status(Enum):
-    active = &#34;active&#34;
-    suspended = &#34;suspended&#34;
-    closed = &#34;closed&#34;
-    all = &#34;all&#34;</code></pre>
+    active = &#39;active&#39;
+    pending_approval = &#39;pending_approval&#39;
+    payment_required = &#39;payment_required&#39;
+    suspended = &#39;suspended&#39;
+    closed = &#39;closed&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -166,11 +175,15 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.account.list_accounts_request.Status.all"><code class="name">var <span class="ident">all</span></code></dt>
+<dt id="adcp.types.generated_poc.account.list_accounts_request.Status.closed"><code class="name">var <span class="ident">closed</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.account.list_accounts_request.Status.closed"><code class="name">var <span class="ident">closed</span></code></dt>
+<dt id="adcp.types.generated_poc.account.list_accounts_request.Status.payment_required"><code class="name">var <span class="ident">payment_required</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.list_accounts_request.Status.pending_approval"><code class="name">var <span class="ident">pending_approval</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -201,6 +214,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.account.list_accounts_request.ListAccountsRequest.context" href="#adcp.types.generated_poc.account.list_accounts_request.ListAccountsRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.list_accounts_request.ListAccountsRequest.ext" href="#adcp.types.generated_poc.account.list_accounts_request.ListAccountsRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.list_accounts_request.ListAccountsRequest.model_config" href="#adcp.types.generated_poc.account.list_accounts_request.ListAccountsRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.list_accounts_request.ListAccountsRequest.pagination" href="#adcp.types.generated_poc.account.list_accounts_request.ListAccountsRequest.pagination">pagination</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.list_accounts_request.ListAccountsRequest.status" href="#adcp.types.generated_poc.account.list_accounts_request.ListAccountsRequest.status">status</a></code></li>
 </ul>
 </li>
@@ -208,8 +222,9 @@ attributes &ndash; see the documentation for details.</p></div>
 <h4><code><a title="adcp.types.generated_poc.account.list_accounts_request.Status" href="#adcp.types.generated_poc.account.list_accounts_request.Status">Status</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.account.list_accounts_request.Status.active" href="#adcp.types.generated_poc.account.list_accounts_request.Status.active">active</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.list_accounts_request.Status.all" href="#adcp.types.generated_poc.account.list_accounts_request.Status.all">all</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.list_accounts_request.Status.closed" href="#adcp.types.generated_poc.account.list_accounts_request.Status.closed">closed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.list_accounts_request.Status.payment_required" href="#adcp.types.generated_poc.account.list_accounts_request.Status.payment_required">payment_required</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.list_accounts_request.Status.pending_approval" href="#adcp.types.generated_poc.account.list_accounts_request.Status.pending_approval">pending_approval</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.list_accounts_request.Status.suspended" href="#adcp.types.generated_poc.account.list_accounts_request.Status.suspended">suspended</a></code></li>
 </ul>
 </li>

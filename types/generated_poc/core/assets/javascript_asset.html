@@ -46,8 +46,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset"><code class="flex name class">
-<span>class <span class="ident">JavascriptAsset</span></span>
+<dt id="adcp.types.generated_poc.core.assets.javascript_asset.Accessibility"><code class="flex name class">
+<span>class <span class="ident">Accessibility</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -55,14 +55,21 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class JavascriptAsset(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#34;allow&#34;,
-    )
-    content: Annotated[str, Field(description=&#34;JavaScript content&#34;)]
-    module_type: Annotated[
-        javascript_module_type.JavascriptModuleType | None,
-        Field(description=&#34;JavaScript module type&#34;),
+<pre><code class="python">class Accessibility(AdCPBaseModel):
+    alt_text: Annotated[
+        str | None, Field(description=&#39;Text alternative describing the creative content&#39;)
+    ] = None
+    keyboard_navigable: Annotated[
+        bool | None, Field(description=&#39;Whether the creative can be fully operated via keyboard&#39;)
+    ] = None
+    motion_control: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether the creative respects prefers-reduced-motion or provides pause/stop controls&#39;
+        ),
+    ] = None
+    screen_reader_tested: Annotated[
+        bool | None, Field(description=&#39;Whether the creative has been tested with screen readers&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -80,6 +87,80 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.core.assets.javascript_asset.Accessibility.alt_text"><code class="name">var <span class="ident">alt_text</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.javascript_asset.Accessibility.keyboard_navigable"><code class="name">var <span class="ident">keyboard_navigable</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.javascript_asset.Accessibility.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.javascript_asset.Accessibility.motion_control"><code class="name">var <span class="ident">motion_control</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.javascript_asset.Accessibility.screen_reader_tested"><code class="name">var <span class="ident">screen_reader_tested</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset"><code class="flex name class">
+<span>class <span class="ident">JavascriptAsset</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class JavascriptAsset(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    accessibility: Annotated[
+        Accessibility | None,
+        Field(description=&#39;Self-declared accessibility properties for this opaque creative&#39;),
+    ] = None
+    content: Annotated[str, Field(description=&#39;JavaScript content&#39;)]
+    module_type: Annotated[
+        javascript_module_type.JavascriptModuleType | None,
+        Field(description=&#39;JavaScript module type&#39;),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset.accessibility"><code class="name">var <span class="ident">accessibility</span> : <a title="adcp.types.generated_poc.core.assets.javascript_asset.Accessibility" href="#adcp.types.generated_poc.core.assets.javascript_asset.Accessibility">Accessibility</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset.content"><code class="name">var <span class="ident">content</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
@@ -120,8 +201,19 @@ validated to form a valid model.</p>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
+<h4><code><a title="adcp.types.generated_poc.core.assets.javascript_asset.Accessibility" href="#adcp.types.generated_poc.core.assets.javascript_asset.Accessibility">Accessibility</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.assets.javascript_asset.Accessibility.alt_text" href="#adcp.types.generated_poc.core.assets.javascript_asset.Accessibility.alt_text">alt_text</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.javascript_asset.Accessibility.keyboard_navigable" href="#adcp.types.generated_poc.core.assets.javascript_asset.Accessibility.keyboard_navigable">keyboard_navigable</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.javascript_asset.Accessibility.model_config" href="#adcp.types.generated_poc.core.assets.javascript_asset.Accessibility.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.javascript_asset.Accessibility.motion_control" href="#adcp.types.generated_poc.core.assets.javascript_asset.Accessibility.motion_control">motion_control</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.javascript_asset.Accessibility.screen_reader_tested" href="#adcp.types.generated_poc.core.assets.javascript_asset.Accessibility.screen_reader_tested">screen_reader_tested</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset" href="#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset">JavascriptAsset</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset.accessibility" href="#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset.accessibility">accessibility</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset.content" href="#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset.content">content</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset.model_config" href="#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset.module_type" href="#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset.module_type">module_type</a></code></li>

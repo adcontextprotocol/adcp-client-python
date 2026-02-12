@@ -57,11 +57,11 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class CalibrationExemplars(AdCPBaseModel):
     fail: Annotated[
-        list[Fail | artifact.Artifact] | None, Field(description=&#34;Content that fails the standards&#34;)
+        list[Fail | artifact.Artifact] | None, Field(description=&#39;Content that fails the standards&#39;)
     ] = None
     pass_: Annotated[
         list[Pass | artifact.Artifact] | None,
-        Field(alias=&#34;pass&#34;, description=&#34;Content that passes the standards&#34;),
+        Field(alias=&#39;pass&#39;, description=&#39;Content that passes the standards&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -114,12 +114,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreateContentStandardsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     calibration_exemplars: Annotated[
         CalibrationExemplars | None,
         Field(
-            description=&#34;Training/test set to calibrate policy interpretation. Use URL references for pages to be fetched and analyzed, or full artifacts for pre-extracted content.&#34;
+            description=&#39;Training/test set to calibrate policy interpretation. Use URL references for pages to be fetched and analyzed, or full artifacts for pre-extracted content.&#39;
         ),
     ] = None
     context: context_1.ContextObject | None = None
@@ -127,10 +127,10 @@ validated to form a valid model.</p>
     policy: Annotated[
         str,
         Field(
-            description=&#34;Natural language policy describing acceptable and unacceptable content contexts. Used by LLMs and human reviewers to make judgments.&#34;
+            description=&#39;Natural language policy describing acceptable and unacceptable content contexts. Used by LLMs and human reviewers to make judgments.&#39;
         ),
     ]
-    scope: Annotated[Scope, Field(description=&#34;Where this standards configuration applies&#34;)]</code></pre>
+    scope: Annotated[Scope, Field(description=&#39;Where this standards configuration applies&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -194,9 +194,9 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Fail(AdCPBaseModel):
     language: Annotated[
-        str | None, Field(description=&#34;BCP 47 language tag for content at this URL&#34;)
+        str | None, Field(description=&#39;BCP 47 language tag for content at this URL&#39;)
     ] = None
-    type: Annotated[Literal[&#34;url&#34;], Field(description=&#34;Indicates this is a URL reference&#34;)]
+    type: Annotated[Literal[&#39;url&#39;], Field(description=&#39;Indicates this is a URL reference&#39;)]
     value: Annotated[
         AnyUrl,
         Field(
@@ -258,9 +258,9 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Pass(AdCPBaseModel):
     language: Annotated[
-        str | None, Field(description=&#34;BCP 47 language tag for content at this URL&#34;)
+        str | None, Field(description=&#39;BCP 47 language tag for content at this URL&#39;)
     ] = None
-    type: Annotated[Literal[&#34;url&#34;], Field(description=&#34;Indicates this is a URL reference&#34;)]
+    type: Annotated[Literal[&#39;url&#39;], Field(description=&#39;Indicates this is a URL reference&#39;)]
     value: Annotated[
         AnyUrl,
         Field(
@@ -324,17 +324,19 @@ validated to form a valid model.</p>
     channels_any: Annotated[
         list[channels.MediaChannel] | None,
         Field(
-            description=&#34;Advertising channels. Standards apply to ANY of the listed channels (OR logic).&#34;
+            description=&#39;Advertising channels. Standards apply to ANY of the listed channels (OR logic).&#39;,
+            min_length=1,
         ),
     ] = None
     countries_all: Annotated[
         list[str] | None,
         Field(
-            description=&#34;ISO 3166-1 alpha-2 country codes. Standards apply in ALL listed countries (AND logic).&#34;
+            description=&#39;ISO 3166-1 alpha-2 country codes. Standards apply in ALL listed countries (AND logic).&#39;,
+            min_length=1,
         ),
     ] = None
     description: Annotated[
-        str | None, Field(description=&#34;Human-readable description of this scope&#34;)
+        str | None, Field(description=&#39;Human-readable description of this scope&#39;)
     ] = None
     languages_any: Annotated[
         list[str],

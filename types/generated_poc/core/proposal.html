@@ -57,38 +57,44 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Proposal(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
     allocations: Annotated[
         list[product_allocation.ProductAllocation],
         Field(
-            description=&#34;Budget allocations across products. Allocation percentages MUST sum to 100. Publishers are responsible for ensuring the sum equals 100; buyers SHOULD validate this before execution.&#34;,
+            description=&#39;Budget allocations across products. Allocation percentages MUST sum to 100. Publishers are responsible for ensuring the sum equals 100; buyers SHOULD validate this before execution.&#39;,
             min_length=1,
         ),
     ]
     brief_alignment: Annotated[
         str | None,
-        Field(description=&#34;Explanation of how this proposal aligns with the campaign brief&#34;),
+        Field(description=&#39;Explanation of how this proposal aligns with the campaign brief&#39;),
     ] = None
     description: Annotated[
-        str | None, Field(description=&#34;Explanation of the proposal strategy and what it achieves&#34;)
+        str | None, Field(description=&#39;Explanation of the proposal strategy and what it achieves&#39;)
     ] = None
     expires_at: Annotated[
         AwareDatetime | None,
         Field(
-            description=&#34;When this proposal expires and can no longer be executed. After expiration, referenced products or pricing may no longer be available.&#34;
+            description=&#39;When this proposal expires and can no longer be executed. After expiration, referenced products or pricing may no longer be available.&#39;
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
-    name: Annotated[str, Field(description=&#34;Human-readable name for this media plan proposal&#34;)]
+    forecast: Annotated[
+        delivery_forecast.DeliveryForecast | None,
+        Field(
+            description=&#39;Aggregate forecasted delivery metrics for the entire proposal. When both proposal-level and allocation-level forecasts are present, the proposal-level forecast is authoritative for total delivery estimation.&#39;
+        ),
+    ] = None
+    name: Annotated[str, Field(description=&#39;Human-readable name for this media plan proposal&#39;)]
     proposal_id: Annotated[
         str,
         Field(
-            description=&#34;Unique identifier for this proposal. Used to refine the proposal in subsequent get_products calls or to execute it via create_media_buy.&#34;
+            description=&#39;Unique identifier for this proposal. Used to refine the proposal in subsequent get_products calls or to execute it via create_media_buy.&#39;
         ),
     ]
     total_budget_guidance: Annotated[
-        TotalBudgetGuidance | None, Field(description=&#34;Optional budget guidance for this proposal&#34;)
+        TotalBudgetGuidance | None, Field(description=&#39;Optional budget guidance for this proposal&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -123,6 +129,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.proposal.Proposal.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.proposal.Proposal.forecast"><code class="name">var <span class="ident">forecast</span> : <a title="adcp.types.generated_poc.core.delivery_forecast.DeliveryForecast" href="delivery_forecast.html#adcp.types.generated_poc.core.delivery_forecast.DeliveryForecast">DeliveryForecast</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -165,15 +175,15 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class TotalBudgetGuidance(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#34;allow&#34;,
+        extra=&#39;allow&#39;,
     )
-    currency: Annotated[str | None, Field(description=&#34;ISO 4217 currency code&#34;)] = None
+    currency: Annotated[str | None, Field(description=&#39;ISO 4217 currency code&#39;)] = None
     max: Annotated[
-        float | None, Field(description=&#34;Maximum budget before diminishing returns&#34;, ge=0.0)
+        float | None, Field(description=&#39;Maximum budget before diminishing returns&#39;, ge=0.0)
     ] = None
-    min: Annotated[float | None, Field(description=&#34;Minimum recommended budget&#34;, ge=0.0)] = None
+    min: Annotated[float | None, Field(description=&#39;Minimum recommended budget&#39;, ge=0.0)] = None
     recommended: Annotated[
-        float | None, Field(description=&#34;Recommended budget for optimal performance&#34;, ge=0.0)
+        float | None, Field(description=&#39;Recommended budget for optimal performance&#39;, ge=0.0)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -246,6 +256,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.proposal.Proposal.description" href="#adcp.types.generated_poc.core.proposal.Proposal.description">description</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.proposal.Proposal.expires_at" href="#adcp.types.generated_poc.core.proposal.Proposal.expires_at">expires_at</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.proposal.Proposal.ext" href="#adcp.types.generated_poc.core.proposal.Proposal.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.proposal.Proposal.forecast" href="#adcp.types.generated_poc.core.proposal.Proposal.forecast">forecast</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.proposal.Proposal.model_config" href="#adcp.types.generated_poc.core.proposal.Proposal.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.proposal.Proposal.name" href="#adcp.types.generated_poc.core.proposal.Proposal.name">name</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.proposal.Proposal.proposal_id" href="#adcp.types.generated_poc.core.proposal.Proposal.proposal_id">proposal_id</a></code></li>

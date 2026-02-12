@@ -56,16 +56,20 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class TaskType(Enum):
-    create_media_buy = &#34;create_media_buy&#34;
-    update_media_buy = &#34;update_media_buy&#34;
-    sync_creatives = &#34;sync_creatives&#34;
-    activate_signal = &#34;activate_signal&#34;
-    get_signals = &#34;get_signals&#34;
-    create_property_list = &#34;create_property_list&#34;
-    update_property_list = &#34;update_property_list&#34;
-    get_property_list = &#34;get_property_list&#34;
-    list_property_lists = &#34;list_property_lists&#34;
-    delete_property_list = &#34;delete_property_list&#34;</code></pre>
+    create_media_buy = &#39;create_media_buy&#39;
+    update_media_buy = &#39;update_media_buy&#39;
+    sync_creatives = &#39;sync_creatives&#39;
+    activate_signal = &#39;activate_signal&#39;
+    get_signals = &#39;get_signals&#39;
+    create_property_list = &#39;create_property_list&#39;
+    update_property_list = &#39;update_property_list&#39;
+    get_property_list = &#39;get_property_list&#39;
+    list_property_lists = &#39;list_property_lists&#39;
+    delete_property_list = &#39;delete_property_list&#39;
+    sync_accounts = &#39;sync_accounts&#39;
+    get_creative_delivery = &#39;get_creative_delivery&#39;
+    sync_event_sources = &#39;sync_event_sources&#39;
+    log_event = &#39;log_event&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -124,6 +128,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.enums.task_type.TaskType.get_creative_delivery"><code class="name">var <span class="ident">get_creative_delivery</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.enums.task_type.TaskType.get_property_list"><code class="name">var <span class="ident">get_property_list</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -136,7 +144,19 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.enums.task_type.TaskType.log_event"><code class="name">var <span class="ident">log_event</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.task_type.TaskType.sync_accounts"><code class="name">var <span class="ident">sync_accounts</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.enums.task_type.TaskType.sync_creatives"><code class="name">var <span class="ident">sync_creatives</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.task_type.TaskType.sync_event_sources"><code class="name">var <span class="ident">sync_event_sources</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -172,10 +192,14 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.enums.task_type.TaskType.create_media_buy" href="#adcp.types.generated_poc.enums.task_type.TaskType.create_media_buy">create_media_buy</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.task_type.TaskType.create_property_list" href="#adcp.types.generated_poc.enums.task_type.TaskType.create_property_list">create_property_list</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.task_type.TaskType.delete_property_list" href="#adcp.types.generated_poc.enums.task_type.TaskType.delete_property_list">delete_property_list</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.task_type.TaskType.get_creative_delivery" href="#adcp.types.generated_poc.enums.task_type.TaskType.get_creative_delivery">get_creative_delivery</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.task_type.TaskType.get_property_list" href="#adcp.types.generated_poc.enums.task_type.TaskType.get_property_list">get_property_list</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.task_type.TaskType.get_signals" href="#adcp.types.generated_poc.enums.task_type.TaskType.get_signals">get_signals</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.task_type.TaskType.list_property_lists" href="#adcp.types.generated_poc.enums.task_type.TaskType.list_property_lists">list_property_lists</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.task_type.TaskType.log_event" href="#adcp.types.generated_poc.enums.task_type.TaskType.log_event">log_event</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.task_type.TaskType.sync_accounts" href="#adcp.types.generated_poc.enums.task_type.TaskType.sync_accounts">sync_accounts</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.task_type.TaskType.sync_creatives" href="#adcp.types.generated_poc.enums.task_type.TaskType.sync_creatives">sync_creatives</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.task_type.TaskType.sync_event_sources" href="#adcp.types.generated_poc.enums.task_type.TaskType.sync_event_sources">sync_event_sources</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.task_type.TaskType.update_media_buy" href="#adcp.types.generated_poc.enums.task_type.TaskType.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.task_type.TaskType.update_property_list" href="#adcp.types.generated_poc.enums.task_type.TaskType.update_property_list">update_property_list</a></code></li>
 </ul>
