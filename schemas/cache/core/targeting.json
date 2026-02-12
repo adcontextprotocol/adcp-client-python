@@ -1,9 +1,37 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/core/targeting.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
-  "description": "Optional geographic refinements for media buys. Most targeting should be expressed in the brief and handled by the publisher. These fields are primarily for geographic restrictions (RCT testing, regulatory compliance).",
+  "description": "Optional restriction overlays for media buys. Most targeting should be expressed in the brief and handled by the publisher. These fields are for functional restrictions: geographic (RCT testing, regulatory compliance), age verification (alcohol, gambling), device platform (app compatibility), and language (localization).",
   "properties": {
+    "age_restriction": {
+      "additionalProperties": false,
+      "description": "Age restriction for compliance. Use for legal requirements (alcohol, gambling), not audience targeting.",
+      "properties": {
+        "accepted_methods": {
+          "description": "Accepted verification methods. If omitted, any method the platform supports is acceptable.",
+          "items": {
+            "$ref": "../enums/age-verification-method.json"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "min": {
+          "description": "Minimum age required",
+          "maximum": 99,
+          "minimum": 13,
+          "type": "integer"
+        },
+        "verification_required": {
+          "default": false,
+          "description": "Whether verified age (not inferred) is required for compliance",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "min"
+      ],
+      "type": "object"
+    },
     "axe_exclude_segment": {
       "description": "AXE segment ID to exclude from targeting",
       "type": "string"
@@ -12,8 +40,16 @@
       "description": "AXE segment ID to include for targeting",
       "type": "string"
     },
+    "device_platform": {
+      "description": "Restrict to specific platforms. Use for technical compatibility (app only works on iOS). Values from Sec-CH-UA-Platform standard, extended for CTV.",
+      "items": {
+        "$ref": "../enums/device-platform.json"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
     "frequency_cap": {
-      "$ref": "/schemas/3.0.0-beta.2/core/frequency-cap.json"
+      "$ref": "frequency-cap.json"
     },
     "geo_countries": {
       "description": "Restrict delivery to specific countries. ISO 3166-1 alpha-2 codes (e.g., 'US', 'GB', 'DE').",
@@ -21,6 +57,16 @@
         "pattern": "^[A-Z]{2}$",
         "type": "string"
       },
+      "minItems": 1,
+      "type": "array"
+    },
+    "geo_countries_exclude": {
+      "description": "Exclude specific countries from delivery. ISO 3166-1 alpha-2 codes (e.g., 'US', 'GB', 'DE').",
+      "items": {
+        "pattern": "^[A-Z]{2}$",
+        "type": "string"
+      },
+      "minItems": 1,
       "type": "array"
     },
     "geo_metros": {
@@ -29,7 +75,7 @@
         "additionalProperties": false,
         "properties": {
           "system": {
-            "$ref": "/schemas/3.0.0-beta.2/enums/metro-system.json",
+            "$ref": "../enums/metro-system.json",
             "description": "Metro area classification system (e.g., 'nielsen_dma', 'uk_itl2')"
           },
           "values": {
@@ -47,6 +93,34 @@
         ],
         "type": "object"
       },
+      "minItems": 1,
+      "type": "array"
+    },
+    "geo_metros_exclude": {
+      "description": "Exclude specific metro areas from delivery. Each entry specifies the classification system and excluded values. Seller must declare supported systems in get_adcp_capabilities.",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "system": {
+            "$ref": "../enums/metro-system.json",
+            "description": "Metro area classification system (e.g., 'nielsen_dma', 'uk_itl2')"
+          },
+          "values": {
+            "description": "Metro codes to exclude within the system (e.g., ['501', '602'] for Nielsen DMAs)",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "system",
+          "values"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
       "type": "array"
     },
     "geo_postal_areas": {
@@ -55,7 +129,7 @@
         "additionalProperties": false,
         "properties": {
           "system": {
-            "$ref": "/schemas/3.0.0-beta.2/enums/postal-system.json",
+            "$ref": "../enums/postal-system.json",
             "description": "Postal code system (e.g., 'us_zip', 'gb_outward'). System name encodes country and precision."
           },
           "values": {
@@ -73,6 +147,34 @@
         ],
         "type": "object"
       },
+      "minItems": 1,
+      "type": "array"
+    },
+    "geo_postal_areas_exclude": {
+      "description": "Exclude specific postal areas from delivery. Each entry specifies the postal system and excluded values. Seller must declare supported systems in get_adcp_capabilities.",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "system": {
+            "$ref": "../enums/postal-system.json",
+            "description": "Postal code system (e.g., 'us_zip', 'gb_outward'). System name encodes country and precision."
+          },
+          "values": {
+            "description": "Postal codes to exclude within the system (e.g., ['10001', '10002'] for us_zip)",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "system",
+          "values"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
       "type": "array"
     },
     "geo_regions": {
@@ -81,10 +183,29 @@
         "pattern": "^[A-Z]{2}-[A-Z0-9]{1,3}$",
         "type": "string"
       },
+      "minItems": 1,
+      "type": "array"
+    },
+    "geo_regions_exclude": {
+      "description": "Exclude specific regions/states from delivery. ISO 3166-2 subdivision codes (e.g., 'US-CA', 'GB-SCT').",
+      "items": {
+        "pattern": "^[A-Z]{2}-[A-Z0-9]{1,3}$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "language": {
+      "description": "Restrict to users with specific language preferences. ISO 639-1 codes (e.g., 'en', 'es', 'fr').",
+      "items": {
+        "pattern": "^[a-z]{2}$",
+        "type": "string"
+      },
+      "minItems": 1,
       "type": "array"
     },
     "property_list": {
-      "$ref": "/schemas/3.0.0-beta.2/core/property-list-ref.json",
+      "$ref": "property-list-ref.json",
       "description": "Reference to a property list for targeting specific properties within this product. The package runs on the intersection of the product's publisher_properties and this list. Sellers SHOULD return a validation error if the product has property_targeting_allowed: false."
     }
   },

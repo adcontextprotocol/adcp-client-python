@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Requirements for image creative assets. These define the technical constraints for image files.",
+  "properties": {
+    "animation_allowed": {
+      "description": "Whether animated images (GIF, animated WebP) are accepted",
+      "type": "boolean"
+    },
+    "aspect_ratio": {
+      "description": "Required aspect ratio (e.g., '16:9', '1:1')",
+      "pattern": "^\\d+:\\d+$",
+      "type": "string"
+    },
+    "formats": {
+      "description": "Accepted image file formats",
+      "items": {
+        "enum": [
+          "jpg",
+          "jpeg",
+          "png",
+          "gif",
+          "webp",
+          "svg",
+          "avif"
+        ],
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "max_animation_duration_ms": {
+      "description": "Maximum animation duration in milliseconds (if animation_allowed is true)",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "max_file_size_kb": {
+      "description": "Maximum file size in kilobytes",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "max_height": {
+      "description": "Maximum height in pixels. For exact dimensions, set min_height = max_height.",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "max_width": {
+      "description": "Maximum width in pixels. For exact dimensions, set min_width = max_width.",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "min_height": {
+      "description": "Minimum height in pixels. For exact dimensions, set min_height = max_height.",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "min_width": {
+      "description": "Minimum width in pixels. For exact dimensions, set min_width = max_width.",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "transparency_required": {
+      "description": "Whether the image must support transparency (requires PNG, WebP, or GIF)",
+      "type": "boolean"
+    }
+  },
+  "title": "Image Asset Requirements",
+  "type": "object"
+}

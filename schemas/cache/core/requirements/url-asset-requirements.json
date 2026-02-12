@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Requirements for URL assets such as click-through URLs, tracking pixels, and landing pages.",
+  "properties": {
+    "allowed_domains": {
+      "description": "List of allowed domains for the URL",
+      "items": {
+        "format": "hostname",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "macro_support": {
+      "description": "Whether the URL supports macro substitution (e.g., ${CACHEBUSTER})",
+      "type": "boolean"
+    },
+    "max_length": {
+      "description": "Maximum URL length in characters",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "protocols": {
+      "description": "Allowed URL protocols. HTTPS is recommended for all ad URLs.",
+      "items": {
+        "enum": [
+          "https",
+          "http"
+        ],
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "role": {
+      "description": "Standard role for this URL asset. Use this to constrain which purposes are valid for this URL slot. Complements asset_role (which is a human-readable label) by providing a machine-readable enum.",
+      "enum": [
+        "clickthrough",
+        "landing_page",
+        "impression_tracker",
+        "click_tracker",
+        "viewability_tracker",
+        "third_party_tracker"
+      ],
+      "type": "string"
+    }
+  },
+  "title": "URL Asset Requirements",
+  "type": "object"
+}

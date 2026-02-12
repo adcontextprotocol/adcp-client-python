@@ -16,7 +16,6 @@ from adcp.types._generated import (
     GetMediaBuyDeliveryResponse,
     GetProductsResponse,
     GetSignalsResponse,
-    ListAccountsResponse,
     ListCreativeFormatsResponse,
     ListCreativesResponse,
     PreviewCreativeResponse1,
@@ -92,22 +91,6 @@ class TestGetSignalsResponseMessage:
             signals=[{"signal_id": "s1"}, {"signal_id": "s2"}]
         )
         assert response.model_summary() == "Found 2 signals available for targeting."
-
-
-class TestListAccountsResponseMessage:
-    """Tests for ListAccountsResponse.model_summary()."""
-
-    def test_singular_account(self):
-        """Single account uses singular form."""
-        response = ListAccountsResponse.model_construct(accounts=[{"account_id": "acc_1"}])
-        assert response.model_summary() == "Found 1 accessible account."
-
-    def test_multiple_accounts(self):
-        """Multiple accounts uses plural form."""
-        response = ListAccountsResponse.model_construct(
-            accounts=[{"account_id": "acc_1"}, {"account_id": "acc_2"}, {"account_id": "acc_3"}]
-        )
-        assert response.model_summary() == "Found 3 accessible accounts."
 
 
 class TestListCreativesResponseMessage:

@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Event-specific data for attribution and reporting",
+  "properties": {
+    "content_category": {
+      "description": "Category of the product or content",
+      "type": "string"
+    },
+    "content_ids": {
+      "description": "Product or content identifiers",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "content_name": {
+      "description": "Name of the product or content",
+      "type": "string"
+    },
+    "content_type": {
+      "description": "Category of content (product, service, etc.)",
+      "type": "string"
+    },
+    "contents": {
+      "description": "Per-item details for e-commerce events",
+      "items": {
+        "additionalProperties": true,
+        "properties": {
+          "brand": {
+            "description": "Brand name of this item",
+            "type": "string"
+          },
+          "id": {
+            "description": "Product or content identifier",
+            "type": "string"
+          },
+          "price": {
+            "description": "Price per unit of this item",
+            "minimum": 0,
+            "type": "number"
+          },
+          "quantity": {
+            "description": "Quantity of this item",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "currency": {
+      "description": "ISO 4217 currency code",
+      "pattern": "^[A-Z]{3}$",
+      "type": "string"
+    },
+    "ext": {
+      "$ref": "ext.json"
+    },
+    "num_items": {
+      "description": "Number of items in the event",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "order_id": {
+      "description": "Unique order or transaction identifier",
+      "type": "string"
+    },
+    "search_string": {
+      "description": "Search query for search events",
+      "type": "string"
+    },
+    "value": {
+      "description": "Monetary value of the event (should be accompanied by currency)",
+      "minimum": 0,
+      "type": "number"
+    }
+  },
+  "title": "Event Custom Data",
+  "type": "object"
+}

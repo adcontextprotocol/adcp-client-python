@@ -120,11 +120,6 @@ class ProtocolAdapter(ABC):
         pass
 
     @abstractmethod
-    async def list_accounts(self, params: dict[str, Any]) -> TaskResult[Any]:
-        """List billing accounts accessible to the authenticated agent."""
-        pass
-
-    @abstractmethod
     async def get_signals(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Get signals."""
         pass
@@ -140,6 +135,16 @@ class ProtocolAdapter(ABC):
         pass
 
     @abstractmethod
+    async def log_event(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Log event."""
+        pass
+
+    @abstractmethod
+    async def sync_event_sources(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Sync event sources."""
+        pass
+
+    @abstractmethod
     async def create_media_buy(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Create media buy."""
         pass
@@ -152,6 +157,26 @@ class ProtocolAdapter(ABC):
     @abstractmethod
     async def build_creative(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Build creative."""
+        pass
+
+    @abstractmethod
+    async def preview_creative(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Preview creative."""
+        pass
+
+    @abstractmethod
+    async def get_creative_delivery(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Get creative delivery."""
+        pass
+
+    @abstractmethod
+    async def list_accounts(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """List accounts."""
+        pass
+
+    @abstractmethod
+    async def sync_accounts(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Sync accounts."""
         pass
 
     @abstractmethod

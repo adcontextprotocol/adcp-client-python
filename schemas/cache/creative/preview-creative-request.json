@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/creative/preview-creative-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Request to generate previews of one or more creative manifests. Accepts either a single creative request or an array of requests for batch processing.",
   "oneOf": [
@@ -8,18 +7,18 @@
       "description": "Single creative preview request",
       "properties": {
         "context": {
-          "$ref": "/schemas/3.0.0-beta.2/core/context.json"
+          "$ref": "../core/context.json"
         },
         "creative_manifest": {
-          "$ref": "/schemas/3.0.0-beta.2/core/creative-manifest.json",
+          "$ref": "../core/creative-manifest.json",
           "description": "Complete creative manifest with all required assets (including promoted_offerings if required by the format)"
         },
         "ext": {
-          "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+          "$ref": "../core/ext.json"
         },
         "format_id": {
-          "$ref": "/schemas/3.0.0-beta.2/core/format-id.json",
-          "description": "Format identifier for rendering the preview"
+          "$ref": "../core/format-id.json",
+          "description": "Format identifier for rendering the preview. Optional \u2014 defaults to creative_manifest.format_id if omitted."
         },
         "inputs": {
           "description": "Array of input sets for generating multiple preview variants. Each input set defines macros and context values for one preview rendering. If not provided, creative agent will generate default previews.",
@@ -47,10 +46,11 @@
             ],
             "type": "object"
           },
+          "minItems": 1,
           "type": "array"
         },
         "output_format": {
-          "$ref": "/schemas/3.0.0-beta.2/enums/preview-output-format.json",
+          "$ref": "../enums/preview-output-format.json",
           "default": "url",
           "description": "Output format for previews. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding). Default: 'url' for backward compatibility."
         },
@@ -66,7 +66,6 @@
       },
       "required": [
         "request_type",
-        "format_id",
         "creative_manifest"
       ],
       "type": "object"
@@ -76,13 +75,13 @@
       "description": "Batch preview request for multiple creatives (5-10x faster than individual calls)",
       "properties": {
         "context": {
-          "$ref": "/schemas/3.0.0-beta.2/core/context.json"
+          "$ref": "../core/context.json"
         },
         "ext": {
-          "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+          "$ref": "../core/ext.json"
         },
         "output_format": {
-          "$ref": "/schemas/3.0.0-beta.2/enums/preview-output-format.json",
+          "$ref": "../enums/preview-output-format.json",
           "default": "url",
           "description": "Default output format for all requests in this batch. Individual requests can override this. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding)."
         },
@@ -97,12 +96,12 @@
             "additionalProperties": true,
             "properties": {
               "creative_manifest": {
-                "$ref": "/schemas/3.0.0-beta.2/core/creative-manifest.json",
+                "$ref": "../core/creative-manifest.json",
                 "description": "Complete creative manifest with all required assets"
               },
               "format_id": {
-                "$ref": "/schemas/3.0.0-beta.2/core/format-id.json",
-                "description": "Format identifier for rendering the preview"
+                "$ref": "../core/format-id.json",
+                "description": "Format identifier for rendering the preview. Optional \u2014 defaults to creative_manifest.format_id if omitted."
               },
               "inputs": {
                 "description": "Array of input sets for generating multiple preview variants",
@@ -130,10 +129,11 @@
                   ],
                   "type": "object"
                 },
+                "minItems": 1,
                 "type": "array"
               },
               "output_format": {
-                "$ref": "/schemas/3.0.0-beta.2/enums/preview-output-format.json",
+                "$ref": "../enums/preview-output-format.json",
                 "default": "url",
                 "description": "Output format for this preview. 'url' returns preview_url, 'html' returns preview_html."
               },
@@ -143,7 +143,6 @@
               }
             },
             "required": [
-              "format_id",
               "creative_manifest"
             ],
             "type": "object"
@@ -156,6 +155,41 @@
       "required": [
         "request_type",
         "requests"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": true,
+      "description": "Variant preview request - retrieve a post-flight preview of a specific creative variant that was served during delivery",
+      "properties": {
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "creative_id": {
+          "description": "Creative identifier for context",
+          "type": "string"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
+        "output_format": {
+          "$ref": "../enums/preview-output-format.json",
+          "default": "url",
+          "description": "Output format for the preview. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding)."
+        },
+        "request_type": {
+          "const": "variant",
+          "description": "Discriminator indicating this is a variant preview request",
+          "type": "string"
+        },
+        "variant_id": {
+          "description": "Platform-assigned variant identifier from get_creative_delivery response",
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_type",
+        "variant_id"
       ],
       "type": "object"
     }

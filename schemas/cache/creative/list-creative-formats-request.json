@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/creative/list-creative-formats-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Request parameters for discovering creative formats provided by this creative agent",
@@ -18,19 +17,21 @@
         ],
         "type": "string"
       },
+      "minItems": 1,
       "type": "array"
     },
     "context": {
-      "$ref": "/schemas/3.0.0-beta.2/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "format_ids": {
       "description": "Return only these specific format IDs",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.2/core/format-id.json"
+        "$ref": "../core/format-id.json"
       },
+      "minItems": 1,
       "type": "array"
     },
     "is_responsive": {
@@ -57,6 +58,9 @@
       "description": "Search for formats by name (case-insensitive partial match)",
       "type": "string"
     },
+    "pagination": {
+      "$ref": "../core/pagination-request.json"
+    },
     "type": {
       "description": "Filter by format type (technical categories with distinct requirements)",
       "enum": [
@@ -66,6 +70,10 @@
         "dooh"
       ],
       "type": "string"
+    },
+    "wcag_level": {
+      "$ref": "../enums/wcag-level.json",
+      "description": "Filter to formats that meet at least this WCAG conformance level (A < AA < AAA)"
     }
   },
   "title": "List Creative Formats Request (Creative Agent)",

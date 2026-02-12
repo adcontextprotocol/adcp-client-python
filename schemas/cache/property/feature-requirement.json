@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/property/feature-requirement.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "A feature-based requirement for property filtering. Use min_value/max_value for quantitative features, allowed_values for binary/categorical features.",
@@ -7,6 +6,7 @@
     "allowed_values": {
       "description": "Values that pass the requirement (for binary/categorical features)",
       "items": {},
+      "minItems": 1,
       "type": "array"
     },
     "feature_id": {

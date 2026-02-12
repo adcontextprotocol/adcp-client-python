@@ -1,18 +1,17 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/media-buy/create-media-buy-async-response-working.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Progress payload for active create_media_buy task.",
   "properties": {
     "context": {
-      "$ref": "/schemas/3.0.0-beta.2/core/context.json"
+      "$ref": "../core/context.json"
     },
     "current_step": {
       "description": "Current step or phase of the operation",
       "type": "string"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "percentage": {
       "description": "Completion percentage (0-100)",

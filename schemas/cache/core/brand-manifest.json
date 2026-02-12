@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/core/brand-manifest.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Standardized brand information manifest for creative generation and media buying. Enables low-friction creative workflows by providing brand context that can be easily cached and shared across requests.",
@@ -18,7 +17,9 @@
           "secondary": "#FFC220"
         },
         "name": "Great Value",
-        "tone": "affordable and trustworthy"
+        "tone": {
+          "voice": "affordable and trustworthy"
+        }
       },
       "description": "Example: white-label brand without dedicated URL"
     },
@@ -77,22 +78,31 @@
         "industry": "technology",
         "logos": [
           {
-            "height": 512,
-            "tags": [
-              "dark",
-              "square"
-            ],
-            "url": "https://cdn.acmecorp.com/logo-square-dark.png",
-            "width": 512
+            "background": "light-bg",
+            "height": 400,
+            "orientation": "horizontal",
+            "url": "https://cdn.acmecorp.com/logo-on-light.png",
+            "usage": "Primary logo for use on light backgrounds",
+            "variant": "primary",
+            "width": 1200
           },
           {
+            "background": "dark-bg",
             "height": 400,
-            "tags": [
-              "light",
-              "horizontal"
-            ],
-            "url": "https://cdn.acmecorp.com/logo-horizontal-light.png",
+            "orientation": "horizontal",
+            "url": "https://cdn.acmecorp.com/logo-on-dark.png",
+            "usage": "Primary logo for use on dark backgrounds",
+            "variant": "primary",
             "width": 1200
+          },
+          {
+            "background": "transparent-bg",
+            "height": 512,
+            "orientation": "square",
+            "url": "https://cdn.acmecorp.com/icon.png",
+            "usage": "Icon-only variant for small formats",
+            "variant": "icon",
+            "width": 512
           }
         ],
         "name": "ACME Corporation",
@@ -109,7 +119,27 @@
         },
         "tagline": "Innovation You Can Trust",
         "target_audience": "business decision-makers aged 35-55",
-        "tone": "professional and trustworthy",
+        "tone": {
+          "attributes": [
+            "confident",
+            "innovative",
+            "approachable",
+            "expert"
+          ],
+          "donts": [
+            "Avoid hyperbole or exaggeration",
+            "Don't use overly casual language",
+            "Avoid technical jargon without explanation",
+            "Don't make unsubstantiated claims"
+          ],
+          "dos": [
+            "Use clear, direct language",
+            "Highlight innovation and reliability",
+            "Back claims with specifics",
+            "Address decision-makers directly"
+          ],
+          "voice": "professional and trustworthy"
+        },
         "url": "https://acmecorp.com"
       },
       "description": "Full brand manifest with all fields"
@@ -147,7 +177,7 @@
             "type": "string"
           },
           "asset_type": {
-            "$ref": "/schemas/3.0.0-beta.2/enums/asset-content-type.json",
+            "$ref": "../enums/asset-content-type.json",
             "description": "Type of asset. Note: Brand manifests typically contain basic media assets (image, video, audio, text). Code assets (html, javascript, css) and ad markup (vast, daast) are usually not part of brand asset libraries."
           },
           "description": {
@@ -225,32 +255,92 @@
       "type": "object"
     },
     "colors": {
-      "description": "Brand color palette",
+      "description": "Brand color palette. Each role accepts a single hex color or an array of hex colors for brands with multiple values per role.",
       "properties": {
         "accent": {
-          "description": "Accent color (hex format)",
-          "pattern": "^#[0-9A-Fa-f]{6}$",
-          "type": "string"
+          "description": "Accent color(s)",
+          "oneOf": [
+            {
+              "pattern": "^#[0-9A-Fa-f]{6}$",
+              "type": "string"
+            },
+            {
+              "items": {
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          ]
         },
         "background": {
-          "description": "Background color (hex format)",
-          "pattern": "^#[0-9A-Fa-f]{6}$",
-          "type": "string"
+          "description": "Background color(s)",
+          "oneOf": [
+            {
+              "pattern": "^#[0-9A-Fa-f]{6}$",
+              "type": "string"
+            },
+            {
+              "items": {
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          ]
         },
         "primary": {
-          "description": "Primary brand color (hex format)",
-          "pattern": "^#[0-9A-Fa-f]{6}$",
-          "type": "string"
+          "description": "Primary brand color(s)",
+          "oneOf": [
+            {
+              "pattern": "^#[0-9A-Fa-f]{6}$",
+              "type": "string"
+            },
+            {
+              "items": {
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          ]
         },
         "secondary": {
-          "description": "Secondary brand color (hex format)",
-          "pattern": "^#[0-9A-Fa-f]{6}$",
-          "type": "string"
+          "description": "Secondary brand color(s)",
+          "oneOf": [
+            {
+              "pattern": "^#[0-9A-Fa-f]{6}$",
+              "type": "string"
+            },
+            {
+              "items": {
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          ]
         },
         "text": {
-          "description": "Text color (hex format)",
-          "pattern": "^#[0-9A-Fa-f]{6}$",
-          "type": "string"
+          "description": "Text color(s)",
+          "oneOf": [
+            {
+              "pattern": "^#[0-9A-Fa-f]{6}$",
+              "type": "string"
+            },
+            {
+              "items": {
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          ]
         }
       },
       "type": "object"
@@ -322,15 +412,34 @@
       "type": "string"
     },
     "logos": {
-      "description": "Brand logo assets with semantic tags for different use cases",
+      "description": "Brand logo assets with structured fields for orientation, background compatibility, and variant type. Use the orientation, background, and variant enum fields for reliable filtering by creative agents.",
       "items": {
         "properties": {
+          "background": {
+            "description": "Background compatibility. dark-bg: use on dark backgrounds, light-bg: use on light backgrounds, transparent-bg: has transparent background",
+            "enum": [
+              "dark-bg",
+              "light-bg",
+              "transparent-bg"
+            ],
+            "type": "string"
+          },
           "height": {
             "description": "Logo height in pixels",
             "type": "integer"
           },
+          "orientation": {
+            "description": "Logo aspect ratio orientation. square: ~1:1, horizontal: wide, vertical: tall, stacked: vertically arranged elements",
+            "enum": [
+              "square",
+              "horizontal",
+              "vertical",
+              "stacked"
+            ],
+            "type": "string"
+          },
           "tags": {
-            "description": "Semantic tags describing the logo variant (e.g., 'dark', 'light', 'square', 'horizontal', 'icon')",
+            "description": "Additional semantic tags for custom categorization beyond the standard orientation, background, and variant fields.",
             "items": {
               "type": "string"
             },
@@ -339,6 +448,21 @@
           "url": {
             "description": "URL to the logo asset",
             "format": "uri",
+            "type": "string"
+          },
+          "usage": {
+            "description": "Human-readable description of when to use this logo variant (e.g., 'Primary logo for use on light backgrounds', 'Icon-only variant for small formats')",
+            "type": "string"
+          },
+          "variant": {
+            "description": "Logo variant type. primary: main logo, secondary: alternative, icon: symbol only, wordmark: text only, full-lockup: complete logo",
+            "enum": [
+              "primary",
+              "secondary",
+              "icon",
+              "wordmark",
+              "full-lockup"
+            ],
             "type": "string"
           },
           "width": {
@@ -468,8 +592,66 @@
       "type": "string"
     },
     "tone": {
-      "description": "Brand voice and messaging tone (e.g., 'professional', 'casual', 'humorous', 'trustworthy', 'innovative')",
-      "type": "string"
+      "description": "Brand voice and messaging tone guidelines for creative agents.",
+      "oneOf": [
+        {
+          "description": "Simple tone descriptors for backwards compatibility",
+          "type": "string"
+        },
+        {
+          "description": "Structured brand voice guidelines",
+          "properties": {
+            "attributes": {
+              "description": "Personality traits that characterize the brand voice",
+              "examples": [
+                [
+                  "friendly",
+                  "optimistic",
+                  "conversational",
+                  "authentic"
+                ]
+              ],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "donts": {
+              "description": "Guardrails to avoid brand violations - what NOT to do",
+              "examples": [
+                [
+                  "Avoid corporate jargon",
+                  "Don't be overly formal",
+                  "Don't make exaggerated claims"
+                ]
+              ],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "dos": {
+              "description": "Specific guidance for copy generation - what TO do",
+              "examples": [
+                [
+                  "Use simple, everyday language",
+                  "Address the reader directly",
+                  "Keep sentences short and punchy"
+                ]
+              ],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "voice": {
+              "description": "High-level voice descriptor (e.g., 'warm and inviting', 'professional and trustworthy')",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      ]
     },
     "url": {
       "description": "Primary brand URL for context and asset discovery. Creative agents can infer brand information from this URL.",

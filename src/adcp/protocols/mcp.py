@@ -432,10 +432,6 @@ class MCPAdapter(ProtocolAdapter):
         """Get media buy delivery."""
         return await self._call_mcp_tool("get_media_buy_delivery", params)
 
-    async def list_accounts(self, params: dict[str, Any]) -> TaskResult[Any]:
-        """List billing accounts accessible to the authenticated agent."""
-        return await self._call_mcp_tool("list_accounts", params)
-
     async def get_signals(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Get signals."""
         return await self._call_mcp_tool("get_signals", params)
@@ -447,6 +443,14 @@ class MCPAdapter(ProtocolAdapter):
     async def provide_performance_feedback(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Provide performance feedback."""
         return await self._call_mcp_tool("provide_performance_feedback", params)
+
+    async def log_event(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Log event."""
+        return await self._call_mcp_tool("log_event", params)
+
+    async def sync_event_sources(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Sync event sources."""
+        return await self._call_mcp_tool("sync_event_sources", params)
 
     async def preview_creative(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Generate preview URLs for a creative manifest."""
@@ -463,6 +467,18 @@ class MCPAdapter(ProtocolAdapter):
     async def build_creative(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Build creative."""
         return await self._call_mcp_tool("build_creative", params)
+
+    async def get_creative_delivery(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Get creative delivery."""
+        return await self._call_mcp_tool("get_creative_delivery", params)
+
+    async def list_accounts(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """List accounts."""
+        return await self._call_mcp_tool("list_accounts", params)
+
+    async def sync_accounts(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Sync accounts."""
+        return await self._call_mcp_tool("sync_accounts", params)
 
     async def list_tools(self) -> list[str]:
         """List available tools from MCP agent."""

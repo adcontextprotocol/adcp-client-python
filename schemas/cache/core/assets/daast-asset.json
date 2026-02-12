@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/core/assets/daast-asset.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "DAAST (Digital Audio Ad Serving Template) tag for third-party audio ad serving",
   "oneOf": [
@@ -11,7 +10,7 @@
           "type": "boolean"
         },
         "daast_version": {
-          "$ref": "/schemas/3.0.0-beta.2/enums/daast-version.json",
+          "$ref": "../../enums/daast-version.json",
           "description": "DAAST specification version"
         },
         "delivery_type": {
@@ -27,9 +26,15 @@
         "tracking_events": {
           "description": "Tracking events supported by this DAAST tag",
           "items": {
-            "$ref": "/schemas/3.0.0-beta.2/enums/daast-tracking-event.json"
+            "$ref": "../../enums/daast-tracking-event.json"
           },
           "type": "array"
+        },
+        "transcript_url": {
+          "description": "URL to text transcript of the audio content",
+          "format": "uri",
+          "type": "string",
+          "x-accessibility": true
         },
         "url": {
           "description": "URL endpoint that returns DAAST XML",
@@ -55,7 +60,7 @@
           "type": "string"
         },
         "daast_version": {
-          "$ref": "/schemas/3.0.0-beta.2/enums/daast-version.json",
+          "$ref": "../../enums/daast-version.json",
           "description": "DAAST specification version"
         },
         "delivery_type": {
@@ -71,9 +76,15 @@
         "tracking_events": {
           "description": "Tracking events supported by this DAAST tag",
           "items": {
-            "$ref": "/schemas/3.0.0-beta.2/enums/daast-tracking-event.json"
+            "$ref": "../../enums/daast-tracking-event.json"
           },
           "type": "array"
+        },
+        "transcript_url": {
+          "description": "URL to text transcript of the audio content",
+          "format": "uri",
+          "type": "string",
+          "x-accessibility": true
         }
       },
       "required": [

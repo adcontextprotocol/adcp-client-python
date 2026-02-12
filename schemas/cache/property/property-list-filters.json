@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/property/property-list-filters.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Filters that dynamically modify a property list when resolved",
@@ -7,8 +6,9 @@
     "channels_any": {
       "description": "Property must support ANY of the listed channels. Required.",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.2/enums/channels.json"
+        "$ref": "../enums/channels.json"
       },
+      "minItems": 1,
       "type": "array"
     },
     "countries_all": {
@@ -17,27 +17,31 @@
         "pattern": "^[A-Z]{2}$",
         "type": "string"
       },
+      "minItems": 1,
       "type": "array"
     },
     "exclude_identifiers": {
       "description": "Identifiers to always exclude from results",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.2/core/identifier.json"
+        "$ref": "../core/identifier.json"
       },
+      "minItems": 1,
       "type": "array"
     },
     "feature_requirements": {
       "description": "Feature-based requirements. Property must pass ALL requirements (AND logic).",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.2/property/feature-requirement.json"
+        "$ref": "feature-requirement.json"
       },
+      "minItems": 1,
       "type": "array"
     },
     "property_types": {
       "description": "Filter to these property types",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.2/enums/property-type.json"
+        "$ref": "../enums/property-type.json"
       },
+      "minItems": 1,
       "type": "array"
     }
   },

@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Cost Per Acquisition pricing. Advertiser pays a fixed price when a specified conversion event occurs. The event_type field declares which event triggers billing (e.g., purchase, lead, app_install).",
+  "properties": {
+    "currency": {
+      "description": "ISO 4217 currency code",
+      "examples": [
+        "USD",
+        "EUR",
+        "GBP",
+        "JPY"
+      ],
+      "pattern": "^[A-Z]{3}$",
+      "type": "string"
+    },
+    "custom_event_name": {
+      "description": "Name of the custom event when event_type is 'custom'. Required when event_type is 'custom', ignored otherwise.",
+      "type": "string"
+    },
+    "event_source_id": {
+      "description": "When present, only events from this specific event source count toward billing. Allows different CPA rates for different sources (e.g., online vs in-store purchases). Must match an event source configured via sync_event_sources.",
+      "type": "string"
+    },
+    "event_type": {
+      "allOf": [
+        {
+          "$ref": "../enums/event-type.json"
+        }
+      ],
+      "description": "The conversion event type that triggers billing (e.g., purchase, lead, app_install)"
+    },
+    "fixed_price": {
+      "description": "Fixed price per acquisition in the specified currency",
+      "exclusiveMinimum": 0,
+      "type": "number"
+    },
+    "min_spend_per_package": {
+      "description": "Minimum spend requirement per package using this pricing option, in the specified currency",
+      "minimum": 0,
+      "type": "number"
+    },
+    "pricing_model": {
+      "const": "cpa",
+      "description": "Cost per acquisition (conversion event)",
+      "type": "string"
+    },
+    "pricing_option_id": {
+      "description": "Unique identifier for this pricing option within the product",
+      "type": "string"
+    }
+  },
+  "required": [
+    "pricing_option_id",
+    "pricing_model",
+    "event_type",
+    "currency",
+    "fixed_price"
+  ],
+  "title": "CPA Pricing Option",
+  "type": "object"
+}

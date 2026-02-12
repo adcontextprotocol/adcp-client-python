@@ -42,21 +42,6 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
             },
         },
     },
-    {
-        "name": "list_accounts",
-        "description": "List billing accounts accessible to the authenticated agent",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "status": {
-                    "type": "string",
-                    "enum": ["active", "suspended", "closed", "all"],
-                    "default": "active",
-                    "description": "Filter accounts by status",
-                },
-            },
-        },
-    },
     # Creative Operations
     {
         "name": "sync_creatives",
@@ -91,6 +76,17 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 "assets": {"type": "array"},
             },
             "required": ["format_id", "assets"],
+        },
+    },
+    {
+        "name": "get_creative_delivery",
+        "description": "Get creative delivery metrics",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "media_buy_ids": {"type": "array", "items": {"type": "string"}},
+                "creative_ids": {"type": "array", "items": {"type": "string"}},
+            },
         },
     },
     # Media Buy Operations
@@ -151,6 +147,52 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 "activation_key": {"type": "string"},
             },
             "required": ["signal_id"],
+        },
+    },
+    # Account Operations
+    {
+        "name": "list_accounts",
+        "description": "List accounts",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "filters": {"type": "object"},
+                "pagination": {"type": "object"},
+            },
+        },
+    },
+    {
+        "name": "sync_accounts",
+        "description": "Sync accounts",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "accounts": {"type": "array"},
+            },
+            "required": ["accounts"],
+        },
+    },
+    # Event Operations
+    {
+        "name": "log_event",
+        "description": "Log event",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "events": {"type": "array"},
+            },
+            "required": ["events"],
+        },
+    },
+    {
+        "name": "sync_event_sources",
+        "description": "Sync event sources",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "event_sources": {"type": "array"},
+            },
+            "required": ["event_sources"],
         },
     },
     # Feedback Operations

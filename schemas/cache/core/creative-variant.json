@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "allOf": [
+    {
+      "$ref": "delivery-metrics.json"
+    },
+    {
+      "properties": {
+        "generation_context": {
+          "additionalProperties": true,
+          "description": "Input signals that triggered generation of this variant (Tier 3). Describes why the platform created this specific variant. Platforms should provide summarized or anonymized signals rather than raw user input. For web contexts, may include page topic or URL. For conversational contexts, an anonymized content signal. For search, query category or intent. When the content context is managed through AdCP content standards, reference the artifact directly via the artifact field.",
+          "properties": {
+            "artifact": {
+              "additionalProperties": false,
+              "description": "Reference to the content-standards artifact that provided the generation context. Links this variant to the specific piece of content (article, video, podcast segment, etc.) where the ad was placed.",
+              "properties": {
+                "artifact_id": {
+                  "description": "Artifact identifier within the property",
+                  "type": "string"
+                },
+                "property_id": {
+                  "$ref": "identifier.json",
+                  "description": "Property where the artifact appears"
+                }
+              },
+              "required": [
+                "property_id",
+                "artifact_id"
+              ],
+              "type": "object"
+            },
+            "context_type": {
+              "description": "Type of context that triggered generation (e.g., 'web_page', 'conversational', 'search', 'app', 'dooh')",
+              "type": "string"
+            },
+            "ext": {
+              "$ref": "ext.json"
+            }
+          },
+          "type": "object"
+        },
+        "manifest": {
+          "$ref": "creative-manifest.json",
+          "description": "The rendered creative manifest for this variant \u2014 the actual output that was served, not the input assets. Contains format_id and the resolved assets (specific headline, image, video, etc. the platform selected or generated). For Tier 2, shows which asset combination was picked. For Tier 3, contains the generated assets which may differ entirely from the input brand manifest. Pass to preview_creative to re-render."
+        },
+        "variant_id": {
+          "description": "Platform-assigned identifier for this variant",
+          "type": "string"
+        }
+      },
+      "required": [
+        "variant_id"
+      ]
+    }
+  ],
+  "description": "A specific execution variant of a creative with delivery metrics. For asset group optimization, represents one combination of assets the platform selected. For generative creative, represents a platform-generated variant. For standard creatives, maps 1:1 with the creative itself.",
+  "title": "Creative Variant",
+  "type": "object"
+}

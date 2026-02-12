@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/media-buy/build-creative-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Response containing the transformed or generated creative manifest, ready for use with preview_creative or sync_creatives. Returns either the complete creative manifest OR error information, never both.",
   "oneOf": [
@@ -13,14 +12,14 @@
       },
       "properties": {
         "context": {
-          "$ref": "/schemas/3.0.0-beta.2/core/context.json"
+          "$ref": "../core/context.json"
         },
         "creative_manifest": {
-          "$ref": "/schemas/3.0.0-beta.2/core/creative-manifest.json",
+          "$ref": "../core/creative-manifest.json",
           "description": "The generated or transformed creative manifest"
         },
         "ext": {
-          "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
       "required": [
@@ -39,18 +38,18 @@
       },
       "properties": {
         "context": {
-          "$ref": "/schemas/3.0.0-beta.2/core/context.json"
+          "$ref": "../core/context.json"
         },
         "errors": {
           "description": "Array of errors explaining why creative generation failed",
           "items": {
-            "$ref": "/schemas/3.0.0-beta.2/core/error.json"
+            "$ref": "../core/error.json"
           },
           "minItems": 1,
           "type": "array"
         },
         "ext": {
-          "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
       "required": [

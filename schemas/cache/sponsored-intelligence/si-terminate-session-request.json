@@ -1,11 +1,10 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/sponsored-intelligence/si-terminate-session-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Request to terminate an SI session",
   "properties": {
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "reason": {
       "description": "Reason for termination",

@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/pricing-options/cpc-option.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Cost Per Click pricing. If fixed_price is present, it's fixed pricing. If absent, it's auction-based.",
@@ -31,7 +30,7 @@
       "type": "number"
     },
     "price_guidance": {
-      "$ref": "/schemas/3.0.0-beta.2/pricing-options/price-guidance.json",
+      "$ref": "price-guidance.json",
       "description": "Optional pricing guidance for auction-based bidding"
     },
     "pricing_model": {

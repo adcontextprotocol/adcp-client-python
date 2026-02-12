@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Cost per time unit (hour, day, week, or month) - rate scales with campaign duration. If fixed_price is present, it's fixed pricing. If absent, it's auction-based.",
+  "properties": {
+    "currency": {
+      "description": "ISO 4217 currency code",
+      "examples": [
+        "USD",
+        "EUR",
+        "GBP",
+        "JPY"
+      ],
+      "pattern": "^[A-Z]{3}$",
+      "type": "string"
+    },
+    "fixed_price": {
+      "description": "Cost per time unit. If present, this is fixed pricing. If absent, auction-based.",
+      "minimum": 0,
+      "type": "number"
+    },
+    "floor_price": {
+      "description": "Minimum acceptable bid per time unit for auction pricing (mutually exclusive with fixed_price). Bids below this value will be rejected.",
+      "minimum": 0,
+      "type": "number"
+    },
+    "min_spend_per_package": {
+      "description": "Minimum spend requirement per package using this pricing option, in the specified currency",
+      "minimum": 0,
+      "type": "number"
+    },
+    "parameters": {
+      "additionalProperties": true,
+      "description": "Time-based pricing parameters",
+      "properties": {
+        "max_duration": {
+          "description": "Maximum booking duration in time_units. Must be >= min_duration when both are present.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "min_duration": {
+          "description": "Minimum booking duration in time_units",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "time_unit": {
+          "description": "The time unit for pricing. Total cost = fixed_price \u00d7 number of time_units in the campaign flight.",
+          "enum": [
+            "hour",
+            "day",
+            "week",
+            "month"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "time_unit"
+      ],
+      "type": "object"
+    },
+    "price_guidance": {
+      "$ref": "price-guidance.json",
+      "description": "Optional pricing guidance for auction-based bidding"
+    },
+    "pricing_model": {
+      "const": "time",
+      "description": "Cost per time unit - rate scales with campaign duration",
+      "type": "string"
+    },
+    "pricing_option_id": {
+      "description": "Unique identifier for this pricing option within the product",
+      "type": "string"
+    }
+  },
+  "required": [
+    "pricing_option_id",
+    "pricing_model",
+    "currency",
+    "parameters"
+  ],
+  "title": "Time-Based Pricing Option",
+  "type": "object"
+}

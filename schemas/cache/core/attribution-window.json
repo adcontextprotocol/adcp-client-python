@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Describes the attribution methodology and lookback windows used for conversion measurement. Enables cross-platform comparison by making attribution methodology transparent.",
+  "properties": {
+    "click_window_days": {
+      "description": "Click-through attribution window in days. Conversions occurring within this many days after a click are attributed to the ad.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "model": {
+      "$ref": "../enums/attribution-model.json",
+      "description": "Attribution model used to assign credit when multiple touchpoints exist"
+    },
+    "view_window_days": {
+      "description": "View-through attribution window in days. Conversions occurring within this many days after an ad impression (without click) are attributed to the ad.",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "model"
+  ],
+  "title": "Attribution Window",
+  "type": "object"
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Requirements for JavaScript creative assets. These define the execution environment constraints that the JavaScript must be compatible with.",
+  "properties": {
+    "allowed_external_domains": {
+      "description": "List of domains the JavaScript may reference for external resources. Only applicable when external_resources_allowed is true.",
+      "items": {
+        "format": "hostname",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "external_resources_allowed": {
+      "description": "Whether the JavaScript can load external resources dynamically",
+      "type": "boolean"
+    },
+    "max_file_size_kb": {
+      "description": "Maximum file size in kilobytes for the JavaScript asset",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "module_type": {
+      "description": "Required JavaScript module format. 'script' = classic script, 'module' = ES modules, 'iife' = immediately invoked function expression",
+      "enum": [
+        "script",
+        "module",
+        "iife"
+      ],
+      "type": "string"
+    },
+    "strict_mode_required": {
+      "description": "Whether the JavaScript must use strict mode",
+      "type": "boolean"
+    }
+  },
+  "title": "JavaScript Asset Requirements",
+  "type": "object"
+}

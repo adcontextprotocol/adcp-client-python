@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/media-buy/package-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Package configuration for media buy creation",
@@ -21,25 +20,27 @@
     "creative_assignments": {
       "description": "Assign existing library creatives to this package with optional weights and placement targeting",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.2/core/creative-assignment.json"
+        "$ref": "../core/creative-assignment.json"
       },
+      "minItems": 1,
       "type": "array"
     },
     "creatives": {
       "description": "Upload new creative assets and assign to this package (creatives will be added to library). Use creative_assignments instead for existing library creatives.",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.2/core/creative-asset.json"
+        "$ref": "../core/creative-asset.json"
       },
       "maxItems": 100,
+      "minItems": 1,
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "format_ids": {
       "description": "Array of format IDs that will be used for this package - must be supported by the product. If omitted, defaults to all formats supported by the product.",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.2/core/format-id.json"
+        "$ref": "../core/format-id.json"
       },
       "minItems": 1,
       "type": "array"
@@ -49,8 +50,11 @@
       "minimum": 0,
       "type": "number"
     },
+    "optimization_goal": {
+      "$ref": "../core/optimization-goal.json"
+    },
     "pacing": {
-      "$ref": "/schemas/3.0.0-beta.2/enums/pacing.json"
+      "$ref": "../enums/pacing.json"
     },
     "paused": {
       "default": false,
@@ -66,7 +70,7 @@
       "type": "string"
     },
     "targeting_overlay": {
-      "$ref": "/schemas/3.0.0-beta.2/core/targeting.json"
+      "$ref": "../core/targeting.json"
     }
   },
   "required": [

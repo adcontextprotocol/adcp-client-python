@@ -1,11 +1,10 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/core/reporting-capabilities.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Reporting capabilities available for a product",
   "properties": {
     "available_metrics": {
-      "description": "Metrics available in reporting. Impressions and spend are always implicitly included.",
+      "description": "Metrics available in reporting. Impressions and spend are always implicitly included. When a creative format declares reported_metrics, buyers receive the intersection of these product-level metrics and the format's reported_metrics.",
       "examples": [
         [
           "impressions",
@@ -20,7 +19,7 @@
         ]
       ],
       "items": {
-        "$ref": "/schemas/3.0.0-beta.2/enums/available-metric.json"
+        "$ref": "../enums/available-metric.json"
       },
       "type": "array",
       "uniqueItems": true
@@ -28,11 +27,20 @@
     "available_reporting_frequencies": {
       "description": "Supported reporting frequency options",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.2/enums/reporting-frequency.json"
+        "$ref": "../enums/reporting-frequency.json"
       },
       "minItems": 1,
       "type": "array",
       "uniqueItems": true
+    },
+    "date_range_support": {
+      "default": "date_range",
+      "description": "Whether delivery data can be filtered to arbitrary date ranges. 'date_range' means the platform supports start_date/end_date parameters. 'lifetime_only' means the platform returns campaign lifetime totals and date range parameters are not accepted.",
+      "enum": [
+        "date_range",
+        "lifetime_only"
+      ],
+      "type": "string"
     },
     "expected_delay_minutes": {
       "description": "Expected delay in minutes before reporting data becomes available (e.g., 240 for 4-hour delay)",
@@ -43,6 +51,10 @@
       ],
       "minimum": 0,
       "type": "integer"
+    },
+    "supports_creative_breakdown": {
+      "description": "Whether this product supports creative-level metric breakdowns in delivery reporting (by_creative within by_package)",
+      "type": "boolean"
     },
     "supports_webhooks": {
       "description": "Whether this product supports webhook-based reporting notifications",
@@ -64,7 +76,8 @@
     "expected_delay_minutes",
     "timezone",
     "supports_webhooks",
-    "available_metrics"
+    "available_metrics",
+    "date_range_support"
   ],
   "title": "Reporting Capabilities",
   "type": "object"

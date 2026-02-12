@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/account/list-accounts-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Response payload for list_accounts task",
@@ -27,7 +26,11 @@
             "name": "Publicis",
             "status": "active"
           }
-        ]
+        ],
+        "pagination": {
+          "has_more": false,
+          "total_count": 3
+        }
       },
       "description": "Agency with multiple client accounts"
     },
@@ -50,22 +53,25 @@
     "accounts": {
       "description": "Array of accounts accessible to the authenticated agent",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.2/core/account.json"
+        "$ref": "../core/account.json"
       },
       "type": "array"
     },
     "context": {
-      "$ref": "/schemas/3.0.0-beta.2/core/context.json"
+      "$ref": "../core/context.json"
     },
     "errors": {
       "description": "Task-specific errors and warnings",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.2/core/error.json"
+        "$ref": "../core/error.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+      "$ref": "../core/ext.json"
+    },
+    "pagination": {
+      "$ref": "../core/pagination-response.json"
     }
   },
   "required": [

@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/content-standards/list-content-standards-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Response payload with list of content standards configurations",
   "oneOf": [
@@ -7,19 +6,22 @@
       "description": "Success response - returns array of content standards",
       "properties": {
         "context": {
-          "$ref": "/schemas/3.0.0-beta.2/core/context.json"
+          "$ref": "../core/context.json"
         },
         "errors": {
           "description": "Field must not be present in success response",
           "not": {}
         },
         "ext": {
-          "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+          "$ref": "../core/ext.json"
+        },
+        "pagination": {
+          "$ref": "../core/pagination-response.json"
         },
         "standards": {
           "description": "Array of content standards configurations matching the filter criteria",
           "items": {
-            "$ref": "/schemas/3.0.0-beta.2/content-standards/content-standards.json"
+            "$ref": "content-standards.json"
           },
           "type": "array"
         }
@@ -33,16 +35,16 @@
       "description": "Error response",
       "properties": {
         "context": {
-          "$ref": "/schemas/3.0.0-beta.2/core/context.json"
+          "$ref": "../core/context.json"
         },
         "errors": {
           "items": {
-            "$ref": "/schemas/3.0.0-beta.2/core/error.json"
+            "$ref": "../core/error.json"
           },
           "type": "array"
         },
         "ext": {
-          "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+          "$ref": "../core/ext.json"
         },
         "standards": {
           "description": "Field must not be present in error response",

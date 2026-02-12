@@ -256,12 +256,6 @@ class SponsoredIntelligenceHandler(ADCPHandler):
             "list_creative_formats is not supported by Sponsored Intelligence agents."
         )
 
-    async def list_accounts(
-        self, params: dict[str, Any], context: ToolContext | None = None
-    ) -> NotImplementedResponse:
-        """Not supported by Sponsored Intelligence agents."""
-        return not_supported("list_accounts is not supported by Sponsored Intelligence agents.")
-
     async def sync_creatives(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
@@ -279,6 +273,14 @@ class SponsoredIntelligenceHandler(ADCPHandler):
     ) -> NotImplementedResponse:
         """Not supported by Sponsored Intelligence agents."""
         return not_supported("build_creative is not supported by Sponsored Intelligence agents.")
+
+    async def get_creative_delivery(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -> NotImplementedResponse:
+        """Not supported by Sponsored Intelligence agents."""
+        return not_supported(
+            "get_creative_delivery is not supported by Sponsored Intelligence agents."
+        )
 
     async def create_media_buy(
         self, params: dict[str, Any], context: ToolContext | None = None
@@ -321,6 +323,36 @@ class SponsoredIntelligenceHandler(ADCPHandler):
         """Not supported by Sponsored Intelligence agents."""
         return not_supported(
             "provide_performance_feedback is not supported by Sponsored Intelligence agents."
+        )
+
+    async def list_accounts(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -> NotImplementedResponse:
+        """Not supported by Sponsored Intelligence agents."""
+        return not_supported(
+            "list_accounts is not supported by Sponsored Intelligence agents."
+        )
+
+    async def sync_accounts(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -> NotImplementedResponse:
+        """Not supported by Sponsored Intelligence agents."""
+        return not_supported(
+            "sync_accounts is not supported by Sponsored Intelligence agents."
+        )
+
+    async def log_event(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -> NotImplementedResponse:
+        """Not supported by Sponsored Intelligence agents."""
+        return not_supported("log_event is not supported by Sponsored Intelligence agents.")
+
+    async def sync_event_sources(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -> NotImplementedResponse:
+        """Not supported by Sponsored Intelligence agents."""
+        return not_supported(
+            "sync_event_sources is not supported by Sponsored Intelligence agents."
         )
 
     # ========================================================================

@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/core/assets/audio-asset.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Audio asset with URL and technical specifications",
@@ -53,6 +52,12 @@
     "sampling_rate_hz": {
       "description": "Sampling rate in Hz (e.g., 44100, 48000, 96000)",
       "type": "integer"
+    },
+    "transcript_url": {
+      "description": "URL to text transcript of the audio content",
+      "format": "uri",
+      "type": "string",
+      "x-accessibility": true
     },
     "true_peak_dbfs": {
       "description": "True peak level in dBFS",

@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/property/get-property-list-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Response payload for get_property_list task. Returns identifiers only (not full property objects or scores). Consumers should cache the resolved identifiers and refresh based on cache_valid_until.",
@@ -12,7 +11,7 @@
     "coverage_gaps": {
       "additionalProperties": {
         "items": {
-          "$ref": "/schemas/3.0.0-beta.2/core/identifier.json"
+          "$ref": "../core/identifier.json"
         },
         "type": "array"
       },
@@ -20,46 +19,26 @@
       "type": "object"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "identifiers": {
       "description": "Resolved identifiers that passed filters (if resolve=true). Cache these locally for real-time use.",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.2/core/identifier.json"
+        "$ref": "../core/identifier.json"
       },
       "type": "array"
     },
     "list": {
-      "$ref": "/schemas/3.0.0-beta.2/property/property-list.json",
+      "$ref": "property-list.json",
       "description": "The property list metadata (always returned)"
     },
     "pagination": {
-      "additionalProperties": false,
-      "description": "Pagination information",
-      "properties": {
-        "cursor": {
-          "description": "Cursor for next page",
-          "type": "string"
-        },
-        "has_more": {
-          "description": "Whether more results are available",
-          "type": "boolean"
-        }
-      },
-      "type": "object"
+      "$ref": "../core/pagination-response.json"
     },
     "resolved_at": {
       "description": "When the list was resolved",
       "format": "date-time",
       "type": "string"
-    },
-    "returned_count": {
-      "description": "Number of identifiers returned in this response",
-      "type": "integer"
-    },
-    "total_count": {
-      "description": "Total number of identifiers in resolved list",
-      "type": "integer"
     }
   },
   "required": [

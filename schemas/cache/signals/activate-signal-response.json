@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/signals/activate-signal-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Response payload for activate_signal task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - the signal is either fully activated or not activated at all.",
   "oneOf": [
@@ -13,17 +12,17 @@
       },
       "properties": {
         "context": {
-          "$ref": "/schemas/3.0.0-beta.2/core/context.json"
+          "$ref": "../core/context.json"
         },
         "deployments": {
           "description": "Array of deployment results for each deployment target",
           "items": {
-            "$ref": "/schemas/3.0.0-beta.2/core/deployment.json"
+            "$ref": "../core/deployment.json"
           },
           "type": "array"
         },
         "ext": {
-          "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
       "required": [
@@ -42,18 +41,18 @@
       },
       "properties": {
         "context": {
-          "$ref": "/schemas/3.0.0-beta.2/core/context.json"
+          "$ref": "../core/context.json"
         },
         "errors": {
           "description": "Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)",
           "items": {
-            "$ref": "/schemas/3.0.0-beta.2/core/error.json"
+            "$ref": "../core/error.json"
           },
           "minItems": 1,
           "type": "array"
         },
         "ext": {
-          "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
       "required": [

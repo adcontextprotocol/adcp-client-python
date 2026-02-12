@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Requirements for video creative assets. These define the technical constraints for video files.",
+  "properties": {
+    "aspect_ratio": {
+      "description": "Required aspect ratio (e.g., '16:9', '9:16')",
+      "pattern": "^\\d+:\\d+$",
+      "type": "string"
+    },
+    "audio_required": {
+      "description": "Whether the video must include an audio track",
+      "type": "boolean"
+    },
+    "codecs": {
+      "description": "Accepted video codecs",
+      "items": {
+        "enum": [
+          "h264",
+          "h265",
+          "vp8",
+          "vp9",
+          "av1"
+        ],
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "containers": {
+      "description": "Accepted video container formats",
+      "items": {
+        "enum": [
+          "mp4",
+          "webm",
+          "mov",
+          "avi",
+          "mkv"
+        ],
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "frame_rates": {
+      "description": "Accepted frame rates in frames per second (e.g., [24, 30, 60])",
+      "items": {
+        "minimum": 1,
+        "type": "number"
+      },
+      "type": "array"
+    },
+    "max_bitrate_kbps": {
+      "description": "Maximum video bitrate in kilobits per second",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "max_duration_ms": {
+      "description": "Maximum duration in milliseconds",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "max_file_size_kb": {
+      "description": "Maximum file size in kilobytes",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "max_height": {
+      "description": "Maximum height in pixels",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "max_width": {
+      "description": "Maximum width in pixels",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "min_bitrate_kbps": {
+      "description": "Minimum video bitrate in kilobits per second",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "min_duration_ms": {
+      "description": "Minimum duration in milliseconds",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "min_height": {
+      "description": "Minimum height in pixels",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "min_width": {
+      "description": "Minimum width in pixels",
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "title": "Video Asset Requirements",
+  "type": "object"
+}

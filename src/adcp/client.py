@@ -26,6 +26,8 @@ from adcp.types import (
     CreateMediaBuyRequest,
     CreateMediaBuyResponse,
     GeneratedTaskStatus,
+    GetCreativeDeliveryRequest,
+    GetCreativeDeliveryResponse,
     GetMediaBuyDeliveryRequest,
     GetMediaBuyDeliveryResponse,
     GetProductsRequest,
@@ -38,12 +40,18 @@ from adcp.types import (
     ListCreativeFormatsResponse,
     ListCreativesRequest,
     ListCreativesResponse,
+    LogEventRequest,
+    LogEventResponse,
     PreviewCreativeRequest,
     PreviewCreativeResponse,
     ProvidePerformanceFeedbackRequest,
     ProvidePerformanceFeedbackResponse,
+    SyncAccountsRequest,
+    SyncAccountsResponse,
     SyncCreativesRequest,
     SyncCreativesResponse,
+    SyncEventSourcesRequest,
+    SyncEventSourcesResponse,
     UpdateMediaBuyRequest,
     UpdateMediaBuyResponse,
 )
@@ -387,7 +395,7 @@ class ADCPClient:
             )
         )
 
-        raw_result = await self.adapter.preview_creative(params)  # type: ignore[attr-defined]
+        raw_result = await self.adapter.preview_creative(params)
 
         self._emit_activity(
             Activity(
@@ -524,49 +532,6 @@ class ADCPClient:
         )
 
         return self.adapter._parse_response(raw_result, GetMediaBuyDeliveryResponse)
-
-    async def list_accounts(
-        self,
-        request: ListAccountsRequest,
-    ) -> TaskResult[ListAccountsResponse]:
-        """
-        List Accounts.
-
-        Lists billing accounts accessible to the authenticated agent.
-
-        Args:
-            request: Request parameters
-
-        Returns:
-            TaskResult containing ListAccountsResponse
-        """
-        operation_id = create_operation_id()
-        params = request.model_dump(exclude_none=True)
-
-        self._emit_activity(
-            Activity(
-                type=ActivityType.PROTOCOL_REQUEST,
-                operation_id=operation_id,
-                agent_id=self.agent_config.id,
-                task_type="list_accounts",
-                timestamp=datetime.now(timezone.utc).isoformat(),
-            )
-        )
-
-        raw_result = await self.adapter.list_accounts(params)
-
-        self._emit_activity(
-            Activity(
-                type=ActivityType.PROTOCOL_RESPONSE,
-                operation_id=operation_id,
-                agent_id=self.agent_config.id,
-                task_type="list_accounts",
-                status=raw_result.status,
-                timestamp=datetime.now(timezone.utc).isoformat(),
-            )
-        )
-
-        return self.adapter._parse_response(raw_result, ListAccountsResponse)
 
     async def get_signals(
         self,
@@ -884,6 +849,211 @@ class ADCPClient:
         )
 
         return self.adapter._parse_response(raw_result, BuildCreativeResponse)
+
+    async def list_accounts(
+        self,
+        request: ListAccountsRequest,
+    ) -> TaskResult[ListAccountsResponse]:
+        """
+        List Accounts.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing ListAccountsResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="list_accounts",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.list_accounts(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="list_accounts",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, ListAccountsResponse)
+
+    async def sync_accounts(
+        self,
+        request: SyncAccountsRequest,
+    ) -> TaskResult[SyncAccountsResponse]:
+        """
+        Sync Accounts.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing SyncAccountsResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="sync_accounts",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.sync_accounts(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="sync_accounts",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, SyncAccountsResponse)
+
+    async def log_event(
+        self,
+        request: LogEventRequest,
+    ) -> TaskResult[LogEventResponse]:
+        """
+        Log Event.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing LogEventResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="log_event",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.log_event(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="log_event",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, LogEventResponse)
+
+    async def sync_event_sources(
+        self,
+        request: SyncEventSourcesRequest,
+    ) -> TaskResult[SyncEventSourcesResponse]:
+        """
+        Sync Event Sources.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing SyncEventSourcesResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="sync_event_sources",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.sync_event_sources(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="sync_event_sources",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, SyncEventSourcesResponse)
+
+    async def get_creative_delivery(
+        self,
+        request: GetCreativeDeliveryRequest,
+    ) -> TaskResult[GetCreativeDeliveryResponse]:
+        """
+        Get Creative Delivery.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing GetCreativeDeliveryResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="get_creative_delivery",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.get_creative_delivery(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="get_creative_delivery",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, GetCreativeDeliveryResponse)
 
     # ========================================================================
     # V3 Protocol Methods - Protocol Discovery
@@ -1761,10 +1931,14 @@ class ADCPClient:
             "sync_creatives": SyncCreativesResponse,  # Union type
             "list_creatives": ListCreativesResponse,
             "get_media_buy_delivery": GetMediaBuyDeliveryResponse,
-            "list_accounts": ListAccountsResponse,
             "get_signals": GetSignalsResponse,
             "activate_signal": ActivateSignalResponse,  # Union type
             "provide_performance_feedback": ProvidePerformanceFeedbackResponse,
+            "list_accounts": ListAccountsResponse,
+            "sync_accounts": SyncAccountsResponse,
+            "log_event": LogEventResponse,
+            "sync_event_sources": SyncEventSourcesResponse,
+            "get_creative_delivery": GetCreativeDeliveryResponse,
         }
 
         # Handle completed tasks with result parsing

@@ -1,24 +1,16 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/content-standards/get-media-buy-artifacts-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Request parameters for retrieving content artifacts from a media buy for validation",
   "properties": {
-    "context": {
-      "$ref": "/schemas/3.0.0-beta.2/core/context.json"
-    },
-    "cursor": {
-      "description": "Pagination cursor for fetching subsequent pages",
+    "account_id": {
+      "description": "Filter artifacts to a specific account. When provided, only returns artifacts for media buys belonging to this account. When omitted, returns artifacts across all accessible accounts. Optional if the agent has a single account.",
       "type": "string"
     },
-    "ext": {
-      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+    "context": {
+      "$ref": "../core/context.json"
     },
-    "limit": {
-      "default": 1000,
-      "description": "Maximum artifacts to return per request",
-      "maximum": 10000,
-      "minimum": 1,
-      "type": "integer"
+    "ext": {
+      "$ref": "../core/ext.json"
     },
     "media_buy_id": {
       "description": "Media buy to get artifacts from",
@@ -29,7 +21,26 @@
       "items": {
         "type": "string"
       },
+      "minItems": 1,
       "type": "array"
+    },
+    "pagination": {
+      "additionalProperties": false,
+      "description": "Pagination parameters. Uses higher limits than standard pagination because artifact result sets can be very large.",
+      "properties": {
+        "cursor": {
+          "description": "Opaque cursor from a previous response to fetch the next page",
+          "type": "string"
+        },
+        "max_results": {
+          "default": 1000,
+          "description": "Maximum number of artifacts to return per page",
+          "maximum": 10000,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "type": "object"
     },
     "sampling": {
       "description": "Sampling parameters. Defaults to the sampling rate agreed in the media buy.",

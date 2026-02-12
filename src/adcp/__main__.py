@@ -193,10 +193,6 @@ def _get_dispatch_table() -> dict[str, tuple[str, type | None]]:
         "create_media_buy": ("create_media_buy", gen.CreateMediaBuyRequest),
         "update_media_buy": ("update_media_buy", gen.UpdateMediaBuyRequest),
         "get_media_buy_delivery": ("get_media_buy_delivery", gen.GetMediaBuyDeliveryRequest),
-        "list_accounts": (
-            "list_accounts",
-            gen.ListAccountsRequest,
-        ),
         # Signals
         "get_signals": ("get_signals", gen.GetSignalsRequest),
         "activate_signal": ("activate_signal", gen.ActivateSignalRequest),
@@ -204,6 +200,14 @@ def _get_dispatch_table() -> dict[str, tuple[str, type | None]]:
             "provide_performance_feedback",
             gen.ProvidePerformanceFeedbackRequest,
         ),
+        # Accounts
+        "list_accounts": ("list_accounts", gen.ListAccountsRequest),
+        "sync_accounts": ("sync_accounts", gen.SyncAccountsRequest),
+        # Events
+        "log_event": ("log_event", gen.LogEventRequest),
+        "sync_event_sources": ("sync_event_sources", gen.SyncEventSourcesRequest),
+        # Creative Delivery
+        "get_creative_delivery": ("get_creative_delivery", gen.GetCreativeDeliveryRequest),
         # V3 Protocol Discovery
         "get_adcp_capabilities": ("get_adcp_capabilities", gen.GetAdcpCapabilitiesRequest),
         # V3 Content Standards

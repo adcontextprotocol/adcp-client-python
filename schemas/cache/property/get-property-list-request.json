@@ -1,27 +1,35 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/property/get-property-list-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "Request parameters for retrieving a property list with resolved identifiers",
   "properties": {
     "context": {
-      "$ref": "/schemas/3.0.0-beta.2/core/context.json"
-    },
-    "cursor": {
-      "description": "Pagination cursor for large result sets",
-      "type": "string"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "list_id": {
       "description": "ID of the property list to retrieve",
       "type": "string"
     },
-    "max_results": {
-      "description": "Maximum identifiers to return (for large lists)",
-      "minimum": 1,
-      "type": "integer"
+    "pagination": {
+      "additionalProperties": false,
+      "description": "Pagination parameters. Uses higher limits than standard pagination because property lists can contain tens of thousands of identifiers.",
+      "properties": {
+        "cursor": {
+          "description": "Opaque cursor from a previous response to fetch the next page",
+          "type": "string"
+        },
+        "max_results": {
+          "default": 1000,
+          "description": "Maximum number of identifiers to return per page",
+          "maximum": 10000,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "type": "object"
     },
     "resolve": {
       "default": true,

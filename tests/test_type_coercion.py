@@ -319,6 +319,7 @@ class TestListVariance:
 
         # No cast() needed!
         request = CreateMediaBuyRequest(
+            account_id="acct-1",
             brand_manifest=AnyUrl("https://example.com/manifest.json"),  # URL reference
             buyer_ref="buyer-ref",
             start_time=datetime.now(timezone.utc),

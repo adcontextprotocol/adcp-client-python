@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/a2ui/surface.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "A contiguous UI region containing components",
@@ -12,7 +11,7 @@
     "components": {
       "description": "Flat list of components (adjacency list structure)",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.2/a2ui/component.json"
+        "$ref": "component.json"
       },
       "type": "array"
     },

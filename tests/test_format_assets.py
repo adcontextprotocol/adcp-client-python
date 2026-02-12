@@ -94,14 +94,16 @@ class TestNormalizeAssetsRequired:
         with pytest.warns(DeprecationWarning, match="normalize_assets_required"):
             normalized = normalize_assets_required(assets_required)
         # normalize_assets_required returns Pydantic models
-        assert normalized[0].requirements == {"width": 300, "height": 250}
+        req = normalized[0].requirements
+        assert req.width == 300
+        assert req.height == 250
 
     def test_normalizes_repeatable_groups(self):
-        """Should normalize repeatable groups with required=True."""
+        """Should normalize repeatable groups by mapping asset_group_id to asset_id."""
         assets_required = [
             {
                 "asset_group_id": "products",
-                "item_type": "repeatable_group",
+                "item_type": "individual",
                 "min_count": 2,
                 "max_count": 10,
                 "assets": [
@@ -118,9 +120,7 @@ class TestNormalizeAssetsRequired:
             normalized = normalize_assets_required(assets_required)
         assert len(normalized) == 1
         assert normalized[0].required is True
-        assert normalized[0].asset_group_id == "products"
-        assert normalized[0].min_count == 2
-        assert normalized[0].max_count == 10
+        assert normalized[0].asset_id == "products"
 
 
 class TestGetRequiredAssets:

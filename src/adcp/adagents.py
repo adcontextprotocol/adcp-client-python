@@ -689,8 +689,6 @@ async def fetch_agent_authorizations(
     properties your agent can access.
 
     This is the "pull" approach - you query publishers to see if they've authorized you.
-    For the "push" approach where the agent tells you what billing accounts you can use,
-    use the agent's list_accounts endpoint via ADCPClient.
 
     Args:
         agent_url: URL of your sales agent
@@ -712,9 +710,6 @@ async def fetch_agent_authorizations(
         ...     print(f"{domain}:")
         ...     print(f"  Property IDs: {ctx.property_ids}")
         ...     print(f"  Tags: {ctx.property_tags}")
-
-    See Also:
-        ADCPClient.list_accounts: "Push" approach using the agent's API to list billing accounts
 
     Notes:
         - Silently skips domains where adagents.json is not found or invalid

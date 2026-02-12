@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Request parameters for configuring event sources on an account with upsert semantics. Existing event sources matched by event_source_id are updated, new ones are created. When delete_missing is true, buyer-managed event sources on the account not in this request are removed. When event_sources is omitted, the call is discovery-only: it returns all event sources on the account without modification. The response always includes both synced and seller-managed event sources for full visibility.",
+  "properties": {
+    "account_id": {
+      "description": "Account to configure event sources for",
+      "type": "string"
+    },
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "delete_missing": {
+      "default": false,
+      "description": "When true, event sources not included in this sync will be removed",
+      "type": "boolean"
+    },
+    "event_sources": {
+      "description": "Event sources to sync (create or update). When omitted, the call is discovery-only and returns all existing event sources on the account without modification.",
+      "items": {
+        "additionalProperties": true,
+        "properties": {
+          "allowed_domains": {
+            "description": "Domains authorized to send events for this event source",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "event_source_id": {
+            "description": "Unique identifier for this event source",
+            "type": "string"
+          },
+          "event_types": {
+            "description": "Event types this source handles (e.g. purchase, lead). If omitted, accepts all event types.",
+            "items": {
+              "$ref": "../enums/event-type.json"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "name": {
+            "description": "Human-readable name for this event source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_source_id"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    }
+  },
+  "required": [
+    "account_id"
+  ],
+  "title": "Sync Event Sources Request",
+  "type": "object"
+}

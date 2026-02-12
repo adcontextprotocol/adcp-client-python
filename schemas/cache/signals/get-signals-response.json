@@ -1,21 +1,23 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/signals/get-signals-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Response payload for get_signals task",
   "properties": {
     "context": {
-      "$ref": "/schemas/3.0.0-beta.2/core/context.json"
+      "$ref": "../core/context.json"
     },
     "errors": {
       "description": "Task-specific errors and warnings (e.g., signal discovery or pricing issues)",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.2/core/error.json"
+        "$ref": "../core/error.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+      "$ref": "../core/ext.json"
+    },
+    "pagination": {
+      "$ref": "../core/pagination-response.json"
     },
     "signals": {
       "description": "Array of matching signals",
@@ -29,13 +31,13 @@
             "type": "number"
           },
           "data_provider": {
-            "description": "Name of the data provider",
+            "description": "Human-readable name of the data provider",
             "type": "string"
           },
           "deployments": {
             "description": "Array of deployment targets",
             "items": {
-              "$ref": "/schemas/3.0.0-beta.2/core/deployment.json"
+              "$ref": "../core/deployment.json"
             },
             "type": "array"
           },
@@ -69,12 +71,20 @@
             "type": "object"
           },
           "signal_agent_segment_id": {
-            "description": "Unique identifier for the signal",
+            "description": "Opaque identifier used for activation. This is the signals agent's internal segment ID.",
             "type": "string"
           },
+          "signal_id": {
+            "$ref": "../core/signal-id.json",
+            "description": "Universal signal identifier referencing the data provider's catalog. Use this to verify authorization and look up signal definitions."
+          },
           "signal_type": {
-            "$ref": "/schemas/3.0.0-beta.2/enums/signal-catalog-type.json",
-            "description": "Type of signal"
+            "$ref": "../enums/signal-catalog-type.json",
+            "description": "Catalog type of signal (marketplace, custom, owned)"
+          },
+          "value_type": {
+            "$ref": "../enums/signal-value-type.json",
+            "description": "The data type of this signal's values (binary, categorical, numeric)"
           }
         },
         "required": [

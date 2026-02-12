@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/property/property-list.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "A managed property list with optional filters for dynamic evaluation. Lists are resolved at setup time and cached by orchestrators/sellers for real-time use.",
@@ -7,12 +6,12 @@
     "base_properties": {
       "description": "Array of property sources to evaluate. Each entry is a discriminated union: publisher_tags (publisher_domain + tags), publisher_ids (publisher_domain + property_ids), or identifiers (direct identifiers). If omitted, queries the agent's entire property database.",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.2/property/base-property-source.json"
+        "$ref": "base-property-source.json"
       },
       "type": "array"
     },
     "brand_manifest": {
-      "$ref": "/schemas/3.0.0-beta.2/core/brand-manifest.json",
+      "$ref": "../core/brand-manifest.json",
       "description": "Brand identity used to automatically apply appropriate rules"
     },
     "cache_duration_hours": {
@@ -31,7 +30,7 @@
       "type": "string"
     },
     "filters": {
-      "$ref": "/schemas/3.0.0-beta.2/property/property-list-filters.json",
+      "$ref": "property-list-filters.json",
       "description": "Dynamic filters applied when resolving the list"
     },
     "list_id": {

@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Standard cursor-based pagination metadata for list responses",
+  "properties": {
+    "cursor": {
+      "description": "Opaque cursor to pass in the next request to fetch the next page. Only present when has_more is true.",
+      "type": "string"
+    },
+    "has_more": {
+      "description": "Whether more results are available beyond this page",
+      "type": "boolean"
+    },
+    "total_count": {
+      "description": "Total number of items matching the query across all pages. Optional because not all backends can efficiently compute this.",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "has_more"
+  ],
+  "title": "Pagination Response",
+  "type": "object"
+}

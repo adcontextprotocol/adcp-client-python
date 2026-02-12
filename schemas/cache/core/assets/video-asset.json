@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/core/assets/video-asset.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Video asset with URL and technical specifications including audio track properties",
@@ -32,6 +31,12 @@
       "description": "Audio codec used (aac, aac_lc, he_aac, pcm, mp3, ac3, eac3, etc.)",
       "type": "string"
     },
+    "audio_description_url": {
+      "description": "URL to audio description track for visually impaired users",
+      "format": "uri",
+      "type": "string",
+      "x-accessibility": true
+    },
     "audio_loudness_lufs": {
       "description": "Integrated loudness in LUFS",
       "type": "number"
@@ -43,6 +48,12 @@
     "audio_true_peak_dbfs": {
       "description": "True peak level in dBFS",
       "type": "number"
+    },
+    "captions_url": {
+      "description": "URL to captions file (WebVTT, SRT, etc.)",
+      "format": "uri",
+      "type": "string",
+      "x-accessibility": true
     },
     "chroma_subsampling": {
       "description": "Chroma subsampling format",
@@ -137,6 +148,12 @@
         "interlaced"
       ],
       "type": "string"
+    },
+    "transcript_url": {
+      "description": "URL to text transcript of the video content",
+      "format": "uri",
+      "type": "string",
+      "x-accessibility": true
     },
     "url": {
       "description": "URL to the video asset",

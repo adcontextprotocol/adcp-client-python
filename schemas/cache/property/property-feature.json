@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/property/property-feature.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "A discrete feature assessment for a property (e.g., from app store privacy labels)",

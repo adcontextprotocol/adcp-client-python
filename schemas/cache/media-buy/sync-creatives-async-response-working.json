@@ -1,11 +1,10 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/media-buy/sync-creatives-async-response-working.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Progress payload for active sync_creatives task.",
   "properties": {
     "context": {
-      "$ref": "/schemas/3.0.0-beta.2/core/context.json"
+      "$ref": "../core/context.json"
     },
     "creatives_processed": {
       "description": "Number of creatives processed so far",
@@ -22,7 +21,7 @@
       "type": "string"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "percentage": {
       "description": "Completion percentage (0-100)",

@@ -1,15 +1,14 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/adagents.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "description": "Declaration of authorized sales agents for advertising inventory. Hosted at /.well-known/adagents.json on publisher domains. Can either contain the full structure inline or reference an authoritative URL.",
+  "description": "Declaration of authorized agents for advertising inventory and data signals. Hosted at /.well-known/adagents.json on publisher domains (for properties) or data provider domains (for signals). Can either contain the full structure inline or reference an authoritative URL.",
   "examples": [
     {
-      "$schema": "/schemas/3.0.0-beta.2/adagents.json",
+      "$schema": "/schemas/latest/adagents.json",
       "authoritative_location": "https://cdn.example.com/adagents/v2/adagents.json",
       "last_updated": "2025-01-15T10:00:00Z"
     },
     {
-      "$schema": "/schemas/3.0.0-beta.2/adagents.json",
+      "$schema": "/schemas/latest/adagents.json",
       "authorized_agents": [
         {
           "authorization_type": "property_tags",
@@ -42,7 +41,7 @@
       }
     },
     {
-      "$schema": "/schemas/3.0.0-beta.2/adagents.json",
+      "$schema": "/schemas/latest/adagents.json",
       "authorized_agents": [
         {
           "authorization_type": "property_tags",
@@ -77,6 +76,11 @@
           "name": "Instagram",
           "property_type": "mobile_app",
           "publisher_domain": "instagram.com",
+          "supported_channels": [
+            "social",
+            "display",
+            "olv"
+          ],
           "tags": [
             "meta_network",
             "social_media"
@@ -96,6 +100,11 @@
           "name": "Facebook",
           "property_type": "mobile_app",
           "publisher_domain": "facebook.com",
+          "supported_channels": [
+            "social",
+            "display",
+            "olv"
+          ],
           "tags": [
             "meta_network",
             "social_media"
@@ -115,6 +124,10 @@
           "name": "WhatsApp",
           "property_type": "mobile_app",
           "publisher_domain": "whatsapp.com",
+          "supported_channels": [
+            "social",
+            "display"
+          ],
           "tags": [
             "meta_network",
             "messaging"
@@ -137,7 +150,7 @@
       }
     },
     {
-      "$schema": "/schemas/3.0.0-beta.2/adagents.json",
+      "$schema": "/schemas/latest/adagents.json",
       "authorized_agents": [
         {
           "authorization_type": "property_tags",
@@ -176,7 +189,7 @@
       }
     },
     {
-      "$schema": "/schemas/3.0.0-beta.2/adagents.json",
+      "$schema": "/schemas/latest/adagents.json",
       "authorized_agents": [
         {
           "authorization_type": "publisher_properties",
@@ -222,7 +235,7 @@
       "last_updated": "2025-01-10T17:00:00Z"
     },
     {
-      "$schema": "/schemas/3.0.0-beta.2/adagents.json",
+      "$schema": "/schemas/latest/adagents.json",
       "authorized_agents": [
         {
           "authorization_type": "property_tags",
@@ -295,6 +308,90 @@
           "name": "Premium Properties"
         }
       }
+    },
+    {
+      "$schema": "/schemas/latest/adagents.json",
+      "authorized_agents": [
+        {
+          "authorization_type": "signal_tags",
+          "authorized_for": "All Polk automotive signals via LiveRamp",
+          "signal_tags": [
+            "automotive"
+          ],
+          "url": "https://liveramp.com/.well-known/adcp/signals"
+        },
+        {
+          "authorization_type": "signal_ids",
+          "authorized_for": "Polk premium signals only",
+          "signal_ids": [
+            "likely_tesla_buyers"
+          ],
+          "url": "https://the-trade-desk.com/.well-known/adcp/signals"
+        }
+      ],
+      "contact": {
+        "domain": "polk.com",
+        "email": "partnerships@polk.com",
+        "name": "Polk Automotive Data"
+      },
+      "last_updated": "2025-01-15T10:00:00Z",
+      "signal_tags": {
+        "automotive": {
+          "description": "Vehicle-related audience segments",
+          "name": "Automotive Signals"
+        },
+        "premium": {
+          "description": "High-value premium audience segments",
+          "name": "Premium Signals"
+        }
+      },
+      "signals": [
+        {
+          "category": "purchase_intent",
+          "description": "Consumers modeled as likely to purchase a Tesla in the next 12 months based on vehicle registration, financial, and behavioral data",
+          "id": "likely_tesla_buyers",
+          "name": "Likely Tesla Buyers",
+          "tags": [
+            "automotive",
+            "premium"
+          ],
+          "value_type": "binary"
+        },
+        {
+          "allowed_values": [
+            "tesla",
+            "bmw",
+            "mercedes",
+            "audi",
+            "lexus",
+            "other_luxury",
+            "non_luxury"
+          ],
+          "category": "ownership",
+          "description": "Current vehicle make owned by the consumer",
+          "id": "vehicle_ownership",
+          "name": "Current Vehicle Ownership",
+          "tags": [
+            "automotive"
+          ],
+          "value_type": "categorical"
+        },
+        {
+          "category": "purchase_intent",
+          "description": "Likelihood score of purchasing any new vehicle in the next 6 months",
+          "id": "purchase_propensity",
+          "name": "Auto Purchase Propensity",
+          "range": {
+            "max": 1,
+            "min": 0,
+            "unit": "score"
+          },
+          "tags": [
+            "automotive"
+          ],
+          "value_type": "numeric"
+        }
+      ]
     }
   ],
   "oneOf": [
@@ -352,7 +449,7 @@
                   "property_ids": {
                     "description": "Property IDs this agent is authorized for. Resolved against the top-level properties array in this file",
                     "items": {
-                      "$ref": "/schemas/3.0.0-beta.2/core/property-id.json"
+                      "$ref": "core/property-id.json"
                     },
                     "minItems": 1,
                     "type": "array"
@@ -388,7 +485,7 @@
                   "property_tags": {
                     "description": "Tags identifying which properties this agent is authorized for. Resolved against the top-level properties array in this file using tag matching",
                     "items": {
-                      "$ref": "/schemas/3.0.0-beta.2/core/property-tag.json"
+                      "$ref": "core/property-tag.json"
                     },
                     "minItems": 1,
                     "type": "array"
@@ -424,7 +521,7 @@
                   "properties": {
                     "description": "Specific properties this agent is authorized for (alternative to property_ids/property_tags)",
                     "items": {
-                      "$ref": "/schemas/3.0.0-beta.2/core/property.json"
+                      "$ref": "core/property.json"
                     },
                     "minItems": 1,
                     "type": "array"
@@ -460,7 +557,7 @@
                   "publisher_properties": {
                     "description": "Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell",
                     "items": {
-                      "$ref": "/schemas/3.0.0-beta.2/core/publisher-property-selector.json"
+                      "$ref": "core/publisher-property-selector.json"
                     },
                     "minItems": 1,
                     "type": "array"
@@ -476,6 +573,82 @@
                   "authorized_for",
                   "authorization_type",
                   "publisher_properties"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": true,
+                "description": "Authorization for signals by specific signal IDs",
+                "properties": {
+                  "authorization_type": {
+                    "const": "signal_ids",
+                    "description": "Discriminator indicating authorization by specific signal IDs",
+                    "type": "string"
+                  },
+                  "authorized_for": {
+                    "description": "Human-readable description of what signals this agent is authorized to resell",
+                    "maxLength": 500,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "signal_ids": {
+                    "description": "Signal IDs this agent is authorized to resell. Resolved against the top-level signals array in this file",
+                    "items": {
+                      "pattern": "^[a-zA-Z0-9_-]+$",
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "url": {
+                    "description": "The authorized signals agent's API endpoint URL",
+                    "format": "uri",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "url",
+                  "authorized_for",
+                  "authorization_type",
+                  "signal_ids"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": true,
+                "description": "Authorization for signals by tag membership",
+                "properties": {
+                  "authorization_type": {
+                    "const": "signal_tags",
+                    "description": "Discriminator indicating authorization by signal tags",
+                    "type": "string"
+                  },
+                  "authorized_for": {
+                    "description": "Human-readable description of what signals this agent is authorized to resell",
+                    "maxLength": 500,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "signal_tags": {
+                    "description": "Signal tags this agent is authorized for. Agent can resell all signals with these tags",
+                    "items": {
+                      "pattern": "^[a-z0-9_-]+$",
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "url": {
+                    "description": "The authorized signals agent's API endpoint URL",
+                    "format": "uri",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "url",
+                  "authorized_for",
+                  "authorization_type",
+                  "signal_tags"
                 ],
                 "type": "object"
               }
@@ -537,7 +710,7 @@
         "properties": {
           "description": "Array of all properties covered by this adagents.json file. Defines the canonical property list that authorized agents reference.",
           "items": {
-            "$ref": "/schemas/3.0.0-beta.2/core/property.json"
+            "$ref": "core/property.json"
           },
           "minItems": 1,
           "type": "array"
@@ -578,6 +751,36 @@
           },
           "type": "array"
         },
+        "signal_tags": {
+          "additionalProperties": {
+            "additionalProperties": true,
+            "properties": {
+              "description": {
+                "description": "Description of what this tag represents",
+                "type": "string"
+              },
+              "name": {
+                "description": "Human-readable name for this tag",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "description"
+            ],
+            "type": "object"
+          },
+          "description": "Metadata for each tag referenced by signals. Provides human-readable context for signal tag values.",
+          "type": "object"
+        },
+        "signals": {
+          "description": "Signal catalog published by this data provider. Signals agents reference these signals via data_provider_domain + signal_id.",
+          "items": {
+            "$ref": "core/signal-definition.json"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
         "tags": {
           "additionalProperties": {
             "additionalProperties": true,
@@ -607,5 +810,5 @@
       "type": "object"
     }
   ],
-  "title": "Authorized Sales Agents"
+  "title": "AdCP Agents Authorization"
 }

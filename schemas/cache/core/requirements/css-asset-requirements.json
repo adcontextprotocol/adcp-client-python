@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Requirements for CSS creative assets.",
+  "properties": {
+    "max_file_size_kb": {
+      "description": "Maximum file size in kilobytes",
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "title": "CSS Asset Requirements",
+  "type": "object"
+}

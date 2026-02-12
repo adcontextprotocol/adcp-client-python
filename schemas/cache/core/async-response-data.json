@@ -1,84 +1,83 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/core/async-response-data.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "anyOf": [
     {
-      "$ref": "/schemas/3.0.0-beta.2/media-buy/get-products-response.json",
+      "$ref": "../media-buy/get-products-response.json",
       "description": "Response for completed or failed get_products",
       "title": "GetProductsResponse"
     },
     {
-      "$ref": "/schemas/3.0.0-beta.2/media-buy/get-products-async-response-working.json",
+      "$ref": "../media-buy/get-products-async-response-working.json",
       "description": "Progress data for working get_products",
       "title": "GetProductsAsyncWorking"
     },
     {
-      "$ref": "/schemas/3.0.0-beta.2/media-buy/get-products-async-response-input-required.json",
+      "$ref": "../media-buy/get-products-async-response-input-required.json",
       "description": "Input requirements for get_products needing clarification",
       "title": "GetProductsAsyncInputRequired"
     },
     {
-      "$ref": "/schemas/3.0.0-beta.2/media-buy/get-products-async-response-submitted.json",
+      "$ref": "../media-buy/get-products-async-response-submitted.json",
       "description": "Acknowledgment for submitted get_products (custom curation)",
       "title": "GetProductsAsyncSubmitted"
     },
     {
-      "$ref": "/schemas/3.0.0-beta.2/media-buy/create-media-buy-response.json",
+      "$ref": "../media-buy/create-media-buy-response.json",
       "description": "Response for completed or failed create_media_buy",
       "title": "CreateMediaBuyResponse"
     },
     {
-      "$ref": "/schemas/3.0.0-beta.2/media-buy/create-media-buy-async-response-working.json",
+      "$ref": "../media-buy/create-media-buy-async-response-working.json",
       "description": "Progress data for working create_media_buy",
       "title": "CreateMediaBuyAsyncWorking"
     },
     {
-      "$ref": "/schemas/3.0.0-beta.2/media-buy/create-media-buy-async-response-input-required.json",
+      "$ref": "../media-buy/create-media-buy-async-response-input-required.json",
       "description": "Input requirements for create_media_buy needing user input",
       "title": "CreateMediaBuyAsyncInputRequired"
     },
     {
-      "$ref": "/schemas/3.0.0-beta.2/media-buy/create-media-buy-async-response-submitted.json",
+      "$ref": "../media-buy/create-media-buy-async-response-submitted.json",
       "description": "Acknowledgment for submitted create_media_buy",
       "title": "CreateMediaBuyAsyncSubmitted"
     },
     {
-      "$ref": "/schemas/3.0.0-beta.2/media-buy/update-media-buy-response.json",
+      "$ref": "../media-buy/update-media-buy-response.json",
       "description": "Response for completed or failed update_media_buy",
       "title": "UpdateMediaBuyResponse"
     },
     {
-      "$ref": "/schemas/3.0.0-beta.2/media-buy/update-media-buy-async-response-working.json",
+      "$ref": "../media-buy/update-media-buy-async-response-working.json",
       "description": "Progress data for working update_media_buy",
       "title": "UpdateMediaBuyAsyncWorking"
     },
     {
-      "$ref": "/schemas/3.0.0-beta.2/media-buy/update-media-buy-async-response-input-required.json",
+      "$ref": "../media-buy/update-media-buy-async-response-input-required.json",
       "description": "Input requirements for update_media_buy needing user input",
       "title": "UpdateMediaBuyAsyncInputRequired"
     },
     {
-      "$ref": "/schemas/3.0.0-beta.2/media-buy/update-media-buy-async-response-submitted.json",
+      "$ref": "../media-buy/update-media-buy-async-response-submitted.json",
       "description": "Acknowledgment for submitted update_media_buy",
       "title": "UpdateMediaBuyAsyncSubmitted"
     },
     {
-      "$ref": "/schemas/3.0.0-beta.2/media-buy/sync-creatives-response.json",
+      "$ref": "../media-buy/sync-creatives-response.json",
       "description": "Response for completed or failed sync_creatives",
       "title": "SyncCreativesResponse"
     },
     {
-      "$ref": "/schemas/3.0.0-beta.2/media-buy/sync-creatives-async-response-working.json",
+      "$ref": "../media-buy/sync-creatives-async-response-working.json",
       "description": "Progress data for working sync_creatives",
       "title": "SyncCreativesAsyncWorking"
     },
     {
-      "$ref": "/schemas/3.0.0-beta.2/media-buy/sync-creatives-async-response-input-required.json",
+      "$ref": "../media-buy/sync-creatives-async-response-input-required.json",
       "description": "Input requirements for sync_creatives needing user input",
       "title": "SyncCreativesAsyncInputRequired"
     },
     {
-      "$ref": "/schemas/3.0.0-beta.2/media-buy/sync-creatives-async-response-submitted.json",
+      "$ref": "../media-buy/sync-creatives-async-response-submitted.json",
       "description": "Acknowledgment for submitted sync_creatives",
       "title": "SyncCreativesAsyncSubmitted"
     }

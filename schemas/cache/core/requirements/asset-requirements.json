@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Technical requirements for creative assets. The applicable schema is determined by the sibling asset_type field.",
+  "oneOf": [
+    {
+      "$ref": "image-asset-requirements.json"
+    },
+    {
+      "$ref": "video-asset-requirements.json"
+    },
+    {
+      "$ref": "audio-asset-requirements.json"
+    },
+    {
+      "$ref": "text-asset-requirements.json"
+    },
+    {
+      "$ref": "markdown-asset-requirements.json"
+    },
+    {
+      "$ref": "html-asset-requirements.json"
+    },
+    {
+      "$ref": "css-asset-requirements.json"
+    },
+    {
+      "$ref": "javascript-asset-requirements.json"
+    },
+    {
+      "$ref": "vast-asset-requirements.json"
+    },
+    {
+      "$ref": "daast-asset-requirements.json"
+    },
+    {
+      "$ref": "promoted-offerings-asset-requirements.json"
+    },
+    {
+      "$ref": "url-asset-requirements.json"
+    },
+    {
+      "$ref": "webhook-asset-requirements.json"
+    }
+  ],
+  "title": "Asset Requirements"
+}

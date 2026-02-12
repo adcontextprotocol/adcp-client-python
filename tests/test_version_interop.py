@@ -16,8 +16,6 @@ from adcp.types.core import TaskStatus
 V3_ONLY_TOOLS = [
     # Protocol Discovery
     "get_adcp_capabilities",
-    # Accounts (added in beta.2)
-    "list_accounts",
     # Content Standards
     "create_content_standards",
     "get_content_standards",

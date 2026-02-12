@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/core/mcp-webhook-payload.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Standard envelope for HTTP-based push notifications (MCP). This defines the wire format sent to the URL configured in `pushNotificationConfig`. NOTE: This envelope is NOT used in A2A integration, which uses native Task/TaskStatusUpdateEvent messages with the AdCP payload nested in `status.message.parts[].data`.",
@@ -108,7 +107,7 @@
       "type": "string"
     },
     "domain": {
-      "$ref": "/schemas/3.0.0-beta.2/enums/adcp-domain.json",
+      "$ref": "../enums/adcp-domain.json",
       "description": "AdCP domain this task belongs to. Helps classify the operation type at a high level."
     },
     "message": {
@@ -120,11 +119,11 @@
       "type": "string"
     },
     "result": {
-      "$ref": "/schemas/3.0.0-beta.2/core/async-response-data.json",
+      "$ref": "async-response-data.json",
       "description": "Task-specific payload matching the status. For completed/failed, contains the full task response. For working/input-required/submitted, contains status-specific data. This is the data layer that AdCP specs - same structure used in A2A status.message.parts[].data."
     },
     "status": {
-      "$ref": "/schemas/3.0.0-beta.2/enums/task-status.json",
+      "$ref": "../enums/task-status.json",
       "description": "Current task status. Webhooks are triggered for status changes after initial submission."
     },
     "task_id": {
@@ -132,7 +131,7 @@
       "type": "string"
     },
     "task_type": {
-      "$ref": "/schemas/3.0.0-beta.2/enums/task-type.json",
+      "$ref": "../enums/task-type.json",
       "description": "Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic."
     },
     "timestamp": {

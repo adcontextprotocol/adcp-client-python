@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/core/creative-filters.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Filter criteria for querying creative assets from the centralized library. By default, archived creatives are excluded from results. To include archived creatives, explicitly filter by status='archived' or include 'archived' in the statuses array.",
@@ -9,6 +8,7 @@
       "items": {
         "type": "string"
       },
+      "minItems": 1,
       "type": "array"
     },
     "assigned_to_packages": {
@@ -16,6 +16,7 @@
       "items": {
         "type": "string"
       },
+      "minItems": 1,
       "type": "array"
     },
     "buyer_refs": {
@@ -23,6 +24,7 @@
       "items": {
         "type": "string"
       },
+      "minItems": 1,
       "type": "array"
     },
     "created_after": {
@@ -41,6 +43,7 @@
         "type": "string"
       },
       "maxItems": 100,
+      "minItems": 1,
       "type": "array"
     },
     "formats": {
@@ -48,6 +51,7 @@
       "items": {
         "type": "string"
       },
+      "minItems": 1,
       "type": "array"
     },
     "has_performance_data": {
@@ -59,6 +63,7 @@
       "items": {
         "type": "string"
       },
+      "minItems": 1,
       "type": "array"
     },
     "name_contains": {
@@ -68,8 +73,9 @@
     "statuses": {
       "description": "Filter by creative approval statuses",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.2/enums/creative-status.json"
+        "$ref": "../enums/creative-status.json"
       },
+      "minItems": 1,
       "type": "array"
     },
     "tags": {
@@ -77,6 +83,7 @@
       "items": {
         "type": "string"
       },
+      "minItems": 1,
       "type": "array"
     },
     "tags_any": {
@@ -84,6 +91,7 @@
       "items": {
         "type": "string"
       },
+      "minItems": 1,
       "type": "array"
     },
     "unassigned": {

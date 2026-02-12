@@ -30,6 +30,8 @@ from adcp.types import (
     BuildCreativeResponse,
     CreateMediaBuyRequest,
     CreateMediaBuyResponse,
+    GetCreativeDeliveryRequest,
+    GetCreativeDeliveryResponse,
     GetMediaBuyDeliveryRequest,
     GetMediaBuyDeliveryResponse,
     GetProductsRequest,
@@ -42,12 +44,18 @@ from adcp.types import (
     ListCreativeFormatsResponse,
     ListCreativesRequest,
     ListCreativesResponse,
+    LogEventRequest,
+    LogEventResponse,
     PreviewCreativeRequest,
     PreviewCreativeResponse,
     ProvidePerformanceFeedbackRequest,
     ProvidePerformanceFeedbackResponse,
+    SyncAccountsRequest,
+    SyncAccountsResponse,
     SyncCreativesRequest,
     SyncCreativesResponse,
+    SyncEventSourcesRequest,
+    SyncEventSourcesResponse,
     UpdateMediaBuyRequest,
     UpdateMediaBuyResponse,
 )
@@ -252,31 +260,6 @@ class SimpleAPI:
             )
         return result.data
 
-    async def list_accounts(
-        self,
-        **kwargs: Any,
-    ) -> ListAccountsResponse:
-        """List billing accounts accessible to the authenticated agent.
-
-        Args:
-            **kwargs: Arguments passed to ListAccountsRequest
-
-        Returns:
-            ListAccountsResponse
-
-        Raises:
-            Exception: If the request fails
-        """
-        request = ListAccountsRequest(**kwargs)
-        result = await self._client.list_accounts(request)
-        if not result.success or not result.data:
-            raise ADCPSimpleAPIError(
-                operation="list_accounts",
-                error_message=result.error,
-                agent_id=self._client.agent_config.id,
-            )
-        return result.data
-
     async def get_signals(
         self,
         **kwargs: Any,
@@ -445,6 +428,131 @@ class SimpleAPI:
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
                 operation="build_creative",
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def list_accounts(
+        self,
+        **kwargs: Any,
+    ) -> ListAccountsResponse:
+        """List accounts.
+
+        Args:
+            **kwargs: Arguments passed to ListAccountsRequest
+
+        Returns:
+            ListAccountsResponse
+
+        Raises:
+            Exception: If the request fails
+        """
+        request = ListAccountsRequest(**kwargs)
+        result = await self._client.list_accounts(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation="list_accounts",
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def sync_accounts(
+        self,
+        **kwargs: Any,
+    ) -> SyncAccountsResponse:
+        """Sync accounts.
+
+        Args:
+            **kwargs: Arguments passed to SyncAccountsRequest
+
+        Returns:
+            SyncAccountsResponse
+
+        Raises:
+            Exception: If the request fails
+        """
+        request = SyncAccountsRequest(**kwargs)
+        result = await self._client.sync_accounts(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation="sync_accounts",
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def log_event(
+        self,
+        **kwargs: Any,
+    ) -> LogEventResponse:
+        """Log event.
+
+        Args:
+            **kwargs: Arguments passed to LogEventRequest
+
+        Returns:
+            LogEventResponse
+
+        Raises:
+            Exception: If the request fails
+        """
+        request = LogEventRequest(**kwargs)
+        result = await self._client.log_event(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation="log_event",
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def sync_event_sources(
+        self,
+        **kwargs: Any,
+    ) -> SyncEventSourcesResponse:
+        """Sync event sources.
+
+        Args:
+            **kwargs: Arguments passed to SyncEventSourcesRequest
+
+        Returns:
+            SyncEventSourcesResponse
+
+        Raises:
+            Exception: If the request fails
+        """
+        request = SyncEventSourcesRequest(**kwargs)
+        result = await self._client.sync_event_sources(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation="sync_event_sources",
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def get_creative_delivery(
+        self,
+        **kwargs: Any,
+    ) -> GetCreativeDeliveryResponse:
+        """Get creative delivery.
+
+        Args:
+            **kwargs: Arguments passed to GetCreativeDeliveryRequest
+
+        Returns:
+            GetCreativeDeliveryResponse
+
+        Raises:
+            Exception: If the request fails
+        """
+        request = GetCreativeDeliveryRequest(**kwargs)
+        result = await self._client.get_creative_delivery(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation="get_creative_delivery",
                 error_message=result.error,
                 agent_id=self._client.agent_config.id,
             )

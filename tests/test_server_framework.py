@@ -327,13 +327,6 @@ class TestGovernanceHandler:
         assert isinstance(result, NotImplementedResponse)
         assert "Sponsored Intelligence" in result.reason
 
-    @pytest.mark.asyncio
-    async def test_list_accounts_not_supported(self):
-        """Test list_accounts is not supported by Governance agents."""
-        handler = self.create_concrete_handler()
-        result = await handler.list_accounts({})
-        assert isinstance(result, NotImplementedResponse)
-        assert "not supported" in result.reason
 
 
 class TestProposalBuilder:

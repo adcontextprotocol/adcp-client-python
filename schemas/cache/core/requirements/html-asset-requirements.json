@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Requirements for HTML creative assets. These define the execution environment constraints that the HTML must be compatible with.",
+  "properties": {
+    "allowed_external_domains": {
+      "description": "List of domains the HTML creative may reference for external resources. Only applicable when external_resources_allowed is true.",
+      "items": {
+        "format": "hostname",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "external_resources_allowed": {
+      "description": "Whether the HTML creative can load external resources (scripts, images, fonts, etc.). When false, all resources must be inlined or bundled.",
+      "type": "boolean"
+    },
+    "max_file_size_kb": {
+      "description": "Maximum file size in kilobytes for the HTML asset",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "sandbox": {
+      "default": "none",
+      "description": "Sandbox environment the HTML must be compatible with. 'none' = direct DOM access, 'iframe' = standard iframe isolation, 'safeframe' = IAB SafeFrame container, 'fencedframe' = Privacy Sandbox fenced frame",
+      "enum": [
+        "none",
+        "iframe",
+        "safeframe",
+        "fencedframe"
+      ],
+      "type": "string"
+    }
+  },
+  "title": "HTML Asset Requirements",
+  "type": "object"
+}

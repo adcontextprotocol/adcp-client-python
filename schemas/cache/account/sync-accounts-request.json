@@ -1,0 +1,120 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Sync advertiser accounts with a seller using upsert semantics. The agent declares which brands it represents, who operates each seat, and the billing model. The seller provisions or links accounts accordingly, returning per-account status. Brands are identified by house domain + brand_id, resolved via /.well-known/brand.json.",
+  "examples": [
+    {
+      "data": {
+        "accounts": [
+          {
+            "billing": "brand",
+            "brand_id": "dove",
+            "house": "unilever.com",
+            "operator": "mindshare.com"
+          },
+          {
+            "billing": "agent",
+            "brand_id": "tide",
+            "house": "pg.com",
+            "operator": "groupm.com"
+          }
+        ]
+      },
+      "description": "Agency syncing multiple advertisers with different billing"
+    },
+    {
+      "data": {
+        "accounts": [
+          {
+            "billing": "brand",
+            "house": "coca-cola.com"
+          }
+        ]
+      },
+      "description": "Brand buying direct, no operator"
+    },
+    {
+      "data": {
+        "accounts": [
+          {
+            "billing": "agent",
+            "brand_id": "dove",
+            "house": "unilever.com"
+          },
+          {
+            "billing": "agent",
+            "brand_id": "axe",
+            "house": "unilever.com"
+          }
+        ]
+      },
+      "description": "Agent consolidating billing for all advertisers"
+    }
+  ],
+  "properties": {
+    "accounts": {
+      "description": "Advertiser accounts to sync",
+      "items": {
+        "additionalProperties": true,
+        "description": "An advertiser account the agent wants to operate on the seller",
+        "properties": {
+          "billing": {
+            "description": "Who should be invoiced. brand: seller invoices the brand directly. operator: seller invoices the operator (agency). agent: agent consolidates billing across brands. Omit to accept the seller's default.",
+            "enum": [
+              "brand",
+              "operator",
+              "agent"
+            ],
+            "type": "string"
+          },
+          "brand_id": {
+            "description": "Brand ID within the house portfolio (from brand.json). Required when the house has multiple brands (e.g., 'dove' under unilever.com, 'tide' under pg.com). Omit for single-brand houses.",
+            "pattern": "^[a-z0-9_]+$",
+            "type": "string"
+          },
+          "house": {
+            "description": "House domain where brand.json is hosted (e.g., 'unilever.com', 'coca-cola.com'). This is the canonical identity anchor for the brand, resolved via /.well-known/brand.json. For single-brand houses, this alone identifies the brand.",
+            "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
+            "type": "string"
+          },
+          "operator": {
+            "description": "Domain of the entity operating the seat (e.g., 'groupm.com', 'mindshare.com'). Verified against the brand's authorized_operators in brand.json. Omit if the brand operates its own seat.",
+            "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "house"
+        ],
+        "type": "object"
+      },
+      "maxItems": 1000,
+      "type": "array"
+    },
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "delete_missing": {
+      "default": false,
+      "description": "When true, accounts previously synced by this agent but not included in this request will be deactivated. Scoped to the authenticated agent \u2014 does not affect accounts managed by other agents. Use with caution.",
+      "type": "boolean"
+    },
+    "dry_run": {
+      "default": false,
+      "description": "When true, preview what would change without applying. Returns what would be created/updated/deactivated.",
+      "type": "boolean"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "push_notification_config": {
+      "$ref": "../core/push-notification-config.json",
+      "description": "Optional webhook for async notifications when account status changes (e.g., pending_approval transitions to active)."
+    }
+  },
+  "required": [
+    "accounts"
+  ],
+  "title": "Sync Accounts Request",
+  "type": "object"
+}

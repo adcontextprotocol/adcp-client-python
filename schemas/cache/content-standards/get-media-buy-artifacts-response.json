@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/content-standards/get-media-buy-artifacts-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Response containing content artifacts from a media buy for validation",
   "oneOf": [
@@ -11,7 +10,7 @@
           "items": {
             "properties": {
               "artifact": {
-                "$ref": "/schemas/3.0.0-beta.2/content-standards/artifact.json",
+                "$ref": "artifact.json",
                 "description": "Full artifact with content assets"
               },
               "brand_context": {
@@ -68,32 +67,21 @@
           "type": "array"
         },
         "context": {
-          "$ref": "/schemas/3.0.0-beta.2/core/context.json"
+          "$ref": "../core/context.json"
         },
         "errors": {
           "description": "Field must not be present in success response",
           "not": {}
         },
         "ext": {
-          "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+          "$ref": "../core/ext.json"
         },
         "media_buy_id": {
           "description": "Media buy these artifacts belong to",
           "type": "string"
         },
         "pagination": {
-          "description": "Pagination information for large result sets",
-          "properties": {
-            "cursor": {
-              "description": "Cursor for fetching the next page",
-              "type": "string"
-            },
-            "has_more": {
-              "description": "Whether more results are available",
-              "type": "boolean"
-            }
-          },
-          "type": "object"
+          "$ref": "../core/pagination-response.json"
         },
         "sampling_info": {
           "description": "Information about how the sample was generated",
@@ -134,16 +122,16 @@
       "description": "Error response",
       "properties": {
         "context": {
-          "$ref": "/schemas/3.0.0-beta.2/core/context.json"
+          "$ref": "../core/context.json"
         },
         "errors": {
           "items": {
-            "$ref": "/schemas/3.0.0-beta.2/core/error.json"
+            "$ref": "../core/error.json"
           },
           "type": "array"
         },
         "ext": {
-          "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+          "$ref": "../core/ext.json"
         },
         "media_buy_id": {
           "description": "Field must not be present in error response",

@@ -1,50 +1,49 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/core/creative-manifest.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Complete specification of a creative with all assets needed for rendering in a specific format. Each asset is typed according to its asset_role from the format specification and contains the actual content/URL that fulfills the format requirements.",
   "properties": {
     "assets": {
       "additionalProperties": true,
-      "description": "Map of asset IDs to actual asset content. Each key MUST match an asset_id from the format's assets array (e.g., 'banner_image', 'clickthrough_url', 'video_file', 'vast_tag'). The asset_id is the technical identifier used to match assets to format requirements.\n\nIMPORTANT: Creative manifest validation MUST be performed in the context of the format specification. The format defines what type each asset_id should be, which eliminates any validation ambiguity.",
+      "description": "Map of asset IDs to actual asset content. Each key MUST match an asset_id from the format's assets array (e.g., 'banner_image', 'clickthrough_url', 'video_file', 'vast_tag'). The asset_id is the technical identifier used to match assets to format requirements.\n\nIMPORTANT: Full validation requires format context. The format defines what type each asset_id should be. Standalone schema validation only checks structural conformance \u2014 each asset must match at least one valid asset type schema.",
       "patternProperties": {
         "^[a-z0-9_]+$": {
-          "oneOf": [
+          "anyOf": [
             {
-              "$ref": "/schemas/3.0.0-beta.2/core/assets/image-asset.json"
+              "$ref": "assets/image-asset.json"
             },
             {
-              "$ref": "/schemas/3.0.0-beta.2/core/assets/video-asset.json"
+              "$ref": "assets/video-asset.json"
             },
             {
-              "$ref": "/schemas/3.0.0-beta.2/core/assets/audio-asset.json"
+              "$ref": "assets/audio-asset.json"
             },
             {
-              "$ref": "/schemas/3.0.0-beta.2/core/assets/vast-asset.json"
+              "$ref": "assets/vast-asset.json"
             },
             {
-              "$ref": "/schemas/3.0.0-beta.2/core/assets/text-asset.json"
+              "$ref": "assets/text-asset.json"
             },
             {
-              "$ref": "/schemas/3.0.0-beta.2/core/assets/url-asset.json"
+              "$ref": "assets/url-asset.json"
             },
             {
-              "$ref": "/schemas/3.0.0-beta.2/core/assets/html-asset.json"
+              "$ref": "assets/html-asset.json"
             },
             {
-              "$ref": "/schemas/3.0.0-beta.2/core/assets/javascript-asset.json"
+              "$ref": "assets/javascript-asset.json"
             },
             {
-              "$ref": "/schemas/3.0.0-beta.2/core/assets/webhook-asset.json"
+              "$ref": "assets/webhook-asset.json"
             },
             {
-              "$ref": "/schemas/3.0.0-beta.2/core/assets/css-asset.json"
+              "$ref": "assets/css-asset.json"
             },
             {
-              "$ref": "/schemas/3.0.0-beta.2/core/assets/daast-asset.json"
+              "$ref": "assets/daast-asset.json"
             },
             {
-              "$ref": "/schemas/3.0.0-beta.2/core/promoted-offerings.json"
+              "$ref": "promoted-offerings.json"
             }
           ]
         }
@@ -52,10 +51,10 @@
       "type": "object"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+      "$ref": "ext.json"
     },
     "format_id": {
-      "$ref": "/schemas/3.0.0-beta.2/core/format-id.json",
+      "$ref": "format-id.json",
       "description": "Format identifier this manifest is for. Can be a template format (id only) or a deterministic format (id + dimensions/duration). For dimension-specific creatives, include width/height/unit in the format_id to create a unique identifier (e.g., {id: 'display_static', width: 300, height: 250, unit: 'px'})."
     },
     "promoted_offering": {

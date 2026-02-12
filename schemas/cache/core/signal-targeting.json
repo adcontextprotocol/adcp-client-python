@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Targeting constraint for a specific signal. Uses value_type as discriminator to determine the targeting expression format.",
+  "discriminator": {
+    "propertyName": "value_type"
+  },
+  "oneOf": [
+    {
+      "additionalProperties": true,
+      "description": "Binary signal targeting - user either matches or doesn't",
+      "properties": {
+        "signal_id": {
+          "$ref": "signal-id.json",
+          "description": "The signal to target"
+        },
+        "value": {
+          "description": "Whether to include (true) or exclude (false) users matching this signal",
+          "type": "boolean"
+        },
+        "value_type": {
+          "const": "binary",
+          "description": "Discriminator for binary signals",
+          "type": "string"
+        }
+      },
+      "required": [
+        "signal_id",
+        "value_type",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": true,
+      "description": "Categorical signal targeting - target users with specific values",
+      "properties": {
+        "signal_id": {
+          "$ref": "signal-id.json",
+          "description": "The signal to target"
+        },
+        "value_type": {
+          "const": "categorical",
+          "description": "Discriminator for categorical signals",
+          "type": "string"
+        },
+        "values": {
+          "description": "Values to target. Users with any of these values will be included.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "signal_id",
+        "value_type",
+        "values"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": true,
+      "description": "Numeric signal targeting - target users within a value range. If min_value is provided, it must be <= max_value. Values should be within the signal's defined range (see signal definition).",
+      "properties": {
+        "max_value": {
+          "description": "Maximum value (inclusive). Omit for no maximum. Must be >= min_value when both are provided. Should be <= signal's range.max if defined.",
+          "type": "number"
+        },
+        "min_value": {
+          "description": "Minimum value (inclusive). Omit for no minimum. Must be <= max_value when both are provided. Should be >= signal's range.min if defined.",
+          "type": "number"
+        },
+        "signal_id": {
+          "$ref": "signal-id.json",
+          "description": "The signal to target"
+        },
+        "value_type": {
+          "const": "numeric",
+          "description": "Discriminator for numeric signals",
+          "type": "string"
+        }
+      },
+      "required": [
+        "signal_id",
+        "value_type"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "Signal Targeting"
+}

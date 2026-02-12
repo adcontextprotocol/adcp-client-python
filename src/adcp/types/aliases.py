@@ -43,11 +43,17 @@ from adcp.types._generated import (
     # Build creative responses
     BuildCreativeResponse1,
     BuildCreativeResponse2,
+    # Calibrate content responses
+    CalibrateContentResponse1,
+    CalibrateContentResponse2,
     CpcPricingOption,
     CpcvPricingOption,
     CpmPricingOption,
     CppPricingOption,
     CpvPricingOption,
+    # Content standards responses
+    CreateContentStandardsResponse1,
+    CreateContentStandardsResponse2,
     # Create media buy responses
     CreateMediaBuyResponse1,
     CreateMediaBuyResponse2,
@@ -61,6 +67,22 @@ from adcp.types._generated import (
     Destination1,
     Destination2,
     FlatRatePricingOption,
+    # Content standards get responses
+    GetContentStandardsResponse1,
+    GetContentStandardsResponse2,
+    # Creative delivery requests
+    GetCreativeDeliveryRequest1,
+    GetCreativeDeliveryRequest2,
+    GetCreativeDeliveryRequest3,
+    # Media buy artifacts responses
+    GetMediaBuyArtifactsResponse1,
+    GetMediaBuyArtifactsResponse2,
+    # Content standards list responses
+    ListContentStandardsResponse1,
+    ListContentStandardsResponse2,
+    # Log event responses
+    LogEventResponse1,
+    LogEventResponse2,
     # Preview creative requests
     PreviewCreativeRequest1,
     PreviewCreativeRequest2,
@@ -80,15 +102,24 @@ from adcp.types._generated import (
     # SubAssets
     SubAsset1,
     SubAsset2,
+    # Sync accounts responses
+    SyncAccountsResponse1,
+    SyncAccountsResponse2,
     # Sync creatives responses
     SyncCreativesResponse1,
     SyncCreativesResponse2,
+    # Sync event sources responses
+    SyncEventSourcesResponse1,
+    SyncEventSourcesResponse2,
     # Update media buy requests
     UpdateMediaBuyRequest1,
     UpdateMediaBuyRequest2,
     # Update media buy responses
     UpdateMediaBuyResponse1,
     UpdateMediaBuyResponse2,
+    # Validate content delivery responses
+    ValidateContentDeliveryResponse1,
+    ValidateContentDeliveryResponse2,
     # VAST assets
     VastAsset1,
     VastAsset2,
@@ -174,6 +205,69 @@ Example usage:
             print(f"Failed: {result.errors}")
 """
 
+# Sync Accounts Response Variants
+SyncAccountsSuccessResponse = SyncAccountsResponse1
+"""Success response - accounts synced successfully."""
+
+SyncAccountsErrorResponse = SyncAccountsResponse2
+"""Error response - account sync failed."""
+
+# Log Event Response Variants
+LogEventSuccessResponse = LogEventResponse1
+"""Success response - events logged successfully."""
+
+LogEventErrorResponse = LogEventResponse2
+"""Error response - event logging failed."""
+
+# Sync Event Sources Response Variants
+SyncEventSourcesSuccessResponse = SyncEventSourcesResponse1
+"""Success response - event sources synced successfully."""
+
+SyncEventSourcesErrorResponse = SyncEventSourcesResponse2
+"""Error response - event source sync failed."""
+
+# Calibrate Content Response Variants
+CalibrateContentSuccessResponse = CalibrateContentResponse1
+"""Success response - content calibration completed."""
+
+CalibrateContentErrorResponse = CalibrateContentResponse2
+"""Error response - content calibration failed."""
+
+# Validate Content Delivery Response Variants
+ValidateContentDeliverySuccessResponse = ValidateContentDeliveryResponse1
+"""Success response - content delivery validated."""
+
+ValidateContentDeliveryErrorResponse = ValidateContentDeliveryResponse2
+"""Error response - content delivery validation failed."""
+
+# Get Content Standards Response Variants
+GetContentStandardsSuccessResponse = GetContentStandardsResponse1
+"""Success response - content standards retrieved."""
+
+GetContentStandardsErrorResponse = GetContentStandardsResponse2
+"""Error response - content standards retrieval failed."""
+
+# List Content Standards Response Variants
+ListContentStandardsSuccessResponse = ListContentStandardsResponse1
+"""Success response - content standards listed."""
+
+ListContentStandardsErrorResponse = ListContentStandardsResponse2
+"""Error response - content standards listing failed."""
+
+# Create Content Standards Response Variants
+CreateContentStandardsSuccessResponse = CreateContentStandardsResponse1
+"""Success response - content standards created."""
+
+CreateContentStandardsErrorResponse = CreateContentStandardsResponse2
+"""Error response - content standards creation failed."""
+
+# Get Media Buy Artifacts Response Variants
+GetMediaBuyArtifactsSuccessResponse = GetMediaBuyArtifactsResponse1
+"""Success response - media buy artifacts retrieved."""
+
+GetMediaBuyArtifactsErrorResponse = GetMediaBuyArtifactsResponse2
+"""Error response - media buy artifacts retrieval failed."""
+
 # Update Media Buy Response Variants
 UpdateMediaBuySuccessResponse = UpdateMediaBuyResponse1
 """Success response - media buy updated successfully."""
@@ -198,6 +292,16 @@ UpdateMediaBuyPackagesRequest = UpdateMediaBuyRequest1
 
 UpdateMediaBuyPropertiesRequest = UpdateMediaBuyRequest2
 """Update request modifying media buy properties (not packages)."""
+
+# Get Creative Delivery Request Variants
+GetCreativeDeliveryByMediaBuyRequest = GetCreativeDeliveryRequest1
+"""Request creative delivery by media_buy_ids."""
+
+GetCreativeDeliveryByBuyerRefRequest = GetCreativeDeliveryRequest2
+"""Request creative delivery by media_buy_buyer_refs."""
+
+GetCreativeDeliveryByCreativeRequest = GetCreativeDeliveryRequest3
+"""Request creative delivery by creative_ids."""
 
 # ============================================================================
 # ACTIVATION KEY ALIASES
@@ -769,9 +873,29 @@ __all__ = [
     # Build creative responses
     "BuildCreativeSuccessResponse",
     "BuildCreativeErrorResponse",
+    # Calibrate content responses
+    "CalibrateContentSuccessResponse",
+    "CalibrateContentErrorResponse",
+    # Content standards responses
+    "CreateContentStandardsSuccessResponse",
+    "CreateContentStandardsErrorResponse",
+    "GetContentStandardsSuccessResponse",
+    "GetContentStandardsErrorResponse",
+    "ListContentStandardsSuccessResponse",
+    "ListContentStandardsErrorResponse",
     # Create media buy responses
     "CreateMediaBuySuccessResponse",
     "CreateMediaBuyErrorResponse",
+    # Creative delivery requests
+    "GetCreativeDeliveryByMediaBuyRequest",
+    "GetCreativeDeliveryByBuyerRefRequest",
+    "GetCreativeDeliveryByCreativeRequest",
+    # Log event responses
+    "LogEventSuccessResponse",
+    "LogEventErrorResponse",
+    # Media buy artifacts responses
+    "GetMediaBuyArtifactsSuccessResponse",
+    "GetMediaBuyArtifactsErrorResponse",
     # Performance feedback responses
     "ProvidePerformanceFeedbackSuccessResponse",
     "ProvidePerformanceFeedbackErrorResponse",
@@ -781,16 +905,25 @@ __all__ = [
     # Preview creative responses
     "PreviewCreativeStaticResponse",
     "PreviewCreativeInteractiveResponse",
+    # Sync accounts responses
+    "SyncAccountsSuccessResponse",
+    "SyncAccountsErrorResponse",
     # Sync creatives responses
     "SyncCreativesSuccessResponse",
     "SyncCreativesErrorResponse",
     "SyncCreativeResult",
+    # Sync event sources responses
+    "SyncEventSourcesSuccessResponse",
+    "SyncEventSourcesErrorResponse",
     # Update media buy requests
     "UpdateMediaBuyPackagesRequest",
     "UpdateMediaBuyPropertiesRequest",
     # Update media buy responses
     "UpdateMediaBuySuccessResponse",
     "UpdateMediaBuyErrorResponse",
+    # Validate content delivery responses
+    "ValidateContentDeliverySuccessResponse",
+    "ValidateContentDeliveryErrorResponse",
     # Package type aliases
     "Package",
     # Publisher properties types

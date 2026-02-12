@@ -1,0 +1,93 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Selects signals from a data provider's adagents.json catalog. Used for product definitions and agent authorization. Supports three selection patterns: all signals, specific IDs, or by tags.",
+  "discriminator": {
+    "propertyName": "selection_type"
+  },
+  "oneOf": [
+    {
+      "additionalProperties": true,
+      "description": "Select all signals from the data provider",
+      "properties": {
+        "data_provider_domain": {
+          "description": "Domain where data provider's adagents.json is hosted (e.g., 'polk.com')",
+          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
+          "type": "string"
+        },
+        "selection_type": {
+          "const": "all",
+          "description": "Discriminator indicating all signals from this data provider are included",
+          "type": "string"
+        }
+      },
+      "required": [
+        "data_provider_domain",
+        "selection_type"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": true,
+      "description": "Select specific signals by ID",
+      "properties": {
+        "data_provider_domain": {
+          "description": "Domain where data provider's adagents.json is hosted (e.g., 'polk.com')",
+          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
+          "type": "string"
+        },
+        "selection_type": {
+          "const": "by_id",
+          "description": "Discriminator indicating selection by specific signal IDs",
+          "type": "string"
+        },
+        "signal_ids": {
+          "description": "Specific signal IDs from the data provider's catalog",
+          "items": {
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "data_provider_domain",
+        "selection_type",
+        "signal_ids"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": true,
+      "description": "Select signals by tag membership",
+      "properties": {
+        "data_provider_domain": {
+          "description": "Domain where data provider's adagents.json is hosted (e.g., 'polk.com')",
+          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
+          "type": "string"
+        },
+        "selection_type": {
+          "const": "by_tag",
+          "description": "Discriminator indicating selection by signal tags",
+          "type": "string"
+        },
+        "signal_tags": {
+          "description": "Signal tags from the data provider's catalog. Selector covers all signals with these tags",
+          "items": {
+            "pattern": "^[a-z0-9_-]+$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "data_provider_domain",
+        "selection_type",
+        "signal_tags"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "Data Provider Signal Selector"
+}

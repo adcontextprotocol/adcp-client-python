@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Source type for signal identifiers. Determines how the signal is referenced and whether authorization can be externally verified.",
+  "enum": [
+    "catalog",
+    "agent"
+  ],
+  "enumDescriptions": {
+    "agent": "Signal native to the signals agent. Referenced by agent_url + id. Not externally verifiable - buyer trusts the agent's claim about the signal.",
+    "catalog": "Signal from a data provider's published catalog. Referenced by data_provider_domain + id. Authorization can be verified by checking the data provider's adagents.json."
+  },
+  "title": "Signal Source",
+  "type": "string"
+}

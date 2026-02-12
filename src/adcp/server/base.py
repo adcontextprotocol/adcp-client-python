@@ -90,15 +90,6 @@ class ADCPHandler(ABC):
         """
         return not_supported("list_creative_formats is not implemented by this agent")
 
-    async def list_accounts(
-        self, params: dict[str, Any], context: ToolContext | None = None
-    ) -> Any:
-        """List billing accounts accessible to the authenticated agent.
-
-        Override this to provide account information.
-        """
-        return not_supported("list_accounts is not implemented by this agent")
-
     # ========================================================================
     # Creative Operations
     # ========================================================================
@@ -129,6 +120,15 @@ class ADCPHandler(ABC):
         Override this to build creatives from assets.
         """
         return not_supported("build_creative is not implemented by this agent")
+
+    async def get_creative_delivery(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -> Any:
+        """Get creative delivery metrics.
+
+        Override this to provide functionality.
+        """
+        return not_supported("get_creative_delivery is not implemented by this agent")
 
     # ========================================================================
     # Media Buy Operations
@@ -193,6 +193,50 @@ class ADCPHandler(ABC):
         Override this to handle performance feedback ingestion.
         """
         return not_supported("provide_performance_feedback is not implemented by this agent")
+
+    # ========================================================================
+    # Account Operations
+    # ========================================================================
+
+    async def list_accounts(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -> Any:
+        """List accounts.
+
+        Override this to provide functionality.
+        """
+        return not_supported("list_accounts is not implemented by this agent")
+
+    async def sync_accounts(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -> Any:
+        """Sync accounts.
+
+        Override this to provide functionality.
+        """
+        return not_supported("sync_accounts is not implemented by this agent")
+
+    # ========================================================================
+    # Event Operations
+    # ========================================================================
+
+    async def log_event(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -> Any:
+        """Log event.
+
+        Override this to provide functionality.
+        """
+        return not_supported("log_event is not implemented by this agent")
+
+    async def sync_event_sources(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -> Any:
+        """Sync event sources.
+
+        Override this to provide functionality.
+        """
+        return not_supported("sync_event_sources is not implemented by this agent")
 
     # ========================================================================
     # V3 Protocol Discovery

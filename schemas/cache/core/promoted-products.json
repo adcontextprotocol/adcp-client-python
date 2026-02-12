@@ -1,9 +1,17 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/core/promoted-products.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Specification of products or offerings being promoted in a campaign. Supports multiple selection methods from the brand manifest that can be combined using UNION (OR) logic. When multiple selection methods are provided, products matching ANY of the criteria are selected (logical OR, not AND).",
   "examples": [
+    {
+      "data": {
+        "manifest_gtins": [
+          "00013000006040",
+          "00013000006057"
+        ]
+      },
+      "description": "Cross-retailer GTIN matching for commerce media product discovery"
+    },
     {
       "data": {
         "manifest_skus": [
@@ -38,10 +46,19 @@
       "description": "Select products by tags"
     }
   ],
+  "minProperties": 1,
   "properties": {
     "manifest_category": {
       "description": "Select products from a specific category in the brand manifest product catalog (e.g., 'beverages/soft-drinks', 'food/sauces')",
       "type": "string"
+    },
+    "manifest_gtins": {
+      "description": "GTIN product identifiers for cross-retailer catalog matching. Accepts standard GTIN formats (GTIN-8, UPC-A/GTIN-12, EAN-13/GTIN-13, GTIN-14).",
+      "items": {
+        "pattern": "^[0-9]{8,14}$",
+        "type": "string"
+      },
+      "type": "array"
     },
     "manifest_query": {
       "description": "Natural language query to select products from the brand manifest (e.g., 'all Kraft Heinz pasta sauces', 'organic products under $20')",

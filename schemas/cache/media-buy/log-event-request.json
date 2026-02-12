@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Request parameters for logging marketing events",
+  "properties": {
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "event_source_id": {
+      "description": "Event source configured on the account via sync_event_sources",
+      "type": "string"
+    },
+    "events": {
+      "description": "Events to log",
+      "items": {
+        "$ref": "../core/event.json"
+      },
+      "maxItems": 10000,
+      "minItems": 1,
+      "type": "array"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "test_event_code": {
+      "description": "Test event code for validation without affecting production data. Events with this code appear in the platform's test events UI.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "event_source_id",
+    "events"
+  ],
+  "title": "Log Event Request",
+  "type": "object"
+}

@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/content-standards/artifact-webhook-payload.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Payload sent by sales agents to orchestrators when pushing content artifacts for governance validation. Complements get_media_buy_artifacts for push-based artifact delivery.",
@@ -9,7 +8,7 @@
       "items": {
         "properties": {
           "artifact": {
-            "$ref": "/schemas/3.0.0-beta.2/content-standards/artifact.json",
+            "$ref": "artifact.json",
             "description": "The content artifact"
           },
           "delivered_at": {
@@ -39,7 +38,7 @@
       "type": "string"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "media_buy_id": {
       "description": "Media buy identifier these artifacts belong to",

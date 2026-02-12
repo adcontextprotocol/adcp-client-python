@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/media-buy/list-creatives-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Response from creative library query with filtered results, metadata, and optional enriched data",
@@ -35,11 +34,8 @@
           "video_30s_vast": 2
         },
         "pagination": {
-          "current_page": 1,
           "has_more": false,
-          "limit": 50,
-          "offset": 0,
-          "total_pages": 1
+          "total_count": 3
         },
         "query_summary": {
           "filters_applied": [
@@ -95,9 +91,7 @@
           }
         ],
         "pagination": {
-          "has_more": false,
-          "limit": 50,
-          "offset": 0
+          "has_more": false
         },
         "query_summary": {
           "returned": 1,
@@ -109,7 +103,7 @@
   ],
   "properties": {
     "context": {
-      "$ref": "/schemas/3.0.0-beta.2/core/context.json"
+      "$ref": "../core/context.json"
     },
     "creatives": {
       "description": "Array of creative assets matching the query",
@@ -117,7 +111,7 @@
         "additionalProperties": true,
         "properties": {
           "account": {
-            "$ref": "/schemas/3.0.0-beta.2/core/account.json",
+            "$ref": "../core/account.json",
             "description": "Account that owns this creative"
           },
           "assets": {
@@ -126,37 +120,37 @@
               "^[a-zA-Z0-9_-]+$": {
                 "oneOf": [
                   {
-                    "$ref": "/schemas/3.0.0-beta.2/core/assets/image-asset.json"
+                    "$ref": "../core/assets/image-asset.json"
                   },
                   {
-                    "$ref": "/schemas/3.0.0-beta.2/core/assets/video-asset.json"
+                    "$ref": "../core/assets/video-asset.json"
                   },
                   {
-                    "$ref": "/schemas/3.0.0-beta.2/core/assets/audio-asset.json"
+                    "$ref": "../core/assets/audio-asset.json"
                   },
                   {
-                    "$ref": "/schemas/3.0.0-beta.2/core/assets/text-asset.json"
+                    "$ref": "../core/assets/text-asset.json"
                   },
                   {
-                    "$ref": "/schemas/3.0.0-beta.2/core/assets/html-asset.json"
+                    "$ref": "../core/assets/html-asset.json"
                   },
                   {
-                    "$ref": "/schemas/3.0.0-beta.2/core/assets/css-asset.json"
+                    "$ref": "../core/assets/css-asset.json"
                   },
                   {
-                    "$ref": "/schemas/3.0.0-beta.2/core/assets/javascript-asset.json"
+                    "$ref": "../core/assets/javascript-asset.json"
                   },
                   {
-                    "$ref": "/schemas/3.0.0-beta.2/core/assets/vast-asset.json"
+                    "$ref": "../core/assets/vast-asset.json"
                   },
                   {
-                    "$ref": "/schemas/3.0.0-beta.2/core/assets/daast-asset.json"
+                    "$ref": "../core/assets/daast-asset.json"
                   },
                   {
-                    "$ref": "/schemas/3.0.0-beta.2/core/promoted-offerings.json"
+                    "$ref": "../core/promoted-offerings.json"
                   },
                   {
-                    "$ref": "/schemas/3.0.0-beta.2/core/assets/url-asset.json"
+                    "$ref": "../core/assets/url-asset.json"
                   }
                 ]
               }
@@ -215,7 +209,7 @@
             "type": "string"
           },
           "format_id": {
-            "$ref": "/schemas/3.0.0-beta.2/core/format-id.json",
+            "$ref": "../core/format-id.json",
             "description": "Format identifier specifying which format this creative conforms to"
           },
           "name": {
@@ -266,13 +260,13 @@
             "type": "object"
           },
           "status": {
-            "$ref": "/schemas/3.0.0-beta.2/enums/creative-status.json",
+            "$ref": "../enums/creative-status.json",
             "description": "Current approval status of the creative"
           },
           "sub_assets": {
             "description": "Sub-assets for multi-asset formats (included when include_sub_assets=true)",
             "items": {
-              "$ref": "/schemas/3.0.0-beta.2/core/sub-asset.json"
+              "$ref": "../core/sub-asset.json"
             },
             "type": "array"
           },
@@ -302,7 +296,7 @@
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "format_summary": {
       "additionalProperties": true,
@@ -317,40 +311,7 @@
       "type": "object"
     },
     "pagination": {
-      "additionalProperties": true,
-      "description": "Pagination information for navigating results",
-      "properties": {
-        "current_page": {
-          "description": "Current page number (1-based)",
-          "minimum": 1,
-          "type": "integer"
-        },
-        "has_more": {
-          "description": "Whether more results are available",
-          "type": "boolean"
-        },
-        "limit": {
-          "description": "Maximum number of results requested",
-          "minimum": 1,
-          "type": "integer"
-        },
-        "offset": {
-          "description": "Number of results skipped",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "total_pages": {
-          "description": "Total number of pages available",
-          "minimum": 0,
-          "type": "integer"
-        }
-      },
-      "required": [
-        "limit",
-        "offset",
-        "has_more"
-      ],
-      "type": "object"
+      "$ref": "../core/pagination-response.json"
     },
     "query_summary": {
       "additionalProperties": true,
@@ -372,7 +333,7 @@
           "description": "Sort order that was applied",
           "properties": {
             "direction": {
-              "$ref": "/schemas/3.0.0-beta.2/enums/sort-direction.json"
+              "$ref": "../enums/sort-direction.json"
             },
             "field": {
               "type": "string"
@@ -386,10 +347,7 @@
           "type": "integer"
         }
       },
-      "required": [
-        "total_matching",
-        "returned"
-      ],
+      "required": [],
       "type": "object"
     },
     "status_summary": {

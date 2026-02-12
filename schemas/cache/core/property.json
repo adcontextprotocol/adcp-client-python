@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/core/property.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "An advertising property that can be validated via adagents.json",
@@ -10,7 +9,7 @@
         "additionalProperties": true,
         "properties": {
           "type": {
-            "$ref": "/schemas/3.0.0-beta.2/enums/identifier-types.json",
+            "$ref": "../enums/identifier-types.json",
             "description": "Type of identifier for this property"
           },
           "value": {
@@ -32,21 +31,29 @@
       "type": "string"
     },
     "property_id": {
-      "$ref": "/schemas/3.0.0-beta.2/core/property-id.json",
+      "$ref": "property-id.json",
       "description": "Unique identifier for this property (optional). Enables referencing properties by ID instead of repeating full objects."
     },
     "property_type": {
-      "$ref": "/schemas/3.0.0-beta.2/enums/property-type.json",
+      "$ref": "../enums/property-type.json",
       "description": "Type of advertising property"
     },
     "publisher_domain": {
       "description": "Domain where adagents.json should be checked for authorization validation. Optional in adagents.json (file location implies domain).",
       "type": "string"
     },
+    "supported_channels": {
+      "description": "Advertising channels this property supports (e.g., ['display', 'olv', 'social']). Publishers declare which channels their inventory aligns with. Properties may support multiple channels. See the Media Channel Taxonomy for definitions.",
+      "items": {
+        "$ref": "../enums/channels.json"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
     "tags": {
       "description": "Tags for categorization and grouping (e.g., network membership, content categories)",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.2/core/property-tag.json"
+        "$ref": "property-tag.json"
       },
       "type": "array",
       "uniqueItems": true

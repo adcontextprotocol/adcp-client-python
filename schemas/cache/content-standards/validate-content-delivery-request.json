@@ -1,19 +1,19 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/content-standards/validate-content-delivery-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Request parameters for batch validating delivery records against content safety policies",
   "properties": {
     "context": {
-      "$ref": "/schemas/3.0.0-beta.2/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "feature_ids": {
       "description": "Specific features to evaluate (defaults to all)",
       "items": {
         "type": "string"
       },
+      "minItems": 1,
       "type": "array"
     },
     "include_passed": {
@@ -26,7 +26,7 @@
       "items": {
         "properties": {
           "artifact": {
-            "$ref": "/schemas/3.0.0-beta.2/content-standards/artifact.json",
+            "$ref": "artifact.json",
             "description": "Artifact where ad was delivered"
           },
           "brand_context": {
@@ -72,6 +72,7 @@
         "type": "object"
       },
       "maxItems": 10000,
+      "minItems": 1,
       "type": "array"
     },
     "standards_id": {

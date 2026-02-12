@@ -88,13 +88,16 @@ def normalize_assets_required(assets_required: list[Any]) -> list[FormatAsset]:
         else:
             asset_dict = asset.model_dump() if hasattr(asset, "model_dump") else dict(asset)
 
-        # Check if it's a repeatable group (has asset_group_id) or individual asset
-        if "asset_group_id" in asset_dict:
-            # Repeatable group - use Assets5Model
-            normalized.append(Assets5Model(**{**asset_dict, "required": True}))
-        else:
-            # Individual asset - use AssetsModel
-            normalized.append(AssetsModel(**{**asset_dict, "required": True}))
+        # Map old fields to new schema format
+        mapped = {**asset_dict, "required": True}
+        # Ensure asset_id is present (map from asset_group_id if needed)
+        if "asset_group_id" in mapped and "asset_id" not in mapped:
+            mapped["asset_id"] = mapped.pop("asset_group_id")
+        # Remove fields that don't exist in the new schema
+        for old_field in ("min_count", "max_count", "assets"):
+            mapped.pop(old_field, None)
+        # Use AssetsModel (individual asset type)
+        normalized.append(AssetsModel(**mapped))
 
     return normalized
 

@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Requirements for VAST (Video Ad Serving Template) creative assets.",
+  "properties": {
+    "vast_version": {
+      "description": "Required VAST version",
+      "enum": [
+        "2.0",
+        "3.0",
+        "4.0",
+        "4.1",
+        "4.2"
+      ],
+      "type": "string"
+    }
+  },
+  "title": "VAST Asset Requirements",
+  "type": "object"
+}

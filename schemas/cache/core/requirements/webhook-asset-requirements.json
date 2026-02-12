@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Requirements for webhook creative assets.",
+  "properties": {
+    "methods": {
+      "description": "Allowed HTTP methods",
+      "items": {
+        "enum": [
+          "GET",
+          "POST"
+        ],
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "title": "Webhook Asset Requirements",
+  "type": "object"
+}

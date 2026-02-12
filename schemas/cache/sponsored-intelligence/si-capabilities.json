@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/sponsored-intelligence/si-capabilities.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Capabilities that a brand agent declares or a host supports",

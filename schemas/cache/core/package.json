@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/3.0.0-beta.2/core/package.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "A specific product within a media buy (line item)",
@@ -21,17 +20,17 @@
     "creative_assignments": {
       "description": "Creative assets assigned to this package",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.2/core/creative-assignment.json"
+        "$ref": "creative-assignment.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-beta.2/core/ext.json"
+      "$ref": "ext.json"
     },
     "format_ids_to_provide": {
       "description": "Format IDs that creative assets will be provided for this package",
       "items": {
-        "$ref": "/schemas/3.0.0-beta.2/core/format-id.json"
+        "$ref": "format-id.json"
       },
       "type": "array"
     },
@@ -40,8 +39,11 @@
       "minimum": 0,
       "type": "number"
     },
+    "optimization_goal": {
+      "$ref": "optimization-goal.json"
+    },
     "pacing": {
-      "$ref": "/schemas/3.0.0-beta.2/enums/pacing.json"
+      "$ref": "../enums/pacing.json"
     },
     "package_id": {
       "description": "Publisher's unique identifier for the package",
@@ -61,7 +63,7 @@
       "type": "string"
     },
     "targeting_overlay": {
-      "$ref": "/schemas/3.0.0-beta.2/core/targeting.json"
+      "$ref": "targeting.json"
     }
   },
   "required": [

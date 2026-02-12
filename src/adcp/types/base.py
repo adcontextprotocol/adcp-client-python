@@ -61,15 +61,6 @@ def _get_signals_message(self: Any) -> str:
     return f"Found {count} {_pluralize(count, 'signal')} available for targeting."
 
 
-@_register_response_message("ListAccountsResponse")
-def _list_accounts_message(self: Any) -> str:
-    accounts = getattr(self, "accounts", None)
-    if accounts is None:
-        return "No accounts found."
-    count = len(accounts)
-    return f"Found {count} accessible {_pluralize(count, 'account')}."
-
-
 @_register_response_message("ListCreativesResponse")
 def _list_creatives_message(self: Any) -> str:
     creatives = getattr(self, "creatives", None)
