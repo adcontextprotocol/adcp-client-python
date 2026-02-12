@@ -5,32 +5,32 @@
   "examples": [
     {
       "data": {
-        "account_id": "acc_coke_direct",
-        "advertiser": "The Coca-Cola Company",
-        "name": "Coke",
+        "account_id": "acc_acme_direct",
+        "advertiser": "Acme Corp",
+        "name": "Acme",
         "payment_terms": "net_30",
-        "rate_card": "coke_vip_2024",
+        "rate_card": "acme_vip_2024",
         "status": "active"
       },
       "description": "Direct advertiser account"
     },
     {
       "data": {
-        "account_id": "acc_coke_publicis",
-        "advertiser": "The Coca-Cola Company",
-        "billing_proxy": "Publicis Media",
-        "name": "Coke c/o Publicis",
+        "account_id": "acc_acme_pinnacle",
+        "advertiser": "Acme Corp",
+        "billing_proxy": "Pinnacle Media",
+        "name": "Acme c/o Pinnacle",
         "payment_terms": "net_60",
-        "rate_card": "coke_vip_2024",
+        "rate_card": "acme_vip_2024",
         "status": "active"
       },
       "description": "Advertiser account with agency billing proxy"
     },
     {
       "data": {
-        "account_id": "acc_publicis",
-        "advertiser": "Publicis Media",
-        "name": "Publicis",
+        "account_id": "acc_pinnacle",
+        "advertiser": "Pinnacle Media",
+        "name": "Pinnacle",
         "payment_terms": "net_45",
         "rate_card": "agency_standard",
         "status": "active"
@@ -119,7 +119,7 @@
       "type": "string"
     },
     "name": {
-      "description": "Human-readable account name (e.g., 'Coke', 'Coke c/o Publicis')",
+      "description": "Human-readable account name (e.g., 'Acme', 'Acme c/o Pinnacle')",
       "type": "string"
     },
     "operator": {

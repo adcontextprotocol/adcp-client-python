@@ -585,16 +585,16 @@
   "description": "Brand identity and discovery file. Hosted at /.well-known/brand.json on house domains. Contains the full brand portfolio with identity, creative assets, and digital properties. Brands are identified by house + brand_id (like properties are identified by publisher + property_id). Supports variants: house portfolio (full brand data), brand agent (agent provides brand info via MCP), house redirect (pointer to house domain), or authoritative location redirect.",
   "examples": [
     {
-      "$schema": "/schemas/latest/brand.json",
+      "$schema": "/schemas/3.0.0-beta.3/brand.json",
       "authoritative_location": "https://adcontextprotocol.org/brand/abc123/brand.json"
     },
     {
-      "$schema": "/schemas/latest/brand.json",
+      "$schema": "/schemas/3.0.0-beta.3/brand.json",
       "house": "nikeinc.com",
       "note": "Redirect to house domain for full brand portfolio"
     },
     {
-      "$schema": "/schemas/latest/brand.json",
+      "$schema": "/schemas/3.0.0-beta.3/brand.json",
       "brand_agent": {
         "id": "acme_brand_agent",
         "url": "https://agent.acme.com/mcp"
@@ -602,7 +602,7 @@
       "version": "1.0"
     },
     {
-      "$schema": "/schemas/latest/brand.json",
+      "$schema": "/schemas/3.0.0-beta.3/brand.json",
       "brands": [
         {
           "colors": {
@@ -705,7 +705,7 @@
       "version": "1.0"
     },
     {
-      "$schema": "/schemas/latest/brand.json",
+      "$schema": "/schemas/3.0.0-beta.3/brand.json",
       "authorized_operators": [
         {
           "brands": [

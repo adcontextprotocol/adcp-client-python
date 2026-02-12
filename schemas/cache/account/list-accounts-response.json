@@ -7,23 +7,23 @@
       "data": {
         "accounts": [
           {
-            "account_id": "acc_coke_publicis",
-            "advertiser": "The Coca-Cola Company",
-            "billing_proxy": "Publicis Media",
-            "name": "Coke c/o Publicis",
+            "account_id": "acc_acme_pinnacle",
+            "advertiser": "Acme Corp",
+            "billing_proxy": "Pinnacle Media",
+            "name": "Acme c/o Pinnacle",
             "status": "active"
           },
           {
-            "account_id": "acc_pepsi_publicis",
-            "advertiser": "PepsiCo",
-            "billing_proxy": "Publicis Media",
-            "name": "Pepsi c/o Publicis",
+            "account_id": "acc_nova_pinnacle",
+            "advertiser": "Nova Brands",
+            "billing_proxy": "Pinnacle Media",
+            "name": "Nova c/o Pinnacle",
             "status": "active"
           },
           {
-            "account_id": "acc_publicis",
-            "advertiser": "Publicis Media",
-            "name": "Publicis",
+            "account_id": "acc_pinnacle",
+            "advertiser": "Pinnacle Media",
+            "name": "Pinnacle",
             "status": "active"
           }
         ],
@@ -38,10 +38,10 @@
       "data": {
         "accounts": [
           {
-            "account_id": "acc_coke_direct",
-            "advertiser": "The Coca-Cola Company",
-            "name": "Coke",
-            "rate_card": "coke_vip_2024",
+            "account_id": "acc_acme_direct",
+            "advertiser": "Acme Corp",
+            "name": "Acme",
+            "rate_card": "acme_vip_2024",
             "status": "active"
           }
         ]

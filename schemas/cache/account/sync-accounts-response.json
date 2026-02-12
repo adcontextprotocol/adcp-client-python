@@ -42,8 +42,8 @@
             "account_id": "acc_agent_house",
             "action": "created",
             "billing": "agent",
-            "house": "coca-cola.com",
-            "name": "Coca-Cola (via agent)",
+            "house": "acme-corp.com",
+            "name": "Acme Corp (via agent)",
             "status": "active",
             "warnings": [
               "Direct billing (brand) not supported. Mapped to agent billing."
