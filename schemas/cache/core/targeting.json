@@ -40,6 +40,14 @@
       "description": "AXE segment ID to include for targeting",
       "type": "string"
     },
+    "daypart_targets": {
+      "description": "Restrict delivery to specific time windows. Each entry specifies days of week and an hour range.",
+      "items": {
+        "$ref": "daypart-target.json"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
     "device_platform": {
       "description": "Restrict to specific platforms. Use for technical compatibility (app only works on iOS). Values from Sec-CH-UA-Platform standard, extended for CTV.",
       "items": {

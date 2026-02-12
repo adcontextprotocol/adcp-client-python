@@ -9,8 +9,20 @@
       "minimum": 0,
       "type": "number"
     },
+    "daypart_targets": {
+      "description": "Recommended time windows for this allocation in spot-plan proposals.",
+      "items": {
+        "$ref": "daypart-target.json"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
     "ext": {
       "$ref": "ext.json"
+    },
+    "forecast": {
+      "$ref": "delivery-forecast.json",
+      "description": "Forecasted delivery metrics for this allocation"
     },
     "pricing_option_id": {
       "description": "Recommended pricing option ID from the product's pricing_options array",

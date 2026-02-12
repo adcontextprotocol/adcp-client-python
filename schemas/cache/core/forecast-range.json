@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "A forecast value with optional low/high bounds. The mid value represents the most likely outcome. When low and high are provided, they represent conservative and optimistic estimates respectively.",
+  "properties": {
+    "high": {
+      "description": "Optimistic (high-end) forecast value",
+      "minimum": 0,
+      "type": "number"
+    },
+    "low": {
+      "description": "Conservative (low-end) forecast value",
+      "minimum": 0,
+      "type": "number"
+    },
+    "mid": {
+      "description": "Expected (most likely) forecast value",
+      "minimum": 0,
+      "type": "number"
+    }
+  },
+  "required": [
+    "mid"
+  ],
+  "title": "Forecast Range",
+  "type": "object"
+}

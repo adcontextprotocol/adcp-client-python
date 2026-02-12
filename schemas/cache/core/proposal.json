@@ -27,6 +27,10 @@
     "ext": {
       "$ref": "ext.json"
     },
+    "forecast": {
+      "$ref": "delivery-forecast.json",
+      "description": "Aggregate forecasted delivery metrics for the entire proposal. When both proposal-level and allocation-level forecasts are present, the proposal-level forecast is authoritative for total delivery estimation."
+    },
     "name": {
       "description": "Human-readable name for this media plan proposal",
       "type": "string"

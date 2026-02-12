@@ -9,7 +9,7 @@
   "description": "Request parameters for creating a media buy. Supports two modes: (1) Manual mode - provide packages array with explicit line item configurations, or (2) Proposal mode - provide proposal_id and total_budget to execute a proposal from get_products. One of packages or proposal_id must be provided.",
   "properties": {
     "account_id": {
-      "description": "Account to bill for this media buy. The seller maps the agent's brand + operator to an account during sync_accounts; the agent passes that account_id here.",
+      "description": "Account to bill for this media buy. Required when the agent has access to multiple accounts; when omitted, the seller uses the agent's sole account. The seller maps the agent's brand + operator to an account during sync_accounts; the agent passes that account_id here.",
       "type": "string"
     },
     "artifact_webhook": {
@@ -147,7 +147,6 @@
   },
   "required": [
     "buyer_ref",
-    "account_id",
     "brand_manifest",
     "start_time",
     "end_time"
