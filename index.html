@@ -60,6 +60,10 @@ el.replaceWith(d);
 <dd>
 <div class="desc"></div>
 </dd>
+<dt><code class="name"><a title="adcp.registry" href="registry.html">adcp.registry</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt><code class="name"><a title="adcp.server" href="server/index.html">adcp.server</a></code></dt>
 <dd>
 <div class="desc"><p>ADCP Server Framework …</p></div>
@@ -7197,6 +7201,7 @@ of an existing property list.</p>
 <li><a title="adcp.exceptions.ADCPToolNotFoundError" href="exceptions.html#adcp.exceptions.ADCPToolNotFoundError">ADCPToolNotFoundError</a></li>
 <li><a title="adcp.exceptions.ADCPWebhookError" href="exceptions.html#adcp.exceptions.ADCPWebhookError">ADCPWebhookError</a></li>
 <li><a title="adcp.exceptions.AdagentsValidationError" href="exceptions.html#adcp.exceptions.AdagentsValidationError">AdagentsValidationError</a></li>
+<li><a title="adcp.exceptions.RegistryError" href="exceptions.html#adcp.exceptions.RegistryError">RegistryError</a></li>
 </ul>
 </dd>
 <dt id="adcp.ADCPMultiAgentClient"><code class="flex name class">
@@ -16772,6 +16777,741 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.RegistryClient"><code class="flex name class">
+<span>class <span class="ident">RegistryClient</span></span>
+<span>(</span><span>base_url: str = 'https://agenticadvertising.org',<br>timeout: float = 10.0,<br>client: httpx.AsyncClient | None = None,<br>user_agent: str = 'adcp-client-python')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class RegistryClient:
+    &#34;&#34;&#34;Client for the AdCP registry API.
+
+    Provides brand and property lookups against the central AdCP registry.
+
+    Args:
+        base_url: Registry API base URL.
+        timeout: Request timeout in seconds.
+        client: Optional httpx.AsyncClient for connection pooling.
+            If provided, caller is responsible for client lifecycle.
+        user_agent: User-Agent header for requests.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        base_url: str = DEFAULT_REGISTRY_URL,
+        timeout: float = 10.0,
+        client: httpx.AsyncClient | None = None,
+        user_agent: str = &#34;adcp-client-python&#34;,
+    ):
+        self._base_url = base_url.rstrip(&#34;/&#34;)
+        self._timeout = timeout
+        self._external_client = client
+        self._owned_client: httpx.AsyncClient | None = None
+        self._user_agent = user_agent
+
+    async def _get_client(self) -&gt; httpx.AsyncClient:
+        &#34;&#34;&#34;Get or create httpx client.&#34;&#34;&#34;
+        if self._external_client is not None:
+            return self._external_client
+        if self._owned_client is None:
+            self._owned_client = httpx.AsyncClient(
+                limits=httpx.Limits(
+                    max_keepalive_connections=10,
+                    max_connections=20,
+                ),
+            )
+        return self._owned_client
+
+    async def close(self) -&gt; None:
+        &#34;&#34;&#34;Close owned HTTP client. No-op if using external client.&#34;&#34;&#34;
+        if self._owned_client is not None:
+            await self._owned_client.aclose()
+            self._owned_client = None
+
+    async def __aenter__(self) -&gt; RegistryClient:
+        return self
+
+    async def __aexit__(self, *args: Any) -&gt; None:
+        await self.close()
+
+    async def lookup_brand(self, domain: str) -&gt; ResolvedBrand | None:
+        &#34;&#34;&#34;Resolve a single domain to its canonical brand identity.
+
+        Args:
+            domain: Domain to resolve (e.g., &#34;nike.com&#34;).
+
+        Returns:
+            ResolvedBrand if found, None if the domain is not in the registry.
+
+        Raises:
+            RegistryError: On HTTP or parsing errors.
+        &#34;&#34;&#34;
+        client = await self._get_client()
+        try:
+            response = await client.get(
+                f&#34;{self._base_url}/api/brands/resolve&#34;,
+                params={&#34;domain&#34;: domain},
+                headers={&#34;User-Agent&#34;: self._user_agent},
+                timeout=self._timeout,
+            )
+            if response.status_code == 404:
+                return None
+            if response.status_code != 200:
+                raise RegistryError(
+                    f&#34;Brand lookup failed: HTTP {response.status_code}&#34;,
+                    status_code=response.status_code,
+                )
+            data = response.json()
+            if data is None:
+                return None
+            return ResolvedBrand.model_validate(data)
+        except RegistryError:
+            raise
+        except httpx.TimeoutException as e:
+            raise RegistryError(f&#34;Brand lookup timed out after {self._timeout}s&#34;) from e
+        except httpx.HTTPError as e:
+            raise RegistryError(f&#34;Brand lookup failed: {e}&#34;) from e
+        except (ValidationError, ValueError) as e:
+            raise RegistryError(f&#34;Brand lookup failed: invalid response: {e}&#34;) from e
+
+    async def lookup_brands(
+        self, domains: list[str]
+    ) -&gt; dict[str, ResolvedBrand | None]:
+        &#34;&#34;&#34;Bulk resolve domains to brand identities.
+
+        Automatically chunks requests exceeding 100 domains.
+
+        Args:
+            domains: List of domains to resolve.
+
+        Returns:
+            Dict mapping each domain to its ResolvedBrand, or None if not found.
+
+        Raises:
+            RegistryError: On HTTP or parsing errors.
+        &#34;&#34;&#34;
+        if not domains:
+            return {}
+
+        chunks = [
+            domains[i : i + MAX_BULK_DOMAINS]
+            for i in range(0, len(domains), MAX_BULK_DOMAINS)
+        ]
+
+        chunk_results = await asyncio.gather(
+            *[self._lookup_brands_chunk(chunk) for chunk in chunks],
+            return_exceptions=True,
+        )
+
+        merged: dict[str, ResolvedBrand | None] = {}
+        for result in chunk_results:
+            if isinstance(result, BaseException):
+                raise result
+            merged.update(result)
+        return merged
+
+    async def _lookup_brands_chunk(
+        self, domains: list[str]
+    ) -&gt; dict[str, ResolvedBrand | None]:
+        &#34;&#34;&#34;Resolve a single chunk of brand domains (max 100).&#34;&#34;&#34;
+        client = await self._get_client()
+        try:
+            response = await client.post(
+                f&#34;{self._base_url}/api/brands/resolve/bulk&#34;,
+                json={&#34;domains&#34;: domains},
+                headers={&#34;User-Agent&#34;: self._user_agent},
+                timeout=self._timeout,
+            )
+            if response.status_code != 200:
+                raise RegistryError(
+                    f&#34;Bulk brand lookup failed: HTTP {response.status_code}&#34;,
+                    status_code=response.status_code,
+                )
+            data = response.json()
+            results_raw = data.get(&#34;results&#34;, {})
+            results: dict[str, ResolvedBrand | None] = {d: None for d in domains}
+            for domain, brand_data in results_raw.items():
+                if brand_data is not None:
+                    results[domain] = ResolvedBrand.model_validate(brand_data)
+            return results
+        except RegistryError:
+            raise
+        except httpx.TimeoutException as e:
+            raise RegistryError(
+                f&#34;Bulk brand lookup timed out after {self._timeout}s&#34;
+            ) from e
+        except httpx.HTTPError as e:
+            raise RegistryError(f&#34;Bulk brand lookup failed: {e}&#34;) from e
+        except (ValidationError, ValueError) as e:
+            raise RegistryError(f&#34;Bulk brand lookup failed: invalid response: {e}&#34;) from e
+
+    async def lookup_property(self, domain: str) -&gt; ResolvedProperty | None:
+        &#34;&#34;&#34;Resolve a publisher domain to its property info.
+
+        Args:
+            domain: Publisher domain to resolve (e.g., &#34;nytimes.com&#34;).
+
+        Returns:
+            ResolvedProperty if found, None if the domain is not in the registry.
+
+        Raises:
+            RegistryError: On HTTP or parsing errors.
+        &#34;&#34;&#34;
+        client = await self._get_client()
+        try:
+            response = await client.get(
+                f&#34;{self._base_url}/api/properties/resolve&#34;,
+                params={&#34;domain&#34;: domain},
+                headers={&#34;User-Agent&#34;: self._user_agent},
+                timeout=self._timeout,
+            )
+            if response.status_code == 404:
+                return None
+            if response.status_code != 200:
+                raise RegistryError(
+                    f&#34;Property lookup failed: HTTP {response.status_code}&#34;,
+                    status_code=response.status_code,
+                )
+            data = response.json()
+            if data is None:
+                return None
+            return ResolvedProperty.model_validate(data)
+        except RegistryError:
+            raise
+        except httpx.TimeoutException as e:
+            raise RegistryError(
+                f&#34;Property lookup timed out after {self._timeout}s&#34;
+            ) from e
+        except httpx.HTTPError as e:
+            raise RegistryError(f&#34;Property lookup failed: {e}&#34;) from e
+        except (ValidationError, ValueError) as e:
+            raise RegistryError(f&#34;Property lookup failed: invalid response: {e}&#34;) from e
+
+    async def lookup_properties(
+        self, domains: list[str]
+    ) -&gt; dict[str, ResolvedProperty | None]:
+        &#34;&#34;&#34;Bulk resolve publisher domains to property info.
+
+        Automatically chunks requests exceeding 100 domains.
+
+        Args:
+            domains: List of publisher domains to resolve.
+
+        Returns:
+            Dict mapping each domain to its ResolvedProperty, or None if not found.
+
+        Raises:
+            RegistryError: On HTTP or parsing errors.
+        &#34;&#34;&#34;
+        if not domains:
+            return {}
+
+        chunks = [
+            domains[i : i + MAX_BULK_DOMAINS]
+            for i in range(0, len(domains), MAX_BULK_DOMAINS)
+        ]
+
+        chunk_results = await asyncio.gather(
+            *[self._lookup_properties_chunk(chunk) for chunk in chunks],
+            return_exceptions=True,
+        )
+
+        merged: dict[str, ResolvedProperty | None] = {}
+        for result in chunk_results:
+            if isinstance(result, BaseException):
+                raise result
+            merged.update(result)
+        return merged
+
+    async def _lookup_properties_chunk(
+        self, domains: list[str]
+    ) -&gt; dict[str, ResolvedProperty | None]:
+        &#34;&#34;&#34;Resolve a single chunk of property domains (max 100).&#34;&#34;&#34;
+        client = await self._get_client()
+        try:
+            response = await client.post(
+                f&#34;{self._base_url}/api/properties/resolve/bulk&#34;,
+                json={&#34;domains&#34;: domains},
+                headers={&#34;User-Agent&#34;: self._user_agent},
+                timeout=self._timeout,
+            )
+            if response.status_code != 200:
+                raise RegistryError(
+                    f&#34;Bulk property lookup failed: HTTP {response.status_code}&#34;,
+                    status_code=response.status_code,
+                )
+            data = response.json()
+            results_raw = data.get(&#34;results&#34;, {})
+            results: dict[str, ResolvedProperty | None] = {d: None for d in domains}
+            for domain, prop_data in results_raw.items():
+                if prop_data is not None:
+                    results[domain] = ResolvedProperty.model_validate(prop_data)
+            return results
+        except RegistryError:
+            raise
+        except httpx.TimeoutException as e:
+            raise RegistryError(
+                f&#34;Bulk property lookup timed out after {self._timeout}s&#34;
+            ) from e
+        except httpx.HTTPError as e:
+            raise RegistryError(f&#34;Bulk property lookup failed: {e}&#34;) from e
+        except (ValidationError, ValueError) as e:
+            raise RegistryError(
+                f&#34;Bulk property lookup failed: invalid response: {e}&#34;
+            ) from e</code></pre>
+</details>
+<div class="desc"><p>Client for the AdCP registry API.</p>
+<p>Provides brand and property lookups against the central AdCP registry.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>base_url</code></strong></dt>
+<dd>Registry API base URL.</dd>
+<dt><strong><code>timeout</code></strong></dt>
+<dd>Request timeout in seconds.</dd>
+<dt><strong><code>client</code></strong></dt>
+<dd>Optional httpx.AsyncClient for connection pooling.
+If provided, caller is responsible for client lifecycle.</dd>
+<dt><strong><code>user_agent</code></strong></dt>
+<dd>User-Agent header for requests.</dd>
+</dl></div>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.RegistryClient.close"><code class="name flex">
+<span>async def <span class="ident">close</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def close(self) -&gt; None:
+    &#34;&#34;&#34;Close owned HTTP client. No-op if using external client.&#34;&#34;&#34;
+    if self._owned_client is not None:
+        await self._owned_client.aclose()
+        self._owned_client = None</code></pre>
+</details>
+<div class="desc"><p>Close owned HTTP client. No-op if using external client.</p></div>
+</dd>
+<dt id="adcp.RegistryClient.lookup_brand"><code class="name flex">
+<span>async def <span class="ident">lookup_brand</span></span>(<span>self, domain: str) ‑> <a title="adcp.types.core.ResolvedBrand" href="types/core.html#adcp.types.core.ResolvedBrand">ResolvedBrand</a> | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def lookup_brand(self, domain: str) -&gt; ResolvedBrand | None:
+    &#34;&#34;&#34;Resolve a single domain to its canonical brand identity.
+
+    Args:
+        domain: Domain to resolve (e.g., &#34;nike.com&#34;).
+
+    Returns:
+        ResolvedBrand if found, None if the domain is not in the registry.
+
+    Raises:
+        RegistryError: On HTTP or parsing errors.
+    &#34;&#34;&#34;
+    client = await self._get_client()
+    try:
+        response = await client.get(
+            f&#34;{self._base_url}/api/brands/resolve&#34;,
+            params={&#34;domain&#34;: domain},
+            headers={&#34;User-Agent&#34;: self._user_agent},
+            timeout=self._timeout,
+        )
+        if response.status_code == 404:
+            return None
+        if response.status_code != 200:
+            raise RegistryError(
+                f&#34;Brand lookup failed: HTTP {response.status_code}&#34;,
+                status_code=response.status_code,
+            )
+        data = response.json()
+        if data is None:
+            return None
+        return ResolvedBrand.model_validate(data)
+    except RegistryError:
+        raise
+    except httpx.TimeoutException as e:
+        raise RegistryError(f&#34;Brand lookup timed out after {self._timeout}s&#34;) from e
+    except httpx.HTTPError as e:
+        raise RegistryError(f&#34;Brand lookup failed: {e}&#34;) from e
+    except (ValidationError, ValueError) as e:
+        raise RegistryError(f&#34;Brand lookup failed: invalid response: {e}&#34;) from e</code></pre>
+</details>
+<div class="desc"><p>Resolve a single domain to its canonical brand identity.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>domain</code></strong></dt>
+<dd>Domain to resolve (e.g., "nike.com").</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>ResolvedBrand if found, None if the domain is not in the registry.</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code><a title="adcp.RegistryError" href="#adcp.RegistryError">RegistryError</a></code></dt>
+<dd>On HTTP or parsing errors.</dd>
+</dl></div>
+</dd>
+<dt id="adcp.RegistryClient.lookup_brands"><code class="name flex">
+<span>async def <span class="ident">lookup_brands</span></span>(<span>self, domains: list[str]) ‑> dict[str, <a title="adcp.types.core.ResolvedBrand" href="types/core.html#adcp.types.core.ResolvedBrand">ResolvedBrand</a> | None]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def lookup_brands(
+    self, domains: list[str]
+) -&gt; dict[str, ResolvedBrand | None]:
+    &#34;&#34;&#34;Bulk resolve domains to brand identities.
+
+    Automatically chunks requests exceeding 100 domains.
+
+    Args:
+        domains: List of domains to resolve.
+
+    Returns:
+        Dict mapping each domain to its ResolvedBrand, or None if not found.
+
+    Raises:
+        RegistryError: On HTTP or parsing errors.
+    &#34;&#34;&#34;
+    if not domains:
+        return {}
+
+    chunks = [
+        domains[i : i + MAX_BULK_DOMAINS]
+        for i in range(0, len(domains), MAX_BULK_DOMAINS)
+    ]
+
+    chunk_results = await asyncio.gather(
+        *[self._lookup_brands_chunk(chunk) for chunk in chunks],
+        return_exceptions=True,
+    )
+
+    merged: dict[str, ResolvedBrand | None] = {}
+    for result in chunk_results:
+        if isinstance(result, BaseException):
+            raise result
+        merged.update(result)
+    return merged</code></pre>
+</details>
+<div class="desc"><p>Bulk resolve domains to brand identities.</p>
+<p>Automatically chunks requests exceeding 100 domains.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>domains</code></strong></dt>
+<dd>List of domains to resolve.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Dict mapping each domain to its ResolvedBrand, or None if not found.</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code><a title="adcp.RegistryError" href="#adcp.RegistryError">RegistryError</a></code></dt>
+<dd>On HTTP or parsing errors.</dd>
+</dl></div>
+</dd>
+<dt id="adcp.RegistryClient.lookup_properties"><code class="name flex">
+<span>async def <span class="ident">lookup_properties</span></span>(<span>self, domains: list[str]) ‑> dict[str, <a title="adcp.types.core.ResolvedProperty" href="types/core.html#adcp.types.core.ResolvedProperty">ResolvedProperty</a> | None]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def lookup_properties(
+    self, domains: list[str]
+) -&gt; dict[str, ResolvedProperty | None]:
+    &#34;&#34;&#34;Bulk resolve publisher domains to property info.
+
+    Automatically chunks requests exceeding 100 domains.
+
+    Args:
+        domains: List of publisher domains to resolve.
+
+    Returns:
+        Dict mapping each domain to its ResolvedProperty, or None if not found.
+
+    Raises:
+        RegistryError: On HTTP or parsing errors.
+    &#34;&#34;&#34;
+    if not domains:
+        return {}
+
+    chunks = [
+        domains[i : i + MAX_BULK_DOMAINS]
+        for i in range(0, len(domains), MAX_BULK_DOMAINS)
+    ]
+
+    chunk_results = await asyncio.gather(
+        *[self._lookup_properties_chunk(chunk) for chunk in chunks],
+        return_exceptions=True,
+    )
+
+    merged: dict[str, ResolvedProperty | None] = {}
+    for result in chunk_results:
+        if isinstance(result, BaseException):
+            raise result
+        merged.update(result)
+    return merged</code></pre>
+</details>
+<div class="desc"><p>Bulk resolve publisher domains to property info.</p>
+<p>Automatically chunks requests exceeding 100 domains.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>domains</code></strong></dt>
+<dd>List of publisher domains to resolve.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Dict mapping each domain to its ResolvedProperty, or None if not found.</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code><a title="adcp.RegistryError" href="#adcp.RegistryError">RegistryError</a></code></dt>
+<dd>On HTTP or parsing errors.</dd>
+</dl></div>
+</dd>
+<dt id="adcp.RegistryClient.lookup_property"><code class="name flex">
+<span>async def <span class="ident">lookup_property</span></span>(<span>self, domain: str) ‑> <a title="adcp.types.core.ResolvedProperty" href="types/core.html#adcp.types.core.ResolvedProperty">ResolvedProperty</a> | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def lookup_property(self, domain: str) -&gt; ResolvedProperty | None:
+    &#34;&#34;&#34;Resolve a publisher domain to its property info.
+
+    Args:
+        domain: Publisher domain to resolve (e.g., &#34;nytimes.com&#34;).
+
+    Returns:
+        ResolvedProperty if found, None if the domain is not in the registry.
+
+    Raises:
+        RegistryError: On HTTP or parsing errors.
+    &#34;&#34;&#34;
+    client = await self._get_client()
+    try:
+        response = await client.get(
+            f&#34;{self._base_url}/api/properties/resolve&#34;,
+            params={&#34;domain&#34;: domain},
+            headers={&#34;User-Agent&#34;: self._user_agent},
+            timeout=self._timeout,
+        )
+        if response.status_code == 404:
+            return None
+        if response.status_code != 200:
+            raise RegistryError(
+                f&#34;Property lookup failed: HTTP {response.status_code}&#34;,
+                status_code=response.status_code,
+            )
+        data = response.json()
+        if data is None:
+            return None
+        return ResolvedProperty.model_validate(data)
+    except RegistryError:
+        raise
+    except httpx.TimeoutException as e:
+        raise RegistryError(
+            f&#34;Property lookup timed out after {self._timeout}s&#34;
+        ) from e
+    except httpx.HTTPError as e:
+        raise RegistryError(f&#34;Property lookup failed: {e}&#34;) from e
+    except (ValidationError, ValueError) as e:
+        raise RegistryError(f&#34;Property lookup failed: invalid response: {e}&#34;) from e</code></pre>
+</details>
+<div class="desc"><p>Resolve a publisher domain to its property info.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>domain</code></strong></dt>
+<dd>Publisher domain to resolve (e.g., "nytimes.com").</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>ResolvedProperty if found, None if the domain is not in the registry.</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code><a title="adcp.RegistryError" href="#adcp.RegistryError">RegistryError</a></code></dt>
+<dd>On HTTP or parsing errors.</dd>
+</dl></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.RegistryError"><code class="flex name class">
+<span>class <span class="ident">RegistryError</span></span>
+<span>(</span><span>message: str, status_code: int | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class RegistryError(ADCPError):
+    &#34;&#34;&#34;Error from AdCP registry API operations (brand/property lookups).&#34;&#34;&#34;
+
+    def __init__(self, message: str, status_code: int | None = None):
+        &#34;&#34;&#34;Initialize registry error.&#34;&#34;&#34;
+        self.status_code = status_code
+        suggestion = &#34;Check that the registry API is accessible and the domain is valid.&#34;
+        super().__init__(message, suggestion=suggestion)</code></pre>
+</details>
+<div class="desc"><p>Error from AdCP registry API operations (brand/property lookups).</p>
+<p>Initialize registry error.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.ADCPError" href="exceptions.html#adcp.exceptions.ADCPError">ADCPError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="adcp.ResolvedBrand"><code class="flex name class">
+<span>class <span class="ident">ResolvedBrand</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ResolvedBrand(BaseModel):
+    &#34;&#34;&#34;Brand identity resolved from the AdCP registry.&#34;&#34;&#34;
+
+    model_config = ConfigDict(extra=&#34;allow&#34;)
+
+    canonical_id: str
+    canonical_domain: str
+    brand_name: str
+    names: list[dict[str, str]] | None = None
+    keller_type: str | None = None
+    parent_brand: str | None = None
+    house_domain: str | None = None
+    house_name: str | None = None
+    brand_agent_url: str | None = None
+    brand_manifest: dict[str, Any] | None = None
+    source: str</code></pre>
+</details>
+<div class="desc"><p>Brand identity resolved from the AdCP registry.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.ResolvedBrand.brand_agent_url"><code class="name">var <span class="ident">brand_agent_url</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.ResolvedBrand.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.ResolvedBrand.brand_name"><code class="name">var <span class="ident">brand_name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.ResolvedBrand.canonical_domain"><code class="name">var <span class="ident">canonical_domain</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.ResolvedBrand.canonical_id"><code class="name">var <span class="ident">canonical_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.ResolvedBrand.house_domain"><code class="name">var <span class="ident">house_domain</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.ResolvedBrand.house_name"><code class="name">var <span class="ident">house_name</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.ResolvedBrand.keller_type"><code class="name">var <span class="ident">keller_type</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.ResolvedBrand.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.ResolvedBrand.names"><code class="name">var <span class="ident">names</span> : list[dict[str, str]] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.ResolvedBrand.parent_brand"><code class="name">var <span class="ident">parent_brand</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.ResolvedBrand.source"><code class="name">var <span class="ident">source</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.ResolvedProperty"><code class="flex name class">
+<span>class <span class="ident">ResolvedProperty</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ResolvedProperty(BaseModel):
+    &#34;&#34;&#34;Property information resolved from the AdCP registry.&#34;&#34;&#34;
+
+    model_config = ConfigDict(extra=&#34;allow&#34;)
+
+    publisher_domain: str
+    source: str
+    authorized_agents: list[dict[str, Any]]
+    properties: list[dict[str, Any]]
+    verified: bool</code></pre>
+</details>
+<div class="desc"><p>Property information resolved from the AdCP registry.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.ResolvedProperty.authorized_agents"><code class="name">var <span class="ident">authorized_agents</span> : list[dict[str, typing.Any]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.ResolvedProperty.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.ResolvedProperty.properties"><code class="name">var <span class="ident">properties</span> : list[dict[str, typing.Any]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.ResolvedProperty.publisher_domain"><code class="name">var <span class="ident">publisher_domain</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.ResolvedProperty.source"><code class="name">var <span class="ident">source</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.ResolvedProperty.verified"><code class="name">var <span class="ident">verified</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.SignalFilters"><code class="flex name class">
 <span>class <span class="ident">SignalFilters</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -19234,6 +19974,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.config" href="config.html">adcp.config</a></code></li>
 <li><code><a title="adcp.exceptions" href="exceptions.html">adcp.exceptions</a></code></li>
 <li><code><a title="adcp.protocols" href="protocols/index.html">adcp.protocols</a></code></li>
+<li><code><a title="adcp.registry" href="registry.html">adcp.registry</a></code></li>
 <li><code><a title="adcp.server" href="server/index.html">adcp.server</a></code></li>
 <li><code><a title="adcp.simple" href="simple.html">adcp.simple</a></code></li>
 <li><code><a title="adcp.testing" href="testing/index.html">adcp.testing</a></code></li>
@@ -20536,6 +21277,47 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.PushNotificationConfig.model_config" href="#adcp.PushNotificationConfig.model_config">model_config</a></code></li>
 <li><code><a title="adcp.PushNotificationConfig.token" href="#adcp.PushNotificationConfig.token">token</a></code></li>
 <li><code><a title="adcp.PushNotificationConfig.url" href="#adcp.PushNotificationConfig.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.RegistryClient" href="#adcp.RegistryClient">RegistryClient</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.RegistryClient.close" href="#adcp.RegistryClient.close">close</a></code></li>
+<li><code><a title="adcp.RegistryClient.lookup_brand" href="#adcp.RegistryClient.lookup_brand">lookup_brand</a></code></li>
+<li><code><a title="adcp.RegistryClient.lookup_brands" href="#adcp.RegistryClient.lookup_brands">lookup_brands</a></code></li>
+<li><code><a title="adcp.RegistryClient.lookup_properties" href="#adcp.RegistryClient.lookup_properties">lookup_properties</a></code></li>
+<li><code><a title="adcp.RegistryClient.lookup_property" href="#adcp.RegistryClient.lookup_property">lookup_property</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.RegistryError" href="#adcp.RegistryError">RegistryError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.ResolvedBrand" href="#adcp.ResolvedBrand">ResolvedBrand</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.ResolvedBrand.brand_agent_url" href="#adcp.ResolvedBrand.brand_agent_url">brand_agent_url</a></code></li>
+<li><code><a title="adcp.ResolvedBrand.brand_manifest" href="#adcp.ResolvedBrand.brand_manifest">brand_manifest</a></code></li>
+<li><code><a title="adcp.ResolvedBrand.brand_name" href="#adcp.ResolvedBrand.brand_name">brand_name</a></code></li>
+<li><code><a title="adcp.ResolvedBrand.canonical_domain" href="#adcp.ResolvedBrand.canonical_domain">canonical_domain</a></code></li>
+<li><code><a title="adcp.ResolvedBrand.canonical_id" href="#adcp.ResolvedBrand.canonical_id">canonical_id</a></code></li>
+<li><code><a title="adcp.ResolvedBrand.house_domain" href="#adcp.ResolvedBrand.house_domain">house_domain</a></code></li>
+<li><code><a title="adcp.ResolvedBrand.house_name" href="#adcp.ResolvedBrand.house_name">house_name</a></code></li>
+<li><code><a title="adcp.ResolvedBrand.keller_type" href="#adcp.ResolvedBrand.keller_type">keller_type</a></code></li>
+<li><code><a title="adcp.ResolvedBrand.model_config" href="#adcp.ResolvedBrand.model_config">model_config</a></code></li>
+<li><code><a title="adcp.ResolvedBrand.names" href="#adcp.ResolvedBrand.names">names</a></code></li>
+<li><code><a title="adcp.ResolvedBrand.parent_brand" href="#adcp.ResolvedBrand.parent_brand">parent_brand</a></code></li>
+<li><code><a title="adcp.ResolvedBrand.source" href="#adcp.ResolvedBrand.source">source</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.ResolvedProperty" href="#adcp.ResolvedProperty">ResolvedProperty</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.ResolvedProperty.authorized_agents" href="#adcp.ResolvedProperty.authorized_agents">authorized_agents</a></code></li>
+<li><code><a title="adcp.ResolvedProperty.model_config" href="#adcp.ResolvedProperty.model_config">model_config</a></code></li>
+<li><code><a title="adcp.ResolvedProperty.properties" href="#adcp.ResolvedProperty.properties">properties</a></code></li>
+<li><code><a title="adcp.ResolvedProperty.publisher_domain" href="#adcp.ResolvedProperty.publisher_domain">publisher_domain</a></code></li>
+<li><code><a title="adcp.ResolvedProperty.source" href="#adcp.ResolvedProperty.source">source</a></code></li>
+<li><code><a title="adcp.ResolvedProperty.verified" href="#adcp.ResolvedProperty.verified">verified</a></code></li>
 </ul>
 </li>
 <li>

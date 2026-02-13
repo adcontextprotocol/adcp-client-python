@@ -443,6 +443,150 @@ validated to form a valid model.</p>
 </dd>
 </dl>
 </dd>
+<dt id="adcp.types.core.ResolvedBrand"><code class="flex name class">
+<span>class <span class="ident">ResolvedBrand</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ResolvedBrand(BaseModel):
+    &#34;&#34;&#34;Brand identity resolved from the AdCP registry.&#34;&#34;&#34;
+
+    model_config = ConfigDict(extra=&#34;allow&#34;)
+
+    canonical_id: str
+    canonical_domain: str
+    brand_name: str
+    names: list[dict[str, str]] | None = None
+    keller_type: str | None = None
+    parent_brand: str | None = None
+    house_domain: str | None = None
+    house_name: str | None = None
+    brand_agent_url: str | None = None
+    brand_manifest: dict[str, Any] | None = None
+    source: str</code></pre>
+</details>
+<div class="desc"><p>Brand identity resolved from the AdCP registry.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.core.ResolvedBrand.brand_agent_url"><code class="name">var <span class="ident">brand_agent_url</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.ResolvedBrand.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.ResolvedBrand.brand_name"><code class="name">var <span class="ident">brand_name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.ResolvedBrand.canonical_domain"><code class="name">var <span class="ident">canonical_domain</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.ResolvedBrand.canonical_id"><code class="name">var <span class="ident">canonical_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.ResolvedBrand.house_domain"><code class="name">var <span class="ident">house_domain</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.ResolvedBrand.house_name"><code class="name">var <span class="ident">house_name</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.ResolvedBrand.keller_type"><code class="name">var <span class="ident">keller_type</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.ResolvedBrand.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.ResolvedBrand.names"><code class="name">var <span class="ident">names</span> : list[dict[str, str]] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.ResolvedBrand.parent_brand"><code class="name">var <span class="ident">parent_brand</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.ResolvedBrand.source"><code class="name">var <span class="ident">source</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.core.ResolvedProperty"><code class="flex name class">
+<span>class <span class="ident">ResolvedProperty</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ResolvedProperty(BaseModel):
+    &#34;&#34;&#34;Property information resolved from the AdCP registry.&#34;&#34;&#34;
+
+    model_config = ConfigDict(extra=&#34;allow&#34;)
+
+    publisher_domain: str
+    source: str
+    authorized_agents: list[dict[str, Any]]
+    properties: list[dict[str, Any]]
+    verified: bool</code></pre>
+</details>
+<div class="desc"><p>Property information resolved from the AdCP registry.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.core.ResolvedProperty.authorized_agents"><code class="name">var <span class="ident">authorized_agents</span> : list[dict[str, typing.Any]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.ResolvedProperty.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.ResolvedProperty.properties"><code class="name">var <span class="ident">properties</span> : list[dict[str, typing.Any]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.ResolvedProperty.publisher_domain"><code class="name">var <span class="ident">publisher_domain</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.ResolvedProperty.source"><code class="name">var <span class="ident">source</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.ResolvedProperty.verified"><code class="name">var <span class="ident">verified</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.core.SubmittedInfo"><code class="flex name class">
 <span>class <span class="ident">SubmittedInfo</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -793,6 +937,34 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.core.Protocol.A2A" href="#adcp.types.core.Protocol.A2A">A2A</a></code></li>
 <li><code><a title="adcp.types.core.Protocol.MCP" href="#adcp.types.core.Protocol.MCP">MCP</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.core.ResolvedBrand" href="#adcp.types.core.ResolvedBrand">ResolvedBrand</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.core.ResolvedBrand.brand_agent_url" href="#adcp.types.core.ResolvedBrand.brand_agent_url">brand_agent_url</a></code></li>
+<li><code><a title="adcp.types.core.ResolvedBrand.brand_manifest" href="#adcp.types.core.ResolvedBrand.brand_manifest">brand_manifest</a></code></li>
+<li><code><a title="adcp.types.core.ResolvedBrand.brand_name" href="#adcp.types.core.ResolvedBrand.brand_name">brand_name</a></code></li>
+<li><code><a title="adcp.types.core.ResolvedBrand.canonical_domain" href="#adcp.types.core.ResolvedBrand.canonical_domain">canonical_domain</a></code></li>
+<li><code><a title="adcp.types.core.ResolvedBrand.canonical_id" href="#adcp.types.core.ResolvedBrand.canonical_id">canonical_id</a></code></li>
+<li><code><a title="adcp.types.core.ResolvedBrand.house_domain" href="#adcp.types.core.ResolvedBrand.house_domain">house_domain</a></code></li>
+<li><code><a title="adcp.types.core.ResolvedBrand.house_name" href="#adcp.types.core.ResolvedBrand.house_name">house_name</a></code></li>
+<li><code><a title="adcp.types.core.ResolvedBrand.keller_type" href="#adcp.types.core.ResolvedBrand.keller_type">keller_type</a></code></li>
+<li><code><a title="adcp.types.core.ResolvedBrand.model_config" href="#adcp.types.core.ResolvedBrand.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.core.ResolvedBrand.names" href="#adcp.types.core.ResolvedBrand.names">names</a></code></li>
+<li><code><a title="adcp.types.core.ResolvedBrand.parent_brand" href="#adcp.types.core.ResolvedBrand.parent_brand">parent_brand</a></code></li>
+<li><code><a title="adcp.types.core.ResolvedBrand.source" href="#adcp.types.core.ResolvedBrand.source">source</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.core.ResolvedProperty" href="#adcp.types.core.ResolvedProperty">ResolvedProperty</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.core.ResolvedProperty.authorized_agents" href="#adcp.types.core.ResolvedProperty.authorized_agents">authorized_agents</a></code></li>
+<li><code><a title="adcp.types.core.ResolvedProperty.model_config" href="#adcp.types.core.ResolvedProperty.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.core.ResolvedProperty.properties" href="#adcp.types.core.ResolvedProperty.properties">properties</a></code></li>
+<li><code><a title="adcp.types.core.ResolvedProperty.publisher_domain" href="#adcp.types.core.ResolvedProperty.publisher_domain">publisher_domain</a></code></li>
+<li><code><a title="adcp.types.core.ResolvedProperty.source" href="#adcp.types.core.ResolvedProperty.source">source</a></code></li>
+<li><code><a title="adcp.types.core.ResolvedProperty.verified" href="#adcp.types.core.ResolvedProperty.verified">verified</a></code></li>
 </ul>
 </li>
 <li>

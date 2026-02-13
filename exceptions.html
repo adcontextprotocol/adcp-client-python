@@ -158,6 +158,7 @@ el.replaceWith(d);
 <li><a title="adcp.exceptions.ADCPToolNotFoundError" href="#adcp.exceptions.ADCPToolNotFoundError">ADCPToolNotFoundError</a></li>
 <li><a title="adcp.exceptions.ADCPWebhookError" href="#adcp.exceptions.ADCPWebhookError">ADCPWebhookError</a></li>
 <li><a title="adcp.exceptions.AdagentsValidationError" href="#adcp.exceptions.AdagentsValidationError">AdagentsValidationError</a></li>
+<li><a title="adcp.exceptions.RegistryError" href="#adcp.exceptions.RegistryError">RegistryError</a></li>
 </ul>
 </dd>
 <dt id="adcp.exceptions.ADCPProtocolError"><code class="flex name class">
@@ -466,6 +467,33 @@ use the standard API (client.method()) instead of client.simple.method().</p>
 <li><a title="adcp.exceptions.AdagentsTimeoutError" href="#adcp.exceptions.AdagentsTimeoutError">AdagentsTimeoutError</a></li>
 </ul>
 </dd>
+<dt id="adcp.exceptions.RegistryError"><code class="flex name class">
+<span>class <span class="ident">RegistryError</span></span>
+<span>(</span><span>message: str, status_code: int | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class RegistryError(ADCPError):
+    &#34;&#34;&#34;Error from AdCP registry API operations (brand/property lookups).&#34;&#34;&#34;
+
+    def __init__(self, message: str, status_code: int | None = None):
+        &#34;&#34;&#34;Initialize registry error.&#34;&#34;&#34;
+        self.status_code = status_code
+        suggestion = &#34;Check that the registry API is accessible and the domain is valid.&#34;
+        super().__init__(message, suggestion=suggestion)</code></pre>
+</details>
+<div class="desc"><p>Error from AdCP registry API operations (brand/property lookups).</p>
+<p>Initialize registry error.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
 </dl>
 </section>
 </article>
@@ -516,6 +544,9 @@ use the standard API (client.method()) instead of client.simple.method().</p>
 </li>
 <li>
 <h4><code><a title="adcp.exceptions.AdagentsValidationError" href="#adcp.exceptions.AdagentsValidationError">AdagentsValidationError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.exceptions.RegistryError" href="#adcp.exceptions.RegistryError">RegistryError</a></code></h4>
 </li>
 </ul>
 </li>
