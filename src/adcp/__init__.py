@@ -32,7 +32,9 @@ from adcp.exceptions import (
     ADCPToolNotFoundError,
     ADCPWebhookError,
     ADCPWebhookSignatureError,
+    RegistryError,
 )
+from adcp.registry import RegistryClient
 
 # Test helpers
 from adcp.testing import (
@@ -203,7 +205,15 @@ from adcp.types.aliases import (
     ValidateContentDeliveryErrorResponse,
     ValidateContentDeliverySuccessResponse,
 )
-from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus, WebhookMetadata
+from adcp.types.core import (
+    AgentConfig,
+    Protocol,
+    ResolvedBrand,
+    ResolvedProperty,
+    TaskResult,
+    TaskStatus,
+    WebhookMetadata,
+)
 from adcp.utils import (
     get_asset_count,
     get_format_assets,
@@ -259,9 +269,12 @@ __all__ = [
     # Client classes
     "ADCPClient",
     "ADCPMultiAgentClient",
+    "RegistryClient",
     # Core types
     "AgentConfig",
     "Protocol",
+    "ResolvedBrand",
+    "ResolvedProperty",
     "TaskResult",
     "TaskStatus",
     "WebhookMetadata",
@@ -376,6 +389,7 @@ __all__ = [
     "AdagentsValidationError",
     "AdagentsNotFoundError",
     "AdagentsTimeoutError",
+    "RegistryError",
     # Validation utilities
     "ValidationError",
     "validate_adagents",

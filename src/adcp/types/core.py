@@ -172,3 +172,33 @@ class WebhookMetadata(BaseModel):
     sequence_number: int | None = None
     notification_type: Literal["scheduled", "final", "delayed"] | None = None
     timestamp: str
+
+
+class ResolvedBrand(BaseModel):
+    """Brand identity resolved from the AdCP registry."""
+
+    model_config = ConfigDict(extra="allow")
+
+    canonical_id: str
+    canonical_domain: str
+    brand_name: str
+    names: list[dict[str, str]] | None = None
+    keller_type: str | None = None
+    parent_brand: str | None = None
+    house_domain: str | None = None
+    house_name: str | None = None
+    brand_agent_url: str | None = None
+    brand_manifest: dict[str, Any] | None = None
+    source: str
+
+
+class ResolvedProperty(BaseModel):
+    """Property information resolved from the AdCP registry."""
+
+    model_config = ConfigDict(extra="allow")
+
+    publisher_domain: str
+    source: str
+    authorized_agents: list[dict[str, Any]]
+    properties: list[dict[str, Any]]
+    verified: bool

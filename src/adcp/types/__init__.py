@@ -354,7 +354,14 @@ from adcp.types.aliases import (
 # Re-export core types (not in generated, but part of public API)
 # Note: We don't import TaskStatus here to avoid shadowing GeneratedTaskStatus
 # Users should import TaskStatus from adcp.types.core directly if they need the core enum
-from adcp.types.core import AgentConfig, Protocol, TaskResult, WebhookMetadata
+from adcp.types.core import (
+    AgentConfig,
+    Protocol,
+    ResolvedBrand,
+    ResolvedProperty,
+    TaskResult,
+    WebhookMetadata,
+)
 
 # Re-export webhook payload type for webhook handling
 from adcp.types.generated_poc.core.mcp_webhook_payload import McpWebhookPayload
@@ -637,6 +644,8 @@ __all__ = [
     # Core types
     "AgentConfig",
     "Protocol",
+    "ResolvedBrand",
+    "ResolvedProperty",
     "TaskResult",
     "WebhookMetadata",
     # Webhook types

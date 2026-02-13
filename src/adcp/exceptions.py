@@ -155,6 +155,16 @@ class ADCPSimpleAPIError(ADCPError):
         super().__init__(message, agent_id, None, suggestion)
 
 
+class RegistryError(ADCPError):
+    """Error from AdCP registry API operations (brand/property lookups)."""
+
+    def __init__(self, message: str, status_code: int | None = None):
+        """Initialize registry error."""
+        self.status_code = status_code
+        suggestion = "Check that the registry API is accessible and the domain is valid."
+        super().__init__(message, suggestion=suggestion)
+
+
 class AdagentsValidationError(ADCPError):
     """Base error for adagents.json validation issues."""
 
