@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Creative brief provided either as an inline object or a URL string pointing to a hosted brief",
+  "examples": [
+    {
+      "data": {
+        "audience": "Gift shoppers aged 25-55",
+        "messaging": {
+          "cta": "Shop Holiday Deals",
+          "headline": "Give the Gift of Style"
+        },
+        "name": "Holiday Campaign 2025",
+        "objective": "conversion"
+      },
+      "description": "Inline creative brief"
+    },
+    {
+      "data": "https://cdn.example.com/briefs/holiday-2025.json",
+      "description": "URL string reference to hosted brief"
+    }
+  ],
+  "oneOf": [
+    {
+      "$ref": "creative-brief.json",
+      "description": "Inline creative brief object"
+    },
+    {
+      "description": "URL to a hosted creative brief JSON file. The brief at this URL must conform to the creative-brief.json schema.",
+      "format": "uri",
+      "type": "string"
+    }
+  ],
+  "title": "Creative Brief Reference"
+}

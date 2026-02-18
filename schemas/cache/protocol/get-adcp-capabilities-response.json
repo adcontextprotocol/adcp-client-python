@@ -70,6 +70,17 @@
     "context": {
       "$ref": "../core/context.json"
     },
+    "creative": {
+      "additionalProperties": true,
+      "description": "Creative protocol capabilities. Only present if creative is in supported_protocols.",
+      "properties": {
+        "supports_brief": {
+          "description": "Whether this creative agent accepts creative_brief in build_creative requests for structured campaign-level creative direction",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
     "errors": {
       "description": "Task-specific errors and warnings",
       "items": {
@@ -467,8 +478,8 @@
     "sponsored_intelligence": {
       "description": "Sponsored Intelligence protocol capabilities. Only present if sponsored_intelligence is in supported_protocols. SI agents handle conversational brand experiences.",
       "properties": {
-        "brand_manifest_url": {
-          "description": "URL to brand manifest with colors, fonts, logos, tone",
+        "brand_url": {
+          "description": "URL to brand.json with colors, fonts, logos, tone",
           "format": "uri",
           "type": "string"
         },

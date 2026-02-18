@@ -11,9 +11,9 @@
       "minItems": 1,
       "type": "array"
     },
-    "brand_manifest": {
-      "$ref": "../core/brand-manifest.json",
-      "description": "Brand identity and requirements. When provided, the agent automatically applies appropriate rules based on brand characteristics (industry, target_audience, etc.)."
+    "brand": {
+      "$ref": "../core/brand-ref.json",
+      "description": "Brand reference. When provided, the agent automatically applies appropriate rules based on brand characteristics (industry, target_audience, etc.). Resolved at execution time."
     },
     "context": {
       "$ref": "../core/context.json"

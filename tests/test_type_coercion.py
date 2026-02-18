@@ -134,7 +134,7 @@ class TestFieldModelStringCoercion:
         assert len(req.fields) == 3
         assert req.fields[0] == FieldModel.creative_id
         assert req.fields[1] == FieldModel.name
-        assert req.fields[2] == FieldModel.format_  # format_ to avoid Python keyword collision
+        assert req.fields[2] == FieldModel.format
         assert all(isinstance(x, FieldModel) for x in req.fields)
 
     def test_fields_accepts_enum_list(self):
@@ -299,7 +299,7 @@ class TestListVariance:
         """CreateMediaBuyRequest.packages accepts PackageRequest subclass instances."""
         from datetime import datetime, timezone
 
-        from pydantic import AnyUrl, Field
+        from pydantic import Field
 
         from adcp.types import CreateMediaBuyRequest, PackageRequest
 
@@ -320,7 +320,7 @@ class TestListVariance:
         # No cast() needed!
         request = CreateMediaBuyRequest(
             account_id="acct-1",
-            brand_manifest=AnyUrl("https://example.com/manifest.json"),  # URL reference
+            brand={"domain": "example.com"},
             buyer_ref="buyer-ref",
             start_time=datetime.now(timezone.utc),
             end_time=datetime(2025, 12, 31, tzinfo=timezone.utc),

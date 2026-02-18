@@ -20,7 +20,7 @@
   "enumDescriptions": {
     "activate_signal": "Signals domain: Activate an audience signal on a specific platform or account",
     "create_media_buy": "Media-buy domain: Create a new advertising campaign with one or more packages",
-    "create_property_list": "Property domain: Create a new property list with filters and brand manifest",
+    "create_property_list": "Property domain: Create a new property list with filters and brand reference",
     "delete_property_list": "Property domain: Delete a property list",
     "get_creative_delivery": "Creative domain: Retrieve variant-level creative delivery data",
     "get_property_list": "Property domain: Retrieve a property list with resolved properties",

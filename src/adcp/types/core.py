@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """Core type definitions."""
+
+from __future__ import annotations
 
 from enum import Enum
 from typing import Any, Generic, Literal, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class Protocol(str, Enum):
@@ -188,8 +188,46 @@ class ResolvedBrand(BaseModel):
     house_domain: str | None = None
     house_name: str | None = None
     brand_agent_url: str | None = None
+    brand: dict[str, Any] | None = None
     brand_manifest: dict[str, Any] | None = None
     source: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_brand_fields(cls, data: Any) -> Any:
+        """Cross-populate brand and brand_manifest so both names are always accessible."""
+        if isinstance(data, dict):
+            data = dict(data)
+            if "brand" in data and "brand_manifest" not in data:
+                data["brand_manifest"] = data["brand"]
+            elif "brand_manifest" in data and "brand" not in data:
+                data["brand"] = data["brand_manifest"]
+        return data
+
+
+class Member(BaseModel):
+    """An organization registered in the AAO member directory."""
+
+    model_config = ConfigDict(extra="allow")
+
+    id: str
+    slug: str
+    display_name: str
+    description: str | None = None
+    tagline: str | None = None
+    logo_url: str | None = None
+    logo_light_url: str | None = None
+    logo_dark_url: str | None = None
+    contact_email: str | None = None
+    contact_website: str | None = None
+    offerings: list[str] = Field(default_factory=list)
+    markets: list[str] = Field(default_factory=list)
+    agents: list[dict[str, Any]] = Field(default_factory=list)
+    brands: list[dict[str, Any]] = Field(default_factory=list)
+    is_public: bool = True
+    is_founding_member: bool = False
+    featured: bool = False
+    si_enabled: bool = False
 
 
 class ResolvedProperty(BaseModel):

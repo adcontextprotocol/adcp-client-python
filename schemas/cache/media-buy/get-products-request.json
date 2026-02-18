@@ -3,7 +3,7 @@
   "additionalProperties": true,
   "dependencies": {
     "product_selectors": [
-      "brand_manifest"
+      "brand"
     ]
   },
   "description": "Request parameters for discovering available advertising products",
@@ -12,12 +12,12 @@
       "description": "Account ID for product lookup. Required when the seller declares account.required_for_products = true in capabilities. Returns products with pricing specific to this account's rate card.",
       "type": "string"
     },
-    "brand_manifest": {
-      "$ref": "../core/brand-manifest-ref.json",
-      "description": "Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest."
+    "brand": {
+      "$ref": "../core/brand-ref.json",
+      "description": "Brand reference for product discovery context. Resolved to full brand identity at execution time."
     },
     "brief": {
-      "description": "Natural language description of campaign requirements. When refining a proposal, can include instructions like 'focus more on German speakers' or 'increase mobile allocation'.",
+      "description": "Natural language description of campaign requirements.",
       "type": "string"
     },
     "context": {
@@ -34,15 +34,11 @@
     },
     "product_selectors": {
       "$ref": "../core/promoted-products.json",
-      "description": "Selectors to filter the brand manifest product catalog for product discovery. When provided, sellers should only return advertising products where the selected catalog items have matches. Uses the same selection methods as promoted-offerings."
+      "description": "Selectors to filter the brand's product catalog for product discovery. When provided, sellers should only return advertising products where the selected catalog items have matches. Uses the same selection methods as promoted-offerings."
     },
     "property_list": {
       "$ref": "../core/property-list-ref.json",
       "description": "[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list."
-    },
-    "proposal_id": {
-      "description": "Optional proposal ID to refine. When provided with a brief, the publisher will use the brief as refinement instructions for the specified proposal and return an updated version.",
-      "type": "string"
     }
   },
   "required": [],

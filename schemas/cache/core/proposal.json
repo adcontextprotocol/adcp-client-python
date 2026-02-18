@@ -36,7 +36,7 @@
       "type": "string"
     },
     "proposal_id": {
-      "description": "Unique identifier for this proposal. Used to refine the proposal in subsequent get_products calls or to execute it via create_media_buy.",
+      "description": "Unique identifier for this proposal. Used to execute it via create_media_buy.",
       "type": "string"
     },
     "total_budget_guidance": {

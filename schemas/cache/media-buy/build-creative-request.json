@@ -3,8 +3,16 @@
   "additionalProperties": true,
   "description": "Request to transform or generate a creative manifest. Takes a source manifest (which may be minimal for pure generation) and produces a target manifest in the specified format. The source manifest should include all assets required by the target format (e.g., promoted_offerings for generative formats).",
   "properties": {
+    "brand": {
+      "$ref": "../core/brand-ref.json",
+      "description": "Brand reference for creative generation. Resolved to full brand identity (colors, logos, tone) at execution time."
+    },
     "context": {
       "$ref": "../core/context.json"
+    },
+    "creative_brief": {
+      "$ref": "../core/creative-brief-ref.json",
+      "description": "Campaign-level creative brief with objective, audience, messaging, and reference assets. Can be an inline brief object or a URL to a hosted brief. Supplements the natural language message with structured creative direction."
     },
     "creative_manifest": {
       "$ref": "../core/creative-manifest.json",

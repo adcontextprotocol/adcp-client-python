@@ -207,6 +207,7 @@ from adcp.types.aliases import (
 )
 from adcp.types.core import (
     AgentConfig,
+    Member,
     Protocol,
     ResolvedBrand,
     ResolvedProperty,
@@ -272,6 +273,7 @@ __all__ = [
     "RegistryClient",
     # Core types
     "AgentConfig",
+    "Member",
     "Protocol",
     "ResolvedBrand",
     "ResolvedProperty",

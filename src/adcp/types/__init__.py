@@ -356,6 +356,7 @@ from adcp.types.aliases import (
 # Users should import TaskStatus from adcp.types.core directly if they need the core enum
 from adcp.types.core import (
     AgentConfig,
+    Member,
     Protocol,
     ResolvedBrand,
     ResolvedProperty,
@@ -643,6 +644,7 @@ __all__ = [
     "WebhookAsset",
     # Core types
     "AgentConfig",
+    "Member",
     "Protocol",
     "ResolvedBrand",
     "ResolvedProperty",

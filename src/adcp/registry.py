@@ -1,6 +1,6 @@
-from __future__ import annotations
+"""Client for the AdCP registry API (brand, property, and member lookups)."""
 
-"""Client for the AdCP registry API (brand and property lookups)."""
+from __future__ import annotations
 
 import asyncio
 from typing import Any
@@ -9,7 +9,7 @@ import httpx
 from pydantic import ValidationError
 
 from adcp.exceptions import RegistryError
-from adcp.types.core import ResolvedBrand, ResolvedProperty
+from adcp.types.core import Member, ResolvedBrand, ResolvedProperty
 
 DEFAULT_REGISTRY_URL = "https://agenticadvertising.org"
 MAX_BULK_DOMAINS = 100
@@ -18,7 +18,7 @@ MAX_BULK_DOMAINS = 100
 class RegistryClient:
     """Client for the AdCP registry API.
 
-    Provides brand and property lookups against the central AdCP registry.
+    Provides brand, property, and member lookups against the central AdCP registry.
 
     Args:
         base_url: Registry API base URL.
@@ -67,16 +67,22 @@ class RegistryClient:
         await self.close()
 
     async def lookup_brand(self, domain: str) -> ResolvedBrand | None:
-        """Resolve a single domain to its canonical brand identity.
+        """Resolve a domain to its brand identity.
+
+        Works for any domain — brand houses, sub-brands, and operators
+        (agencies, DSPs) are all brands in the registry.
 
         Args:
-            domain: Domain to resolve (e.g., "nike.com").
+            domain: Domain to resolve (e.g., "nike.com", "wpp.com").
 
         Returns:
-            ResolvedBrand if found, None if the domain is not in the registry.
+            ResolvedBrand if found, None if not in the registry.
 
         Raises:
             RegistryError: On HTTP or parsing errors.
+
+        Example:
+            brand = await registry.lookup_brand(request.brand.domain)
         """
         client = await self._get_client()
         try:
@@ -131,14 +137,11 @@ class RegistryClient:
         ]
 
         chunk_results = await asyncio.gather(
-            *[self._lookup_brands_chunk(chunk) for chunk in chunks],
-            return_exceptions=True,
+            *[self._lookup_brands_chunk(chunk) for chunk in chunks]
         )
 
         merged: dict[str, ResolvedBrand | None] = {}
         for result in chunk_results:
-            if isinstance(result, BaseException):
-                raise result
             merged.update(result)
         return merged
 
@@ -244,14 +247,11 @@ class RegistryClient:
         ]
 
         chunk_results = await asyncio.gather(
-            *[self._lookup_properties_chunk(chunk) for chunk in chunks],
-            return_exceptions=True,
+            *[self._lookup_properties_chunk(chunk) for chunk in chunks]
         )
 
         merged: dict[str, ResolvedProperty | None] = {}
         for result in chunk_results:
-            if isinstance(result, BaseException):
-                raise result
             merged.update(result)
         return merged
 
@@ -288,6 +288,82 @@ class RegistryClient:
         except httpx.HTTPError as e:
             raise RegistryError(f"Bulk property lookup failed: {e}") from e
         except (ValidationError, ValueError) as e:
-            raise RegistryError(
-                f"Bulk property lookup failed: invalid response: {e}"
-            ) from e
+            raise RegistryError(f"Bulk property lookup failed: invalid response: {e}") from e
+
+    async def list_members(self, limit: int = 100) -> list[Member]:
+        """List organizations registered in the AAO member directory.
+
+        Args:
+            limit: Maximum number of members to return.
+
+        Returns:
+            List of Member objects.
+
+        Raises:
+            RegistryError: On HTTP or parsing errors.
+        """
+        if limit < 1:
+            raise ValueError(f"limit must be at least 1, got {limit}")
+
+        client = await self._get_client()
+        try:
+            response = await client.get(
+                f"{self._base_url}/api/members",
+                params={"limit": limit},
+                headers={"User-Agent": self._user_agent},
+                timeout=self._timeout,
+            )
+            if response.status_code != 200:
+                raise RegistryError(
+                    f"Member list failed: HTTP {response.status_code}",
+                    status_code=response.status_code,
+                )
+            data = response.json()
+            return [Member.model_validate(m) for m in data.get("members", [])]
+        except RegistryError:
+            raise
+        except httpx.TimeoutException as e:
+            raise RegistryError(f"Member list timed out after {self._timeout}s") from e
+        except httpx.HTTPError as e:
+            raise RegistryError(f"Member list failed: {e}") from e
+        except (ValidationError, ValueError) as e:
+            raise RegistryError(f"Member list failed: invalid response: {e}") from e
+
+    async def get_member(self, slug: str) -> Member | None:
+        """Get a single AAO member by their slug.
+
+        Args:
+            slug: Member slug (e.g., "adgentek").
+
+        Returns:
+            Member if found, None if not in the registry.
+
+        Raises:
+            RegistryError: On HTTP or parsing errors.
+        """
+        client = await self._get_client()
+        try:
+            response = await client.get(
+                f"{self._base_url}/api/members/{slug}",
+                headers={"User-Agent": self._user_agent},
+                timeout=self._timeout,
+            )
+            if response.status_code == 404:
+                return None
+            if response.status_code != 200:
+                raise RegistryError(
+                    f"Member lookup failed: HTTP {response.status_code}",
+                    status_code=response.status_code,
+                )
+            data = response.json()
+            if data is None:
+                return None
+            return Member.model_validate(data)
+        except RegistryError:
+            raise
+        except httpx.TimeoutException as e:
+            raise RegistryError(f"Member lookup timed out after {self._timeout}s") from e
+        except httpx.HTTPError as e:
+            raise RegistryError(f"Member lookup failed: {e}") from e
+        except (ValidationError, ValueError) as e:
+            raise RegistryError(f"Member lookup failed: invalid response: {e}") from e

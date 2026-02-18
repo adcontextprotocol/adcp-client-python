@@ -3,49 +3,59 @@
   "definitions": {
     "asset": {
       "additionalProperties": true,
-      "description": "Brand asset (image, video, audio)",
+      "description": "Brand asset (image, video, audio, text)",
       "properties": {
         "asset_id": {
           "description": "Unique identifier",
           "type": "string"
         },
         "asset_type": {
-          "description": "Asset type",
-          "enum": [
-            "image",
-            "video",
-            "audio",
-            "text"
-          ],
+          "$ref": "enums/asset-content-type.json",
+          "description": "Type of asset content"
+        },
+        "description": {
+          "description": "Asset description or usage notes",
           "type": "string"
         },
         "duration_seconds": {
+          "description": "Video/audio duration in seconds",
           "type": "number"
         },
+        "file_size_bytes": {
+          "description": "File size in bytes",
+          "type": "integer"
+        },
         "format": {
-          "description": "File format (jpg, mp4, etc.)",
+          "description": "File format (e.g., 'jpg', 'mp4', 'mp3')",
           "type": "string"
         },
         "height": {
+          "description": "Image/video height in pixels",
           "type": "integer"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "description": "Additional asset-specific metadata",
+          "type": "object"
         },
         "name": {
           "description": "Human-readable name",
           "type": "string"
         },
         "tags": {
-          "description": "Tags for discovery (e.g., 'hero', 'lifestyle', 'product')",
+          "description": "Tags for discovery (e.g., 'hero', 'lifestyle', 'product', 'holiday')",
           "items": {
             "type": "string"
           },
           "type": "array"
         },
         "url": {
-          "description": "URL to asset",
+          "description": "URL to CDN-hosted asset file",
           "format": "uri",
           "type": "string"
         },
         "width": {
+          "description": "Image/video width in pixels",
           "type": "integer"
         }
       },
@@ -90,7 +100,7 @@
     },
     "brand": {
       "additionalProperties": true,
-      "description": "A brand within a house portfolio. Combines identity (who) with creative assets (how to represent). Referenced as house + brand_id.",
+      "description": "A brand within a house portfolio. Combines identity (who) with creative assets (how to represent). Referenced as domain + brand_id.",
       "properties": {
         "assets": {
           "description": "Brand asset library",
@@ -118,10 +128,25 @@
         },
         "brand_agent": {
           "$ref": "#/definitions/brand_agent",
-          "description": "Brand agent that provides dynamic brand manifest data. Agent implements get_brand_manifest({ house, brand_id })."
+          "description": "Brand agent that provides dynamic brand data via MCP"
         },
         "colors": {
           "$ref": "#/definitions/colors"
+        },
+        "contact": {
+          "description": "Brand-level contact information",
+          "properties": {
+            "email": {
+              "description": "Contact email",
+              "format": "email",
+              "type": "string"
+            },
+            "phone": {
+              "description": "Contact phone number",
+              "type": "string"
+            }
+          },
+          "type": "object"
         },
         "description": {
           "description": "Brand description",
@@ -245,6 +270,11 @@
             }
           ]
         },
+        "url": {
+          "description": "Primary brand URL for context and asset discovery",
+          "format": "uri",
+          "type": "string"
+        },
         "voice": {
           "additionalProperties": true,
           "description": "TTS voice configuration",
@@ -271,7 +301,7 @@
     },
     "brand_agent": {
       "additionalProperties": true,
-      "description": "Reference to a brand agent that provides brand manifest data via MCP",
+      "description": "Reference to a brand agent that provides brand data via MCP",
       "properties": {
         "id": {
           "description": "Agent identifier (useful for logging, multi-tenant DAMs)",
@@ -443,14 +473,33 @@
     },
     "logo": {
       "additionalProperties": true,
-      "description": "Brand logo asset",
+      "description": "Brand logo asset with structured fields for orientation, background compatibility, and variant type",
       "properties": {
+        "background": {
+          "description": "Background compatibility. dark-bg: use on dark backgrounds, light-bg: use on light backgrounds, transparent-bg: has transparent background",
+          "enum": [
+            "dark-bg",
+            "light-bg",
+            "transparent-bg"
+          ],
+          "type": "string"
+        },
         "height": {
           "description": "Height in pixels",
           "type": "integer"
         },
+        "orientation": {
+          "description": "Logo aspect ratio orientation. square: ~1:1, horizontal: wide, vertical: tall, stacked: vertically arranged elements",
+          "enum": [
+            "square",
+            "horizontal",
+            "vertical",
+            "stacked"
+          ],
+          "type": "string"
+        },
         "tags": {
-          "description": "Semantic tags (e.g., 'dark', 'light', 'square', 'horizontal', 'icon')",
+          "description": "Additional semantic tags for custom categorization beyond the standard orientation, background, and variant fields",
           "items": {
             "type": "string"
           },
@@ -459,6 +508,21 @@
         "url": {
           "description": "URL to the logo asset",
           "format": "uri",
+          "type": "string"
+        },
+        "usage": {
+          "description": "Human-readable description of when to use this logo variant (e.g., 'Primary logo for use on light backgrounds')",
+          "type": "string"
+        },
+        "variant": {
+          "description": "Logo variant type. primary: main logo, secondary: alternative, icon: symbol only, wordmark: text only, full-lockup: complete logo",
+          "enum": [
+            "primary",
+            "secondary",
+            "icon",
+            "wordmark",
+            "full-lockup"
+          ],
           "type": "string"
         },
         "width": {
@@ -476,16 +540,26 @@
       "description": "Product catalog for e-commerce brands",
       "properties": {
         "agentic_checkout": {
+          "description": "Agentic checkout endpoint configuration",
           "properties": {
             "endpoint": {
+              "description": "Base URL for checkout session API",
               "format": "uri",
               "type": "string"
             },
             "spec": {
+              "description": "Checkout API specification",
               "enum": [
                 "openai_agentic_checkout_v1"
               ],
               "type": "string"
+            },
+            "supported_payment_providers": {
+              "description": "Payment providers supported by this checkout endpoint",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
             }
           },
           "required": [
@@ -495,12 +569,14 @@
           "type": "object"
         },
         "categories": {
+          "description": "Product categories available in the catalog",
           "items": {
             "type": "string"
           },
           "type": "array"
         },
         "feed_format": {
+          "description": "Format of the product feed",
           "enum": [
             "google_merchant_center",
             "facebook_catalog",
@@ -510,10 +586,17 @@
           "type": "string"
         },
         "feed_url": {
+          "description": "URL to product catalog feed",
           "format": "uri",
           "type": "string"
         },
+        "last_updated": {
+          "description": "When the product catalog was last updated",
+          "format": "date-time",
+          "type": "string"
+        },
         "update_frequency": {
+          "description": "How frequently the product catalog is updated",
           "enum": [
             "realtime",
             "hourly",
@@ -585,16 +668,16 @@
   "description": "Brand identity and discovery file. Hosted at /.well-known/brand.json on house domains. Contains the full brand portfolio with identity, creative assets, and digital properties. Brands are identified by house + brand_id (like properties are identified by publisher + property_id). Supports variants: house portfolio (full brand data), brand agent (agent provides brand info via MCP), house redirect (pointer to house domain), or authoritative location redirect.",
   "examples": [
     {
-      "$schema": "/schemas/3.0.0-beta.3/brand.json",
+      "$schema": "/schemas/latest/brand.json",
       "authoritative_location": "https://adcontextprotocol.org/brand/abc123/brand.json"
     },
     {
-      "$schema": "/schemas/3.0.0-beta.3/brand.json",
+      "$schema": "/schemas/latest/brand.json",
       "house": "nikeinc.com",
       "note": "Redirect to house domain for full brand portfolio"
     },
     {
-      "$schema": "/schemas/3.0.0-beta.3/brand.json",
+      "$schema": "/schemas/latest/brand.json",
       "brand_agent": {
         "id": "acme_brand_agent",
         "url": "https://agent.acme.com/mcp"
@@ -602,12 +685,15 @@
       "version": "1.0"
     },
     {
-      "$schema": "/schemas/3.0.0-beta.3/brand.json",
+      "$schema": "/schemas/latest/brand.json",
       "brands": [
         {
           "colors": {
             "primary": "#FF6600",
             "secondary": "#0066CC"
+          },
+          "contact": {
+            "email": "brands@pg.com"
           },
           "description": "Laundry detergent brand",
           "id": "tide",
@@ -615,11 +701,18 @@
           "keller_type": "master",
           "logos": [
             {
-              "tags": [
-                "square",
-                "primary"
-              ],
-              "url": "https://cdn.pg.com/tide/logo-square.png"
+              "background": "transparent-bg",
+              "orientation": "square",
+              "url": "https://cdn.pg.com/tide/logo-square.png",
+              "usage": "Primary logo for general use",
+              "variant": "primary"
+            },
+            {
+              "background": "dark-bg",
+              "orientation": "horizontal",
+              "url": "https://cdn.pg.com/tide/logo-horizontal-dark.png",
+              "usage": "Full lockup for dark backgrounds",
+              "variant": "full-lockup"
             }
           ],
           "names": [
@@ -661,7 +754,8 @@
               "Emphasize cleaning power"
             ],
             "voice": "clean, fresh, trustworthy"
-          }
+          },
+          "url": "https://tide.com"
         },
         {
           "colors": {
@@ -672,10 +766,9 @@
           "keller_type": "master",
           "logos": [
             {
-              "tags": [
-                "primary"
-              ],
-              "url": "https://cdn.pg.com/pampers/logo.png"
+              "orientation": "horizontal",
+              "url": "https://cdn.pg.com/pampers/logo.png",
+              "variant": "primary"
             }
           ],
           "names": [
@@ -689,7 +782,8 @@
               "primary": true,
               "type": "website"
             }
-          ]
+          ],
+          "url": "https://pampers.com"
         }
       ],
       "contact": {
@@ -705,7 +799,7 @@
       "version": "1.0"
     },
     {
-      "$schema": "/schemas/3.0.0-beta.3/brand.json",
+      "$schema": "/schemas/latest/brand.json",
       "authorized_operators": [
         {
           "brands": [
@@ -746,18 +840,18 @@
           "keller_type": "master",
           "logos": [
             {
-              "tags": [
-                "dark",
-                "icon"
-              ],
-              "url": "https://cdn.nike.com/swoosh-dark.svg"
+              "background": "dark-bg",
+              "orientation": "horizontal",
+              "url": "https://cdn.nike.com/swoosh-dark.svg",
+              "usage": "Swoosh icon for dark backgrounds",
+              "variant": "icon"
             },
             {
-              "tags": [
-                "full",
-                "horizontal"
-              ],
-              "url": "https://cdn.nike.com/logo-full.svg"
+              "background": "light-bg",
+              "orientation": "horizontal",
+              "url": "https://cdn.nike.com/logo-full.svg",
+              "usage": "Full logo with wordmark for light backgrounds",
+              "variant": "full-lockup"
             }
           ],
           "names": [
@@ -789,7 +883,8 @@
             }
           ],
           "tagline": "Just Do It",
-          "tone": "inspirational, bold, athletic"
+          "tone": "inspirational, bold, athletic",
+          "url": "https://nike.com"
         },
         {
           "brand_agent": {
@@ -804,10 +899,10 @@
           "keller_type": "endorsed",
           "logos": [
             {
-              "tags": [
-                "icon"
-              ],
-              "url": "https://cdn.nike.com/jumpman.svg"
+              "background": "transparent-bg",
+              "orientation": "square",
+              "url": "https://cdn.nike.com/jumpman.svg",
+              "variant": "icon"
             }
           ],
           "names": [
@@ -832,17 +927,17 @@
               "identifier": "jumpman23.com",
               "type": "website"
             }
-          ]
+          ],
+          "url": "https://jordan.com"
         },
         {
           "id": "converse",
           "keller_type": "independent",
           "logos": [
             {
-              "tags": [
-                "icon"
-              ],
-              "url": "https://cdn.converse.com/star.svg"
+              "orientation": "square",
+              "url": "https://cdn.converse.com/star.svg",
+              "variant": "icon"
             }
           ],
           "names": [
@@ -856,7 +951,8 @@
               "primary": true,
               "type": "website"
             }
-          ]
+          ],
+          "url": "https://converse.com"
         }
       ],
       "house": {

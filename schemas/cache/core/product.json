@@ -8,7 +8,7 @@
       "type": "string"
     },
     "catalog_match": {
-      "description": "When the buyer provides a brand_manifest with product_catalog, indicates which of the buyer's catalog items are eligible for this product. Enables buyers to make informed product_selector choices in create_media_buy. Only present for products where catalog matching is relevant (e.g. sponsored product listings on retail media). Sellers SHOULD include at least one of matched_gtins or matched_skus.",
+      "description": "When the buyer provides a brand with product_catalog, indicates which of the buyer's catalog items are eligible for this product. Enables buyers to make informed product_selector choices in create_media_buy. Only present for products where catalog matching is relevant (e.g. sponsored product listings on retail media). Sellers SHOULD include at least one of matched_gtins or matched_skus.",
       "properties": {
         "matched_gtins": {
           "description": "GTINs from the buyer's catalog that are eligible on this product's inventory. Buyers can use these values in product_selectors.manifest_gtins when creating media buys. Standard GTIN formats (GTIN-8 through GTIN-14).",
@@ -110,11 +110,6 @@
       "description": "Detailed description of the product and its inventory",
       "type": "string"
     },
-    "estimated_exposures": {
-      "description": "Estimated exposures/impressions for guaranteed products",
-      "minimum": 0,
-      "type": "integer"
-    },
     "expires_at": {
       "description": "Expiration timestamp for custom products",
       "format": "date-time",
@@ -122,6 +117,10 @@
     },
     "ext": {
       "$ref": "ext.json"
+    },
+    "forecast": {
+      "$ref": "delivery-forecast.json",
+      "description": "Forecasted delivery metrics for this product. Gives buyers an estimate of expected performance before requesting a proposal."
     },
     "format_ids": {
       "description": "Array of supported creative format IDs - structured format_id objects with agent_url and id",

@@ -10,9 +10,9 @@
       },
       "type": "array"
     },
-    "brand_manifest": {
-      "$ref": "../core/brand-manifest.json",
-      "description": "Update brand identity and requirements"
+    "brand": {
+      "$ref": "../core/brand-ref.json",
+      "description": "Update brand reference. Resolved to full brand identity at execution time."
     },
     "context": {
       "$ref": "../core/context.json"

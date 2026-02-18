@@ -45,12 +45,8 @@
                 "content": "Create a warm, festive holiday campaign featuring winter products"
               },
               "promoted_offerings": {
-                "brand_manifest": {
-                  "colors": {
-                    "primary": "#C41E3A",
-                    "secondary": "#165B33"
-                  },
-                  "url": "https://retailer.com"
+                "brand": {
+                  "domain": "acmeretailer.com"
                 }
               }
             },

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "adcp_version": "3.0.0-beta.3",
+  "adcp_version": "latest",
   "architecture": {
     "format_aware_validation": {
       "description": "Creative manifests are validated in the context of their format specification",
@@ -89,9 +89,9 @@
       "typical_use": "DCO (Dynamic Creative Optimization), real-time personalization, server-side rendering"
     }
   },
-  "baseUrl": "/schemas/3.0.0-beta.3",
+  "baseUrl": "/schemas/latest",
   "description": "Registry of asset types used in AdCP creative manifests. Each asset type defines the structure of actual content payloads (what you send), not requirements or constraints (which belong in format specifications).",
-  "lastUpdated": "2026-02-12",
+  "lastUpdated": "2026-02-18",
   "title": "AdCP Asset Type Registry",
   "usage_notes": {
     "creative_manifests": "Creative manifests provide actual asset content, keyed by asset_id from the format. Asset type is determined by the format specification, not declared in the payload.",
@@ -100,6 +100,6 @@
   },
   "version": "1.0.0",
   "versioning": {
-    "note": "AdCP uses build-time versioning. This directory contains schemas for AdCP 3.0.0-beta.3. Full semantic versions are available at /schemas/{version}/ (e.g., /schemas/2.5.0/). Major version aliases point to the latest release: /schemas/v3/ \u2192 /schemas/3.0.0-beta.3/."
+    "note": "AdCP uses build-time versioning. This directory contains schemas for AdCP latest. Full semantic versions are available at /schemas/{version}/ (e.g., /schemas/2.5.0/). Major version aliases point to the latest release: /schemas/vlatest/ \u2192 /schemas/latest/."
   }
 }

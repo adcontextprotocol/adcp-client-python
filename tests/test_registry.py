@@ -9,7 +9,7 @@ import pytest
 
 from adcp.exceptions import RegistryError
 from adcp.registry import DEFAULT_REGISTRY_URL, MAX_BULK_DOMAINS, RegistryClient
-from adcp.types.core import ResolvedBrand, ResolvedProperty
+from adcp.types.core import Member, ResolvedBrand, ResolvedProperty
 
 BRAND_DATA = {
     "canonical_id": "nike.com",
@@ -20,12 +20,42 @@ BRAND_DATA = {
     "brand_manifest": {"name": "Nike"},
 }
 
+BRAND_DATA_NEW = {
+    "canonical_id": "nike.com",
+    "canonical_domain": "nike.com",
+    "brand_name": "Nike",
+    "keller_type": "master",
+    "source": "brand_json",
+    "brand": {"name": "Nike"},
+}
+
 PROPERTY_DATA = {
     "publisher_domain": "nytimes.com",
     "source": "adagents_json",
     "authorized_agents": [{"url": "https://agent.example.com"}],
     "properties": [{"id": "nyt_main", "type": "website", "name": "NYT Main"}],
     "verified": True,
+}
+
+MEMBER_DATA = {
+    "id": "d5b4a558-fdff-4b0c-9876-8327b0d09d7f",
+    "slug": "adgentek",
+    "display_name": "Adgentek",
+    "description": "AI-native advertising infrastructure for the agentic web.",
+    "tagline": None,
+    "logo_url": "https://example.com/logo.png",
+    "logo_light_url": None,
+    "logo_dark_url": None,
+    "contact_email": "hello@adgentek.ai",
+    "contact_website": "https://adgentek.ai",
+    "offerings": ["buyer_agent", "sales_agent", "signals_agent"],
+    "markets": ["North America", "EMEA"],
+    "agents": [],
+    "brands": [],
+    "is_public": True,
+    "is_founding_member": True,
+    "featured": False,
+    "si_enabled": False,
 }
 
 
@@ -61,7 +91,7 @@ class TestRegistryClientLifecycle:
         external = MagicMock()
         rc = RegistryClient(client=external)
         await rc.close()
-        # external client should not be closed by RegistryClient
+        external.aclose.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_context_manager(self):
@@ -177,6 +207,19 @@ class TestLookupBrand:
         assert result.extra_field == "extra_value"  # type: ignore[attr-defined]
 
     @pytest.mark.asyncio
+    async def test_resolves_brand_with_new_brand_field(self):
+        """Registry returns 'brand' field (new API); both brand and brand_manifest accessible."""
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=_mock_response(200, BRAND_DATA_NEW))
+
+        rc = RegistryClient(client=mock_client)
+        result = await rc.lookup_brand("nike.com")
+
+        assert result is not None
+        assert result.brand == {"name": "Nike"}
+        assert result.brand_manifest == {"name": "Nike"}
+
+    @pytest.mark.asyncio
     async def test_raises_on_invalid_response_data(self):
         mock_client = MagicMock()
         mock_client.get = AsyncMock(
@@ -242,6 +285,20 @@ class TestLookupBrands:
         assert len(results) == 150
 
     @pytest.mark.asyncio
+    async def test_domain_absent_from_response_defaults_to_none(self):
+        """Domain omitted from results dict (not explicitly null) defaults to None."""
+        mock_client = MagicMock()
+        mock_client.post = AsyncMock(
+            return_value=_mock_response(200, {"results": {"nike.com": BRAND_DATA}})
+        )
+
+        rc = RegistryClient(client=mock_client)
+        results = await rc.lookup_brands(["nike.com", "other.com"])
+
+        assert isinstance(results["nike.com"], ResolvedBrand)
+        assert results["other.com"] is None
+
+    @pytest.mark.asyncio
     async def test_raises_on_server_error(self):
         mock_client = MagicMock()
         mock_client.post = AsyncMock(return_value=_mock_response(500))
@@ -250,6 +307,17 @@ class TestLookupBrands:
         with pytest.raises(RegistryError) as exc_info:
             await rc.lookup_brands(["nike.com"])
         assert exc_info.value.status_code == 500
+
+    @pytest.mark.asyncio
+    async def test_chunk_failure_propagates(self):
+        """A failure in one chunk raises RegistryError from lookup_brands."""
+        mock_client = MagicMock()
+        mock_client.post = AsyncMock(return_value=_mock_response(503))
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError) as exc_info:
+            await rc.lookup_brands([f"domain-{i}.com" for i in range(150)])
+        assert exc_info.value.status_code == 503
 
 
 class TestLookupProperty:
@@ -395,8 +463,170 @@ class TestLookupProperties:
         assert exc_info.value.status_code == 500
 
 
+class TestListMembers:
+    """Test AAO member directory listing."""
+
+    @pytest.mark.asyncio
+    async def test_lists_members(self):
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(
+            return_value=_mock_response(200, {"members": [MEMBER_DATA]})
+        )
+
+        rc = RegistryClient(client=mock_client)
+        members = await rc.list_members()
+
+        assert len(members) == 1
+        assert isinstance(members[0], Member)
+        assert members[0].slug == "adgentek"
+        assert members[0].display_name == "Adgentek"
+
+    @pytest.mark.asyncio
+    async def test_empty_member_list(self):
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(
+            return_value=_mock_response(200, {"members": []})
+        )
+
+        rc = RegistryClient(client=mock_client)
+        members = await rc.list_members()
+        assert members == []
+
+    @pytest.mark.asyncio
+    async def test_sends_limit_param(self):
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(
+            return_value=_mock_response(200, {"members": []})
+        )
+
+        rc = RegistryClient(
+            base_url="https://test.example.com",
+            client=mock_client,
+            user_agent="test-agent",
+        )
+        await rc.list_members(limit=25)
+
+        mock_client.get.assert_called_once_with(
+            "https://test.example.com/api/members",
+            params={"limit": 25},
+            headers={"User-Agent": "test-agent"},
+            timeout=10.0,
+        )
+
+    @pytest.mark.asyncio
+    async def test_raises_on_server_error(self):
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=_mock_response(500))
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError) as exc_info:
+            await rc.list_members()
+        assert exc_info.value.status_code == 500
+
+    @pytest.mark.asyncio
+    async def test_raises_on_timeout(self):
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(side_effect=httpx.ReadTimeout("timeout"))
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError, match="timed out"):
+            await rc.list_members()
+
+    def test_raises_on_invalid_limit(self):
+        rc = RegistryClient(client=MagicMock())
+        with pytest.raises(ValueError, match="limit must be at least 1"):
+            import asyncio
+            asyncio.run(rc.list_members(limit=0))
+
+    @pytest.mark.asyncio
+    async def test_missing_members_key_returns_empty_list(self):
+        """Malformed 200 response with no 'members' key returns empty list."""
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=_mock_response(200, {}))
+
+        rc = RegistryClient(client=mock_client)
+        members = await rc.list_members()
+        assert members == []
+
+
+class TestGetMember:
+    """Test AAO member lookup by slug."""
+
+    @pytest.mark.asyncio
+    async def test_resolves_known_slug(self):
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=_mock_response(200, MEMBER_DATA))
+
+        rc = RegistryClient(client=mock_client)
+        member = await rc.get_member("adgentek")
+
+        assert member is not None
+        assert isinstance(member, Member)
+        assert member.slug == "adgentek"
+        assert member.contact_email == "hello@adgentek.ai"
+        assert "buyer_agent" in member.offerings
+        assert member.is_founding_member is True
+
+    @pytest.mark.asyncio
+    async def test_returns_none_for_404(self):
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=_mock_response(404))
+
+        rc = RegistryClient(client=mock_client)
+        member = await rc.get_member("unknown-org")
+        assert member is None
+
+    @pytest.mark.asyncio
+    async def test_sends_correct_url(self):
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=_mock_response(404))
+
+        rc = RegistryClient(
+            base_url="https://test.example.com",
+            client=mock_client,
+            user_agent="test-agent",
+        )
+        await rc.get_member("adgentek")
+
+        mock_client.get.assert_called_once_with(
+            "https://test.example.com/api/members/adgentek",
+            headers={"User-Agent": "test-agent"},
+            timeout=10.0,
+        )
+
+    @pytest.mark.asyncio
+    async def test_raises_on_server_error(self):
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=_mock_response(500))
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError) as exc_info:
+            await rc.get_member("adgentek")
+        assert exc_info.value.status_code == 500
+
+    @pytest.mark.asyncio
+    async def test_raises_on_timeout(self):
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(side_effect=httpx.ReadTimeout("timeout"))
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError, match="timed out"):
+            await rc.get_member("adgentek")
+
+    @pytest.mark.asyncio
+    async def test_raises_on_invalid_response_data(self):
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(
+            return_value=_mock_response(200, {"unexpected": "data"})
+        )
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError, match="invalid response"):
+            await rc.get_member("adgentek")
+
+
 class TestRegistryTypes:
-    """Test ResolvedBrand and ResolvedProperty Pydantic models."""
+    """Test ResolvedBrand, ResolvedProperty, and Member Pydantic models."""
 
     def test_resolved_brand_validates(self):
         brand = ResolvedBrand.model_validate(BRAND_DATA)
@@ -413,7 +643,30 @@ class TestRegistryTypes:
         brand = ResolvedBrand.model_validate(minimal)
         assert brand.keller_type is None
         assert brand.brand_manifest is None
+        assert brand.brand is None
         assert brand.house_domain is None
+
+    def test_resolved_brand_new_field_populates_brand_manifest(self):
+        """New API returns 'brand' field; brand_manifest must still be accessible."""
+        brand = ResolvedBrand.model_validate(BRAND_DATA_NEW)
+        assert brand.brand == {"name": "Nike"}
+        assert brand.brand_manifest == {"name": "Nike"}
+
+    def test_resolved_brand_old_field_populates_brand(self):
+        """Old API returns 'brand_manifest'; brand field must be populated too."""
+        brand = ResolvedBrand.model_validate(BRAND_DATA)
+        assert brand.brand_manifest == {"name": "Nike"}
+        assert brand.brand == {"name": "Nike"}
+
+    def test_resolved_brand_both_fields_present(self):
+        """When both fields are present, each keeps its own value."""
+        data = {
+            **BRAND_DATA,
+            "brand": {"name": "Nike (brand.json)"},
+        }
+        brand = ResolvedBrand.model_validate(data)
+        assert brand.brand_manifest == {"name": "Nike"}
+        assert brand.brand == {"name": "Nike (brand.json)"}
 
     def test_resolved_property_validates(self):
         prop = ResolvedProperty.model_validate(PROPERTY_DATA)
@@ -425,6 +678,25 @@ class TestRegistryTypes:
         assert prop.source == "adagents_json"
         assert len(prop.authorized_agents) == 1
         assert len(prop.properties) == 1
+
+    def test_member_validates(self):
+        member = Member.model_validate(MEMBER_DATA)
+        assert member.slug == "adgentek"
+        assert member.display_name == "Adgentek"
+        assert member.is_founding_member is True
+        assert len(member.offerings) == 3
+
+    def test_member_defaults(self):
+        minimal = {
+            "id": "abc123",
+            "slug": "test-org",
+            "display_name": "Test Org",
+        }
+        member = Member.model_validate(minimal)
+        assert member.offerings == []
+        assert member.markets == []
+        assert member.is_public is True
+        assert member.si_enabled is False
 
 
 class TestPublicApiExports:
@@ -459,6 +731,16 @@ class TestPublicApiExports:
         import adcp
 
         assert adcp.ResolvedProperty is ResolvedProperty
+
+    def test_member_exported_from_types(self):
+        import adcp.types
+
+        assert adcp.types.Member is Member
+
+    def test_member_exported_from_root(self):
+        import adcp
+
+        assert adcp.Member is Member
 
 
 class TestRegistryError:
