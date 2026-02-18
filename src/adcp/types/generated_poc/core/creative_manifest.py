@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
-from pydantic import ConfigDict, Field, constr
+from pydantic import ConfigDict, Field, StringConstraints
 
 from . import ext as ext_1
 from . import format_id as format_id_1
@@ -33,7 +33,7 @@ class CreativeManifest(AdCPBaseModel):
     )
     assets: Annotated[
         dict[
-            constr(pattern=r'^[a-z0-9_]+$'),
+            Annotated[str, StringConstraints(pattern=r'^[a-z0-9_]+$')],
             image_asset.ImageAsset
             | video_asset.VideoAsset
             | audio_asset.AudioAsset

@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
-from pydantic import ConfigDict, Field, constr
+from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core import context as context_1
 from ..core import creative_asset
@@ -27,7 +27,7 @@ class SyncCreativesRequest(AdCPBaseModel):
         ),
     ] = None
     assignments: Annotated[
-        dict[constr(pattern=r'^[a-zA-Z0-9_-]+$'), list[str]] | None,
+        dict[Annotated[str, StringConstraints(pattern=r'^[a-zA-Z0-9_-]+$')], list[str]] | None,
         Field(description='Optional bulk assignment of creatives to packages'),
     ] = None
     context: context_1.ContextObject | None = None

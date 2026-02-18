@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
-from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field, RootModel, constr
+from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field, RootModel, StringConstraints
 
 from ..core import account as account_1
 from ..core import context as context_1
@@ -48,7 +48,7 @@ class Creative(AdCPBaseModel):
         ),
     ] = None
     assignment_errors: Annotated[
-        dict[constr(pattern=r'^[a-zA-Z0-9_-]+$'), str] | None,
+        dict[Annotated[str, StringConstraints(pattern=r'^[a-zA-Z0-9_-]+$')], str] | None,
         Field(
             description='Assignment errors by package ID (only present when assignment failures occurred)'
         ),

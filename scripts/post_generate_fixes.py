@@ -257,6 +257,44 @@ def add_deprecated_field_metadata():
         print("  No deprecated fields needed fixing")
 
 
+def fix_constr_type_annotations():
+    """Replace constr(pattern=...) with Annotated[str, StringConstraints(pattern=...)] in generated files.
+
+    datamodel-code-generator uses constr(pattern=...) as dict key types, but mypy's
+    Pydantic v2 plugin rejects this form. The correct form is Annotated[str, StringConstraints(...)].
+    """
+    fixed_count = 0
+
+    for py_file in OUTPUT_DIR.rglob("*.py"):
+        with open(py_file) as f:
+            content = f.read()
+
+        if "constr(pattern=" not in content:
+            continue
+
+        original = content
+
+        # Replace constr(pattern=r'...') with Annotated[str, StringConstraints(pattern=r'...')]
+        content = re.sub(
+            r"constr\(pattern=(r'[^']*')\)",
+            r"Annotated[str, StringConstraints(pattern=\1)]",
+            content,
+        )
+
+        # Replace 'constr' in imports with 'StringConstraints'
+        content = re.sub(r"\bconstr\b", "StringConstraints", content)
+
+        if content != original:
+            with open(py_file, "w") as f:
+                f.write(content)
+            fixed_count += 1
+
+    if fixed_count > 0:
+        print(f"  Replaced constr(pattern=...) with StringConstraints in {fixed_count} file(s)")
+    else:
+        print("  No constr(pattern=...) annotations needed fixing")
+
+
 def main():
     """Apply all post-generation fixes."""
     print("Applying post-generation fixes...")
@@ -267,6 +305,7 @@ def main():
     fix_enum_defaults()
     fix_preview_creative_request_discriminator()
     add_deprecated_field_metadata()
+    fix_constr_type_annotations()
 
     print("\n✓ Post-generation fixes complete\n")
 

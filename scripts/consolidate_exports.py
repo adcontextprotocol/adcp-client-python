@@ -193,6 +193,22 @@ def generate_consolidated_exports() -> str:
 
     lines.extend(alias_lines)
 
+    # Add backwards-compat stub for BrandManifest (removed from upstream schemas in latest).
+    # Kept as a permissive model so existing code importing it continues to work.
+    compat_lines = [
+        "",
+        "# Backwards-compat: BrandManifest was removed from upstream schemas.",
+        "# Kept as a permissive model so existing code importing it continues to work.",
+        "from adcp.types.base import AdCPBaseModel as _AdCPBaseModel",
+        "from pydantic import ConfigDict as _ConfigDict",
+        "",
+        "class BrandManifest(_AdCPBaseModel):",
+        '    model_config = _ConfigDict(extra="allow")',
+        "",
+    ]
+    lines.extend(compat_lines)
+    all_exports_with_aliases = all_exports_with_aliases | {"BrandManifest"}
+
     # Format __all__ list with proper line breaks (max 100 chars per line)
     exports_list = sorted(list(all_exports_with_aliases))
     all_lines = ["", "# Explicit exports", "__all__ = ["]
@@ -226,14 +242,12 @@ def generate_consolidated_exports() -> str:
     rebuild_lines = [
         "",
         "# Rebuild models with forward references",
-        "# This must happen AFTER all imports to resolve module-qualified type references",
-        "# like brand_manifest.BrandManifest used in generated code",
+        "# This must happen AFTER all imports to resolve forward reference chains",
         "",
         "# Import individual modules needed for rebuilding",
         "from adcp.types import generated_poc",
         "",
         "# Rebuild models that reference other models via forward refs",
-        "BrandManifest.model_rebuild()",
         "PromotedOfferings.model_rebuild()",
         "CreativeManifest.model_rebuild()",
         "PreviewCreativeRequest1.model_rebuild()",

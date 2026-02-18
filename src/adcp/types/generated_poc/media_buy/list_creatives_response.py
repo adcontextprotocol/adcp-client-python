@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
-from pydantic import AwareDatetime, ConfigDict, Field, constr
+from pydantic import AwareDatetime, ConfigDict, Field, StringConstraints
 
 from ..core import account as account_1
 from ..core import context as context_1
@@ -125,7 +125,7 @@ class Creative(AdCPBaseModel):
     ] = None
     assets: Annotated[
         dict[
-            constr(pattern=r'^[a-zA-Z0-9_-]+$'),
+            Annotated[str, StringConstraints(pattern=r'^[a-zA-Z0-9_-]+$')],
             image_asset.ImageAsset
             | video_asset.VideoAsset
             | audio_asset.AudioAsset
@@ -185,7 +185,7 @@ class ListCreativesResponse(AdCPBaseModel):
     ]
     ext: ext_1.ExtensionObject | None = None
     format_summary: Annotated[
-        dict[constr(pattern=r'^[a-zA-Z0-9_-]+$'), int] | None,
+        dict[Annotated[str, StringConstraints(pattern=r'^[a-zA-Z0-9_-]+$')], int] | None,
         Field(description='Breakdown of creatives by format type'),
     ] = None
     pagination: pagination_response.PaginationResponse
