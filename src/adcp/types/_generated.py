@@ -12,6 +12,7 @@ DO NOT EDIT MANUALLY.
 Generated from: https://github.com/adcontextprotocol/adcp/tree/main/schemas
 Generation date: 2026-02-18 21:17:48 UTC
 """
+
 # ruff: noqa: E501, I001
 from __future__ import annotations
 
@@ -20,28 +21,176 @@ from adcp.types.generated_poc.a2ui.component import A2UiComponent
 from adcp.types.generated_poc.a2ui.surface import A2UiSurface
 from adcp.types.generated_poc.account.list_accounts_request import ListAccountsRequest, Status
 from adcp.types.generated_poc.account.list_accounts_response import ListAccountsResponse
-from adcp.types.generated_poc.account.sync_accounts_request import Account, Billing, SyncAccountsRequest
-from adcp.types.generated_poc.account.sync_accounts_response import Action, CreditLimit, Setup, SyncAccountsResponse, SyncAccountsResponse1, SyncAccountsResponse2
-from adcp.types.generated_poc.adagents import AdcpAgentsAuthorization, AdcpAgentsAuthorization1, AdcpAgentsAuthorization2, AuthorizedAgents, AuthorizedAgents1, AuthorizedAgents2, AuthorizedAgents3, AuthorizedAgents4, AuthorizedAgents5, Contact, PropertyFeature, SignalId, SignalTag, SignalTags, Tags
-from adcp.types.generated_poc.brand import AgenticCheckout, Architecture, Asset, AuthorizedOperator, Avatar, Background, Brand, Brand1, BrandAgent, BrandDiscovery, BrandDiscovery1, BrandDiscovery2, BrandDiscovery3, BrandDiscovery4, BrandId, ColorValue, ColorValue1, ColorValue2, ColorValue2Item, Colors, Contact1, Country, Disclaimer, Domain, FeedFormat, Fonts, House, KellerType, LocalizedName, Logo, Orientation, ProductCatalog, Property, Store, Tone, Trademark, Type, UpdateFrequency, Variant, Voice
-from adcp.types.generated_poc.content_standards.artifact import Artifact, AssetAccess, AssetAccess1, AssetAccess2, AssetAccess3, Assets, Assets1, Assets2, Assets3, Identifiers, Metadata, Provider, Role, TranscriptSource, TranscriptSource1
-from adcp.types.generated_poc.content_standards.artifact_webhook_payload import ArtifactWebhookPayload, Pagination
-from adcp.types.generated_poc.content_standards.calibrate_content_request import CalibrateContentRequest
-from adcp.types.generated_poc.content_standards.calibrate_content_response import CalibrateContentResponse, CalibrateContentResponse1, CalibrateContentResponse2, Feature, Verdict
-from adcp.types.generated_poc.content_standards.content_standards import CalibrationExemplars, ContentStandards
-from adcp.types.generated_poc.content_standards.create_content_standards_request import CreateContentStandardsRequest, Fail, Pass, Scope
-from adcp.types.generated_poc.content_standards.create_content_standards_response import CreateContentStandardsResponse, CreateContentStandardsResponse1, CreateContentStandardsResponse2
-from adcp.types.generated_poc.content_standards.get_content_standards_request import GetContentStandardsRequest
-from adcp.types.generated_poc.content_standards.get_content_standards_response import GetContentStandardsResponse, GetContentStandardsResponse1, GetContentStandardsResponse2
-from adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request import GetMediaBuyArtifactsRequest, Method, Sampling, TimeRange
-from adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response import BrandContext, GetMediaBuyArtifactsResponse, GetMediaBuyArtifactsResponse1, GetMediaBuyArtifactsResponse2, LocalVerdict, SamplingInfo
-from adcp.types.generated_poc.content_standards.list_content_standards_request import ListContentStandardsRequest
-from adcp.types.generated_poc.content_standards.list_content_standards_response import ListContentStandardsResponse, ListContentStandardsResponse1, ListContentStandardsResponse2
-from adcp.types.generated_poc.content_standards.update_content_standards_request import UpdateContentStandardsRequest
-from adcp.types.generated_poc.content_standards.update_content_standards_response import UpdateContentStandardsResponse
-from adcp.types.generated_poc.content_standards.validate_content_delivery_request import Record, ValidateContentDeliveryRequest
-from adcp.types.generated_poc.content_standards.validate_content_delivery_response import Result, Summary, ValidateContentDeliveryResponse, ValidateContentDeliveryResponse1, ValidateContentDeliveryResponse2
-from adcp.types.generated_poc.core.activation_key import ActivationKey, ActivationKey1, ActivationKey2
+from adcp.types.generated_poc.account.sync_accounts_request import (
+    Account,
+    Billing,
+    SyncAccountsRequest,
+)
+from adcp.types.generated_poc.account.sync_accounts_response import (
+    Action,
+    CreditLimit,
+    Setup,
+    SyncAccountsResponse,
+    SyncAccountsResponse1,
+    SyncAccountsResponse2,
+)
+from adcp.types.generated_poc.adagents import (
+    AdcpAgentsAuthorization,
+    AdcpAgentsAuthorization1,
+    AdcpAgentsAuthorization2,
+    AuthorizedAgents,
+    AuthorizedAgents1,
+    AuthorizedAgents2,
+    AuthorizedAgents3,
+    AuthorizedAgents4,
+    AuthorizedAgents5,
+    Contact,
+    PropertyFeature,
+    SignalId,
+    SignalTag,
+    SignalTags,
+    Tags,
+)
+from adcp.types.generated_poc.brand import (
+    AgenticCheckout,
+    Architecture,
+    Asset,
+    AuthorizedOperator,
+    Avatar,
+    Background,
+    Brand,
+    Brand1,
+    BrandAgent,
+    BrandDiscovery,
+    BrandDiscovery1,
+    BrandDiscovery2,
+    BrandDiscovery3,
+    BrandDiscovery4,
+    BrandId,
+    ColorValue,
+    ColorValue1,
+    ColorValue2,
+    ColorValue2Item,
+    Colors,
+    Contact1,
+    Country,
+    Disclaimer,
+    Domain,
+    FeedFormat,
+    Fonts,
+    House,
+    KellerType,
+    LocalizedName,
+    Logo,
+    Orientation,
+    ProductCatalog,
+    Property,
+    Store,
+    Tone,
+    Trademark,
+    Type,
+    UpdateFrequency,
+    Variant,
+    Voice,
+)
+from adcp.types.generated_poc.content_standards.artifact import (
+    Artifact,
+    AssetAccess,
+    AssetAccess1,
+    AssetAccess2,
+    AssetAccess3,
+    Assets,
+    Assets1,
+    Assets2,
+    Assets3,
+    Identifiers,
+    Metadata,
+    Provider,
+    Role,
+    TranscriptSource,
+    TranscriptSource1,
+)
+from adcp.types.generated_poc.content_standards.artifact_webhook_payload import (
+    ArtifactWebhookPayload,
+    Pagination,
+)
+from adcp.types.generated_poc.content_standards.calibrate_content_request import (
+    CalibrateContentRequest,
+)
+from adcp.types.generated_poc.content_standards.calibrate_content_response import (
+    CalibrateContentResponse,
+    CalibrateContentResponse1,
+    CalibrateContentResponse2,
+    Feature,
+    Verdict,
+)
+from adcp.types.generated_poc.content_standards.content_standards import (
+    CalibrationExemplars,
+    ContentStandards,
+)
+from adcp.types.generated_poc.content_standards.create_content_standards_request import (
+    CreateContentStandardsRequest,
+    Fail,
+    Pass,
+    Scope,
+)
+from adcp.types.generated_poc.content_standards.create_content_standards_response import (
+    CreateContentStandardsResponse,
+    CreateContentStandardsResponse1,
+    CreateContentStandardsResponse2,
+)
+from adcp.types.generated_poc.content_standards.get_content_standards_request import (
+    GetContentStandardsRequest,
+)
+from adcp.types.generated_poc.content_standards.get_content_standards_response import (
+    GetContentStandardsResponse,
+    GetContentStandardsResponse1,
+    GetContentStandardsResponse2,
+)
+from adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request import (
+    GetMediaBuyArtifactsRequest,
+    Method,
+    Sampling,
+    TimeRange,
+)
+from adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response import (
+    BrandContext,
+    GetMediaBuyArtifactsResponse,
+    GetMediaBuyArtifactsResponse1,
+    GetMediaBuyArtifactsResponse2,
+    LocalVerdict,
+    SamplingInfo,
+)
+from adcp.types.generated_poc.content_standards.list_content_standards_request import (
+    ListContentStandardsRequest,
+)
+from adcp.types.generated_poc.content_standards.list_content_standards_response import (
+    ListContentStandardsResponse,
+    ListContentStandardsResponse1,
+    ListContentStandardsResponse2,
+)
+from adcp.types.generated_poc.content_standards.update_content_standards_request import (
+    UpdateContentStandardsRequest,
+)
+from adcp.types.generated_poc.content_standards.update_content_standards_response import (
+    UpdateContentStandardsResponse,
+)
+from adcp.types.generated_poc.content_standards.validate_content_delivery_request import (
+    Record,
+    ValidateContentDeliveryRequest,
+)
+from adcp.types.generated_poc.content_standards.validate_content_delivery_response import (
+    Result,
+    Summary,
+    ValidateContentDeliveryResponse,
+    ValidateContentDeliveryResponse1,
+    ValidateContentDeliveryResponse2,
+)
+from adcp.types.generated_poc.core.activation_key import (
+    ActivationKey,
+    ActivationKey1,
+    ActivationKey2,
+)
 from adcp.types.generated_poc.core.assets.audio_asset import AudioAsset, BitDepth, Channels
 from adcp.types.generated_poc.core.assets.css_asset import CssAsset
 from adcp.types.generated_poc.core.assets.daast_asset import DaastAsset, DaastAsset1, DaastAsset2
@@ -51,7 +200,19 @@ from adcp.types.generated_poc.core.assets.javascript_asset import JavascriptAsse
 from adcp.types.generated_poc.core.assets.text_asset import TextAsset
 from adcp.types.generated_poc.core.assets.url_asset import UrlAsset
 from adcp.types.generated_poc.core.assets.vast_asset import VastAsset, VastAsset1, VastAsset2
-from adcp.types.generated_poc.core.assets.video_asset import AudioBitDepth, AudioChannels, ChromaSubsampling, ColorSpace, FrameRateType, GopType, HdrFormat, MoovAtomPosition, ScanType, VideoAsset, VideoBitDepth
+from adcp.types.generated_poc.core.assets.video_asset import (
+    AudioBitDepth,
+    AudioChannels,
+    ChromaSubsampling,
+    ColorSpace,
+    FrameRateType,
+    GopType,
+    HdrFormat,
+    MoovAtomPosition,
+    ScanType,
+    VideoAsset,
+    VideoBitDepth,
+)
 from adcp.types.generated_poc.core.assets.webhook_asset import Security, WebhookAsset
 from adcp.types.generated_poc.core.async_response_data import AdcpAsyncResponseData
 from adcp.types.generated_poc.core.attribution_window import AttributionWindow
@@ -65,10 +226,24 @@ from adcp.types.generated_poc.core.creative_filters import CreativeFilters
 from adcp.types.generated_poc.core.creative_manifest import CreativeManifest
 from adcp.types.generated_poc.core.creative_policy import CreativePolicy
 from adcp.types.generated_poc.core.creative_variant import CreativeVariant, GenerationContext
-from adcp.types.generated_poc.core.data_provider_signal_selector import DataProviderSignalSelector, DataProviderSignalSelector1, DataProviderSignalSelector2, DataProviderSignalSelector3
+from adcp.types.generated_poc.core.data_provider_signal_selector import (
+    DataProviderSignalSelector,
+    DataProviderSignalSelector1,
+    DataProviderSignalSelector2,
+    DataProviderSignalSelector3,
+)
 from adcp.types.generated_poc.core.daypart_target import DaypartTarget
 from adcp.types.generated_poc.core.delivery_forecast import DeliveryForecast
-from adcp.types.generated_poc.core.delivery_metrics import ByActionSourceItem, ByEventTypeItem, DeliveryMetrics, DoohMetrics, QuartileData, Standard, VenueBreakdownItem, Viewability
+from adcp.types.generated_poc.core.delivery_metrics import (
+    ByActionSourceItem,
+    ByEventTypeItem,
+    DeliveryMetrics,
+    DoohMetrics,
+    QuartileData,
+    Standard,
+    VenueBreakdownItem,
+    Viewability,
+)
 from adcp.types.generated_poc.core.deployment import Deployment, Deployment1, Deployment2
 from adcp.types.generated_poc.core.destination import Destination, Destination1, Destination2
 from adcp.types.generated_poc.core.error import Error
@@ -77,7 +252,45 @@ from adcp.types.generated_poc.core.event_custom_data import Content, EventCustom
 from adcp.types.generated_poc.core.ext import ExtensionObject
 from adcp.types.generated_poc.core.forecast_point import ForecastPoint
 from adcp.types.generated_poc.core.forecast_range import ForecastRange
-from adcp.types.generated_poc.core.format import Assets10, Assets11, Assets12, Assets13, Assets14, Assets15, Assets16, Assets17, Assets18, Assets19, Assets20, Assets21, Assets22, Assets23, Assets24, Assets25, Assets26, Assets27, Assets28, Assets29, Assets30, Assets5, Assets6, Assets7, Assets8, Assets9, BaseGroupAsset, BaseIndividualAsset, Dimensions, Dimensions1, Format, FormatCard, FormatCardDetailed, Renders, Renders1, Responsive, SelectionMode
+from adcp.types.generated_poc.core.format import (
+    Assets10,
+    Assets11,
+    Assets12,
+    Assets13,
+    Assets14,
+    Assets15,
+    Assets16,
+    Assets17,
+    Assets18,
+    Assets19,
+    Assets20,
+    Assets21,
+    Assets22,
+    Assets23,
+    Assets24,
+    Assets25,
+    Assets26,
+    Assets27,
+    Assets28,
+    Assets29,
+    Assets30,
+    Assets5,
+    Assets6,
+    Assets7,
+    Assets8,
+    Assets9,
+    BaseGroupAsset,
+    BaseIndividualAsset,
+    Dimensions,
+    Dimensions1,
+    Format,
+    FormatCard,
+    FormatCardDetailed,
+    Renders,
+    Renders1,
+    Responsive,
+    SelectionMode,
+)
 from adcp.types.generated_poc.core.format_id import FormatId
 from adcp.types.generated_poc.core.frequency_cap import FrequencyCap
 from adcp.types.generated_poc.core.identifier import Identifier
@@ -89,54 +302,185 @@ from adcp.types.generated_poc.core.offering import Offering
 from adcp.types.generated_poc.core.optimization_goal import OptimizationGoal
 from adcp.types.generated_poc.core.pagination_request import PaginationRequest
 from adcp.types.generated_poc.core.pagination_response import PaginationResponse
-from adcp.types.generated_poc.core.performance_feedback import MeasurementPeriod, PerformanceFeedback
+from adcp.types.generated_poc.core.performance_feedback import (
+    MeasurementPeriod,
+    PerformanceFeedback,
+)
 from adcp.types.generated_poc.core.placement import Placement
 from adcp.types.generated_poc.core.pricing_option import PricingOption
-from adcp.types.generated_poc.core.product import CatalogMatch, ConversionTracking, DeliveryMeasurement, MatchedGtin, Product, ProductCard, ProductCardDetailed, SupportedOptimizationStrategy
+from adcp.types.generated_poc.core.product import (
+    CatalogMatch,
+    ConversionTracking,
+    DeliveryMeasurement,
+    MatchedGtin,
+    Product,
+    ProductCard,
+    ProductCardDetailed,
+    SupportedOptimizationStrategy,
+)
 from adcp.types.generated_poc.core.product_allocation import ProductAllocation
-from adcp.types.generated_poc.core.product_filters import BudgetRange, BudgetRange1, Metro, ProductFilters, Region, RequiredGeoTargetingItem
-from adcp.types.generated_poc.core.promoted_offerings import AssetSelectors, AssetType, PromotedOfferings
+from adcp.types.generated_poc.core.product_filters import (
+    BudgetRange,
+    BudgetRange1,
+    Metro,
+    ProductFilters,
+    Region,
+    RequiredGeoTargetingItem,
+)
+from adcp.types.generated_poc.core.promoted_offerings import (
+    AssetSelectors,
+    AssetType,
+    PromotedOfferings,
+)
 from adcp.types.generated_poc.core.promoted_products import ManifestGtin, PromotedProducts
 from adcp.types.generated_poc.core.property_id import PropertyId
 from adcp.types.generated_poc.core.property_list_ref import PropertyListReference
 from adcp.types.generated_poc.core.property_tag import PropertyTag
 from adcp.types.generated_poc.core.proposal import Proposal, TotalBudgetGuidance
 from adcp.types.generated_poc.core.protocol_envelope import ProtocolEnvelope
-from adcp.types.generated_poc.core.publisher_property_selector import PublisherPropertySelector, PublisherPropertySelector1, PublisherPropertySelector2, PublisherPropertySelector3
-from adcp.types.generated_poc.core.push_notification_config import Authentication, PushNotificationConfig
+from adcp.types.generated_poc.core.publisher_property_selector import (
+    PublisherPropertySelector,
+    PublisherPropertySelector1,
+    PublisherPropertySelector2,
+    PublisherPropertySelector3,
+)
+from adcp.types.generated_poc.core.push_notification_config import (
+    Authentication,
+    PushNotificationConfig,
+)
 from adcp.types.generated_poc.core.reference_asset import ReferenceAsset
-from adcp.types.generated_poc.core.reporting_capabilities import DateRangeSupport, ReportingCapabilities
+from adcp.types.generated_poc.core.reporting_capabilities import (
+    DateRangeSupport,
+    ReportingCapabilities,
+)
 from adcp.types.generated_poc.core.reporting_webhook import ReportingFrequency, ReportingWebhook
 from adcp.types.generated_poc.core.requirements.asset_requirements import AssetRequirements
-from adcp.types.generated_poc.core.requirements.audio_asset_requirements import AudioAssetRequirements, Channel, SampleRate
+from adcp.types.generated_poc.core.requirements.audio_asset_requirements import (
+    AudioAssetRequirements,
+    Channel,
+    SampleRate,
+)
 from adcp.types.generated_poc.core.requirements.css_asset_requirements import CssAssetRequirements
-from adcp.types.generated_poc.core.requirements.daast_asset_requirements import DaastAssetRequirements
-from adcp.types.generated_poc.core.requirements.html_asset_requirements import HtmlAssetRequirements, Sandbox
-from adcp.types.generated_poc.core.requirements.image_asset_requirements import ImageAssetRequirements
-from adcp.types.generated_poc.core.requirements.javascript_asset_requirements import JavascriptAssetRequirements, ModuleType
-from adcp.types.generated_poc.core.requirements.markdown_asset_requirements import MarkdownAssetRequirements
-from adcp.types.generated_poc.core.requirements.promoted_offerings_asset_requirements import PromotedOfferingsAssetRequirements
+from adcp.types.generated_poc.core.requirements.daast_asset_requirements import (
+    DaastAssetRequirements,
+)
+from adcp.types.generated_poc.core.requirements.html_asset_requirements import (
+    HtmlAssetRequirements,
+    Sandbox,
+)
+from adcp.types.generated_poc.core.requirements.image_asset_requirements import (
+    ImageAssetRequirements,
+)
+from adcp.types.generated_poc.core.requirements.javascript_asset_requirements import (
+    JavascriptAssetRequirements,
+    ModuleType,
+)
+from adcp.types.generated_poc.core.requirements.markdown_asset_requirements import (
+    MarkdownAssetRequirements,
+)
+from adcp.types.generated_poc.core.requirements.promoted_offerings_asset_requirements import (
+    PromotedOfferingsAssetRequirements,
+)
 from adcp.types.generated_poc.core.requirements.text_asset_requirements import TextAssetRequirements
-from adcp.types.generated_poc.core.requirements.url_asset_requirements import Protocol, UrlAssetRequirements
-from adcp.types.generated_poc.core.requirements.vast_asset_requirements import VastAssetRequirements, VastVersion
-from adcp.types.generated_poc.core.requirements.video_asset_requirements import Codec, Container, FrameRate, VideoAssetRequirements
-from adcp.types.generated_poc.core.requirements.webhook_asset_requirements import WebhookAssetRequirements
+from adcp.types.generated_poc.core.requirements.url_asset_requirements import (
+    Protocol,
+    UrlAssetRequirements,
+)
+from adcp.types.generated_poc.core.requirements.vast_asset_requirements import (
+    VastAssetRequirements,
+    VastVersion,
+)
+from adcp.types.generated_poc.core.requirements.video_asset_requirements import (
+    Codec,
+    Container,
+    FrameRate,
+    VideoAssetRequirements,
+)
+from adcp.types.generated_poc.core.requirements.webhook_asset_requirements import (
+    WebhookAssetRequirements,
+)
 from adcp.types.generated_poc.core.response import ProtocolResponse
 from adcp.types.generated_poc.core.signal_definition import Range, SignalDefinition, Tag
 from adcp.types.generated_poc.core.signal_filters import SignalFilters
 from adcp.types.generated_poc.core.signal_id import SignalId2, SignalId3
-from adcp.types.generated_poc.core.signal_targeting import SignalTargeting, SignalTargeting1, SignalTargeting2, SignalTargeting3
+from adcp.types.generated_poc.core.signal_targeting import (
+    SignalTargeting,
+    SignalTargeting1,
+    SignalTargeting2,
+    SignalTargeting3,
+)
 from adcp.types.generated_poc.core.start_timing import StartTiming
 from adcp.types.generated_poc.core.sub_asset import SubAsset, SubAsset1, SubAsset2
-from adcp.types.generated_poc.core.targeting import AgeRestriction, GeoCountriesExcludeItem, GeoCountry, GeoMetro, GeoMetrosExcludeItem, GeoPostalArea, GeoPostalAreasExcludeItem, GeoRegion, GeoRegionsExcludeItem, LanguageItem, TargetingOverlay
-from adcp.types.generated_poc.core.user_match import Uid, UserMatch, UserMatch1, UserMatch2, UserMatch3, UserMatch4, UserMatch5
-from adcp.types.generated_poc.creative.get_creative_delivery_request import GetCreativeDeliveryRequest, GetCreativeDeliveryRequest1, GetCreativeDeliveryRequest2, GetCreativeDeliveryRequest3
-from adcp.types.generated_poc.creative.get_creative_delivery_response import Creative, GetCreativeDeliveryResponse, ReportingPeriod
-from adcp.types.generated_poc.creative.list_creative_formats_request import ListCreativeFormatsRequestCreativeAgent
-from adcp.types.generated_poc.creative.list_creative_formats_response import CreativeAgent, ListCreativeFormatsResponseCreativeAgent
-from adcp.types.generated_poc.creative.preview_creative_request import Input2, PreviewCreativeRequest, PreviewCreativeRequest1, PreviewCreativeRequest2, PreviewCreativeRequest3, Request
-from adcp.types.generated_poc.creative.preview_creative_response import Input4, Preview, Preview1, Preview2, Preview3, PreviewCreativeResponse, PreviewCreativeResponse1, PreviewCreativeResponse2, PreviewCreativeResponse3, Response, Response1, Results, Results1
-from adcp.types.generated_poc.creative.preview_render import Embedding, PreviewRender, PreviewRender1, PreviewRender2, PreviewRender3
+from adcp.types.generated_poc.core.targeting import (
+    AgeRestriction,
+    GeoCountriesExcludeItem,
+    GeoCountry,
+    GeoMetro,
+    GeoMetrosExcludeItem,
+    GeoPostalArea,
+    GeoPostalAreasExcludeItem,
+    GeoRegion,
+    GeoRegionsExcludeItem,
+    LanguageItem,
+    TargetingOverlay,
+)
+from adcp.types.generated_poc.core.user_match import (
+    Uid,
+    UserMatch,
+    UserMatch1,
+    UserMatch2,
+    UserMatch3,
+    UserMatch4,
+    UserMatch5,
+)
+from adcp.types.generated_poc.creative.get_creative_delivery_request import (
+    GetCreativeDeliveryRequest,
+    GetCreativeDeliveryRequest1,
+    GetCreativeDeliveryRequest2,
+    GetCreativeDeliveryRequest3,
+)
+from adcp.types.generated_poc.creative.get_creative_delivery_response import (
+    Creative,
+    GetCreativeDeliveryResponse,
+    ReportingPeriod,
+)
+from adcp.types.generated_poc.creative.list_creative_formats_request import (
+    ListCreativeFormatsRequestCreativeAgent,
+)
+from adcp.types.generated_poc.creative.list_creative_formats_response import (
+    CreativeAgent,
+    ListCreativeFormatsResponseCreativeAgent,
+)
+from adcp.types.generated_poc.creative.preview_creative_request import (
+    Input2,
+    PreviewCreativeRequest,
+    PreviewCreativeRequest1,
+    PreviewCreativeRequest2,
+    PreviewCreativeRequest3,
+    Request,
+)
+from adcp.types.generated_poc.creative.preview_creative_response import (
+    Input4,
+    Preview,
+    Preview1,
+    Preview2,
+    Preview3,
+    PreviewCreativeResponse,
+    PreviewCreativeResponse1,
+    PreviewCreativeResponse2,
+    PreviewCreativeResponse3,
+    Response,
+    Response1,
+    Results,
+    Results1,
+)
+from adcp.types.generated_poc.creative.preview_render import (
+    Embedding,
+    PreviewRender,
+    PreviewRender1,
+    PreviewRender2,
+    PreviewRender3,
+)
 from adcp.types.generated_poc.enums.action_source import ActionSource
 from adcp.types.generated_poc.enums.adcp_domain import AdcpDomain
 from adcp.types.generated_poc.enums.age_verification_method import AgeVerificationMethod
@@ -180,7 +524,9 @@ from adcp.types.generated_poc.enums.pacing import Pacing
 from adcp.types.generated_poc.enums.postal_system import PostalCodeSystem
 from adcp.types.generated_poc.enums.preview_output_format import PreviewOutputFormat
 from adcp.types.generated_poc.enums.pricing_model import PricingModel
-from adcp.types.generated_poc.enums.promoted_offerings_requirement import PromotedOfferingsRequirement
+from adcp.types.generated_poc.enums.promoted_offerings_requirement import (
+    PromotedOfferingsRequirement,
+)
 from adcp.types.generated_poc.enums.property_type import PropertyType
 from adcp.types.generated_poc.enums.publisher_identifier_types import PublisherIdentifierTypes
 from adcp.types.generated_poc.enums.reach_unit import ReachUnit
@@ -200,84 +546,297 @@ from adcp.types.generated_poc.enums.webhook_response_type import WebhookResponse
 from adcp.types.generated_poc.enums.webhook_security_method import WebhookSecurityMethod
 from adcp.types.generated_poc.extensions.extension_meta import AdcpExtensionFileSchema
 from adcp.types.generated_poc.media_buy.build_creative_request import BuildCreativeRequest
-from adcp.types.generated_poc.media_buy.build_creative_response import BuildCreativeResponse, BuildCreativeResponse1, BuildCreativeResponse2
-from adcp.types.generated_poc.media_buy.create_media_buy_async_response_input_required import CreateMediaBuyInputRequired, Reason
-from adcp.types.generated_poc.media_buy.create_media_buy_async_response_submitted import CreateMediaBuySubmitted
-from adcp.types.generated_poc.media_buy.create_media_buy_async_response_working import CreateMediaBuyWorking
-from adcp.types.generated_poc.media_buy.create_media_buy_request import ArtifactWebhook, BatchFrequency, CreateMediaBuyRequest, DeliveryMode, TotalBudget
-from adcp.types.generated_poc.media_buy.create_media_buy_response import CreateMediaBuyResponse, CreateMediaBuyResponse1, CreateMediaBuyResponse2
-from adcp.types.generated_poc.media_buy.get_media_buy_delivery_request import GetMediaBuyDeliveryRequest, StatusFilter
-from adcp.types.generated_poc.media_buy.get_media_buy_delivery_response import AggregatedTotals, ByCreativeItem, ByPackageItem, DailyBreakdownItem, DeliveryStatus, GetMediaBuyDeliveryResponse, MediaBuyDelivery, Totals
-from adcp.types.generated_poc.media_buy.get_products_async_response_input_required import GetProductsInputRequired
-from adcp.types.generated_poc.media_buy.get_products_async_response_submitted import GetProductsSubmitted
-from adcp.types.generated_poc.media_buy.get_products_async_response_working import GetProductsWorking
+from adcp.types.generated_poc.media_buy.build_creative_response import (
+    BuildCreativeResponse,
+    BuildCreativeResponse1,
+    BuildCreativeResponse2,
+)
+from adcp.types.generated_poc.media_buy.create_media_buy_async_response_input_required import (
+    CreateMediaBuyInputRequired,
+    Reason,
+)
+from adcp.types.generated_poc.media_buy.create_media_buy_async_response_submitted import (
+    CreateMediaBuySubmitted,
+)
+from adcp.types.generated_poc.media_buy.create_media_buy_async_response_working import (
+    CreateMediaBuyWorking,
+)
+from adcp.types.generated_poc.media_buy.create_media_buy_request import (
+    ArtifactWebhook,
+    BatchFrequency,
+    CreateMediaBuyRequest,
+    DeliveryMode,
+    TotalBudget,
+)
+from adcp.types.generated_poc.media_buy.create_media_buy_response import (
+    CreateMediaBuyResponse,
+    CreateMediaBuyResponse1,
+    CreateMediaBuyResponse2,
+)
+from adcp.types.generated_poc.media_buy.get_media_buy_delivery_request import (
+    GetMediaBuyDeliveryRequest,
+    StatusFilter,
+)
+from adcp.types.generated_poc.media_buy.get_media_buy_delivery_response import (
+    AggregatedTotals,
+    ByCreativeItem,
+    ByPackageItem,
+    DailyBreakdownItem,
+    DeliveryStatus,
+    GetMediaBuyDeliveryResponse,
+    MediaBuyDelivery,
+    Totals,
+)
+from adcp.types.generated_poc.media_buy.get_products_async_response_input_required import (
+    GetProductsInputRequired,
+)
+from adcp.types.generated_poc.media_buy.get_products_async_response_submitted import (
+    GetProductsSubmitted,
+)
+from adcp.types.generated_poc.media_buy.get_products_async_response_working import (
+    GetProductsWorking,
+)
 from adcp.types.generated_poc.media_buy.get_products_request import GetProductsRequest
 from adcp.types.generated_poc.media_buy.get_products_response import GetProductsResponse
-from adcp.types.generated_poc.media_buy.list_creative_formats_request import ListCreativeFormatsRequest
-from adcp.types.generated_poc.media_buy.list_creative_formats_response import ListCreativeFormatsResponse
-from adcp.types.generated_poc.media_buy.list_creatives_request import FieldModel, ListCreativesRequest, Sort
-from adcp.types.generated_poc.media_buy.list_creatives_response import AssignedPackage, Assignments, ListCreativesResponse, Performance, QuerySummary, SortApplied, StatusSummary
+from adcp.types.generated_poc.media_buy.list_creative_formats_request import (
+    ListCreativeFormatsRequest,
+)
+from adcp.types.generated_poc.media_buy.list_creative_formats_response import (
+    ListCreativeFormatsResponse,
+)
+from adcp.types.generated_poc.media_buy.list_creatives_request import (
+    FieldModel,
+    ListCreativesRequest,
+    Sort,
+)
+from adcp.types.generated_poc.media_buy.list_creatives_response import (
+    AssignedPackage,
+    Assignments,
+    ListCreativesResponse,
+    Performance,
+    QuerySummary,
+    SortApplied,
+    StatusSummary,
+)
 from adcp.types.generated_poc.media_buy.log_event_request import LogEventRequest
-from adcp.types.generated_poc.media_buy.log_event_response import LogEventResponse, LogEventResponse1, LogEventResponse2, PartialFailure
+from adcp.types.generated_poc.media_buy.log_event_response import (
+    LogEventResponse,
+    LogEventResponse1,
+    LogEventResponse2,
+    PartialFailure,
+)
 from adcp.types.generated_poc.media_buy.package_request import PackageRequest
-from adcp.types.generated_poc.media_buy.package_update import PackageUpdate, PackageUpdate1, PackageUpdate2
-from adcp.types.generated_poc.media_buy.provide_performance_feedback_request import ProvidePerformanceFeedbackRequest, ProvidePerformanceFeedbackRequest1, ProvidePerformanceFeedbackRequest2
-from adcp.types.generated_poc.media_buy.provide_performance_feedback_response import ProvidePerformanceFeedbackResponse, ProvidePerformanceFeedbackResponse1, ProvidePerformanceFeedbackResponse2
-from adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required import SyncCreativesInputRequired
-from adcp.types.generated_poc.media_buy.sync_creatives_async_response_submitted import SyncCreativesSubmitted
-from adcp.types.generated_poc.media_buy.sync_creatives_async_response_working import SyncCreativesWorking
+from adcp.types.generated_poc.media_buy.package_update import (
+    PackageUpdate,
+    PackageUpdate1,
+    PackageUpdate2,
+)
+from adcp.types.generated_poc.media_buy.provide_performance_feedback_request import (
+    ProvidePerformanceFeedbackRequest,
+    ProvidePerformanceFeedbackRequest1,
+    ProvidePerformanceFeedbackRequest2,
+)
+from adcp.types.generated_poc.media_buy.provide_performance_feedback_response import (
+    ProvidePerformanceFeedbackResponse,
+    ProvidePerformanceFeedbackResponse1,
+    ProvidePerformanceFeedbackResponse2,
+)
+from adcp.types.generated_poc.media_buy.sync_creatives_async_response_input_required import (
+    SyncCreativesInputRequired,
+)
+from adcp.types.generated_poc.media_buy.sync_creatives_async_response_submitted import (
+    SyncCreativesSubmitted,
+)
+from adcp.types.generated_poc.media_buy.sync_creatives_async_response_working import (
+    SyncCreativesWorking,
+)
 from adcp.types.generated_poc.media_buy.sync_creatives_request import SyncCreativesRequest
-from adcp.types.generated_poc.media_buy.sync_creatives_response import SyncCreativesResponse, SyncCreativesResponse1, SyncCreativesResponse2
-from adcp.types.generated_poc.media_buy.sync_event_sources_request import EventSource, SyncEventSourcesRequest
-from adcp.types.generated_poc.media_buy.sync_event_sources_response import ManagedBy, SnippetType, SyncEventSourcesResponse, SyncEventSourcesResponse1, SyncEventSourcesResponse2
-from adcp.types.generated_poc.media_buy.update_media_buy_async_response_input_required import UpdateMediaBuyInputRequired
-from adcp.types.generated_poc.media_buy.update_media_buy_async_response_submitted import UpdateMediaBuySubmitted
-from adcp.types.generated_poc.media_buy.update_media_buy_async_response_working import UpdateMediaBuyWorking
-from adcp.types.generated_poc.media_buy.update_media_buy_request import UpdateMediaBuyRequest, UpdateMediaBuyRequest1, UpdateMediaBuyRequest2
-from adcp.types.generated_poc.media_buy.update_media_buy_response import UpdateMediaBuyResponse, UpdateMediaBuyResponse1, UpdateMediaBuyResponse2
+from adcp.types.generated_poc.media_buy.sync_creatives_response import (
+    SyncCreativesResponse,
+    SyncCreativesResponse1,
+    SyncCreativesResponse2,
+)
+from adcp.types.generated_poc.media_buy.sync_event_sources_request import (
+    EventSource,
+    SyncEventSourcesRequest,
+)
+from adcp.types.generated_poc.media_buy.sync_event_sources_response import (
+    ManagedBy,
+    SnippetType,
+    SyncEventSourcesResponse,
+    SyncEventSourcesResponse1,
+    SyncEventSourcesResponse2,
+)
+from adcp.types.generated_poc.media_buy.update_media_buy_async_response_input_required import (
+    UpdateMediaBuyInputRequired,
+)
+from adcp.types.generated_poc.media_buy.update_media_buy_async_response_submitted import (
+    UpdateMediaBuySubmitted,
+)
+from adcp.types.generated_poc.media_buy.update_media_buy_async_response_working import (
+    UpdateMediaBuyWorking,
+)
+from adcp.types.generated_poc.media_buy.update_media_buy_request import (
+    UpdateMediaBuyRequest,
+    UpdateMediaBuyRequest1,
+    UpdateMediaBuyRequest2,
+)
+from adcp.types.generated_poc.media_buy.update_media_buy_response import (
+    UpdateMediaBuyResponse,
+    UpdateMediaBuyResponse1,
+    UpdateMediaBuyResponse2,
+)
 from adcp.types.generated_poc.pricing_options.cpa_option import CpaPricingOption
 from adcp.types.generated_poc.pricing_options.cpc_option import CpcPricingOption
 from adcp.types.generated_poc.pricing_options.cpcv_option import CpcvPricingOption
 from adcp.types.generated_poc.pricing_options.cpm_option import CpmPricingOption
 from adcp.types.generated_poc.pricing_options.cpp_option import CppPricingOption, Parameters
-from adcp.types.generated_poc.pricing_options.cpv_option import CpvPricingOption, ViewThreshold, ViewThreshold1
+from adcp.types.generated_poc.pricing_options.cpv_option import (
+    CpvPricingOption,
+    ViewThreshold,
+    ViewThreshold1,
+)
 from adcp.types.generated_poc.pricing_options.flat_rate_option import FlatRatePricingOption
 from adcp.types.generated_poc.pricing_options.price_guidance import PriceGuidance
 from adcp.types.generated_poc.pricing_options.time_option import TimeBasedPricingOption, TimeUnit
 from adcp.types.generated_poc.pricing_options.vcpm_option import VcpmPricingOption
-from adcp.types.generated_poc.property.base_property_source import BasePropertySource, BasePropertySource1, BasePropertySource2, BasePropertySource3
+from adcp.types.generated_poc.property.base_property_source import (
+    BasePropertySource,
+    BasePropertySource1,
+    BasePropertySource2,
+    BasePropertySource3,
+)
 from adcp.types.generated_poc.property.create_property_list_request import CreatePropertyListRequest
-from adcp.types.generated_poc.property.create_property_list_response import CreatePropertyListResponse
+from adcp.types.generated_poc.property.create_property_list_response import (
+    CreatePropertyListResponse,
+)
 from adcp.types.generated_poc.property.delete_property_list_request import DeletePropertyListRequest
-from adcp.types.generated_poc.property.delete_property_list_response import DeletePropertyListResponse
+from adcp.types.generated_poc.property.delete_property_list_response import (
+    DeletePropertyListResponse,
+)
 from adcp.types.generated_poc.property.feature_requirement import FeatureRequirement, IfNotCovered
 from adcp.types.generated_poc.property.get_property_list_request import GetPropertyListRequest
 from adcp.types.generated_poc.property.get_property_list_response import GetPropertyListResponse
 from adcp.types.generated_poc.property.list_property_lists_request import ListPropertyListsRequest
 from adcp.types.generated_poc.property.list_property_lists_response import ListPropertyListsResponse
 from adcp.types.generated_poc.property.property_error import Code, PropertyError
-from adcp.types.generated_poc.property.property_feature_definition import Coverage, PropertyFeatureDefinition
+from adcp.types.generated_poc.property.property_feature_definition import (
+    Coverage,
+    PropertyFeatureDefinition,
+)
 from adcp.types.generated_poc.property.property_list import PropertyList
-from adcp.types.generated_poc.property.property_list_changed_webhook import ChangeSummary, PropertyListChangedWebhook
-from adcp.types.generated_poc.property.property_list_filters import CountriesAllItem, PropertyListFilters
+from adcp.types.generated_poc.property.property_list_changed_webhook import (
+    ChangeSummary,
+    PropertyListChangedWebhook,
+)
+from adcp.types.generated_poc.property.property_list_filters import (
+    CountriesAllItem,
+    PropertyListFilters,
+)
 from adcp.types.generated_poc.property.update_property_list_request import UpdatePropertyListRequest
-from adcp.types.generated_poc.property.update_property_list_response import UpdatePropertyListResponse
-from adcp.types.generated_poc.protocol.get_adcp_capabilities_request import GetAdcpCapabilitiesRequest
-from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import Adcp, CreativeSpecs, DataProviderDomain, DefaultBilling, Endpoint, Execution, ExtensionsSupportedItem, Features, GeoMetros, GeoPostalAreas, GetAdcpCapabilitiesResponse, Governance, MajorVersion, MraidVersion, Portfolio, Preferred, PrimaryCountry, PublisherDomain, Signals, SponsoredIntelligence, SupportedHashedIdentifier, SupportedProtocol, Targeting, Transport
+from adcp.types.generated_poc.property.update_property_list_response import (
+    UpdatePropertyListResponse,
+)
+from adcp.types.generated_poc.protocol.get_adcp_capabilities_request import (
+    GetAdcpCapabilitiesRequest,
+)
+from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
+    Adcp,
+    CreativeSpecs,
+    DataProviderDomain,
+    DefaultBilling,
+    Endpoint,
+    Execution,
+    ExtensionsSupportedItem,
+    Features,
+    GeoMetros,
+    GeoPostalAreas,
+    GetAdcpCapabilitiesResponse,
+    Governance,
+    MajorVersion,
+    MraidVersion,
+    Portfolio,
+    Preferred,
+    PrimaryCountry,
+    PublisherDomain,
+    Signals,
+    SponsoredIntelligence,
+    SupportedHashedIdentifier,
+    SupportedProtocol,
+    Targeting,
+    Transport,
+)
 from adcp.types.generated_poc.signals.activate_signal_request import ActivateSignalRequest
-from adcp.types.generated_poc.signals.activate_signal_response import ActivateSignalResponse, ActivateSignalResponse1, ActivateSignalResponse2
-from adcp.types.generated_poc.signals.get_signals_request import DeliverTo, DeliverTo1, GetSignalsRequest, GetSignalsRequest1, GetSignalsRequest2
-from adcp.types.generated_poc.signals.get_signals_response import GetSignalsResponse, Pricing, Signal
-from adcp.types.generated_poc.sponsored_intelligence.si_capabilities import A2ui, Commerce, Components, Modalities, SiCapabilities, StandardEnum, Video
-from adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request import SiGetOfferingRequest
-from adcp.types.generated_poc.sponsored_intelligence.si_get_offering_response import MatchingProduct, SiGetOfferingResponse
-from adcp.types.generated_poc.sponsored_intelligence.si_identity import ConsentScopeEnum, PrivacyPolicyAcknowledged, ShippingAddress, SiIdentity, User
-from adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_request import SiInitiateSessionRequest
-from adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response import SiInitiateSessionResponse
-from adcp.types.generated_poc.sponsored_intelligence.si_send_message_request import ActionResponse, SiSendMessageRequest, SiSendMessageRequest1, SiSendMessageRequest2
-from adcp.types.generated_poc.sponsored_intelligence.si_send_message_response import ContextForCheckout, Handoff, Intent, Price, SessionStatus, SiSendMessageResponse
-from adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_request import SiTerminateSessionRequest, TerminationContext, TransactionIntent
-from adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response import AcpHandoff, FollowUp, SiTerminateSessionResponse
+from adcp.types.generated_poc.signals.activate_signal_response import (
+    ActivateSignalResponse,
+    ActivateSignalResponse1,
+    ActivateSignalResponse2,
+)
+from adcp.types.generated_poc.signals.get_signals_request import (
+    DeliverTo,
+    DeliverTo1,
+    GetSignalsRequest,
+    GetSignalsRequest1,
+    GetSignalsRequest2,
+)
+from adcp.types.generated_poc.signals.get_signals_response import (
+    GetSignalsResponse,
+    Pricing,
+    Signal,
+)
+from adcp.types.generated_poc.sponsored_intelligence.si_capabilities import (
+    A2ui,
+    Commerce,
+    Components,
+    Modalities,
+    SiCapabilities,
+    StandardEnum,
+    Video,
+)
+from adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request import (
+    SiGetOfferingRequest,
+)
+from adcp.types.generated_poc.sponsored_intelligence.si_get_offering_response import (
+    MatchingProduct,
+    SiGetOfferingResponse,
+)
+from adcp.types.generated_poc.sponsored_intelligence.si_identity import (
+    ConsentScopeEnum,
+    PrivacyPolicyAcknowledged,
+    ShippingAddress,
+    SiIdentity,
+    User,
+)
+from adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_request import (
+    SiInitiateSessionRequest,
+)
+from adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response import (
+    SiInitiateSessionResponse,
+)
+from adcp.types.generated_poc.sponsored_intelligence.si_send_message_request import (
+    ActionResponse,
+    SiSendMessageRequest,
+    SiSendMessageRequest1,
+    SiSendMessageRequest2,
+)
+from adcp.types.generated_poc.sponsored_intelligence.si_send_message_response import (
+    ContextForCheckout,
+    Handoff,
+    Intent,
+    Price,
+    SessionStatus,
+    SiSendMessageResponse,
+)
+from adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_request import (
+    SiTerminateSessionRequest,
+    TerminationContext,
+    TransactionIntent,
+)
+from adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response import (
+    AcpHandoff,
+    FollowUp,
+    SiTerminateSessionResponse,
+)
 from adcp.types.generated_poc.sponsored_intelligence.si_ui_element import SiUiElement
 
 # Special imports for name collisions (qualified names for types defined in multiple modules)
@@ -288,154 +847,650 @@ from adcp.types.generated_poc.core.package import Package as _PackageFromPackage
 from adcp.types.base import AdCPBaseModel as _AdCPBaseModel
 from pydantic import ConfigDict as _ConfigDict
 
+
 class BrandManifest(_AdCPBaseModel):
     model_config = _ConfigDict(extra="allow")
 
 
 # Explicit exports
 __all__ = [
-    "A2UiComponent", "A2UiSurface", "A2ui", "Accessibility", "Account", "AcpHandoff", "Action",
-    "ActionResponse", "ActionSource", "ActivateSignalRequest", "ActivateSignalResponse",
-    "ActivateSignalResponse1", "ActivateSignalResponse2", "ActivationKey", "ActivationKey1",
-    "ActivationKey2", "Adcp", "AdcpAgentsAuthorization", "AdcpAgentsAuthorization1",
-    "AdcpAgentsAuthorization2", "AdcpAsyncResponseData", "AdcpDomain", "AdcpExtensionFileSchema",
-    "AgeRestriction", "AgeVerificationMethod", "AgenticCheckout", "AggregatedTotals",
-    "Architecture", "Artifact", "ArtifactWebhook", "ArtifactWebhookPayload", "Asset",
-    "AssetAccess", "AssetAccess1", "AssetAccess2", "AssetAccess3", "AssetContentType",
-    "AssetRequirements", "AssetSelectors", "AssetType", "Assets", "Assets1", "Assets10",
-    "Assets11", "Assets12", "Assets13", "Assets14", "Assets15", "Assets16", "Assets17", "Assets18",
-    "Assets19", "Assets2", "Assets20", "Assets21", "Assets22", "Assets23", "Assets24", "Assets25",
-    "Assets26", "Assets27", "Assets28", "Assets29", "Assets3", "Assets30", "Assets5", "Assets6",
-    "Assets7", "Assets8", "Assets9", "AssignedPackage", "Assignments", "AttributionModel",
-    "AttributionWindow", "AudioAsset", "AudioAssetRequirements", "AudioBitDepth", "AudioChannels",
-    "Authentication", "AuthenticationScheme", "AuthorizedAgents", "AuthorizedAgents1",
-    "AuthorizedAgents2", "AuthorizedAgents3", "AuthorizedAgents4", "AuthorizedAgents5",
-    "AuthorizedOperator", "AvailableMetric", "Avatar", "Background", "BaseGroupAsset",
-    "BaseIndividualAsset", "BasePropertySource", "BasePropertySource1", "BasePropertySource2",
-    "BasePropertySource3", "BatchFrequency", "Billing", "BitDepth", "Brand", "Brand1",
-    "BrandAgent", "BrandContext", "BrandDiscovery", "BrandDiscovery1", "BrandDiscovery2",
-    "BrandDiscovery3", "BrandDiscovery4", "BrandId", "BrandManifest", "BrandReference",
-    "BudgetRange", "BudgetRange1", "BuildCreativeRequest", "BuildCreativeResponse",
-    "BuildCreativeResponse1", "BuildCreativeResponse2", "ByActionSourceItem", "ByCreativeItem",
-    "ByEventTypeItem", "ByPackageItem", "CalibrateContentRequest", "CalibrateContentResponse",
-    "CalibrateContentResponse1", "CalibrateContentResponse2", "CalibrationExemplars",
-    "CatalogMatch", "ChangeSummary", "Channel", "Channels", "ChromaSubsampling",
-    "CoBrandingRequirement", "Code", "Codec", "ColorSpace", "ColorValue", "ColorValue1",
-    "ColorValue2", "ColorValue2Item", "Colors", "Commerce", "Components", "ConsentScopeEnum",
-    "Contact", "Contact1", "Container", "Content", "ContentStandards", "ContextForCheckout",
-    "ContextObject", "ConversionTracking", "CountriesAllItem", "Country", "Coverage",
-    "CpaPricingOption", "CpcPricingOption", "CpcvPricingOption", "CpmPricingOption",
-    "CppPricingOption", "CpvPricingOption", "CreateContentStandardsRequest",
-    "CreateContentStandardsResponse", "CreateContentStandardsResponse1",
-    "CreateContentStandardsResponse2", "CreateMediaBuyInputRequired", "CreateMediaBuyRequest",
-    "CreateMediaBuyResponse", "CreateMediaBuyResponse1", "CreateMediaBuyResponse2",
-    "CreateMediaBuySubmitted", "CreateMediaBuyWorking", "CreatePropertyListRequest",
-    "CreatePropertyListResponse", "Creative", "CreativeAction", "CreativeAgent",
-    "CreativeAgentCapability", "CreativeAsset", "CreativeAssignment", "CreativeBrief",
-    "CreativeBriefReference", "CreativeFilters", "CreativeManifest", "CreativePolicy",
-    "CreativeSortField", "CreativeSpecs", "CreativeStatus", "CreativeVariant", "CreditLimit",
-    "CssAsset", "CssAssetRequirements", "DaastAsset", "DaastAsset1", "DaastAsset2",
-    "DaastAssetRequirements", "DaastTrackingEvent", "DaastVersion", "DailyBreakdownItem",
-    "DataProviderDomain", "DataProviderSignalSelector", "DataProviderSignalSelector1",
-    "DataProviderSignalSelector2", "DataProviderSignalSelector3", "DateRangeSupport", "DayOfWeek",
-    "DaypartTarget", "DefaultBilling", "DeletePropertyListRequest", "DeletePropertyListResponse",
-    "DeliverTo", "DeliverTo1", "DeliveryForecast", "DeliveryMeasurement", "DeliveryMetrics",
-    "DeliveryMode", "DeliveryStatus", "DeliveryType", "DemographicSystem", "Deployment",
-    "Deployment1", "Deployment2", "Destination", "Destination1", "Destination2", "DevicePlatform",
-    "DimensionUnit", "Dimensions", "Dimensions1", "Disclaimer", "Domain", "DoohMetrics",
-    "Embedding", "Endpoint", "Error", "Event", "EventCustomData", "EventSource", "EventType",
-    "Execution", "ExtensionObject", "ExtensionsSupportedItem", "Fail", "Feature",
-    "FeatureRequirement", "Features", "FeedFormat", "FeedbackSource", "FieldModel",
-    "FlatRatePricingOption", "FollowUp", "Fonts", "ForecastMethod", "ForecastPoint",
-    "ForecastRange", "ForecastRangeUnit", "ForecastableMetric", "Format", "FormatCard",
-    "FormatCardDetailed", "FormatCategory", "FormatId", "FormatIdParameter", "FrameRate",
-    "FrameRateType", "FrequencyCap", "FrequencyCapScope", "GenerationContext",
-    "GeoCountriesExcludeItem", "GeoCountry", "GeoMetro", "GeoMetros", "GeoMetrosExcludeItem",
-    "GeoPostalArea", "GeoPostalAreas", "GeoPostalAreasExcludeItem", "GeoRegion",
-    "GeoRegionsExcludeItem", "GeographicTargetingLevel", "GetAdcpCapabilitiesRequest",
-    "GetAdcpCapabilitiesResponse", "GetContentStandardsRequest", "GetContentStandardsResponse",
-    "GetContentStandardsResponse1", "GetContentStandardsResponse2", "GetCreativeDeliveryRequest",
-    "GetCreativeDeliveryRequest1", "GetCreativeDeliveryRequest2", "GetCreativeDeliveryRequest3",
-    "GetCreativeDeliveryResponse", "GetMediaBuyArtifactsRequest", "GetMediaBuyArtifactsResponse",
-    "GetMediaBuyArtifactsResponse1", "GetMediaBuyArtifactsResponse2", "GetMediaBuyDeliveryRequest",
-    "GetMediaBuyDeliveryResponse", "GetProductsInputRequired", "GetProductsRequest",
-    "GetProductsResponse", "GetProductsSubmitted", "GetProductsWorking", "GetPropertyListRequest",
-    "GetPropertyListResponse", "GetSignalsRequest", "GetSignalsRequest1", "GetSignalsRequest2",
-    "GetSignalsResponse", "GopType", "Governance", "Handoff", "HdrFormat", "HistoryEntryType",
-    "House", "HtmlAsset", "HtmlAssetRequirements", "HttpMethod", "Identifier", "Identifiers",
-    "IfNotCovered", "ImageAsset", "ImageAssetRequirements", "Input", "Input2", "Input4", "Intent",
-    "JavascriptAsset", "JavascriptAssetRequirements", "JavascriptModuleType", "KellerType",
-    "LandingPageRequirement", "LanguageItem", "ListAccountsRequest", "ListAccountsResponse",
-    "ListContentStandardsRequest", "ListContentStandardsResponse", "ListContentStandardsResponse1",
-    "ListContentStandardsResponse2", "ListCreativeFormatsRequest",
-    "ListCreativeFormatsRequestCreativeAgent", "ListCreativeFormatsResponse",
-    "ListCreativeFormatsResponseCreativeAgent", "ListCreativesRequest", "ListCreativesResponse",
-    "ListPropertyListsRequest", "ListPropertyListsResponse", "LocalVerdict", "LocalizedName",
-    "LogEventRequest", "LogEventResponse", "LogEventResponse1", "LogEventResponse2", "Logo",
-    "MajorVersion", "ManagedBy", "ManifestGtin", "MarkdownAssetRequirements", "MarkdownFlavor",
-    "MatchedGtin", "MatchingProduct", "McpWebhookPayload", "Measurement", "MeasurementPeriod",
-    "MediaBuy", "MediaBuyDelivery", "MediaBuyFeatures", "MediaBuyStatus", "MediaChannel",
-    "Messaging", "Metadata", "Method", "MetricType", "Metro", "MetroAreaSystem", "Modalities",
-    "ModuleType", "MoovAtomPosition", "MraidVersion", "NotificationType", "Objective", "Offering",
-    "OptimizationGoal", "Orientation", "Pacing", "PackageRequest", "PackageUpdate",
-    "PackageUpdate1", "PackageUpdate2", "Pagination", "PaginationRequest", "PaginationResponse",
-    "Parameters", "PartialFailure", "Pass", "Performance", "PerformanceFeedback", "Placement",
-    "Portfolio", "PostalCodeSystem", "Preferred", "Preview", "Preview1", "Preview2", "Preview3",
-    "PreviewCreativeRequest", "PreviewCreativeRequest1", "PreviewCreativeRequest2",
-    "PreviewCreativeRequest3", "PreviewCreativeResponse", "PreviewCreativeResponse1",
-    "PreviewCreativeResponse2", "PreviewCreativeResponse3", "PreviewOutputFormat", "PreviewRender",
-    "PreviewRender1", "PreviewRender2", "PreviewRender3", "Price", "PriceGuidance", "Pricing",
-    "PricingModel", "PricingOption", "PrimaryCountry", "PrivacyPolicyAcknowledged", "Product",
-    "ProductAllocation", "ProductCard", "ProductCardDetailed", "ProductCatalog", "ProductFilters",
-    "PromotedOfferings", "PromotedOfferingsAssetRequirements", "PromotedOfferingsRequirement",
-    "PromotedProducts", "Property", "PropertyError", "PropertyFeature",
-    "PropertyFeatureDefinition", "PropertyId", "PropertyIdentifierTypes", "PropertyList",
-    "PropertyListChangedWebhook", "PropertyListFilters", "PropertyListReference", "PropertyTag",
-    "PropertyType", "Proposal", "Protocol", "ProtocolEnvelope", "ProtocolResponse",
-    "ProvidePerformanceFeedbackRequest", "ProvidePerformanceFeedbackRequest1",
-    "ProvidePerformanceFeedbackRequest2", "ProvidePerformanceFeedbackResponse",
-    "ProvidePerformanceFeedbackResponse1", "ProvidePerformanceFeedbackResponse2", "Provider",
-    "PublisherDomain", "PublisherIdentifierTypes", "PublisherPropertySelector",
-    "PublisherPropertySelector1", "PublisherPropertySelector2", "PublisherPropertySelector3",
-    "PushNotificationConfig", "QuartileData", "QuerySummary", "Range", "ReachUnit", "Reason",
-    "Record", "ReferenceAsset", "Region", "Renders", "Renders1", "ReportingCapabilities",
-    "ReportingFrequency", "ReportingPeriod", "ReportingWebhook", "Request",
-    "RequiredGeoTargetingItem", "Response", "Response1", "Responsive", "Result", "Results",
-    "Results1", "Role", "SampleRate", "Sampling", "SamplingInfo", "Sandbox", "ScanType", "Scope",
-    "Security", "SelectionMode", "SessionStatus", "Setup", "ShippingAddress", "SiCapabilities",
-    "SiGetOfferingRequest", "SiGetOfferingResponse", "SiIdentity", "SiInitiateSessionRequest",
-    "SiInitiateSessionResponse", "SiSendMessageRequest", "SiSendMessageRequest1",
-    "SiSendMessageRequest2", "SiSendMessageResponse", "SiTerminateSessionRequest",
-    "SiTerminateSessionResponse", "SiUiElement", "Signal", "SignalCatalogType", "SignalDefinition",
-    "SignalFilters", "SignalId", "SignalId2", "SignalId3", "SignalSource", "SignalTag",
-    "SignalTags", "SignalTargeting", "SignalTargeting1", "SignalTargeting2", "SignalTargeting3",
-    "SignalValueType", "Signals", "SnippetType", "Sort", "SortApplied", "SortDirection",
-    "SponsoredIntelligence", "Standard", "StandardEnum", "StartTiming", "Status", "StatusFilter",
-    "StatusSummary", "Store", "SubAsset", "SubAsset1", "SubAsset2", "Summary",
-    "SupportedHashedIdentifier", "SupportedOptimizationStrategy", "SupportedProtocol",
-    "SyncAccountsRequest", "SyncAccountsResponse", "SyncAccountsResponse1",
-    "SyncAccountsResponse2", "SyncCreativesInputRequired", "SyncCreativesRequest",
-    "SyncCreativesResponse", "SyncCreativesResponse1", "SyncCreativesResponse2",
-    "SyncCreativesSubmitted", "SyncCreativesWorking", "SyncEventSourcesRequest",
-    "SyncEventSourcesResponse", "SyncEventSourcesResponse1", "SyncEventSourcesResponse2", "Tag",
-    "Tags", "Targeting", "TargetingOverlay", "TaskStatus", "TaskType", "TerminationContext",
-    "TextAsset", "TextAssetRequirements", "TimeBasedPricingOption", "TimeRange", "TimeUnit",
-    "Tone", "TotalBudget", "TotalBudgetGuidance", "Totals", "Trademark", "TransactionIntent",
-    "TranscriptSource", "TranscriptSource1", "Transport", "Type", "Uid", "UidType",
-    "UniversalMacro", "UpdateContentStandardsRequest", "UpdateContentStandardsResponse",
-    "UpdateFrequency", "UpdateMediaBuyInputRequired", "UpdateMediaBuyRequest",
-    "UpdateMediaBuyRequest1", "UpdateMediaBuyRequest2", "UpdateMediaBuyResponse",
-    "UpdateMediaBuyResponse1", "UpdateMediaBuyResponse2", "UpdateMediaBuySubmitted",
-    "UpdateMediaBuyWorking", "UpdatePropertyListRequest", "UpdatePropertyListResponse", "UrlAsset",
-    "UrlAssetRequirements", "UrlAssetType", "User", "UserMatch", "UserMatch1", "UserMatch2",
-    "UserMatch3", "UserMatch4", "UserMatch5", "ValidateContentDeliveryRequest",
-    "ValidateContentDeliveryResponse", "ValidateContentDeliveryResponse1",
-    "ValidateContentDeliveryResponse2", "ValidationMode", "Variant", "VastAsset", "VastAsset1",
-    "VastAsset2", "VastAssetRequirements", "VastTrackingEvent", "VastVersion", "VcpmPricingOption",
-    "VenueBreakdownItem", "Verdict", "Video", "VideoAsset", "VideoAssetRequirements",
-    "VideoBitDepth", "ViewThreshold", "ViewThreshold1", "Viewability", "Voice", "WcagLevel",
-    "WebhookAsset", "WebhookAssetRequirements", "WebhookResponseType", "WebhookSecurityMethod",
-    "_PackageFromPackage"
+    "A2UiComponent",
+    "A2UiSurface",
+    "A2ui",
+    "Accessibility",
+    "Account",
+    "AcpHandoff",
+    "Action",
+    "ActionResponse",
+    "ActionSource",
+    "ActivateSignalRequest",
+    "ActivateSignalResponse",
+    "ActivateSignalResponse1",
+    "ActivateSignalResponse2",
+    "ActivationKey",
+    "ActivationKey1",
+    "ActivationKey2",
+    "Adcp",
+    "AdcpAgentsAuthorization",
+    "AdcpAgentsAuthorization1",
+    "AdcpAgentsAuthorization2",
+    "AdcpAsyncResponseData",
+    "AdcpDomain",
+    "AdcpExtensionFileSchema",
+    "AgeRestriction",
+    "AgeVerificationMethod",
+    "AgenticCheckout",
+    "AggregatedTotals",
+    "Architecture",
+    "Artifact",
+    "ArtifactWebhook",
+    "ArtifactWebhookPayload",
+    "Asset",
+    "AssetAccess",
+    "AssetAccess1",
+    "AssetAccess2",
+    "AssetAccess3",
+    "AssetContentType",
+    "AssetRequirements",
+    "AssetSelectors",
+    "AssetType",
+    "Assets",
+    "Assets1",
+    "Assets10",
+    "Assets11",
+    "Assets12",
+    "Assets13",
+    "Assets14",
+    "Assets15",
+    "Assets16",
+    "Assets17",
+    "Assets18",
+    "Assets19",
+    "Assets2",
+    "Assets20",
+    "Assets21",
+    "Assets22",
+    "Assets23",
+    "Assets24",
+    "Assets25",
+    "Assets26",
+    "Assets27",
+    "Assets28",
+    "Assets29",
+    "Assets3",
+    "Assets30",
+    "Assets5",
+    "Assets6",
+    "Assets7",
+    "Assets8",
+    "Assets9",
+    "AssignedPackage",
+    "Assignments",
+    "AttributionModel",
+    "AttributionWindow",
+    "AudioAsset",
+    "AudioAssetRequirements",
+    "AudioBitDepth",
+    "AudioChannels",
+    "Authentication",
+    "AuthenticationScheme",
+    "AuthorizedAgents",
+    "AuthorizedAgents1",
+    "AuthorizedAgents2",
+    "AuthorizedAgents3",
+    "AuthorizedAgents4",
+    "AuthorizedAgents5",
+    "AuthorizedOperator",
+    "AvailableMetric",
+    "Avatar",
+    "Background",
+    "BaseGroupAsset",
+    "BaseIndividualAsset",
+    "BasePropertySource",
+    "BasePropertySource1",
+    "BasePropertySource2",
+    "BasePropertySource3",
+    "BatchFrequency",
+    "Billing",
+    "BitDepth",
+    "Brand",
+    "Brand1",
+    "BrandAgent",
+    "BrandContext",
+    "BrandDiscovery",
+    "BrandDiscovery1",
+    "BrandDiscovery2",
+    "BrandDiscovery3",
+    "BrandDiscovery4",
+    "BrandId",
+    "BrandManifest",
+    "BrandReference",
+    "BudgetRange",
+    "BudgetRange1",
+    "BuildCreativeRequest",
+    "BuildCreativeResponse",
+    "BuildCreativeResponse1",
+    "BuildCreativeResponse2",
+    "ByActionSourceItem",
+    "ByCreativeItem",
+    "ByEventTypeItem",
+    "ByPackageItem",
+    "CalibrateContentRequest",
+    "CalibrateContentResponse",
+    "CalibrateContentResponse1",
+    "CalibrateContentResponse2",
+    "CalibrationExemplars",
+    "CatalogMatch",
+    "ChangeSummary",
+    "Channel",
+    "Channels",
+    "ChromaSubsampling",
+    "CoBrandingRequirement",
+    "Code",
+    "Codec",
+    "ColorSpace",
+    "ColorValue",
+    "ColorValue1",
+    "ColorValue2",
+    "ColorValue2Item",
+    "Colors",
+    "Commerce",
+    "Components",
+    "ConsentScopeEnum",
+    "Contact",
+    "Contact1",
+    "Container",
+    "Content",
+    "ContentStandards",
+    "ContextForCheckout",
+    "ContextObject",
+    "ConversionTracking",
+    "CountriesAllItem",
+    "Country",
+    "Coverage",
+    "CpaPricingOption",
+    "CpcPricingOption",
+    "CpcvPricingOption",
+    "CpmPricingOption",
+    "CppPricingOption",
+    "CpvPricingOption",
+    "CreateContentStandardsRequest",
+    "CreateContentStandardsResponse",
+    "CreateContentStandardsResponse1",
+    "CreateContentStandardsResponse2",
+    "CreateMediaBuyInputRequired",
+    "CreateMediaBuyRequest",
+    "CreateMediaBuyResponse",
+    "CreateMediaBuyResponse1",
+    "CreateMediaBuyResponse2",
+    "CreateMediaBuySubmitted",
+    "CreateMediaBuyWorking",
+    "CreatePropertyListRequest",
+    "CreatePropertyListResponse",
+    "Creative",
+    "CreativeAction",
+    "CreativeAgent",
+    "CreativeAgentCapability",
+    "CreativeAsset",
+    "CreativeAssignment",
+    "CreativeBrief",
+    "CreativeBriefReference",
+    "CreativeFilters",
+    "CreativeManifest",
+    "CreativePolicy",
+    "CreativeSortField",
+    "CreativeSpecs",
+    "CreativeStatus",
+    "CreativeVariant",
+    "CreditLimit",
+    "CssAsset",
+    "CssAssetRequirements",
+    "DaastAsset",
+    "DaastAsset1",
+    "DaastAsset2",
+    "DaastAssetRequirements",
+    "DaastTrackingEvent",
+    "DaastVersion",
+    "DailyBreakdownItem",
+    "DataProviderDomain",
+    "DataProviderSignalSelector",
+    "DataProviderSignalSelector1",
+    "DataProviderSignalSelector2",
+    "DataProviderSignalSelector3",
+    "DateRangeSupport",
+    "DayOfWeek",
+    "DaypartTarget",
+    "DefaultBilling",
+    "DeletePropertyListRequest",
+    "DeletePropertyListResponse",
+    "DeliverTo",
+    "DeliverTo1",
+    "DeliveryForecast",
+    "DeliveryMeasurement",
+    "DeliveryMetrics",
+    "DeliveryMode",
+    "DeliveryStatus",
+    "DeliveryType",
+    "DemographicSystem",
+    "Deployment",
+    "Deployment1",
+    "Deployment2",
+    "Destination",
+    "Destination1",
+    "Destination2",
+    "DevicePlatform",
+    "DimensionUnit",
+    "Dimensions",
+    "Dimensions1",
+    "Disclaimer",
+    "Domain",
+    "DoohMetrics",
+    "Embedding",
+    "Endpoint",
+    "Error",
+    "Event",
+    "EventCustomData",
+    "EventSource",
+    "EventType",
+    "Execution",
+    "ExtensionObject",
+    "ExtensionsSupportedItem",
+    "Fail",
+    "Feature",
+    "FeatureRequirement",
+    "Features",
+    "FeedFormat",
+    "FeedbackSource",
+    "FieldModel",
+    "FlatRatePricingOption",
+    "FollowUp",
+    "Fonts",
+    "ForecastMethod",
+    "ForecastPoint",
+    "ForecastRange",
+    "ForecastRangeUnit",
+    "ForecastableMetric",
+    "Format",
+    "FormatCard",
+    "FormatCardDetailed",
+    "FormatCategory",
+    "FormatId",
+    "FormatIdParameter",
+    "FrameRate",
+    "FrameRateType",
+    "FrequencyCap",
+    "FrequencyCapScope",
+    "GenerationContext",
+    "GeoCountriesExcludeItem",
+    "GeoCountry",
+    "GeoMetro",
+    "GeoMetros",
+    "GeoMetrosExcludeItem",
+    "GeoPostalArea",
+    "GeoPostalAreas",
+    "GeoPostalAreasExcludeItem",
+    "GeoRegion",
+    "GeoRegionsExcludeItem",
+    "GeographicTargetingLevel",
+    "GetAdcpCapabilitiesRequest",
+    "GetAdcpCapabilitiesResponse",
+    "GetContentStandardsRequest",
+    "GetContentStandardsResponse",
+    "GetContentStandardsResponse1",
+    "GetContentStandardsResponse2",
+    "GetCreativeDeliveryRequest",
+    "GetCreativeDeliveryRequest1",
+    "GetCreativeDeliveryRequest2",
+    "GetCreativeDeliveryRequest3",
+    "GetCreativeDeliveryResponse",
+    "GetMediaBuyArtifactsRequest",
+    "GetMediaBuyArtifactsResponse",
+    "GetMediaBuyArtifactsResponse1",
+    "GetMediaBuyArtifactsResponse2",
+    "GetMediaBuyDeliveryRequest",
+    "GetMediaBuyDeliveryResponse",
+    "GetProductsInputRequired",
+    "GetProductsRequest",
+    "GetProductsResponse",
+    "GetProductsSubmitted",
+    "GetProductsWorking",
+    "GetPropertyListRequest",
+    "GetPropertyListResponse",
+    "GetSignalsRequest",
+    "GetSignalsRequest1",
+    "GetSignalsRequest2",
+    "GetSignalsResponse",
+    "GopType",
+    "Governance",
+    "Handoff",
+    "HdrFormat",
+    "HistoryEntryType",
+    "House",
+    "HtmlAsset",
+    "HtmlAssetRequirements",
+    "HttpMethod",
+    "Identifier",
+    "Identifiers",
+    "IfNotCovered",
+    "ImageAsset",
+    "ImageAssetRequirements",
+    "Input",
+    "Input2",
+    "Input4",
+    "Intent",
+    "JavascriptAsset",
+    "JavascriptAssetRequirements",
+    "JavascriptModuleType",
+    "KellerType",
+    "LandingPageRequirement",
+    "LanguageItem",
+    "ListAccountsRequest",
+    "ListAccountsResponse",
+    "ListContentStandardsRequest",
+    "ListContentStandardsResponse",
+    "ListContentStandardsResponse1",
+    "ListContentStandardsResponse2",
+    "ListCreativeFormatsRequest",
+    "ListCreativeFormatsRequestCreativeAgent",
+    "ListCreativeFormatsResponse",
+    "ListCreativeFormatsResponseCreativeAgent",
+    "ListCreativesRequest",
+    "ListCreativesResponse",
+    "ListPropertyListsRequest",
+    "ListPropertyListsResponse",
+    "LocalVerdict",
+    "LocalizedName",
+    "LogEventRequest",
+    "LogEventResponse",
+    "LogEventResponse1",
+    "LogEventResponse2",
+    "Logo",
+    "MajorVersion",
+    "ManagedBy",
+    "ManifestGtin",
+    "MarkdownAssetRequirements",
+    "MarkdownFlavor",
+    "MatchedGtin",
+    "MatchingProduct",
+    "McpWebhookPayload",
+    "Measurement",
+    "MeasurementPeriod",
+    "MediaBuy",
+    "MediaBuyDelivery",
+    "MediaBuyFeatures",
+    "MediaBuyStatus",
+    "MediaChannel",
+    "Messaging",
+    "Metadata",
+    "Method",
+    "MetricType",
+    "Metro",
+    "MetroAreaSystem",
+    "Modalities",
+    "ModuleType",
+    "MoovAtomPosition",
+    "MraidVersion",
+    "NotificationType",
+    "Objective",
+    "Offering",
+    "OptimizationGoal",
+    "Orientation",
+    "Pacing",
+    "PackageRequest",
+    "PackageUpdate",
+    "PackageUpdate1",
+    "PackageUpdate2",
+    "Pagination",
+    "PaginationRequest",
+    "PaginationResponse",
+    "Parameters",
+    "PartialFailure",
+    "Pass",
+    "Performance",
+    "PerformanceFeedback",
+    "Placement",
+    "Portfolio",
+    "PostalCodeSystem",
+    "Preferred",
+    "Preview",
+    "Preview1",
+    "Preview2",
+    "Preview3",
+    "PreviewCreativeRequest",
+    "PreviewCreativeRequest1",
+    "PreviewCreativeRequest2",
+    "PreviewCreativeRequest3",
+    "PreviewCreativeResponse",
+    "PreviewCreativeResponse1",
+    "PreviewCreativeResponse2",
+    "PreviewCreativeResponse3",
+    "PreviewOutputFormat",
+    "PreviewRender",
+    "PreviewRender1",
+    "PreviewRender2",
+    "PreviewRender3",
+    "Price",
+    "PriceGuidance",
+    "Pricing",
+    "PricingModel",
+    "PricingOption",
+    "PrimaryCountry",
+    "PrivacyPolicyAcknowledged",
+    "Product",
+    "ProductAllocation",
+    "ProductCard",
+    "ProductCardDetailed",
+    "ProductCatalog",
+    "ProductFilters",
+    "PromotedOfferings",
+    "PromotedOfferingsAssetRequirements",
+    "PromotedOfferingsRequirement",
+    "PromotedProducts",
+    "Property",
+    "PropertyError",
+    "PropertyFeature",
+    "PropertyFeatureDefinition",
+    "PropertyId",
+    "PropertyIdentifierTypes",
+    "PropertyList",
+    "PropertyListChangedWebhook",
+    "PropertyListFilters",
+    "PropertyListReference",
+    "PropertyTag",
+    "PropertyType",
+    "Proposal",
+    "Protocol",
+    "ProtocolEnvelope",
+    "ProtocolResponse",
+    "ProvidePerformanceFeedbackRequest",
+    "ProvidePerformanceFeedbackRequest1",
+    "ProvidePerformanceFeedbackRequest2",
+    "ProvidePerformanceFeedbackResponse",
+    "ProvidePerformanceFeedbackResponse1",
+    "ProvidePerformanceFeedbackResponse2",
+    "Provider",
+    "PublisherDomain",
+    "PublisherIdentifierTypes",
+    "PublisherPropertySelector",
+    "PublisherPropertySelector1",
+    "PublisherPropertySelector2",
+    "PublisherPropertySelector3",
+    "PushNotificationConfig",
+    "QuartileData",
+    "QuerySummary",
+    "Range",
+    "ReachUnit",
+    "Reason",
+    "Record",
+    "ReferenceAsset",
+    "Region",
+    "Renders",
+    "Renders1",
+    "ReportingCapabilities",
+    "ReportingFrequency",
+    "ReportingPeriod",
+    "ReportingWebhook",
+    "Request",
+    "RequiredGeoTargetingItem",
+    "Response",
+    "Response1",
+    "Responsive",
+    "Result",
+    "Results",
+    "Results1",
+    "Role",
+    "SampleRate",
+    "Sampling",
+    "SamplingInfo",
+    "Sandbox",
+    "ScanType",
+    "Scope",
+    "Security",
+    "SelectionMode",
+    "SessionStatus",
+    "Setup",
+    "ShippingAddress",
+    "SiCapabilities",
+    "SiGetOfferingRequest",
+    "SiGetOfferingResponse",
+    "SiIdentity",
+    "SiInitiateSessionRequest",
+    "SiInitiateSessionResponse",
+    "SiSendMessageRequest",
+    "SiSendMessageRequest1",
+    "SiSendMessageRequest2",
+    "SiSendMessageResponse",
+    "SiTerminateSessionRequest",
+    "SiTerminateSessionResponse",
+    "SiUiElement",
+    "Signal",
+    "SignalCatalogType",
+    "SignalDefinition",
+    "SignalFilters",
+    "SignalId",
+    "SignalId2",
+    "SignalId3",
+    "SignalSource",
+    "SignalTag",
+    "SignalTags",
+    "SignalTargeting",
+    "SignalTargeting1",
+    "SignalTargeting2",
+    "SignalTargeting3",
+    "SignalValueType",
+    "Signals",
+    "SnippetType",
+    "Sort",
+    "SortApplied",
+    "SortDirection",
+    "SponsoredIntelligence",
+    "Standard",
+    "StandardEnum",
+    "StartTiming",
+    "Status",
+    "StatusFilter",
+    "StatusSummary",
+    "Store",
+    "SubAsset",
+    "SubAsset1",
+    "SubAsset2",
+    "Summary",
+    "SupportedHashedIdentifier",
+    "SupportedOptimizationStrategy",
+    "SupportedProtocol",
+    "SyncAccountsRequest",
+    "SyncAccountsResponse",
+    "SyncAccountsResponse1",
+    "SyncAccountsResponse2",
+    "SyncCreativesInputRequired",
+    "SyncCreativesRequest",
+    "SyncCreativesResponse",
+    "SyncCreativesResponse1",
+    "SyncCreativesResponse2",
+    "SyncCreativesSubmitted",
+    "SyncCreativesWorking",
+    "SyncEventSourcesRequest",
+    "SyncEventSourcesResponse",
+    "SyncEventSourcesResponse1",
+    "SyncEventSourcesResponse2",
+    "Tag",
+    "Tags",
+    "Targeting",
+    "TargetingOverlay",
+    "TaskStatus",
+    "TaskType",
+    "TerminationContext",
+    "TextAsset",
+    "TextAssetRequirements",
+    "TimeBasedPricingOption",
+    "TimeRange",
+    "TimeUnit",
+    "Tone",
+    "TotalBudget",
+    "TotalBudgetGuidance",
+    "Totals",
+    "Trademark",
+    "TransactionIntent",
+    "TranscriptSource",
+    "TranscriptSource1",
+    "Transport",
+    "Type",
+    "Uid",
+    "UidType",
+    "UniversalMacro",
+    "UpdateContentStandardsRequest",
+    "UpdateContentStandardsResponse",
+    "UpdateFrequency",
+    "UpdateMediaBuyInputRequired",
+    "UpdateMediaBuyRequest",
+    "UpdateMediaBuyRequest1",
+    "UpdateMediaBuyRequest2",
+    "UpdateMediaBuyResponse",
+    "UpdateMediaBuyResponse1",
+    "UpdateMediaBuyResponse2",
+    "UpdateMediaBuySubmitted",
+    "UpdateMediaBuyWorking",
+    "UpdatePropertyListRequest",
+    "UpdatePropertyListResponse",
+    "UrlAsset",
+    "UrlAssetRequirements",
+    "UrlAssetType",
+    "User",
+    "UserMatch",
+    "UserMatch1",
+    "UserMatch2",
+    "UserMatch3",
+    "UserMatch4",
+    "UserMatch5",
+    "ValidateContentDeliveryRequest",
+    "ValidateContentDeliveryResponse",
+    "ValidateContentDeliveryResponse1",
+    "ValidateContentDeliveryResponse2",
+    "ValidationMode",
+    "Variant",
+    "VastAsset",
+    "VastAsset1",
+    "VastAsset2",
+    "VastAssetRequirements",
+    "VastTrackingEvent",
+    "VastVersion",
+    "VcpmPricingOption",
+    "VenueBreakdownItem",
+    "Verdict",
+    "Video",
+    "VideoAsset",
+    "VideoAssetRequirements",
+    "VideoBitDepth",
+    "ViewThreshold",
+    "ViewThreshold1",
+    "Viewability",
+    "Voice",
+    "WcagLevel",
+    "WebhookAsset",
+    "WebhookAssetRequirements",
+    "WebhookResponseType",
+    "WebhookSecurityMethod",
+    "_PackageFromPackage",
 ]
 
 
