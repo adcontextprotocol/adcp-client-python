@@ -60,12 +60,15 @@ el.replaceWith(d);
         extra=&#39;forbid&#39;,
     )
     brand_id: Annotated[
-        brand_id_1.BrandId, Field(description=&#39;Brand identifier within the house portfolio&#39;)
-    ]
-    house: Annotated[
+        brand_id_1.BrandId | None,
+        Field(
+            description=&#39;Brand identifier within the house portfolio. Optional for single-brand domains.&#39;
+        ),
+    ] = None
+    domain: Annotated[
         str,
         Field(
-            description=&#34;Domain where the house&#39;s brand.json is hosted (e.g., &#39;pg.com&#39;, &#39;nikeinc.com&#39;)&#34;,
+            description=&#34;Domain where /.well-known/brand.json is hosted, or the brand&#39;s operating domain&#34;,
             pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
         ),
     ]</code></pre>
@@ -85,11 +88,11 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.brand_ref.BrandReference.brand_id"><code class="name">var <span class="ident">brand_id</span> : <a title="adcp.types.generated_poc.core.brand_id.BrandId" href="brand_id.html#adcp.types.generated_poc.core.brand_id.BrandId">BrandId</a></code></dt>
+<dt id="adcp.types.generated_poc.core.brand_ref.BrandReference.brand_id"><code class="name">var <span class="ident">brand_id</span> : <a title="adcp.types.generated_poc.core.brand_id.BrandId" href="brand_id.html#adcp.types.generated_poc.core.brand_id.BrandId">BrandId</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.brand_ref.BrandReference.house"><code class="name">var <span class="ident">house</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.core.brand_ref.BrandReference.domain"><code class="name">var <span class="ident">domain</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -128,7 +131,7 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.brand_ref.BrandReference.brand_id" href="#adcp.types.generated_poc.core.brand_ref.BrandReference.brand_id">brand_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.brand_ref.BrandReference.house" href="#adcp.types.generated_poc.core.brand_ref.BrandReference.house">house</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.brand_ref.BrandReference.domain" href="#adcp.types.generated_poc.core.brand_ref.BrandReference.domain">domain</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.brand_ref.BrandReference.model_config" href="#adcp.types.generated_poc.core.brand_ref.BrandReference.model_config">model_config</a></code></li>
 </ul>
 </li>

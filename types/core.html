@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
 <title>adcp.types.core API documentation</title>
-<meta name="description" content="">
+<meta name="description" content="Core type definitions.">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -36,6 +36,7 @@ el.replaceWith(d);
 <h1 class="title">Module <code>adcp.types.core</code></h1>
 </header>
 <section id="section-intro">
+<p>Core type definitions.</p>
 </section>
 <section>
 </section>
@@ -370,6 +371,128 @@ validated to form a valid model.</p>
 </dd>
 </dl>
 </dd>
+<dt id="adcp.types.core.Member"><code class="flex name class">
+<span>class <span class="ident">Member</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Member(BaseModel):
+    &#34;&#34;&#34;An organization registered in the AAO member directory.&#34;&#34;&#34;
+
+    model_config = ConfigDict(extra=&#34;allow&#34;)
+
+    id: str
+    slug: str
+    display_name: str
+    description: str | None = None
+    tagline: str | None = None
+    logo_url: str | None = None
+    logo_light_url: str | None = None
+    logo_dark_url: str | None = None
+    contact_email: str | None = None
+    contact_website: str | None = None
+    offerings: list[str] = Field(default_factory=list)
+    markets: list[str] = Field(default_factory=list)
+    agents: list[dict[str, Any]] = Field(default_factory=list)
+    brands: list[dict[str, Any]] = Field(default_factory=list)
+    is_public: bool = True
+    is_founding_member: bool = False
+    featured: bool = False
+    si_enabled: bool = False</code></pre>
+</details>
+<div class="desc"><p>An organization registered in the AAO member directory.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.core.Member.agents"><code class="name">var <span class="ident">agents</span> : list[dict[str, typing.Any]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Member.brands"><code class="name">var <span class="ident">brands</span> : list[dict[str, typing.Any]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Member.contact_email"><code class="name">var <span class="ident">contact_email</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Member.contact_website"><code class="name">var <span class="ident">contact_website</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Member.description"><code class="name">var <span class="ident">description</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Member.display_name"><code class="name">var <span class="ident">display_name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Member.featured"><code class="name">var <span class="ident">featured</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Member.id"><code class="name">var <span class="ident">id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Member.is_founding_member"><code class="name">var <span class="ident">is_founding_member</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Member.is_public"><code class="name">var <span class="ident">is_public</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Member.logo_dark_url"><code class="name">var <span class="ident">logo_dark_url</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Member.logo_light_url"><code class="name">var <span class="ident">logo_light_url</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Member.logo_url"><code class="name">var <span class="ident">logo_url</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Member.markets"><code class="name">var <span class="ident">markets</span> : list[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Member.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Member.offerings"><code class="name">var <span class="ident">offerings</span> : list[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Member.si_enabled"><code class="name">var <span class="ident">si_enabled</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Member.slug"><code class="name">var <span class="ident">slug</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Member.tagline"><code class="name">var <span class="ident">tagline</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.core.NeedsInputInfo"><code class="flex name class">
 <span>class <span class="ident">NeedsInputInfo</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -466,8 +589,21 @@ validated to form a valid model.</p>
     house_domain: str | None = None
     house_name: str | None = None
     brand_agent_url: str | None = None
+    brand: dict[str, Any] | None = None
     brand_manifest: dict[str, Any] | None = None
-    source: str</code></pre>
+    source: str
+
+    @model_validator(mode=&#34;before&#34;)
+    @classmethod
+    def _normalize_brand_fields(cls, data: Any) -&gt; Any:
+        &#34;&#34;&#34;Cross-populate brand and brand_manifest so both names are always accessible.&#34;&#34;&#34;
+        if isinstance(data, dict):
+            data = dict(data)
+            if &#34;brand&#34; in data and &#34;brand_manifest&#34; not in data:
+                data[&#34;brand_manifest&#34;] = data[&#34;brand&#34;]
+            elif &#34;brand_manifest&#34; in data and &#34;brand&#34; not in data:
+                data[&#34;brand&#34;] = data[&#34;brand_manifest&#34;]
+        return data</code></pre>
 </details>
 <div class="desc"><p>Brand identity resolved from the AdCP registry.</p>
 <p>Create a new model by parsing and validating input data from keyword arguments.</p>
@@ -480,6 +616,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.core.ResolvedBrand.brand"><code class="name">var <span class="ident">brand</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.core.ResolvedBrand.brand_agent_url"><code class="name">var <span class="ident">brand_agent_url</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -925,6 +1065,30 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.core.Member" href="#adcp.types.core.Member">Member</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.core.Member.agents" href="#adcp.types.core.Member.agents">agents</a></code></li>
+<li><code><a title="adcp.types.core.Member.brands" href="#adcp.types.core.Member.brands">brands</a></code></li>
+<li><code><a title="adcp.types.core.Member.contact_email" href="#adcp.types.core.Member.contact_email">contact_email</a></code></li>
+<li><code><a title="adcp.types.core.Member.contact_website" href="#adcp.types.core.Member.contact_website">contact_website</a></code></li>
+<li><code><a title="adcp.types.core.Member.description" href="#adcp.types.core.Member.description">description</a></code></li>
+<li><code><a title="adcp.types.core.Member.display_name" href="#adcp.types.core.Member.display_name">display_name</a></code></li>
+<li><code><a title="adcp.types.core.Member.featured" href="#adcp.types.core.Member.featured">featured</a></code></li>
+<li><code><a title="adcp.types.core.Member.id" href="#adcp.types.core.Member.id">id</a></code></li>
+<li><code><a title="adcp.types.core.Member.is_founding_member" href="#adcp.types.core.Member.is_founding_member">is_founding_member</a></code></li>
+<li><code><a title="adcp.types.core.Member.is_public" href="#adcp.types.core.Member.is_public">is_public</a></code></li>
+<li><code><a title="adcp.types.core.Member.logo_dark_url" href="#adcp.types.core.Member.logo_dark_url">logo_dark_url</a></code></li>
+<li><code><a title="adcp.types.core.Member.logo_light_url" href="#adcp.types.core.Member.logo_light_url">logo_light_url</a></code></li>
+<li><code><a title="adcp.types.core.Member.logo_url" href="#adcp.types.core.Member.logo_url">logo_url</a></code></li>
+<li><code><a title="adcp.types.core.Member.markets" href="#adcp.types.core.Member.markets">markets</a></code></li>
+<li><code><a title="adcp.types.core.Member.model_config" href="#adcp.types.core.Member.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.core.Member.offerings" href="#adcp.types.core.Member.offerings">offerings</a></code></li>
+<li><code><a title="adcp.types.core.Member.si_enabled" href="#adcp.types.core.Member.si_enabled">si_enabled</a></code></li>
+<li><code><a title="adcp.types.core.Member.slug" href="#adcp.types.core.Member.slug">slug</a></code></li>
+<li><code><a title="adcp.types.core.Member.tagline" href="#adcp.types.core.Member.tagline">tagline</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.core.NeedsInputInfo" href="#adcp.types.core.NeedsInputInfo">NeedsInputInfo</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.core.NeedsInputInfo.field" href="#adcp.types.core.NeedsInputInfo.field">field</a></code></li>
@@ -942,6 +1106,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.core.ResolvedBrand" href="#adcp.types.core.ResolvedBrand">ResolvedBrand</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.core.ResolvedBrand.brand" href="#adcp.types.core.ResolvedBrand.brand">brand</a></code></li>
 <li><code><a title="adcp.types.core.ResolvedBrand.brand_agent_url" href="#adcp.types.core.ResolvedBrand.brand_agent_url">brand_agent_url</a></code></li>
 <li><code><a title="adcp.types.core.ResolvedBrand.brand_manifest" href="#adcp.types.core.ResolvedBrand.brand_manifest">brand_manifest</a></code></li>
 <li><code><a title="adcp.types.core.ResolvedBrand.brand_name" href="#adcp.types.core.ResolvedBrand.brand_name">brand_name</a></code></li>

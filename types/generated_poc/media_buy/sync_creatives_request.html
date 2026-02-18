@@ -66,7 +66,7 @@ el.replaceWith(d);
         ),
     ] = None
     assignments: Annotated[
-        dict[str, list[str]] | None,
+        dict[Annotated[str, StringConstraints(pattern=r&#39;^[a-zA-Z0-9_-]+$&#39;)], list[str]] | None,
         Field(description=&#39;Optional bulk assignment of creatives to packages&#39;),
     ] = None
     context: context_1.ContextObject | None = None

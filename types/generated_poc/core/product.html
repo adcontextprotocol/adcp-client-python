@@ -327,7 +327,7 @@ validated to form a valid model.</p>
     catalog_match: Annotated[
         CatalogMatch | None,
         Field(
-            description=&#34;When the buyer provides a brand_manifest with product_catalog, indicates which of the buyer&#39;s catalog items are eligible for this product. Enables buyers to make informed product_selector choices in create_media_buy. Only present for products where catalog matching is relevant (e.g. sponsored product listings on retail media). Sellers SHOULD include at least one of matched_gtins or matched_skus.&#34;
+            description=&#34;When the buyer provides a brand with product_catalog, indicates which of the buyer&#39;s catalog items are eligible for this product. Enables buyers to make informed product_selector choices in create_media_buy. Only present for products where catalog matching is relevant (e.g. sponsored product listings on retail media). Sellers SHOULD include at least one of matched_gtins or matched_skus.&#34;
         ),
     ] = None
     channels: Annotated[
@@ -359,14 +359,16 @@ validated to form a valid model.</p>
     description: Annotated[
         str, Field(description=&#39;Detailed description of the product and its inventory&#39;)
     ]
-    estimated_exposures: Annotated[
-        int | None,
-        Field(description=&#39;Estimated exposures/impressions for guaranteed products&#39;, ge=0),
-    ] = None
     expires_at: Annotated[
         AwareDatetime | None, Field(description=&#39;Expiration timestamp for custom products&#39;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
+    forecast: Annotated[
+        delivery_forecast.DeliveryForecast | None,
+        Field(
+            description=&#39;Forecasted delivery metrics for this product. Gives buyers an estimate of expected performance before requesting a proposal.&#39;
+        ),
+    ] = None
     format_ids: Annotated[
         list[format_id_1.FormatId],
         Field(
@@ -472,15 +474,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product.Product.estimated_exposures"><code class="name">var <span class="ident">estimated_exposures</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="adcp.types.generated_poc.core.product.Product.expires_at"><code class="name">var <span class="ident">expires_at</span> : pydantic.types.AwareDatetime | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.product.Product.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.Product.forecast"><code class="name">var <span class="ident">forecast</span> : <a title="adcp.types.generated_poc.core.delivery_forecast.DeliveryForecast" href="delivery_forecast.html#adcp.types.generated_poc.core.delivery_forecast.DeliveryForecast">DeliveryForecast</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -809,9 +811,9 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.delivery_measurement" href="#adcp.types.generated_poc.core.product.Product.delivery_measurement">delivery_measurement</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.delivery_type" href="#adcp.types.generated_poc.core.product.Product.delivery_type">delivery_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.description" href="#adcp.types.generated_poc.core.product.Product.description">description</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product.Product.estimated_exposures" href="#adcp.types.generated_poc.core.product.Product.estimated_exposures">estimated_exposures</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.expires_at" href="#adcp.types.generated_poc.core.product.Product.expires_at">expires_at</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.ext" href="#adcp.types.generated_poc.core.product.Product.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.Product.forecast" href="#adcp.types.generated_poc.core.product.Product.forecast">forecast</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.format_ids" href="#adcp.types.generated_poc.core.product.Product.format_ids">format_ids</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.is_custom" href="#adcp.types.generated_poc.core.product.Product.is_custom">is_custom</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.measurement" href="#adcp.types.generated_poc.core.product.Product.measurement">measurement</a></code></li>

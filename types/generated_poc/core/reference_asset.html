@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.media_buy.get_products_response API documentation</title>
+<title>adcp.types.generated_poc.core.reference_asset API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.media_buy.get_products_response</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.core.reference_asset</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,8 +46,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse"><code class="flex name class">
-<span>class <span class="ident">GetProductsResponse</span></span>
+<dt id="adcp.types.generated_poc.core.reference_asset.ReferenceAsset"><code class="flex name class">
+<span>class <span class="ident">ReferenceAsset</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -55,36 +55,25 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class GetProductsResponse(AdCPBaseModel):
+<pre><code class="python">class ReferenceAsset(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
-    errors: Annotated[
-        list[error.Error] | None,
-        Field(description=&#39;Task-specific errors and warnings (e.g., product filtering issues)&#39;),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    pagination: pagination_response.PaginationResponse | None = None
-    product_selectors_applied: Annotated[
-        bool | None,
+    description: Annotated[
+        str | None,
         Field(
-            description=&#39;Indicates whether product_selectors filtering was applied. True if the seller filtered results based on the provided product_selectors. Absent or false if product_selectors was not provided or not supported by this agent.&#39;
+            description=&#39;Human-readable description of the asset and how it should inform creative generation&#39;
         ),
     ] = None
-    products: Annotated[list[product.Product], Field(description=&#39;Array of matching products&#39;)]
-    property_list_applied: Annotated[
-        bool | None,
+    role: Annotated[
+        Role,
         Field(
-            description=&#39;[AdCP 3.0] Indicates whether property_list filtering was applied. True if the agent filtered products based on the provided property_list. Absent or false if property_list was not provided or not supported by this agent.&#39;
+            description=&#39;How the creative agent should use this asset. style_reference: match the visual style; product_shot: include this product; mood_board: overall look and feel; example_creative: example of a similar execution; logo: logo to use; strategy_doc: strategy or planning document for context&#39;
         ),
-    ] = None
-    proposals: Annotated[
-        list[proposal.Proposal] | None,
-        Field(
-            description=&#39;Optional array of proposed media plans with budget allocations across products. Publishers include proposals when they can provide strategic guidance based on the brief. Proposals are actionable - buyers can refine them via follow-up get_products calls within the same session, or execute them directly via create_media_buy.&#39;
-        ),
-    ] = None</code></pre>
+    ]
+    url: Annotated[
+        AnyUrl, Field(description=&#39;URL to the reference asset (image, video, or document)&#39;)
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -101,39 +90,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.reference_asset.ReferenceAsset.description"><code class="name">var <span class="ident">description</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="../core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.reference_asset.ReferenceAsset.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.reference_asset.ReferenceAsset.role"><code class="name">var <span class="ident">role</span> : <a title="adcp.types.generated_poc.core.reference_asset.Role" href="#adcp.types.generated_poc.core.reference_asset.Role">Role</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_response.PaginationResponse" href="../core/pagination_response.html#adcp.types.generated_poc.core.pagination_response.PaginationResponse">PaginationResponse</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.product_selectors_applied"><code class="name">var <span class="ident">product_selectors_applied</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.products"><code class="name">var <span class="ident">products</span> : list[<a title="adcp.types.generated_poc.core.product.Product" href="../core/product.html#adcp.types.generated_poc.core.product.Product">Product</a>]</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.property_list_applied"><code class="name">var <span class="ident">property_list_applied</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.proposals"><code class="name">var <span class="ident">proposals</span> : list[<a title="adcp.types.generated_poc.core.proposal.Proposal" href="../core/proposal.html#adcp.types.generated_poc.core.proposal.Proposal">Proposal</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.reference_asset.ReferenceAsset.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -149,6 +118,90 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.core.reference_asset.Role"><code class="flex name class">
+<span>class <span class="ident">Role</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Role(Enum):
+    style_reference = &#39;style_reference&#39;
+    product_shot = &#39;product_shot&#39;
+    mood_board = &#39;mood_board&#39;
+    example_creative = &#39;example_creative&#39;
+    logo = &#39;logo&#39;
+    strategy_doc = &#39;strategy_doc&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.reference_asset.Role.example_creative"><code class="name">var <span class="ident">example_creative</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.reference_asset.Role.logo"><code class="name">var <span class="ident">logo</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.reference_asset.Role.mood_board"><code class="name">var <span class="ident">mood_board</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.reference_asset.Role.product_shot"><code class="name">var <span class="ident">product_shot</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.reference_asset.Role.strategy_doc"><code class="name">var <span class="ident">strategy_doc</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.reference_asset.Role.style_reference"><code class="name">var <span class="ident">style_reference</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 </dl>
 </section>
 </article>
@@ -159,23 +212,29 @@ validated to form a valid model.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.media_buy" href="index.html">adcp.types.generated_poc.media_buy</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core" href="index.html">adcp.types.generated_poc.core</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse">GetProductsResponse</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.reference_asset.ReferenceAsset" href="#adcp.types.generated_poc.core.reference_asset.ReferenceAsset">ReferenceAsset</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.context" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.errors" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.errors">errors</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.ext" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.model_config" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.pagination" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.pagination">pagination</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.product_selectors_applied" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.product_selectors_applied">product_selectors_applied</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.products" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.products">products</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.property_list_applied" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.property_list_applied">property_list_applied</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.proposals" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.proposals">proposals</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.reference_asset.ReferenceAsset.description" href="#adcp.types.generated_poc.core.reference_asset.ReferenceAsset.description">description</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.reference_asset.ReferenceAsset.model_config" href="#adcp.types.generated_poc.core.reference_asset.ReferenceAsset.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.reference_asset.ReferenceAsset.role" href="#adcp.types.generated_poc.core.reference_asset.ReferenceAsset.role">role</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.reference_asset.ReferenceAsset.url" href="#adcp.types.generated_poc.core.reference_asset.ReferenceAsset.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.reference_asset.Role" href="#adcp.types.generated_poc.core.reference_asset.Role">Role</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.reference_asset.Role.example_creative" href="#adcp.types.generated_poc.core.reference_asset.Role.example_creative">example_creative</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.reference_asset.Role.logo" href="#adcp.types.generated_poc.core.reference_asset.Role.logo">logo</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.reference_asset.Role.mood_board" href="#adcp.types.generated_poc.core.reference_asset.Role.mood_board">mood_board</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.reference_asset.Role.product_shot" href="#adcp.types.generated_poc.core.reference_asset.Role.product_shot">product_shot</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.reference_asset.Role.strategy_doc" href="#adcp.types.generated_poc.core.reference_asset.Role.strategy_doc">strategy_doc</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.reference_asset.Role.style_reference" href="#adcp.types.generated_poc.core.reference_asset.Role.style_reference">style_reference</a></code></li>
 </ul>
 </li>
 </ul>

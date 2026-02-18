@@ -65,17 +65,14 @@ el.replaceWith(d);
             description=&#34;Account ID for product lookup. Required when the seller declares account.required_for_products = true in capabilities. Returns products with pricing specific to this account&#39;s rate card.&#34;
         ),
     ] = None
-    brand_manifest: Annotated[
-        brand_manifest_ref.BrandManifestReference | None,
+    brand: Annotated[
+        brand_ref.BrandReference | None,
         Field(
-            description=&#39;Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest.&#39;
+            description=&#39;Brand reference for product discovery context. Resolved to full brand identity at execution time.&#39;
         ),
     ] = None
     brief: Annotated[
-        str | None,
-        Field(
-            description=&#34;Natural language description of campaign requirements. When refining a proposal, can include instructions like &#39;focus more on German speakers&#39; or &#39;increase mobile allocation&#39;.&#34;
-        ),
+        str | None, Field(description=&#39;Natural language description of campaign requirements.&#39;)
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
@@ -84,19 +81,13 @@ el.replaceWith(d);
     product_selectors: Annotated[
         promoted_products.PromotedProducts | None,
         Field(
-            description=&#39;Selectors to filter the brand manifest product catalog for product discovery. When provided, sellers should only return advertising products where the selected catalog items have matches. Uses the same selection methods as promoted-offerings.&#39;
+            description=&#34;Selectors to filter the brand&#39;s product catalog for product discovery. When provided, sellers should only return advertising products where the selected catalog items have matches. Uses the same selection methods as promoted-offerings.&#34;
         ),
     ] = None
     property_list: Annotated[
         property_list_ref.PropertyListReference | None,
         Field(
             description=&#39;[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list.&#39;
-        ),
-    ] = None
-    proposal_id: Annotated[
-        str | None,
-        Field(
-            description=&#39;Optional proposal ID to refine. When provided with a brief, the publisher will use the brief as refinement instructions for the specified proposal and return an updated version.&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -119,7 +110,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference" href="../core/brand_manifest_ref.html#adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference">BrandManifestReference</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="../core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -155,10 +146,6 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.proposal_id"><code class="name">var <span class="ident">proposal_id</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
@@ -190,7 +177,7 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest">GetProductsRequest</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.account_id" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.account_id">account_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brand_manifest" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brand_manifest">brand_manifest</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brand" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brand">brand</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brief" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brief">brief</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.context" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.ext" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.ext">ext</a></code></li>
@@ -199,7 +186,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.pagination" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.pagination">pagination</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.product_selectors" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.product_selectors">product_selectors</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.property_list" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.property_list">property_list</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.proposal_id" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.proposal_id">proposal_id</a></code></li>
 </ul>
 </li>
 </ul>

@@ -417,6 +417,61 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Creative"><code class="flex name class">
+<span>class <span class="ident">Creative</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Creative(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    supports_brief: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether this creative agent accepts creative_brief in build_creative requests for structured campaign-level creative direction&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Creative.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Creative.supports_brief"><code class="name">var <span class="ident">supports_brief</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeSpecs"><code class="flex name class">
 <span>class <span class="ident">CreativeSpecs</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -1032,6 +1087,12 @@ validated to form a valid model.</p>
     ] = None
     adcp: Annotated[Adcp, Field(description=&#39;Core AdCP protocol information&#39;)]
     context: context_1.ContextObject | None = None
+    creative: Annotated[
+        Creative | None,
+        Field(
+            description=&#39;Creative protocol capabilities. Only present if creative is in supported_protocols.&#39;
+        ),
+    ] = None
     errors: Annotated[
         list[error.Error] | None, Field(description=&#39;Task-specific errors and warnings&#39;)
     ] = None
@@ -1101,6 +1162,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.creative"><code class="name">var <span class="ident">creative</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Creative" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Creative">Creative</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1863,8 +1928,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class SponsoredIntelligence(AdCPBaseModel):
-    brand_manifest_url: Annotated[
-        AnyUrl | None, Field(description=&#39;URL to brand manifest with colors, fonts, logos, tone&#39;)
+    brand_url: Annotated[
+        AnyUrl | None, Field(description=&#39;URL to brand.json with colors, fonts, logos, tone&#39;)
     ] = None
     capabilities: Annotated[
         si_capabilities.SiCapabilities,
@@ -1887,7 +1952,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SponsoredIntelligence.brand_manifest_url"><code class="name">var <span class="ident">brand_manifest_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SponsoredIntelligence.brand_url"><code class="name">var <span class="ident">brand_url</span> : pydantic.networks.AnyUrl | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2400,6 +2465,13 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Creative" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Creative">Creative</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Creative.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Creative.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Creative.supports_brief" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Creative.supports_brief">supports_brief</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeSpecs" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeSpecs">CreativeSpecs</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeSpecs.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeSpecs.model_config">model_config</a></code></li>
@@ -2485,6 +2557,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.account" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.account">account</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.adcp" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.adcp">adcp</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.context" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.creative" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.creative">creative</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.errors" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.errors">errors</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.ext" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.extensions_supported" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.extensions_supported">extensions_supported</a></code></li>
@@ -2591,7 +2664,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SponsoredIntelligence" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SponsoredIntelligence">SponsoredIntelligence</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SponsoredIntelligence.brand_manifest_url" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SponsoredIntelligence.brand_manifest_url">brand_manifest_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SponsoredIntelligence.brand_url" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SponsoredIntelligence.brand_url">brand_url</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SponsoredIntelligence.capabilities" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SponsoredIntelligence.capabilities">capabilities</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SponsoredIntelligence.endpoint" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SponsoredIntelligence.endpoint">endpoint</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SponsoredIntelligence.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SponsoredIntelligence.model_config">model_config</a></code></li>

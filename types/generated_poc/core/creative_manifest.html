@@ -61,7 +61,7 @@ el.replaceWith(d);
     )
     assets: Annotated[
         dict[
-            str,
+            Annotated[str, StringConstraints(pattern=r&#39;^[a-z0-9_]+$&#39;)],
             image_asset.ImageAsset
             | video_asset.VideoAsset
             | audio_asset.AudioAsset

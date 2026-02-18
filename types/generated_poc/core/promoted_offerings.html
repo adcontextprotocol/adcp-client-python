@@ -237,12 +237,12 @@ attributes &ndash; see the documentation for details.</p></div>
     )
     asset_selectors: Annotated[
         AssetSelectors | None,
-        Field(description=&#39;Selectors to choose specific assets from the brand manifest&#39;),
+        Field(description=&#34;Selectors to choose specific assets from the brand&#39;s asset library&#34;),
     ] = None
-    brand_manifest: Annotated[
-        brand_manifest_ref.BrandManifestReference,
+    brand: Annotated[
+        brand_ref.BrandReference,
         Field(
-            description=&#39;Brand information manifest containing assets, themes, and guidelines. Can be provided inline or as a URL reference to a hosted manifest.&#39;
+            description=&#39;Brand reference. Resolved to full brand identity (logos, colors, tone, assets) at execution time for creative generation.&#39;
         ),
     ]
     offerings: Annotated[
@@ -254,7 +254,7 @@ attributes &ndash; see the documentation for details.</p></div>
     product_selectors: Annotated[
         promoted_products.PromotedProducts | None,
         Field(
-            description=&#39;Selectors to choose which products/offerings from the brand manifest product catalog to promote&#39;
+            description=&#34;Selectors to choose which products/offerings from the brand&#39;s product catalog to promote&#34;
         ),
     ] = None
     si_agent_url: Annotated[
@@ -283,7 +283,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference" href="brand_manifest_ref.html#adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference">BrandManifestReference</a></code></dt>
+<dt id="adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -359,7 +359,7 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings" href="#adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings">PromotedOfferings</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings.asset_selectors" href="#adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings.asset_selectors">asset_selectors</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings.brand_manifest" href="#adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings.brand_manifest">brand_manifest</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings.brand" href="#adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings.brand">brand</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings.model_config" href="#adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings.offerings" href="#adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings.offerings">offerings</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings.product_selectors" href="#adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings.product_selectors">product_selectors</a></code></li>

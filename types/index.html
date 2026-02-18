@@ -74,7 +74,7 @@ See adcp.types.coercion for implementation details.
 </dd>
 <dt><code class="name"><a title="adcp.types.core" href="core.html">adcp.types.core</a></code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Core type definitions.</p></div>
 </dd>
 <dt><code class="name"><a title="adcp.types.generated_poc" href="generated_poc/index.html">adcp.types.generated_poc</a></code></dt>
 <dd>
@@ -1021,17 +1021,28 @@ validated to form a valid model.</p>
         extra=&#39;allow&#39;,
     )
     asset_id: Annotated[str, Field(description=&#39;Unique identifier&#39;)]
-    asset_type: Annotated[AssetType, Field(description=&#39;Asset type&#39;)]
-    duration_seconds: float | None = None
-    format: Annotated[str | None, Field(description=&#39;File format (jpg, mp4, etc.)&#39;)] = None
-    height: int | None = None
+    asset_type: Annotated[
+        asset_content_type.AssetContentType, Field(description=&#39;Type of asset content&#39;)
+    ]
+    description: Annotated[str | None, Field(description=&#39;Asset description or usage notes&#39;)] = None
+    duration_seconds: Annotated[
+        float | None, Field(description=&#39;Video/audio duration in seconds&#39;)
+    ] = None
+    file_size_bytes: Annotated[int | None, Field(description=&#39;File size in bytes&#39;)] = None
+    format: Annotated[str | None, Field(description=&#34;File format (e.g., &#39;jpg&#39;, &#39;mp4&#39;, &#39;mp3&#39;)&#34;)] = (
+        None
+    )
+    height: Annotated[int | None, Field(description=&#39;Image/video height in pixels&#39;)] = None
+    metadata: Annotated[
+        dict[str, Any] | None, Field(description=&#39;Additional asset-specific metadata&#39;)
+    ] = None
     name: Annotated[str | None, Field(description=&#39;Human-readable name&#39;)] = None
     tags: Annotated[
         list[str] | None,
-        Field(description=&#34;Tags for discovery (e.g., &#39;hero&#39;, &#39;lifestyle&#39;, &#39;product&#39;)&#34;),
+        Field(description=&#34;Tags for discovery (e.g., &#39;hero&#39;, &#39;lifestyle&#39;, &#39;product&#39;, &#39;holiday&#39;)&#34;),
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#39;URL to asset&#39;)]
-    width: int | None = None</code></pre>
+    url: Annotated[AnyUrl, Field(description=&#39;URL to CDN-hosted asset file&#39;)]
+    width: Annotated[int | None, Field(description=&#39;Image/video width in pixels&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -1052,11 +1063,19 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.Asset.asset_type"><code class="name">var <span class="ident">asset_type</span> : <a title="adcp.types.generated_poc.brand.AssetType" href="generated_poc/brand.html#adcp.types.generated_poc.brand.AssetType">AssetType</a></code></dt>
+<dt id="adcp.types.Asset.asset_type"><code class="name">var <span class="ident">asset_type</span> : <a title="adcp.types.generated_poc.enums.asset_content_type.AssetContentType" href="generated_poc/enums/asset_content_type.html#adcp.types.generated_poc.enums.asset_content_type.AssetContentType">AssetContentType</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Asset.description"><code class="name">var <span class="ident">description</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.Asset.duration_seconds"><code class="name">var <span class="ident">duration_seconds</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Asset.file_size_bytes"><code class="name">var <span class="ident">file_size_bytes</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1065,6 +1084,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.Asset.height"><code class="name">var <span class="ident">height</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Asset.metadata"><code class="name">var <span class="ident">metadata</span> : dict[str, typing.Any] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2414,76 +2437,8 @@ attributes &ndash; see the documentation for details.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class BrandManifest(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;allow&#39;,
-    )
-    assets: Annotated[
-        list[Asset] | None,
-        Field(
-            description=&#39;Brand asset library with explicit assets and tags. Assets are referenced inline with URLs pointing to CDN-hosted files.&#39;
-        ),
-    ] = None
-    avatar: Annotated[
-        Avatar | None,
-        Field(description=&#39;Brand avatar configuration for visual conversational experiences&#39;),
-    ] = None
-    colors: Annotated[
-        Colors | None,
-        Field(
-            description=&#39;Brand color palette. Each role accepts a single hex color or an array of hex colors for brands with multiple values per role.&#39;
-        ),
-    ] = None
-    contact: Annotated[Contact | None, Field(description=&#39;Brand contact information&#39;)] = None
-    disclaimers: Annotated[
-        list[Disclaimer] | None,
-        Field(description=&#39;Legal disclaimers or required text that must appear in creatives&#39;),
-    ] = None
-    fonts: Annotated[Fonts | None, Field(description=&#39;Brand typography guidelines&#39;)] = None
-    industry: Annotated[
-        str | None,
-        Field(
-            description=&#34;Industry or vertical (e.g., &#39;retail&#39;, &#39;automotive&#39;, &#39;finance&#39;, &#39;healthcare&#39;)&#34;
-        ),
-    ] = None
-    logos: Annotated[
-        list[Logo] | None,
-        Field(
-            description=&#39;Brand logo assets with structured fields for orientation, background compatibility, and variant type. Use the orientation, background, and variant enum fields for reliable filtering by creative agents.&#39;
-        ),
-    ] = None
-    metadata: Annotated[Metadata | None, Field(description=&#39;Additional brand metadata&#39;)] = None
-    name: Annotated[str, Field(description=&#39;Brand or business name&#39;)]
-    privacy_policy_url: Annotated[
-        AnyUrl | None,
-        Field(
-            description=&#34;URL to the brand&#39;s privacy policy. Used for consumer consent flows when personal data may be shared with the advertiser. AI platforms can use this to present explicit privacy choices to users before data handoff.&#34;
-        ),
-    ] = None
-    product_catalog: Annotated[
-        ProductCatalog | None,
-        Field(
-            description=&#39;Product catalog information for e-commerce advertisers. Enables SKU-level creative generation and product selection.&#39;
-        ),
-    ] = None
-    tagline: Annotated[str | None, Field(description=&#39;Brand tagline or slogan&#39;)] = None
-    target_audience: Annotated[
-        str | None, Field(description=&#39;Primary target audience description&#39;)
-    ] = None
-    tone: Annotated[
-        str | Tone | None,
-        Field(description=&#39;Brand voice and messaging tone guidelines for creative agents.&#39;),
-    ] = None
-    url: Annotated[
-        AnyUrl | None,
-        Field(
-            description=&#39;Primary brand URL for context and asset discovery. Creative agents can infer brand information from this URL.&#39;
-        ),
-    ] = None
-    voice: Annotated[
-        Voice | None,
-        Field(description=&#39;Brand voice configuration for audio/conversational experiences&#39;),
-    ] = None</code></pre>
+<pre><code class="python">class BrandManifest(_AdCPBaseModel):
+    model_config = _ConfigDict(extra=&#34;allow&#34;)</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -2500,75 +2455,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.BrandManifest.assets"><code class="name">var <span class="ident">assets</span> : list[<a title="adcp.types.generated_poc.core.brand_manifest.Asset" href="generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.Asset">Asset</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.BrandManifest.avatar"><code class="name">var <span class="ident">avatar</span> : <a title="adcp.types.generated_poc.core.brand_manifest.Avatar" href="generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.Avatar">Avatar</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.BrandManifest.colors"><code class="name">var <span class="ident">colors</span> : <a title="adcp.types.generated_poc.core.brand_manifest.Colors" href="generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.Colors">Colors</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.BrandManifest.contact"><code class="name">var <span class="ident">contact</span> : <a title="adcp.types.generated_poc.core.brand_manifest.Contact" href="generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.Contact">Contact</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.BrandManifest.disclaimers"><code class="name">var <span class="ident">disclaimers</span> : list[<a title="adcp.types.generated_poc.core.brand_manifest.Disclaimer" href="generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.Disclaimer">Disclaimer</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.BrandManifest.fonts"><code class="name">var <span class="ident">fonts</span> : <a title="adcp.types.generated_poc.core.brand_manifest.Fonts" href="generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.Fonts">Fonts</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.BrandManifest.industry"><code class="name">var <span class="ident">industry</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.BrandManifest.logos"><code class="name">var <span class="ident">logos</span> : list[<a title="adcp.types.generated_poc.core.brand_manifest.Logo" href="generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.Logo">Logo</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.BrandManifest.metadata"><code class="name">var <span class="ident">metadata</span> : <a title="adcp.types.generated_poc.core.brand_manifest.Metadata" href="generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.Metadata">Metadata</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="adcp.types.BrandManifest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.BrandManifest.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.BrandManifest.privacy_policy_url"><code class="name">var <span class="ident">privacy_policy_url</span> : pydantic.networks.AnyUrl | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.BrandManifest.product_catalog"><code class="name">var <span class="ident">product_catalog</span> : <a title="adcp.types.generated_poc.core.brand_manifest.ProductCatalog" href="generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.ProductCatalog">ProductCatalog</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.BrandManifest.tagline"><code class="name">var <span class="ident">tagline</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.BrandManifest.target_audience"><code class="name">var <span class="ident">target_audience</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.BrandManifest.tone"><code class="name">var <span class="ident">tone</span> : str | <a title="adcp.types.generated_poc.core.brand_manifest.Tone" href="generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.Tone">Tone</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.BrandManifest.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.BrandManifest.voice"><code class="name">var <span class="ident">voice</span> : <a title="adcp.types.generated_poc.core.brand_manifest.Voice" href="generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.Voice">Voice</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2597,7 +2484,19 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    brand: Annotated[
+        brand_ref.BrandReference | None,
+        Field(
+            description=&#39;Brand reference for creative generation. Resolved to full brand identity (colors, logos, tone) at execution time.&#39;
+        ),
+    ] = None
     context: context_1.ContextObject | None = None
+    creative_brief: Annotated[
+        creative_brief_ref.CreativeBriefReference | None,
+        Field(
+            description=&#39;Campaign-level creative brief with objective, audience, messaging, and reference assets. Can be an inline brief object or a URL to a hosted brief. Supplements the natural language message with structured creative direction.&#39;
+        ),
+    ] = None
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest | None,
         Field(
@@ -2633,7 +2532,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.BuildCreativeRequest.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="generated_poc/core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.BuildCreativeRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.BuildCreativeRequest.creative_brief"><code class="name">var <span class="ident">creative_brief</span> : <a title="adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference" href="generated_poc/core/creative_brief_ref.html#adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference">CreativeBriefReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -4582,10 +4489,10 @@ validated to form a valid model.</p>
             description=&#39;Optional webhook configuration for content artifact delivery. Used by governance agents to validate content adjacency. Seller pushes artifacts to this endpoint; orchestrator forwards to governance agent for validation.&#39;
         ),
     ] = None
-    brand_manifest: Annotated[
-        brand_manifest_ref.BrandManifestReference,
+    brand: Annotated[
+        brand_ref.BrandReference,
         Field(
-            description=&#39;Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests.&#39;
+            description=&#39;Brand reference for this media buy. Resolved to full brand identity at execution time from brand.json or the registry.&#39;
         ),
     ]
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
@@ -4643,7 +4550,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.CreateMediaBuyRequest.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference" href="generated_poc/core/brand_manifest_ref.html#adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference">BrandManifestReference</a></code></dt>
+<dt id="adcp.types.CreateMediaBuyRequest.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="generated_poc/core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -4935,10 +4842,10 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    brand_manifest: Annotated[
-        brand_manifest_1.BrandManifest | None,
+    brand: Annotated[
+        brand_ref.BrandReference | None,
         Field(
-            description=&#39;Brand identity and requirements. When provided, the agent automatically applies appropriate rules based on brand characteristics (industry, target_audience, etc.).&#39;
+            description=&#39;Brand reference. When provided, the agent automatically applies appropriate rules based on brand characteristics (industry, target_audience, etc.). Resolved at execution time.&#39;
         ),
     ] = None
     context: context_1.ContextObject | None = None
@@ -4971,7 +4878,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.CreatePropertyListRequest.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest.BrandManifest" href="generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.BrandManifest">BrandManifest</a> | None</code></dt>
+<dt id="adcp.types.CreatePropertyListRequest.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="generated_poc/core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -5188,7 +5095,7 @@ validated to form a valid model.</p>
         ),
     ] = None
     assignment_errors: Annotated[
-        dict[str, str] | None,
+        dict[Annotated[str, StringConstraints(pattern=r&#39;^[a-zA-Z0-9_-]+$&#39;)], str] | None,
         Field(
             description=&#39;Assignment errors by package ID (only present when assignment failures occurred)&#39;
         ),
@@ -5694,7 +5601,7 @@ attributes &ndash; see the documentation for details.</p></div>
     )
     assets: Annotated[
         dict[
-            str,
+            Annotated[str, StringConstraints(pattern=r&#39;^[a-zA-Z0-9_-]+$&#39;)],
             image_asset.ImageAsset
             | video_asset.VideoAsset
             | audio_asset.AudioAsset
@@ -6081,7 +5988,7 @@ validated to form a valid model.</p>
     )
     assets: Annotated[
         dict[
-            str,
+            Annotated[str, StringConstraints(pattern=r&#39;^[a-z0-9_]+$&#39;)],
             image_asset.ImageAsset
             | video_asset.VideoAsset
             | audio_asset.AudioAsset
@@ -8643,7 +8550,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <pre><code class="python">class FieldModel(Enum):
     creative_id = &#39;creative_id&#39;
     name = &#39;name&#39;
-    format_ = &#39;format&#39;
+    format = &#39;format&#39;
     status = &#39;status&#39;
     created_date = &#39;created_date&#39;
     updated_date = &#39;updated_date&#39;
@@ -8705,7 +8612,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.FieldModel.format_"><code class="name">var <span class="ident">format_</span></code></dt>
+<dt id="adcp.types.FieldModel.format"><code class="name">var <span class="ident">format</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -9380,7 +9287,7 @@ attributes &ndash; see the documentation for details.</p></div>
     output_format_ids: Annotated[
         list[format_id_1.FormatId] | None,
         Field(
-            description=&#39;For generative formats: array of format IDs that this format can generate. When a format accepts inputs like brand_manifest and message, this specifies what concrete output formats can be produced (e.g., a generative banner format might output standard image banner formats).&#39;
+            description=&#39;For generative formats: array of format IDs that this format can generate. When a format accepts inputs like brand context and message, this specifies what concrete output formats can be produced (e.g., a generative banner format might output standard image banner formats).&#39;
         ),
     ] = None
     renders: Annotated[
@@ -10403,6 +10310,12 @@ validated to form a valid model.</p>
     ] = None
     adcp: Annotated[Adcp, Field(description=&#39;Core AdCP protocol information&#39;)]
     context: context_1.ContextObject | None = None
+    creative: Annotated[
+        Creative | None,
+        Field(
+            description=&#39;Creative protocol capabilities. Only present if creative is in supported_protocols.&#39;
+        ),
+    ] = None
     errors: Annotated[
         list[error.Error] | None, Field(description=&#39;Task-specific errors and warnings&#39;)
     ] = None
@@ -10472,6 +10385,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.GetAdcpCapabilitiesResponse.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetAdcpCapabilitiesResponse.creative"><code class="name">var <span class="ident">creative</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Creative" href="generated_poc/protocol/get_adcp_capabilities_response.html#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Creative">Creative</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -11973,17 +11890,14 @@ validated to form a valid model.</p>
             description=&#34;Account ID for product lookup. Required when the seller declares account.required_for_products = true in capabilities. Returns products with pricing specific to this account&#39;s rate card.&#34;
         ),
     ] = None
-    brand_manifest: Annotated[
-        brand_manifest_ref.BrandManifestReference | None,
+    brand: Annotated[
+        brand_ref.BrandReference | None,
         Field(
-            description=&#39;Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest.&#39;
+            description=&#39;Brand reference for product discovery context. Resolved to full brand identity at execution time.&#39;
         ),
     ] = None
     brief: Annotated[
-        str | None,
-        Field(
-            description=&#34;Natural language description of campaign requirements. When refining a proposal, can include instructions like &#39;focus more on German speakers&#39; or &#39;increase mobile allocation&#39;.&#34;
-        ),
+        str | None, Field(description=&#39;Natural language description of campaign requirements.&#39;)
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
@@ -11992,19 +11906,13 @@ validated to form a valid model.</p>
     product_selectors: Annotated[
         promoted_products.PromotedProducts | None,
         Field(
-            description=&#39;Selectors to filter the brand manifest product catalog for product discovery. When provided, sellers should only return advertising products where the selected catalog items have matches. Uses the same selection methods as promoted-offerings.&#39;
+            description=&#34;Selectors to filter the brand&#39;s product catalog for product discovery. When provided, sellers should only return advertising products where the selected catalog items have matches. Uses the same selection methods as promoted-offerings.&#34;
         ),
     ] = None
     property_list: Annotated[
         property_list_ref.PropertyListReference | None,
         Field(
             description=&#39;[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list.&#39;
-        ),
-    ] = None
-    proposal_id: Annotated[
-        str | None,
-        Field(
-            description=&#39;Optional proposal ID to refine. When provided with a brief, the publisher will use the brief as refinement instructions for the specified proposal and return an updated version.&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -12027,7 +11935,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetProductsRequest.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference" href="generated_poc/core/brand_manifest_ref.html#adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference">BrandManifestReference</a> | None</code></dt>
+<dt id="adcp.types.GetProductsRequest.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="generated_poc/core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -12060,10 +11968,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.GetProductsRequest.property_list"><code class="name">var <span class="ident">property_list</span> : <a title="adcp.types.generated_poc.core.property_list_ref.PropertyListReference" href="generated_poc/core/property_list_ref.html#adcp.types.generated_poc.core.property_list_ref.PropertyListReference">PropertyListReference</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.GetProductsRequest.proposal_id"><code class="name">var <span class="ident">proposal_id</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -12115,7 +12019,7 @@ validated to form a valid model.</p>
     proposals: Annotated[
         list[proposal.Proposal] | None,
         Field(
-            description=&#39;Optional array of proposed media plans with budget allocations across products. Publishers include proposals when they can provide strategic guidance based on the brief. Proposals are actionable - buyers can refine them via subsequent get_products calls or execute them directly via create_media_buy.&#39;
+            description=&#39;Optional array of proposed media plans with budget allocations across products. Publishers include proposals when they can provide strategic guidance based on the brief. Proposals are actionable - buyers can refine them via follow-up get_products calls within the same session, or execute them directly via create_media_buy.&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -14014,7 +13918,8 @@ validated to form a valid model.</p>
     ]
     ext: ext_1.ExtensionObject | None = None
     format_summary: Annotated[
-        dict[str, int] | None, Field(description=&#39;Breakdown of creatives by format type&#39;)
+        dict[Annotated[str, StringConstraints(pattern=r&#39;^[a-zA-Z0-9_-]+$&#39;)], int] | None,
+        Field(description=&#39;Breakdown of creatives by format type&#39;),
     ] = None
     pagination: pagination_response.PaginationResponse
     query_summary: Annotated[
@@ -14525,12 +14430,38 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    background: Annotated[
+        Background | None,
+        Field(
+            description=&#39;Background compatibility. dark-bg: use on dark backgrounds, light-bg: use on light backgrounds, transparent-bg: has transparent background&#39;
+        ),
+    ] = None
     height: Annotated[int | None, Field(description=&#39;Height in pixels&#39;)] = None
+    orientation: Annotated[
+        Orientation | None,
+        Field(
+            description=&#39;Logo aspect ratio orientation. square: ~1:1, horizontal: wide, vertical: tall, stacked: vertically arranged elements&#39;
+        ),
+    ] = None
     tags: Annotated[
         list[str] | None,
-        Field(description=&#34;Semantic tags (e.g., &#39;dark&#39;, &#39;light&#39;, &#39;square&#39;, &#39;horizontal&#39;, &#39;icon&#39;)&#34;),
+        Field(
+            description=&#39;Additional semantic tags for custom categorization beyond the standard orientation, background, and variant fields&#39;
+        ),
     ] = None
     url: Annotated[AnyUrl, Field(description=&#39;URL to the logo asset&#39;)]
+    usage: Annotated[
+        str | None,
+        Field(
+            description=&#34;Human-readable description of when to use this logo variant (e.g., &#39;Primary logo for use on light backgrounds&#39;)&#34;
+        ),
+    ] = None
+    variant: Annotated[
+        Variant | None,
+        Field(
+            description=&#39;Logo variant type. primary: main logo, secondary: alternative, icon: symbol only, wordmark: text only, full-lockup: complete logo&#39;
+        ),
+    ] = None
     width: Annotated[int | None, Field(description=&#39;Width in pixels&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -14548,6 +14479,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.Logo.background"><code class="name">var <span class="ident">background</span> : <a title="adcp.types.generated_poc.brand.Background" href="generated_poc/brand.html#adcp.types.generated_poc.brand.Background">Background</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.Logo.height"><code class="name">var <span class="ident">height</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -14556,11 +14491,23 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.Logo.orientation"><code class="name">var <span class="ident">orientation</span> : <a title="adcp.types.generated_poc.brand.Orientation" href="generated_poc/brand.html#adcp.types.generated_poc.brand.Orientation">Orientation</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.Logo.tags"><code class="name">var <span class="ident">tags</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.Logo.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Logo.usage"><code class="name">var <span class="ident">usage</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Logo.variant"><code class="name">var <span class="ident">variant</span> : <a title="adcp.types.generated_poc.brand.Variant" href="generated_poc/brand.html#adcp.types.generated_poc.brand.Variant">Variant</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -15213,6 +15160,128 @@ attributes &ndash; see the documentation for details.</p></div>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.MediaBuyStatus.pending_activation"><code class="name">var <span class="ident">pending_activation</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.Member"><code class="flex name class">
+<span>class <span class="ident">Member</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Member(BaseModel):
+    &#34;&#34;&#34;An organization registered in the AAO member directory.&#34;&#34;&#34;
+
+    model_config = ConfigDict(extra=&#34;allow&#34;)
+
+    id: str
+    slug: str
+    display_name: str
+    description: str | None = None
+    tagline: str | None = None
+    logo_url: str | None = None
+    logo_light_url: str | None = None
+    logo_dark_url: str | None = None
+    contact_email: str | None = None
+    contact_website: str | None = None
+    offerings: list[str] = Field(default_factory=list)
+    markets: list[str] = Field(default_factory=list)
+    agents: list[dict[str, Any]] = Field(default_factory=list)
+    brands: list[dict[str, Any]] = Field(default_factory=list)
+    is_public: bool = True
+    is_founding_member: bool = False
+    featured: bool = False
+    si_enabled: bool = False</code></pre>
+</details>
+<div class="desc"><p>An organization registered in the AAO member directory.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.Member.agents"><code class="name">var <span class="ident">agents</span> : list[dict[str, typing.Any]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Member.brands"><code class="name">var <span class="ident">brands</span> : list[dict[str, typing.Any]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Member.contact_email"><code class="name">var <span class="ident">contact_email</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Member.contact_website"><code class="name">var <span class="ident">contact_website</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Member.description"><code class="name">var <span class="ident">description</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Member.display_name"><code class="name">var <span class="ident">display_name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Member.featured"><code class="name">var <span class="ident">featured</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Member.id"><code class="name">var <span class="ident">id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Member.is_founding_member"><code class="name">var <span class="ident">is_founding_member</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Member.is_public"><code class="name">var <span class="ident">is_public</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Member.logo_dark_url"><code class="name">var <span class="ident">logo_dark_url</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Member.logo_light_url"><code class="name">var <span class="ident">logo_light_url</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Member.logo_url"><code class="name">var <span class="ident">logo_url</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Member.markets"><code class="name">var <span class="ident">markets</span> : list[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Member.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Member.offerings"><code class="name">var <span class="ident">offerings</span> : list[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Member.si_enabled"><code class="name">var <span class="ident">si_enabled</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Member.slug"><code class="name">var <span class="ident">slug</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Member.tagline"><code class="name">var <span class="ident">tagline</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -17811,7 +17880,7 @@ validated to form a valid model.</p>
     catalog_match: Annotated[
         CatalogMatch | None,
         Field(
-            description=&#34;When the buyer provides a brand_manifest with product_catalog, indicates which of the buyer&#39;s catalog items are eligible for this product. Enables buyers to make informed product_selector choices in create_media_buy. Only present for products where catalog matching is relevant (e.g. sponsored product listings on retail media). Sellers SHOULD include at least one of matched_gtins or matched_skus.&#34;
+            description=&#34;When the buyer provides a brand with product_catalog, indicates which of the buyer&#39;s catalog items are eligible for this product. Enables buyers to make informed product_selector choices in create_media_buy. Only present for products where catalog matching is relevant (e.g. sponsored product listings on retail media). Sellers SHOULD include at least one of matched_gtins or matched_skus.&#34;
         ),
     ] = None
     channels: Annotated[
@@ -17843,14 +17912,16 @@ validated to form a valid model.</p>
     description: Annotated[
         str, Field(description=&#39;Detailed description of the product and its inventory&#39;)
     ]
-    estimated_exposures: Annotated[
-        int | None,
-        Field(description=&#39;Estimated exposures/impressions for guaranteed products&#39;, ge=0),
-    ] = None
     expires_at: Annotated[
         AwareDatetime | None, Field(description=&#39;Expiration timestamp for custom products&#39;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
+    forecast: Annotated[
+        delivery_forecast.DeliveryForecast | None,
+        Field(
+            description=&#39;Forecasted delivery metrics for this product. Gives buyers an estimate of expected performance before requesting a proposal.&#39;
+        ),
+    ] = None
     format_ids: Annotated[
         list[format_id_1.FormatId],
         Field(
@@ -17956,15 +18027,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.Product.estimated_exposures"><code class="name">var <span class="ident">estimated_exposures</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="adcp.types.Product.expires_at"><code class="name">var <span class="ident">expires_at</span> : pydantic.types.AwareDatetime | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.Product.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Product.forecast"><code class="name">var <span class="ident">forecast</span> : <a title="adcp.types.generated_poc.core.delivery_forecast.DeliveryForecast" href="generated_poc/core/delivery_forecast.html#adcp.types.generated_poc.core.delivery_forecast.DeliveryForecast">DeliveryForecast</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -18177,11 +18248,22 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    agentic_checkout: AgenticCheckout | None = None
-    categories: list[str] | None = None
-    feed_format: FeedFormat | None = None
-    feed_url: AnyUrl
-    update_frequency: UpdateFrequency | None = None</code></pre>
+    agentic_checkout: Annotated[
+        AgenticCheckout | None, Field(description=&#39;Agentic checkout endpoint configuration&#39;)
+    ] = None
+    categories: Annotated[
+        list[str] | None, Field(description=&#39;Product categories available in the catalog&#39;)
+    ] = None
+    feed_format: Annotated[FeedFormat | None, Field(description=&#39;Format of the product feed&#39;)] = (
+        None
+    )
+    feed_url: Annotated[AnyUrl, Field(description=&#39;URL to product catalog feed&#39;)]
+    last_updated: Annotated[
+        AwareDatetime | None, Field(description=&#39;When the product catalog was last updated&#39;)
+    ] = None
+    update_frequency: Annotated[
+        UpdateFrequency | None, Field(description=&#39;How frequently the product catalog is updated&#39;)
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -18211,6 +18293,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.ProductCatalog.feed_url"><code class="name">var <span class="ident">feed_url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProductCatalog.last_updated"><code class="name">var <span class="ident">last_updated</span> : pydantic.types.AwareDatetime | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -18454,12 +18540,12 @@ validated to form a valid model.</p>
     )
     asset_selectors: Annotated[
         AssetSelectors | None,
-        Field(description=&#39;Selectors to choose specific assets from the brand manifest&#39;),
+        Field(description=&#34;Selectors to choose specific assets from the brand&#39;s asset library&#34;),
     ] = None
-    brand_manifest: Annotated[
-        brand_manifest_ref.BrandManifestReference,
+    brand: Annotated[
+        brand_ref.BrandReference,
         Field(
-            description=&#39;Brand information manifest containing assets, themes, and guidelines. Can be provided inline or as a URL reference to a hosted manifest.&#39;
+            description=&#39;Brand reference. Resolved to full brand identity (logos, colors, tone, assets) at execution time for creative generation.&#39;
         ),
     ]
     offerings: Annotated[
@@ -18471,7 +18557,7 @@ validated to form a valid model.</p>
     product_selectors: Annotated[
         promoted_products.PromotedProducts | None,
         Field(
-            description=&#39;Selectors to choose which products/offerings from the brand manifest product catalog to promote&#39;
+            description=&#34;Selectors to choose which products/offerings from the brand&#39;s product catalog to promote&#34;
         ),
     ] = None
     si_agent_url: Annotated[
@@ -18500,7 +18586,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.PromotedOfferings.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference" href="generated_poc/core/brand_manifest_ref.html#adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference">BrandManifestReference</a></code></dt>
+<dt id="adcp.types.PromotedOfferings.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="generated_poc/core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -18548,7 +18634,7 @@ validated to form a valid model.</p>
     manifest_category: Annotated[
         str | None,
         Field(
-            description=&#34;Select products from a specific category in the brand manifest product catalog (e.g., &#39;beverages/soft-drinks&#39;, &#39;food/sauces&#39;)&#34;
+            description=&#34;Select products from a specific category in the brand&#39;s product catalog (e.g., &#39;beverages/soft-drinks&#39;, &#39;food/sauces&#39;)&#34;
         ),
     ] = None
     manifest_gtins: Annotated[
@@ -18560,17 +18646,17 @@ validated to form a valid model.</p>
     manifest_query: Annotated[
         str | None,
         Field(
-            description=&#34;Natural language query to select products from the brand manifest (e.g., &#39;all Kraft Heinz pasta sauces&#39;, &#39;organic products under $20&#39;)&#34;
+            description=&#34;Natural language query to select products from the brand&#39;s catalog (e.g., &#39;all pasta sauces&#39;, &#39;organic products under $20&#39;)&#34;
         ),
     ] = None
     manifest_skus: Annotated[
         list[str] | None,
-        Field(description=&#39;Direct product SKU references from the brand manifest product catalog&#39;),
+        Field(description=&#34;Direct product SKU references from the brand&#39;s product catalog&#34;),
     ] = None
     manifest_tags: Annotated[
         list[str] | None,
         Field(
-            description=&#34;Select products by tags from the brand manifest product catalog (e.g., &#39;organic&#39;, &#39;sauces&#39;, &#39;holiday&#39;)&#34;
+            description=&#34;Select products by tags from the brand&#39;s product catalog (e.g., &#39;organic&#39;, &#39;sauces&#39;, &#39;holiday&#39;)&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -18935,9 +19021,11 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#34;Array of property sources to evaluate. Each entry is a discriminated union: publisher_tags (publisher_domain + tags), publisher_ids (publisher_domain + property_ids), or identifiers (direct identifiers). If omitted, queries the agent&#39;s entire property database.&#34;
         ),
     ] = None
-    brand_manifest: Annotated[
-        brand_manifest_1.BrandManifest | None,
-        Field(description=&#39;Brand identity used to automatically apply appropriate rules&#39;),
+    brand: Annotated[
+        brand_ref.BrandReference | None,
+        Field(
+            description=&#39;Brand reference used to automatically apply appropriate rules. Resolved to full brand identity at execution time.&#39;
+        ),
     ] = None
     cache_duration_hours: Annotated[
         int | None,
@@ -18992,7 +19080,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.PropertyList.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest.BrandManifest" href="generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.BrandManifest">BrandManifest</a> | None</code></dt>
+<dt id="adcp.types.PropertyList.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="generated_poc/core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -21077,8 +21165,21 @@ validated to form a valid model.</p>
     house_domain: str | None = None
     house_name: str | None = None
     brand_agent_url: str | None = None
+    brand: dict[str, Any] | None = None
     brand_manifest: dict[str, Any] | None = None
-    source: str</code></pre>
+    source: str
+
+    @model_validator(mode=&#34;before&#34;)
+    @classmethod
+    def _normalize_brand_fields(cls, data: Any) -&gt; Any:
+        &#34;&#34;&#34;Cross-populate brand and brand_manifest so both names are always accessible.&#34;&#34;&#34;
+        if isinstance(data, dict):
+            data = dict(data)
+            if &#34;brand&#34; in data and &#34;brand_manifest&#34; not in data:
+                data[&#34;brand_manifest&#34;] = data[&#34;brand&#34;]
+            elif &#34;brand_manifest&#34; in data and &#34;brand&#34; not in data:
+                data[&#34;brand&#34;] = data[&#34;brand_manifest&#34;]
+        return data</code></pre>
 </details>
 <div class="desc"><p>Brand identity resolved from the AdCP registry.</p>
 <p>Create a new model by parsing and validating input data from keyword arguments.</p>
@@ -21091,6 +21192,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.ResolvedBrand.brand"><code class="name">var <span class="ident">brand</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.ResolvedBrand.brand_agent_url"><code class="name">var <span class="ident">brand_agent_url</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -23565,7 +23670,7 @@ validated to form a valid model.</p>
         ),
     ] = None
     assignments: Annotated[
-        dict[str, list[str]] | None,
+        dict[Annotated[str, StringConstraints(pattern=r&#39;^[a-zA-Z0-9_-]+$&#39;)], list[str]] | None,
         Field(description=&#39;Optional bulk assignment of creatives to packages&#39;),
     ] = None
     context: context_1.ContextObject | None = None
@@ -25594,9 +25699,11 @@ validated to form a valid model.</p>
             description=&#39;Complete replacement for the base properties list (not a patch). Each entry is a discriminated union: publisher_tags (publisher_domain + tags), publisher_ids (publisher_domain + property_ids), or identifiers (direct identifiers).&#39;
         ),
     ] = None
-    brand_manifest: Annotated[
-        brand_manifest_1.BrandManifest | None,
-        Field(description=&#39;Update brand identity and requirements&#39;),
+    brand: Annotated[
+        brand_ref.BrandReference | None,
+        Field(
+            description=&#39;Update brand reference. Resolved to full brand identity at execution time.&#39;
+        ),
     ] = None
     context: context_1.ContextObject | None = None
     description: Annotated[str | None, Field(description=&#39;New description&#39;)] = None
@@ -25633,7 +25740,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.UpdatePropertyListRequest.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest.BrandManifest" href="generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.BrandManifest">BrandManifest</a> | None</code></dt>
+<dt id="adcp.types.UpdatePropertyListRequest.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="generated_poc/core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -27774,9 +27881,12 @@ attributes &ndash; see the documentation for details.</p></div>
 <ul class="two-column">
 <li><code><a title="adcp.types.Asset.asset_id" href="#adcp.types.Asset.asset_id">asset_id</a></code></li>
 <li><code><a title="adcp.types.Asset.asset_type" href="#adcp.types.Asset.asset_type">asset_type</a></code></li>
+<li><code><a title="adcp.types.Asset.description" href="#adcp.types.Asset.description">description</a></code></li>
 <li><code><a title="adcp.types.Asset.duration_seconds" href="#adcp.types.Asset.duration_seconds">duration_seconds</a></code></li>
+<li><code><a title="adcp.types.Asset.file_size_bytes" href="#adcp.types.Asset.file_size_bytes">file_size_bytes</a></code></li>
 <li><code><a title="adcp.types.Asset.format" href="#adcp.types.Asset.format">format</a></code></li>
 <li><code><a title="adcp.types.Asset.height" href="#adcp.types.Asset.height">height</a></code></li>
+<li><code><a title="adcp.types.Asset.metadata" href="#adcp.types.Asset.metadata">metadata</a></code></li>
 <li><code><a title="adcp.types.Asset.model_config" href="#adcp.types.Asset.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.Asset.name" href="#adcp.types.Asset.name">name</a></code></li>
 <li><code><a title="adcp.types.Asset.tags" href="#adcp.types.Asset.tags">tags</a></code></li>
@@ -27965,31 +28075,16 @@ attributes &ndash; see the documentation for details.</p></div>
 </li>
 <li>
 <h4><code><a title="adcp.types.BrandManifest" href="#adcp.types.BrandManifest">BrandManifest</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.BrandManifest.assets" href="#adcp.types.BrandManifest.assets">assets</a></code></li>
-<li><code><a title="adcp.types.BrandManifest.avatar" href="#adcp.types.BrandManifest.avatar">avatar</a></code></li>
-<li><code><a title="adcp.types.BrandManifest.colors" href="#adcp.types.BrandManifest.colors">colors</a></code></li>
-<li><code><a title="adcp.types.BrandManifest.contact" href="#adcp.types.BrandManifest.contact">contact</a></code></li>
-<li><code><a title="adcp.types.BrandManifest.disclaimers" href="#adcp.types.BrandManifest.disclaimers">disclaimers</a></code></li>
-<li><code><a title="adcp.types.BrandManifest.fonts" href="#adcp.types.BrandManifest.fonts">fonts</a></code></li>
-<li><code><a title="adcp.types.BrandManifest.industry" href="#adcp.types.BrandManifest.industry">industry</a></code></li>
-<li><code><a title="adcp.types.BrandManifest.logos" href="#adcp.types.BrandManifest.logos">logos</a></code></li>
-<li><code><a title="adcp.types.BrandManifest.metadata" href="#adcp.types.BrandManifest.metadata">metadata</a></code></li>
+<ul class="">
 <li><code><a title="adcp.types.BrandManifest.model_config" href="#adcp.types.BrandManifest.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.BrandManifest.name" href="#adcp.types.BrandManifest.name">name</a></code></li>
-<li><code><a title="adcp.types.BrandManifest.privacy_policy_url" href="#adcp.types.BrandManifest.privacy_policy_url">privacy_policy_url</a></code></li>
-<li><code><a title="adcp.types.BrandManifest.product_catalog" href="#adcp.types.BrandManifest.product_catalog">product_catalog</a></code></li>
-<li><code><a title="adcp.types.BrandManifest.tagline" href="#adcp.types.BrandManifest.tagline">tagline</a></code></li>
-<li><code><a title="adcp.types.BrandManifest.target_audience" href="#adcp.types.BrandManifest.target_audience">target_audience</a></code></li>
-<li><code><a title="adcp.types.BrandManifest.tone" href="#adcp.types.BrandManifest.tone">tone</a></code></li>
-<li><code><a title="adcp.types.BrandManifest.url" href="#adcp.types.BrandManifest.url">url</a></code></li>
-<li><code><a title="adcp.types.BrandManifest.voice" href="#adcp.types.BrandManifest.voice">voice</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="adcp.types.BuildCreativeRequest" href="#adcp.types.BuildCreativeRequest">BuildCreativeRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.BuildCreativeRequest.brand" href="#adcp.types.BuildCreativeRequest.brand">brand</a></code></li>
 <li><code><a title="adcp.types.BuildCreativeRequest.context" href="#adcp.types.BuildCreativeRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.BuildCreativeRequest.creative_brief" href="#adcp.types.BuildCreativeRequest.creative_brief">creative_brief</a></code></li>
 <li><code><a title="adcp.types.BuildCreativeRequest.creative_manifest" href="#adcp.types.BuildCreativeRequest.creative_manifest">creative_manifest</a></code></li>
 <li><code><a title="adcp.types.BuildCreativeRequest.ext" href="#adcp.types.BuildCreativeRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.BuildCreativeRequest.message" href="#adcp.types.BuildCreativeRequest.message">message</a></code></li>
@@ -28243,7 +28338,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <ul class="two-column">
 <li><code><a title="adcp.types.CreateMediaBuyRequest.account_id" href="#adcp.types.CreateMediaBuyRequest.account_id">account_id</a></code></li>
 <li><code><a title="adcp.types.CreateMediaBuyRequest.artifact_webhook" href="#adcp.types.CreateMediaBuyRequest.artifact_webhook">artifact_webhook</a></code></li>
-<li><code><a title="adcp.types.CreateMediaBuyRequest.brand_manifest" href="#adcp.types.CreateMediaBuyRequest.brand_manifest">brand_manifest</a></code></li>
+<li><code><a title="adcp.types.CreateMediaBuyRequest.brand" href="#adcp.types.CreateMediaBuyRequest.brand">brand</a></code></li>
 <li><code><a title="adcp.types.CreateMediaBuyRequest.buyer_ref" href="#adcp.types.CreateMediaBuyRequest.buyer_ref">buyer_ref</a></code></li>
 <li><code><a title="adcp.types.CreateMediaBuyRequest.context" href="#adcp.types.CreateMediaBuyRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.CreateMediaBuyRequest.end_time" href="#adcp.types.CreateMediaBuyRequest.end_time">end_time</a></code></li>
@@ -28290,7 +28385,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <h4><code><a title="adcp.types.CreatePropertyListRequest" href="#adcp.types.CreatePropertyListRequest">CreatePropertyListRequest</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.CreatePropertyListRequest.base_properties" href="#adcp.types.CreatePropertyListRequest.base_properties">base_properties</a></code></li>
-<li><code><a title="adcp.types.CreatePropertyListRequest.brand_manifest" href="#adcp.types.CreatePropertyListRequest.brand_manifest">brand_manifest</a></code></li>
+<li><code><a title="adcp.types.CreatePropertyListRequest.brand" href="#adcp.types.CreatePropertyListRequest.brand">brand</a></code></li>
 <li><code><a title="adcp.types.CreatePropertyListRequest.context" href="#adcp.types.CreatePropertyListRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.CreatePropertyListRequest.description" href="#adcp.types.CreatePropertyListRequest.description">description</a></code></li>
 <li><code><a title="adcp.types.CreatePropertyListRequest.ext" href="#adcp.types.CreatePropertyListRequest.ext">ext</a></code></li>
@@ -28769,7 +28864,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.FieldModel.assignments" href="#adcp.types.FieldModel.assignments">assignments</a></code></li>
 <li><code><a title="adcp.types.FieldModel.created_date" href="#adcp.types.FieldModel.created_date">created_date</a></code></li>
 <li><code><a title="adcp.types.FieldModel.creative_id" href="#adcp.types.FieldModel.creative_id">creative_id</a></code></li>
-<li><code><a title="adcp.types.FieldModel.format_" href="#adcp.types.FieldModel.format_">format_</a></code></li>
+<li><code><a title="adcp.types.FieldModel.format" href="#adcp.types.FieldModel.format">format</a></code></li>
 <li><code><a title="adcp.types.FieldModel.name" href="#adcp.types.FieldModel.name">name</a></code></li>
 <li><code><a title="adcp.types.FieldModel.performance" href="#adcp.types.FieldModel.performance">performance</a></code></li>
 <li><code><a title="adcp.types.FieldModel.status" href="#adcp.types.FieldModel.status">status</a></code></li>
@@ -28989,6 +29084,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.GetAdcpCapabilitiesResponse.account" href="#adcp.types.GetAdcpCapabilitiesResponse.account">account</a></code></li>
 <li><code><a title="adcp.types.GetAdcpCapabilitiesResponse.adcp" href="#adcp.types.GetAdcpCapabilitiesResponse.adcp">adcp</a></code></li>
 <li><code><a title="adcp.types.GetAdcpCapabilitiesResponse.context" href="#adcp.types.GetAdcpCapabilitiesResponse.context">context</a></code></li>
+<li><code><a title="adcp.types.GetAdcpCapabilitiesResponse.creative" href="#adcp.types.GetAdcpCapabilitiesResponse.creative">creative</a></code></li>
 <li><code><a title="adcp.types.GetAdcpCapabilitiesResponse.errors" href="#adcp.types.GetAdcpCapabilitiesResponse.errors">errors</a></code></li>
 <li><code><a title="adcp.types.GetAdcpCapabilitiesResponse.ext" href="#adcp.types.GetAdcpCapabilitiesResponse.ext">ext</a></code></li>
 <li><code><a title="adcp.types.GetAdcpCapabilitiesResponse.extensions_supported" href="#adcp.types.GetAdcpCapabilitiesResponse.extensions_supported">extensions_supported</a></code></li>
@@ -29187,7 +29283,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <h4><code><a title="adcp.types.GetProductsRequest" href="#adcp.types.GetProductsRequest">GetProductsRequest</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.GetProductsRequest.account_id" href="#adcp.types.GetProductsRequest.account_id">account_id</a></code></li>
-<li><code><a title="adcp.types.GetProductsRequest.brand_manifest" href="#adcp.types.GetProductsRequest.brand_manifest">brand_manifest</a></code></li>
+<li><code><a title="adcp.types.GetProductsRequest.brand" href="#adcp.types.GetProductsRequest.brand">brand</a></code></li>
 <li><code><a title="adcp.types.GetProductsRequest.brief" href="#adcp.types.GetProductsRequest.brief">brief</a></code></li>
 <li><code><a title="adcp.types.GetProductsRequest.context" href="#adcp.types.GetProductsRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.GetProductsRequest.ext" href="#adcp.types.GetProductsRequest.ext">ext</a></code></li>
@@ -29196,7 +29292,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.GetProductsRequest.pagination" href="#adcp.types.GetProductsRequest.pagination">pagination</a></code></li>
 <li><code><a title="adcp.types.GetProductsRequest.product_selectors" href="#adcp.types.GetProductsRequest.product_selectors">product_selectors</a></code></li>
 <li><code><a title="adcp.types.GetProductsRequest.property_list" href="#adcp.types.GetProductsRequest.property_list">property_list</a></code></li>
-<li><code><a title="adcp.types.GetProductsRequest.proposal_id" href="#adcp.types.GetProductsRequest.proposal_id">proposal_id</a></code></li>
 </ul>
 </li>
 <li>
@@ -29529,11 +29624,15 @@ attributes &ndash; see the documentation for details.</p></div>
 </li>
 <li>
 <h4><code><a title="adcp.types.Logo" href="#adcp.types.Logo">Logo</a></code></h4>
-<ul class="">
+<ul class="two-column">
+<li><code><a title="adcp.types.Logo.background" href="#adcp.types.Logo.background">background</a></code></li>
 <li><code><a title="adcp.types.Logo.height" href="#adcp.types.Logo.height">height</a></code></li>
 <li><code><a title="adcp.types.Logo.model_config" href="#adcp.types.Logo.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.Logo.orientation" href="#adcp.types.Logo.orientation">orientation</a></code></li>
 <li><code><a title="adcp.types.Logo.tags" href="#adcp.types.Logo.tags">tags</a></code></li>
 <li><code><a title="adcp.types.Logo.url" href="#adcp.types.Logo.url">url</a></code></li>
+<li><code><a title="adcp.types.Logo.usage" href="#adcp.types.Logo.usage">usage</a></code></li>
+<li><code><a title="adcp.types.Logo.variant" href="#adcp.types.Logo.variant">variant</a></code></li>
 <li><code><a title="adcp.types.Logo.width" href="#adcp.types.Logo.width">width</a></code></li>
 </ul>
 </li>
@@ -29616,6 +29715,30 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.MediaBuyStatus.completed" href="#adcp.types.MediaBuyStatus.completed">completed</a></code></li>
 <li><code><a title="adcp.types.MediaBuyStatus.paused" href="#adcp.types.MediaBuyStatus.paused">paused</a></code></li>
 <li><code><a title="adcp.types.MediaBuyStatus.pending_activation" href="#adcp.types.MediaBuyStatus.pending_activation">pending_activation</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.Member" href="#adcp.types.Member">Member</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.Member.agents" href="#adcp.types.Member.agents">agents</a></code></li>
+<li><code><a title="adcp.types.Member.brands" href="#adcp.types.Member.brands">brands</a></code></li>
+<li><code><a title="adcp.types.Member.contact_email" href="#adcp.types.Member.contact_email">contact_email</a></code></li>
+<li><code><a title="adcp.types.Member.contact_website" href="#adcp.types.Member.contact_website">contact_website</a></code></li>
+<li><code><a title="adcp.types.Member.description" href="#adcp.types.Member.description">description</a></code></li>
+<li><code><a title="adcp.types.Member.display_name" href="#adcp.types.Member.display_name">display_name</a></code></li>
+<li><code><a title="adcp.types.Member.featured" href="#adcp.types.Member.featured">featured</a></code></li>
+<li><code><a title="adcp.types.Member.id" href="#adcp.types.Member.id">id</a></code></li>
+<li><code><a title="adcp.types.Member.is_founding_member" href="#adcp.types.Member.is_founding_member">is_founding_member</a></code></li>
+<li><code><a title="adcp.types.Member.is_public" href="#adcp.types.Member.is_public">is_public</a></code></li>
+<li><code><a title="adcp.types.Member.logo_dark_url" href="#adcp.types.Member.logo_dark_url">logo_dark_url</a></code></li>
+<li><code><a title="adcp.types.Member.logo_light_url" href="#adcp.types.Member.logo_light_url">logo_light_url</a></code></li>
+<li><code><a title="adcp.types.Member.logo_url" href="#adcp.types.Member.logo_url">logo_url</a></code></li>
+<li><code><a title="adcp.types.Member.markets" href="#adcp.types.Member.markets">markets</a></code></li>
+<li><code><a title="adcp.types.Member.model_config" href="#adcp.types.Member.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.Member.offerings" href="#adcp.types.Member.offerings">offerings</a></code></li>
+<li><code><a title="adcp.types.Member.si_enabled" href="#adcp.types.Member.si_enabled">si_enabled</a></code></li>
+<li><code><a title="adcp.types.Member.slug" href="#adcp.types.Member.slug">slug</a></code></li>
+<li><code><a title="adcp.types.Member.tagline" href="#adcp.types.Member.tagline">tagline</a></code></li>
 </ul>
 </li>
 <li>
@@ -29962,9 +30085,9 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.Product.delivery_measurement" href="#adcp.types.Product.delivery_measurement">delivery_measurement</a></code></li>
 <li><code><a title="adcp.types.Product.delivery_type" href="#adcp.types.Product.delivery_type">delivery_type</a></code></li>
 <li><code><a title="adcp.types.Product.description" href="#adcp.types.Product.description">description</a></code></li>
-<li><code><a title="adcp.types.Product.estimated_exposures" href="#adcp.types.Product.estimated_exposures">estimated_exposures</a></code></li>
 <li><code><a title="adcp.types.Product.expires_at" href="#adcp.types.Product.expires_at">expires_at</a></code></li>
 <li><code><a title="adcp.types.Product.ext" href="#adcp.types.Product.ext">ext</a></code></li>
+<li><code><a title="adcp.types.Product.forecast" href="#adcp.types.Product.forecast">forecast</a></code></li>
 <li><code><a title="adcp.types.Product.format_ids" href="#adcp.types.Product.format_ids">format_ids</a></code></li>
 <li><code><a title="adcp.types.Product.is_custom" href="#adcp.types.Product.is_custom">is_custom</a></code></li>
 <li><code><a title="adcp.types.Product.measurement" href="#adcp.types.Product.measurement">measurement</a></code></li>
@@ -30004,6 +30127,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.ProductCatalog.categories" href="#adcp.types.ProductCatalog.categories">categories</a></code></li>
 <li><code><a title="adcp.types.ProductCatalog.feed_format" href="#adcp.types.ProductCatalog.feed_format">feed_format</a></code></li>
 <li><code><a title="adcp.types.ProductCatalog.feed_url" href="#adcp.types.ProductCatalog.feed_url">feed_url</a></code></li>
+<li><code><a title="adcp.types.ProductCatalog.last_updated" href="#adcp.types.ProductCatalog.last_updated">last_updated</a></code></li>
 <li><code><a title="adcp.types.ProductCatalog.model_config" href="#adcp.types.ProductCatalog.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.ProductCatalog.update_frequency" href="#adcp.types.ProductCatalog.update_frequency">update_frequency</a></code></li>
 </ul>
@@ -30035,7 +30159,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <h4><code><a title="adcp.types.PromotedOfferings" href="#adcp.types.PromotedOfferings">PromotedOfferings</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.PromotedOfferings.asset_selectors" href="#adcp.types.PromotedOfferings.asset_selectors">asset_selectors</a></code></li>
-<li><code><a title="adcp.types.PromotedOfferings.brand_manifest" href="#adcp.types.PromotedOfferings.brand_manifest">brand_manifest</a></code></li>
+<li><code><a title="adcp.types.PromotedOfferings.brand" href="#adcp.types.PromotedOfferings.brand">brand</a></code></li>
 <li><code><a title="adcp.types.PromotedOfferings.model_config" href="#adcp.types.PromotedOfferings.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.PromotedOfferings.offerings" href="#adcp.types.PromotedOfferings.offerings">offerings</a></code></li>
 <li><code><a title="adcp.types.PromotedOfferings.product_selectors" href="#adcp.types.PromotedOfferings.product_selectors">product_selectors</a></code></li>
@@ -30099,7 +30223,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <h4><code><a title="adcp.types.PropertyList" href="#adcp.types.PropertyList">PropertyList</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.PropertyList.base_properties" href="#adcp.types.PropertyList.base_properties">base_properties</a></code></li>
-<li><code><a title="adcp.types.PropertyList.brand_manifest" href="#adcp.types.PropertyList.brand_manifest">brand_manifest</a></code></li>
+<li><code><a title="adcp.types.PropertyList.brand" href="#adcp.types.PropertyList.brand">brand</a></code></li>
 <li><code><a title="adcp.types.PropertyList.cache_duration_hours" href="#adcp.types.PropertyList.cache_duration_hours">cache_duration_hours</a></code></li>
 <li><code><a title="adcp.types.PropertyList.created_at" href="#adcp.types.PropertyList.created_at">created_at</a></code></li>
 <li><code><a title="adcp.types.PropertyList.description" href="#adcp.types.PropertyList.description">description</a></code></li>
@@ -30374,6 +30498,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.ResolvedBrand" href="#adcp.types.ResolvedBrand">ResolvedBrand</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.ResolvedBrand.brand" href="#adcp.types.ResolvedBrand.brand">brand</a></code></li>
 <li><code><a title="adcp.types.ResolvedBrand.brand_agent_url" href="#adcp.types.ResolvedBrand.brand_agent_url">brand_agent_url</a></code></li>
 <li><code><a title="adcp.types.ResolvedBrand.brand_manifest" href="#adcp.types.ResolvedBrand.brand_manifest">brand_manifest</a></code></li>
 <li><code><a title="adcp.types.ResolvedBrand.brand_name" href="#adcp.types.ResolvedBrand.brand_name">brand_name</a></code></li>
@@ -30985,7 +31110,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <h4><code><a title="adcp.types.UpdatePropertyListRequest" href="#adcp.types.UpdatePropertyListRequest">UpdatePropertyListRequest</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.UpdatePropertyListRequest.base_properties" href="#adcp.types.UpdatePropertyListRequest.base_properties">base_properties</a></code></li>
-<li><code><a title="adcp.types.UpdatePropertyListRequest.brand_manifest" href="#adcp.types.UpdatePropertyListRequest.brand_manifest">brand_manifest</a></code></li>
+<li><code><a title="adcp.types.UpdatePropertyListRequest.brand" href="#adcp.types.UpdatePropertyListRequest.brand">brand</a></code></li>
 <li><code><a title="adcp.types.UpdatePropertyListRequest.context" href="#adcp.types.UpdatePropertyListRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.UpdatePropertyListRequest.description" href="#adcp.types.UpdatePropertyListRequest.description">description</a></code></li>
 <li><code><a title="adcp.types.UpdatePropertyListRequest.ext" href="#adcp.types.UpdatePropertyListRequest.ext">ext</a></code></li>

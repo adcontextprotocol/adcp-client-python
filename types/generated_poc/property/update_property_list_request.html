@@ -65,9 +65,11 @@ el.replaceWith(d);
             description=&#39;Complete replacement for the base properties list (not a patch). Each entry is a discriminated union: publisher_tags (publisher_domain + tags), publisher_ids (publisher_domain + property_ids), or identifiers (direct identifiers).&#39;
         ),
     ] = None
-    brand_manifest: Annotated[
-        brand_manifest_1.BrandManifest | None,
-        Field(description=&#39;Update brand identity and requirements&#39;),
+    brand: Annotated[
+        brand_ref.BrandReference | None,
+        Field(
+            description=&#39;Update brand reference. Resolved to full brand identity at execution time.&#39;
+        ),
     ] = None
     context: context_1.ContextObject | None = None
     description: Annotated[str | None, Field(description=&#39;New description&#39;)] = None
@@ -104,7 +106,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest.BrandManifest" href="../core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.BrandManifest">BrandManifest</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="../core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -171,7 +173,7 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest" href="#adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest">UpdatePropertyListRequest</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.base_properties" href="#adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.base_properties">base_properties</a></code></li>
-<li><code><a title="adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.brand_manifest" href="#adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.brand_manifest">brand_manifest</a></code></li>
+<li><code><a title="adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.brand" href="#adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.brand">brand</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.context" href="#adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.description" href="#adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.description">description</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.ext" href="#adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.ext">ext</a></code></li>

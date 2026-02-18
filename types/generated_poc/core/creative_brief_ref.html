@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.core.brand_manifest_ref API documentation</title>
+<title>adcp.types.generated_poc.core.creative_brief_ref API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.core.brand_manifest_ref</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.core.creative_brief_ref</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,8 +46,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference"><code class="flex name class">
-<span>class <span class="ident">BrandManifestReference</span></span>
+<dt id="adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference"><code class="flex name class">
+<span>class <span class="ident">CreativeBriefReference</span></span>
 <span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
 </code></dt>
 <dd>
@@ -55,26 +55,30 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class BrandManifestReference(RootModel[brand_manifest.BrandManifest | AnyUrl]):
+<pre><code class="python">class CreativeBriefReference(RootModel[creative_brief.CreativeBrief | AnyUrl]):
     root: Annotated[
-        brand_manifest.BrandManifest | AnyUrl,
+        creative_brief.CreativeBrief | AnyUrl,
         Field(
-            description=&#39;Brand manifest provided either as an inline object or a URL string pointing to a hosted manifest&#39;,
+            description=&#39;Creative brief provided either as an inline object or a URL string pointing to a hosted brief&#39;,
             examples=[
                 {
                     &#39;data&#39;: {
-                        &#39;colors&#39;: {&#39;primary&#39;: &#39;#FF6B35&#39;},
-                        &#39;name&#39;: &#39;ACME Corporation&#39;,
-                        &#39;url&#39;: &#39;https://acmecorp.com&#39;,
+                        &#39;audience&#39;: &#39;Gift shoppers aged 25-55&#39;,
+                        &#39;messaging&#39;: {
+                            &#39;cta&#39;: &#39;Shop Holiday Deals&#39;,
+                            &#39;headline&#39;: &#39;Give the Gift of Style&#39;,
+                        },
+                        &#39;name&#39;: &#39;Holiday Campaign 2025&#39;,
+                        &#39;objective&#39;: &#39;conversion&#39;,
                     },
-                    &#39;description&#39;: &#39;Inline brand manifest&#39;,
+                    &#39;description&#39;: &#39;Inline creative brief&#39;,
                 },
                 {
-                    &#39;data&#39;: &#39;https://cdn.acmecorp.com/brand-manifest.json&#39;,
-                    &#39;description&#39;: &#39;URL string reference to hosted manifest&#39;,
+                    &#39;data&#39;: &#39;https://cdn.example.com/briefs/holiday-2025.json&#39;,
+                    &#39;description&#39;: &#39;URL string reference to hosted brief&#39;,
                 },
             ],
-            title=&#39;Brand Manifest Reference&#39;,
+            title=&#39;Creative Brief Reference&#39;,
         ),
     ]</code></pre>
 </details>
@@ -100,18 +104,18 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li>pydantic.root_model.RootModel[Union[BrandManifest, AnyUrl]]</li>
+<li>pydantic.root_model.RootModel[Union[CreativeBrief, AnyUrl]]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
 <li>typing.Generic</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.core.brand_manifest.BrandManifest" href="brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.BrandManifest">BrandManifest</a> | pydantic.networks.AnyUrl</code></dt>
+<dt id="adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.core.creative_brief.CreativeBrief" href="creative_brief.html#adcp.types.generated_poc.core.creative_brief.CreativeBrief">CreativeBrief</a> | pydantic.networks.AnyUrl</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -133,10 +137,10 @@ validated to form a valid model.</p>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference" href="#adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference">BrandManifestReference</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference" href="#adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference">CreativeBriefReference</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference.model_config" href="#adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference.root" href="#adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference.root">root</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference.model_config" href="#adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference.root" href="#adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference.root">root</a></code></li>
 </ul>
 </li>
 </ul>

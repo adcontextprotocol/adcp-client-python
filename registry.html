@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
 <title>adcp.registry API documentation</title>
-<meta name="description" content="">
+<meta name="description" content="Client for the AdCP registry API (brand, property, and member lookups).">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -36,6 +36,7 @@ el.replaceWith(d);
 <h1 class="title">Module <code>adcp.registry</code></h1>
 </header>
 <section id="section-intro">
+<p>Client for the AdCP registry API (brand, property, and member lookups).</p>
 </section>
 <section>
 </section>
@@ -58,7 +59,7 @@ el.replaceWith(d);
 <pre><code class="python">class RegistryClient:
     &#34;&#34;&#34;Client for the AdCP registry API.
 
-    Provides brand and property lookups against the central AdCP registry.
+    Provides brand, property, and member lookups against the central AdCP registry.
 
     Args:
         base_url: Registry API base URL.
@@ -107,16 +108,22 @@ el.replaceWith(d);
         await self.close()
 
     async def lookup_brand(self, domain: str) -&gt; ResolvedBrand | None:
-        &#34;&#34;&#34;Resolve a single domain to its canonical brand identity.
+        &#34;&#34;&#34;Resolve a domain to its brand identity.
+
+        Works for any domain — brand houses, sub-brands, and operators
+        (agencies, DSPs) are all brands in the registry.
 
         Args:
-            domain: Domain to resolve (e.g., &#34;nike.com&#34;).
+            domain: Domain to resolve (e.g., &#34;nike.com&#34;, &#34;wpp.com&#34;).
 
         Returns:
-            ResolvedBrand if found, None if the domain is not in the registry.
+            ResolvedBrand if found, None if not in the registry.
 
         Raises:
             RegistryError: On HTTP or parsing errors.
+
+        Example:
+            brand = await registry.lookup_brand(request.brand.domain)
         &#34;&#34;&#34;
         client = await self._get_client()
         try:
@@ -171,14 +178,11 @@ el.replaceWith(d);
         ]
 
         chunk_results = await asyncio.gather(
-            *[self._lookup_brands_chunk(chunk) for chunk in chunks],
-            return_exceptions=True,
+            *[self._lookup_brands_chunk(chunk) for chunk in chunks]
         )
 
         merged: dict[str, ResolvedBrand | None] = {}
         for result in chunk_results:
-            if isinstance(result, BaseException):
-                raise result
             merged.update(result)
         return merged
 
@@ -284,14 +288,11 @@ el.replaceWith(d);
         ]
 
         chunk_results = await asyncio.gather(
-            *[self._lookup_properties_chunk(chunk) for chunk in chunks],
-            return_exceptions=True,
+            *[self._lookup_properties_chunk(chunk) for chunk in chunks]
         )
 
         merged: dict[str, ResolvedProperty | None] = {}
         for result in chunk_results:
-            if isinstance(result, BaseException):
-                raise result
             merged.update(result)
         return merged
 
@@ -328,12 +329,88 @@ el.replaceWith(d);
         except httpx.HTTPError as e:
             raise RegistryError(f&#34;Bulk property lookup failed: {e}&#34;) from e
         except (ValidationError, ValueError) as e:
-            raise RegistryError(
-                f&#34;Bulk property lookup failed: invalid response: {e}&#34;
-            ) from e</code></pre>
+            raise RegistryError(f&#34;Bulk property lookup failed: invalid response: {e}&#34;) from e
+
+    async def list_members(self, limit: int = 100) -&gt; list[Member]:
+        &#34;&#34;&#34;List organizations registered in the AAO member directory.
+
+        Args:
+            limit: Maximum number of members to return.
+
+        Returns:
+            List of Member objects.
+
+        Raises:
+            RegistryError: On HTTP or parsing errors.
+        &#34;&#34;&#34;
+        if limit &lt; 1:
+            raise ValueError(f&#34;limit must be at least 1, got {limit}&#34;)
+
+        client = await self._get_client()
+        try:
+            response = await client.get(
+                f&#34;{self._base_url}/api/members&#34;,
+                params={&#34;limit&#34;: limit},
+                headers={&#34;User-Agent&#34;: self._user_agent},
+                timeout=self._timeout,
+            )
+            if response.status_code != 200:
+                raise RegistryError(
+                    f&#34;Member list failed: HTTP {response.status_code}&#34;,
+                    status_code=response.status_code,
+                )
+            data = response.json()
+            return [Member.model_validate(m) for m in data.get(&#34;members&#34;, [])]
+        except RegistryError:
+            raise
+        except httpx.TimeoutException as e:
+            raise RegistryError(f&#34;Member list timed out after {self._timeout}s&#34;) from e
+        except httpx.HTTPError as e:
+            raise RegistryError(f&#34;Member list failed: {e}&#34;) from e
+        except (ValidationError, ValueError) as e:
+            raise RegistryError(f&#34;Member list failed: invalid response: {e}&#34;) from e
+
+    async def get_member(self, slug: str) -&gt; Member | None:
+        &#34;&#34;&#34;Get a single AAO member by their slug.
+
+        Args:
+            slug: Member slug (e.g., &#34;adgentek&#34;).
+
+        Returns:
+            Member if found, None if not in the registry.
+
+        Raises:
+            RegistryError: On HTTP or parsing errors.
+        &#34;&#34;&#34;
+        client = await self._get_client()
+        try:
+            response = await client.get(
+                f&#34;{self._base_url}/api/members/{slug}&#34;,
+                headers={&#34;User-Agent&#34;: self._user_agent},
+                timeout=self._timeout,
+            )
+            if response.status_code == 404:
+                return None
+            if response.status_code != 200:
+                raise RegistryError(
+                    f&#34;Member lookup failed: HTTP {response.status_code}&#34;,
+                    status_code=response.status_code,
+                )
+            data = response.json()
+            if data is None:
+                return None
+            return Member.model_validate(data)
+        except RegistryError:
+            raise
+        except httpx.TimeoutException as e:
+            raise RegistryError(f&#34;Member lookup timed out after {self._timeout}s&#34;) from e
+        except httpx.HTTPError as e:
+            raise RegistryError(f&#34;Member lookup failed: {e}&#34;) from e
+        except (ValidationError, ValueError) as e:
+            raise RegistryError(f&#34;Member lookup failed: invalid response: {e}&#34;) from e</code></pre>
 </details>
 <div class="desc"><p>Client for the AdCP registry API.</p>
-<p>Provides brand and property lookups against the central AdCP registry.</p>
+<p>Provides brand, property, and member lookups against the central AdCP registry.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>base_url</code></strong></dt>
@@ -364,6 +441,128 @@ If provided, caller is responsible for client lifecycle.</dd>
 </details>
 <div class="desc"><p>Close owned HTTP client. No-op if using external client.</p></div>
 </dd>
+<dt id="adcp.registry.RegistryClient.get_member"><code class="name flex">
+<span>async def <span class="ident">get_member</span></span>(<span>self, slug: str) ‑> <a title="adcp.types.core.Member" href="types/core.html#adcp.types.core.Member">Member</a> | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_member(self, slug: str) -&gt; Member | None:
+    &#34;&#34;&#34;Get a single AAO member by their slug.
+
+    Args:
+        slug: Member slug (e.g., &#34;adgentek&#34;).
+
+    Returns:
+        Member if found, None if not in the registry.
+
+    Raises:
+        RegistryError: On HTTP or parsing errors.
+    &#34;&#34;&#34;
+    client = await self._get_client()
+    try:
+        response = await client.get(
+            f&#34;{self._base_url}/api/members/{slug}&#34;,
+            headers={&#34;User-Agent&#34;: self._user_agent},
+            timeout=self._timeout,
+        )
+        if response.status_code == 404:
+            return None
+        if response.status_code != 200:
+            raise RegistryError(
+                f&#34;Member lookup failed: HTTP {response.status_code}&#34;,
+                status_code=response.status_code,
+            )
+        data = response.json()
+        if data is None:
+            return None
+        return Member.model_validate(data)
+    except RegistryError:
+        raise
+    except httpx.TimeoutException as e:
+        raise RegistryError(f&#34;Member lookup timed out after {self._timeout}s&#34;) from e
+    except httpx.HTTPError as e:
+        raise RegistryError(f&#34;Member lookup failed: {e}&#34;) from e
+    except (ValidationError, ValueError) as e:
+        raise RegistryError(f&#34;Member lookup failed: invalid response: {e}&#34;) from e</code></pre>
+</details>
+<div class="desc"><p>Get a single AAO member by their slug.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>slug</code></strong></dt>
+<dd>Member slug (e.g., "adgentek").</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Member if found, None if not in the registry.</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>RegistryError</code></dt>
+<dd>On HTTP or parsing errors.</dd>
+</dl></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.list_members"><code class="name flex">
+<span>async def <span class="ident">list_members</span></span>(<span>self, limit: int = 100) ‑> list[<a title="adcp.types.core.Member" href="types/core.html#adcp.types.core.Member">Member</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_members(self, limit: int = 100) -&gt; list[Member]:
+    &#34;&#34;&#34;List organizations registered in the AAO member directory.
+
+    Args:
+        limit: Maximum number of members to return.
+
+    Returns:
+        List of Member objects.
+
+    Raises:
+        RegistryError: On HTTP or parsing errors.
+    &#34;&#34;&#34;
+    if limit &lt; 1:
+        raise ValueError(f&#34;limit must be at least 1, got {limit}&#34;)
+
+    client = await self._get_client()
+    try:
+        response = await client.get(
+            f&#34;{self._base_url}/api/members&#34;,
+            params={&#34;limit&#34;: limit},
+            headers={&#34;User-Agent&#34;: self._user_agent},
+            timeout=self._timeout,
+        )
+        if response.status_code != 200:
+            raise RegistryError(
+                f&#34;Member list failed: HTTP {response.status_code}&#34;,
+                status_code=response.status_code,
+            )
+        data = response.json()
+        return [Member.model_validate(m) for m in data.get(&#34;members&#34;, [])]
+    except RegistryError:
+        raise
+    except httpx.TimeoutException as e:
+        raise RegistryError(f&#34;Member list timed out after {self._timeout}s&#34;) from e
+    except httpx.HTTPError as e:
+        raise RegistryError(f&#34;Member list failed: {e}&#34;) from e
+    except (ValidationError, ValueError) as e:
+        raise RegistryError(f&#34;Member list failed: invalid response: {e}&#34;) from e</code></pre>
+</details>
+<div class="desc"><p>List organizations registered in the AAO member directory.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>limit</code></strong></dt>
+<dd>Maximum number of members to return.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>List of Member objects.</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>RegistryError</code></dt>
+<dd>On HTTP or parsing errors.</dd>
+</dl></div>
+</dd>
 <dt id="adcp.registry.RegistryClient.lookup_brand"><code class="name flex">
 <span>async def <span class="ident">lookup_brand</span></span>(<span>self, domain: str) ‑> <a title="adcp.types.core.ResolvedBrand" href="types/core.html#adcp.types.core.ResolvedBrand">ResolvedBrand</a> | None</span>
 </code></dt>
@@ -373,16 +572,22 @@ If provided, caller is responsible for client lifecycle.</dd>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def lookup_brand(self, domain: str) -&gt; ResolvedBrand | None:
-    &#34;&#34;&#34;Resolve a single domain to its canonical brand identity.
+    &#34;&#34;&#34;Resolve a domain to its brand identity.
+
+    Works for any domain — brand houses, sub-brands, and operators
+    (agencies, DSPs) are all brands in the registry.
 
     Args:
-        domain: Domain to resolve (e.g., &#34;nike.com&#34;).
+        domain: Domain to resolve (e.g., &#34;nike.com&#34;, &#34;wpp.com&#34;).
 
     Returns:
-        ResolvedBrand if found, None if the domain is not in the registry.
+        ResolvedBrand if found, None if not in the registry.
 
     Raises:
         RegistryError: On HTTP or parsing errors.
+
+    Example:
+        brand = await registry.lookup_brand(request.brand.domain)
     &#34;&#34;&#34;
     client = await self._get_client()
     try:
@@ -412,19 +617,23 @@ If provided, caller is responsible for client lifecycle.</dd>
     except (ValidationError, ValueError) as e:
         raise RegistryError(f&#34;Brand lookup failed: invalid response: {e}&#34;) from e</code></pre>
 </details>
-<div class="desc"><p>Resolve a single domain to its canonical brand identity.</p>
+<div class="desc"><p>Resolve a domain to its brand identity.</p>
+<p>Works for any domain — brand houses, sub-brands, and operators
+(agencies, DSPs) are all brands in the registry.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>domain</code></strong></dt>
-<dd>Domain to resolve (e.g., "nike.com").</dd>
+<dd>Domain to resolve (e.g., "nike.com", "wpp.com").</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>ResolvedBrand if found, None if the domain is not in the registry.</p>
+<p>ResolvedBrand if found, None if not in the registry.</p>
 <h2 id="raises">Raises</h2>
 <dl>
 <dt><code>RegistryError</code></dt>
 <dd>On HTTP or parsing errors.</dd>
-</dl></div>
+</dl>
+<h2 id="example">Example</h2>
+<p>brand = await registry.lookup_brand(request.brand.domain)</p></div>
 </dd>
 <dt id="adcp.registry.RegistryClient.lookup_brands"><code class="name flex">
 <span>async def <span class="ident">lookup_brands</span></span>(<span>self, domains: list[str]) ‑> dict[str, <a title="adcp.types.core.ResolvedBrand" href="types/core.html#adcp.types.core.ResolvedBrand">ResolvedBrand</a> | None]</span>
@@ -459,14 +668,11 @@ If provided, caller is responsible for client lifecycle.</dd>
     ]
 
     chunk_results = await asyncio.gather(
-        *[self._lookup_brands_chunk(chunk) for chunk in chunks],
-        return_exceptions=True,
+        *[self._lookup_brands_chunk(chunk) for chunk in chunks]
     )
 
     merged: dict[str, ResolvedBrand | None] = {}
     for result in chunk_results:
-        if isinstance(result, BaseException):
-            raise result
         merged.update(result)
     return merged</code></pre>
 </details>
@@ -518,14 +724,11 @@ If provided, caller is responsible for client lifecycle.</dd>
     ]
 
     chunk_results = await asyncio.gather(
-        *[self._lookup_properties_chunk(chunk) for chunk in chunks],
-        return_exceptions=True,
+        *[self._lookup_properties_chunk(chunk) for chunk in chunks]
     )
 
     merged: dict[str, ResolvedProperty | None] = {}
     for result in chunk_results:
-        if isinstance(result, BaseException):
-            raise result
         merged.update(result)
     return merged</code></pre>
 </details>
@@ -627,8 +830,10 @@ If provided, caller is responsible for client lifecycle.</dd>
 <ul>
 <li>
 <h4><code><a title="adcp.registry.RegistryClient" href="#adcp.registry.RegistryClient">RegistryClient</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.registry.RegistryClient.close" href="#adcp.registry.RegistryClient.close">close</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.get_member" href="#adcp.registry.RegistryClient.get_member">get_member</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.list_members" href="#adcp.registry.RegistryClient.list_members">list_members</a></code></li>
 <li><code><a title="adcp.registry.RegistryClient.lookup_brand" href="#adcp.registry.RegistryClient.lookup_brand">lookup_brand</a></code></li>
 <li><code><a title="adcp.registry.RegistryClient.lookup_brands" href="#adcp.registry.RegistryClient.lookup_brands">lookup_brands</a></code></li>
 <li><code><a title="adcp.registry.RegistryClient.lookup_properties" href="#adcp.registry.RegistryClient.lookup_properties">lookup_properties</a></code></li>

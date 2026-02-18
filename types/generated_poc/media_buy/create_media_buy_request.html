@@ -304,10 +304,10 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;Optional webhook configuration for content artifact delivery. Used by governance agents to validate content adjacency. Seller pushes artifacts to this endpoint; orchestrator forwards to governance agent for validation.&#39;
         ),
     ] = None
-    brand_manifest: Annotated[
-        brand_manifest_ref.BrandManifestReference,
+    brand: Annotated[
+        brand_ref.BrandReference,
         Field(
-            description=&#39;Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests.&#39;
+            description=&#39;Brand reference for this media buy. Resolved to full brand identity at execution time from brand.json or the registry.&#39;
         ),
     ]
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
@@ -365,7 +365,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference" href="../core/brand_manifest_ref.html#adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference">BrandManifestReference</a></code></dt>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="../core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -591,7 +591,7 @@ validated to form a valid model.</p>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.account_id" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.account_id">account_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.artifact_webhook" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.artifact_webhook">artifact_webhook</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.brand_manifest" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.brand_manifest">brand_manifest</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.brand" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.brand">brand</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.buyer_ref" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.buyer_ref">buyer_ref</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.context" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.end_time" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.end_time">end_time</a></code></li>

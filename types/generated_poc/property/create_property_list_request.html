@@ -66,10 +66,10 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
-    brand_manifest: Annotated[
-        brand_manifest_1.BrandManifest | None,
+    brand: Annotated[
+        brand_ref.BrandReference | None,
         Field(
-            description=&#39;Brand identity and requirements. When provided, the agent automatically applies appropriate rules based on brand characteristics (industry, target_audience, etc.).&#39;
+            description=&#39;Brand reference. When provided, the agent automatically applies appropriate rules based on brand characteristics (industry, target_audience, etc.). Resolved at execution time.&#39;
         ),
     ] = None
     context: context_1.ContextObject | None = None
@@ -102,7 +102,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest.BrandManifest" href="../core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.BrandManifest">BrandManifest</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="../core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -161,7 +161,7 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest" href="#adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest">CreatePropertyListRequest</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.base_properties" href="#adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.base_properties">base_properties</a></code></li>
-<li><code><a title="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.brand_manifest" href="#adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.brand_manifest">brand_manifest</a></code></li>
+<li><code><a title="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.brand" href="#adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.brand">brand</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.context" href="#adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.description" href="#adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.description">description</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.ext" href="#adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.ext">ext</a></code></li>

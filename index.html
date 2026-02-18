@@ -62,7 +62,7 @@ el.replaceWith(d);
 </dd>
 <dt><code class="name"><a title="adcp.registry" href="registry.html">adcp.registry</a></code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Client for the AdCP registry API (brand, property, and member lookups).</p></div>
 </dd>
 <dt><code class="name"><a title="adcp.server" href="server/index.html">adcp.server</a></code></dt>
 <dd>
@@ -8282,76 +8282,8 @@ attributes &ndash; see the documentation for details.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class BrandManifest(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;allow&#39;,
-    )
-    assets: Annotated[
-        list[Asset] | None,
-        Field(
-            description=&#39;Brand asset library with explicit assets and tags. Assets are referenced inline with URLs pointing to CDN-hosted files.&#39;
-        ),
-    ] = None
-    avatar: Annotated[
-        Avatar | None,
-        Field(description=&#39;Brand avatar configuration for visual conversational experiences&#39;),
-    ] = None
-    colors: Annotated[
-        Colors | None,
-        Field(
-            description=&#39;Brand color palette. Each role accepts a single hex color or an array of hex colors for brands with multiple values per role.&#39;
-        ),
-    ] = None
-    contact: Annotated[Contact | None, Field(description=&#39;Brand contact information&#39;)] = None
-    disclaimers: Annotated[
-        list[Disclaimer] | None,
-        Field(description=&#39;Legal disclaimers or required text that must appear in creatives&#39;),
-    ] = None
-    fonts: Annotated[Fonts | None, Field(description=&#39;Brand typography guidelines&#39;)] = None
-    industry: Annotated[
-        str | None,
-        Field(
-            description=&#34;Industry or vertical (e.g., &#39;retail&#39;, &#39;automotive&#39;, &#39;finance&#39;, &#39;healthcare&#39;)&#34;
-        ),
-    ] = None
-    logos: Annotated[
-        list[Logo] | None,
-        Field(
-            description=&#39;Brand logo assets with structured fields for orientation, background compatibility, and variant type. Use the orientation, background, and variant enum fields for reliable filtering by creative agents.&#39;
-        ),
-    ] = None
-    metadata: Annotated[Metadata | None, Field(description=&#39;Additional brand metadata&#39;)] = None
-    name: Annotated[str, Field(description=&#39;Brand or business name&#39;)]
-    privacy_policy_url: Annotated[
-        AnyUrl | None,
-        Field(
-            description=&#34;URL to the brand&#39;s privacy policy. Used for consumer consent flows when personal data may be shared with the advertiser. AI platforms can use this to present explicit privacy choices to users before data handoff.&#34;
-        ),
-    ] = None
-    product_catalog: Annotated[
-        ProductCatalog | None,
-        Field(
-            description=&#39;Product catalog information for e-commerce advertisers. Enables SKU-level creative generation and product selection.&#39;
-        ),
-    ] = None
-    tagline: Annotated[str | None, Field(description=&#39;Brand tagline or slogan&#39;)] = None
-    target_audience: Annotated[
-        str | None, Field(description=&#39;Primary target audience description&#39;)
-    ] = None
-    tone: Annotated[
-        str | Tone | None,
-        Field(description=&#39;Brand voice and messaging tone guidelines for creative agents.&#39;),
-    ] = None
-    url: Annotated[
-        AnyUrl | None,
-        Field(
-            description=&#39;Primary brand URL for context and asset discovery. Creative agents can infer brand information from this URL.&#39;
-        ),
-    ] = None
-    voice: Annotated[
-        Voice | None,
-        Field(description=&#39;Brand voice configuration for audio/conversational experiences&#39;),
-    ] = None</code></pre>
+<pre><code class="python">class BrandManifest(_AdCPBaseModel):
+    model_config = _ConfigDict(extra=&#34;allow&#34;)</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -8368,75 +8300,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.BrandManifest.assets"><code class="name">var <span class="ident">assets</span> : list[<a title="adcp.types.generated_poc.core.brand_manifest.Asset" href="types/generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.Asset">Asset</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.BrandManifest.avatar"><code class="name">var <span class="ident">avatar</span> : <a title="adcp.types.generated_poc.core.brand_manifest.Avatar" href="types/generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.Avatar">Avatar</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.BrandManifest.colors"><code class="name">var <span class="ident">colors</span> : <a title="adcp.types.generated_poc.core.brand_manifest.Colors" href="types/generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.Colors">Colors</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.BrandManifest.contact"><code class="name">var <span class="ident">contact</span> : <a title="adcp.types.generated_poc.core.brand_manifest.Contact" href="types/generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.Contact">Contact</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.BrandManifest.disclaimers"><code class="name">var <span class="ident">disclaimers</span> : list[<a title="adcp.types.generated_poc.core.brand_manifest.Disclaimer" href="types/generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.Disclaimer">Disclaimer</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.BrandManifest.fonts"><code class="name">var <span class="ident">fonts</span> : <a title="adcp.types.generated_poc.core.brand_manifest.Fonts" href="types/generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.Fonts">Fonts</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.BrandManifest.industry"><code class="name">var <span class="ident">industry</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.BrandManifest.logos"><code class="name">var <span class="ident">logos</span> : list[<a title="adcp.types.generated_poc.core.brand_manifest.Logo" href="types/generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.Logo">Logo</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.BrandManifest.metadata"><code class="name">var <span class="ident">metadata</span> : <a title="adcp.types.generated_poc.core.brand_manifest.Metadata" href="types/generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.Metadata">Metadata</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="adcp.BrandManifest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.BrandManifest.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.BrandManifest.privacy_policy_url"><code class="name">var <span class="ident">privacy_policy_url</span> : pydantic.networks.AnyUrl | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.BrandManifest.product_catalog"><code class="name">var <span class="ident">product_catalog</span> : <a title="adcp.types.generated_poc.core.brand_manifest.ProductCatalog" href="types/generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.ProductCatalog">ProductCatalog</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.BrandManifest.tagline"><code class="name">var <span class="ident">tagline</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.BrandManifest.target_audience"><code class="name">var <span class="ident">target_audience</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.BrandManifest.tone"><code class="name">var <span class="ident">tone</span> : str | <a title="adcp.types.generated_poc.core.brand_manifest.Tone" href="types/generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.Tone">Tone</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.BrandManifest.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.BrandManifest.voice"><code class="name">var <span class="ident">voice</span> : <a title="adcp.types.generated_poc.core.brand_manifest.Voice" href="types/generated_poc/core/brand_manifest.html#adcp.types.generated_poc.core.brand_manifest.Voice">Voice</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -8465,7 +8329,19 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    brand: Annotated[
+        brand_ref.BrandReference | None,
+        Field(
+            description=&#39;Brand reference for creative generation. Resolved to full brand identity (colors, logos, tone) at execution time.&#39;
+        ),
+    ] = None
     context: context_1.ContextObject | None = None
+    creative_brief: Annotated[
+        creative_brief_ref.CreativeBriefReference | None,
+        Field(
+            description=&#39;Campaign-level creative brief with objective, audience, messaging, and reference assets. Can be an inline brief object or a URL to a hosted brief. Supplements the natural language message with structured creative direction.&#39;
+        ),
+    ] = None
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest | None,
         Field(
@@ -8501,7 +8377,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.BuildCreativeRequest.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="types/generated_poc/core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.BuildCreativeRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="types/generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.BuildCreativeRequest.creative_brief"><code class="name">var <span class="ident">creative_brief</span> : <a title="adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference" href="types/generated_poc/core/creative_brief_ref.html#adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference">CreativeBriefReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -9584,10 +9468,10 @@ validated to form a valid model.</p>
             description=&#39;Optional webhook configuration for content artifact delivery. Used by governance agents to validate content adjacency. Seller pushes artifacts to this endpoint; orchestrator forwards to governance agent for validation.&#39;
         ),
     ] = None
-    brand_manifest: Annotated[
-        brand_manifest_ref.BrandManifestReference,
+    brand: Annotated[
+        brand_ref.BrandReference,
         Field(
-            description=&#39;Brand information manifest serving as the namespace and identity for this media buy. Provides brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest. Can be cached and reused across multiple requests.&#39;
+            description=&#39;Brand reference for this media buy. Resolved to full brand identity at execution time from brand.json or the registry.&#39;
         ),
     ]
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
@@ -9645,7 +9529,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.CreateMediaBuyRequest.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference" href="types/generated_poc/core/brand_manifest_ref.html#adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference">BrandManifestReference</a></code></dt>
+<dt id="adcp.CreateMediaBuyRequest.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="types/generated_poc/core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -10211,7 +10095,7 @@ validated to form a valid model.</p>
     )
     assets: Annotated[
         dict[
-            str,
+            Annotated[str, StringConstraints(pattern=r&#39;^[a-z0-9_]+$&#39;)],
             image_asset.ImageAsset
             | video_asset.VideoAsset
             | audio_asset.AudioAsset
@@ -11175,7 +11059,7 @@ validated to form a valid model.</p>
     output_format_ids: Annotated[
         list[format_id_1.FormatId] | None,
         Field(
-            description=&#39;For generative formats: array of format IDs that this format can generate. When a format accepts inputs like brand_manifest and message, this specifies what concrete output formats can be produced (e.g., a generative banner format might output standard image banner formats).&#39;
+            description=&#39;For generative formats: array of format IDs that this format can generate. When a format accepts inputs like brand context and message, this specifies what concrete output formats can be produced (e.g., a generative banner format might output standard image banner formats).&#39;
         ),
     ] = None
     renders: Annotated[
@@ -12651,17 +12535,14 @@ validated to form a valid model.</p>
             description=&#34;Account ID for product lookup. Required when the seller declares account.required_for_products = true in capabilities. Returns products with pricing specific to this account&#39;s rate card.&#34;
         ),
     ] = None
-    brand_manifest: Annotated[
-        brand_manifest_ref.BrandManifestReference | None,
+    brand: Annotated[
+        brand_ref.BrandReference | None,
         Field(
-            description=&#39;Brand information manifest providing brand context, assets, and product catalog. Can be provided inline or as a URL reference to a hosted manifest.&#39;
+            description=&#39;Brand reference for product discovery context. Resolved to full brand identity at execution time.&#39;
         ),
     ] = None
     brief: Annotated[
-        str | None,
-        Field(
-            description=&#34;Natural language description of campaign requirements. When refining a proposal, can include instructions like &#39;focus more on German speakers&#39; or &#39;increase mobile allocation&#39;.&#34;
-        ),
+        str | None, Field(description=&#39;Natural language description of campaign requirements.&#39;)
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
@@ -12670,19 +12551,13 @@ validated to form a valid model.</p>
     product_selectors: Annotated[
         promoted_products.PromotedProducts | None,
         Field(
-            description=&#39;Selectors to filter the brand manifest product catalog for product discovery. When provided, sellers should only return advertising products where the selected catalog items have matches. Uses the same selection methods as promoted-offerings.&#39;
+            description=&#34;Selectors to filter the brand&#39;s product catalog for product discovery. When provided, sellers should only return advertising products where the selected catalog items have matches. Uses the same selection methods as promoted-offerings.&#34;
         ),
     ] = None
     property_list: Annotated[
         property_list_ref.PropertyListReference | None,
         Field(
             description=&#39;[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list.&#39;
-        ),
-    ] = None
-    proposal_id: Annotated[
-        str | None,
-        Field(
-            description=&#39;Optional proposal ID to refine. When provided with a brief, the publisher will use the brief as refinement instructions for the specified proposal and return an updated version.&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -12705,7 +12580,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.GetProductsRequest.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : <a title="adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference" href="types/generated_poc/core/brand_manifest_ref.html#adcp.types.generated_poc.core.brand_manifest_ref.BrandManifestReference">BrandManifestReference</a> | None</code></dt>
+<dt id="adcp.GetProductsRequest.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="types/generated_poc/core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -12738,10 +12613,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.GetProductsRequest.property_list"><code class="name">var <span class="ident">property_list</span> : <a title="adcp.types.generated_poc.core.property_list_ref.PropertyListReference" href="types/generated_poc/core/property_list_ref.html#adcp.types.generated_poc.core.property_list_ref.PropertyListReference">PropertyListReference</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.GetProductsRequest.proposal_id"><code class="name">var <span class="ident">proposal_id</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -12793,7 +12664,7 @@ validated to form a valid model.</p>
     proposals: Annotated[
         list[proposal.Proposal] | None,
         Field(
-            description=&#39;Optional array of proposed media plans with budget allocations across products. Publishers include proposals when they can provide strategic guidance based on the brief. Proposals are actionable - buyers can refine them via subsequent get_products calls or execute them directly via create_media_buy.&#39;
+            description=&#39;Optional array of proposed media plans with budget allocations across products. Publishers include proposals when they can provide strategic guidance based on the brief. Proposals are actionable - buyers can refine them via follow-up get_products calls within the same session, or execute them directly via create_media_buy.&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -13639,7 +13510,8 @@ validated to form a valid model.</p>
     ]
     ext: ext_1.ExtensionObject | None = None
     format_summary: Annotated[
-        dict[str, int] | None, Field(description=&#39;Breakdown of creatives by format type&#39;)
+        dict[Annotated[str, StringConstraints(pattern=r&#39;^[a-zA-Z0-9_-]+$&#39;)], int] | None,
+        Field(description=&#39;Breakdown of creatives by format type&#39;),
     ] = None
     pagination: pagination_response.PaginationResponse
     query_summary: Annotated[
@@ -14313,6 +14185,128 @@ attributes &ndash; see the documentation for details.</p></div>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.MediaBuyStatus.pending_activation"><code class="name">var <span class="ident">pending_activation</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.Member"><code class="flex name class">
+<span>class <span class="ident">Member</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Member(BaseModel):
+    &#34;&#34;&#34;An organization registered in the AAO member directory.&#34;&#34;&#34;
+
+    model_config = ConfigDict(extra=&#34;allow&#34;)
+
+    id: str
+    slug: str
+    display_name: str
+    description: str | None = None
+    tagline: str | None = None
+    logo_url: str | None = None
+    logo_light_url: str | None = None
+    logo_dark_url: str | None = None
+    contact_email: str | None = None
+    contact_website: str | None = None
+    offerings: list[str] = Field(default_factory=list)
+    markets: list[str] = Field(default_factory=list)
+    agents: list[dict[str, Any]] = Field(default_factory=list)
+    brands: list[dict[str, Any]] = Field(default_factory=list)
+    is_public: bool = True
+    is_founding_member: bool = False
+    featured: bool = False
+    si_enabled: bool = False</code></pre>
+</details>
+<div class="desc"><p>An organization registered in the AAO member directory.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.Member.agents"><code class="name">var <span class="ident">agents</span> : list[dict[str, typing.Any]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Member.brands"><code class="name">var <span class="ident">brands</span> : list[dict[str, typing.Any]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Member.contact_email"><code class="name">var <span class="ident">contact_email</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Member.contact_website"><code class="name">var <span class="ident">contact_website</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Member.description"><code class="name">var <span class="ident">description</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Member.display_name"><code class="name">var <span class="ident">display_name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Member.featured"><code class="name">var <span class="ident">featured</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Member.id"><code class="name">var <span class="ident">id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Member.is_founding_member"><code class="name">var <span class="ident">is_founding_member</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Member.is_public"><code class="name">var <span class="ident">is_public</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Member.logo_dark_url"><code class="name">var <span class="ident">logo_dark_url</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Member.logo_light_url"><code class="name">var <span class="ident">logo_light_url</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Member.logo_url"><code class="name">var <span class="ident">logo_url</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Member.markets"><code class="name">var <span class="ident">markets</span> : list[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Member.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Member.offerings"><code class="name">var <span class="ident">offerings</span> : list[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Member.si_enabled"><code class="name">var <span class="ident">si_enabled</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Member.slug"><code class="name">var <span class="ident">slug</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Member.tagline"><code class="name">var <span class="ident">tagline</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -15588,7 +15582,7 @@ attributes &ndash; see the documentation for details.</p></div>
     catalog_match: Annotated[
         CatalogMatch | None,
         Field(
-            description=&#34;When the buyer provides a brand_manifest with product_catalog, indicates which of the buyer&#39;s catalog items are eligible for this product. Enables buyers to make informed product_selector choices in create_media_buy. Only present for products where catalog matching is relevant (e.g. sponsored product listings on retail media). Sellers SHOULD include at least one of matched_gtins or matched_skus.&#34;
+            description=&#34;When the buyer provides a brand with product_catalog, indicates which of the buyer&#39;s catalog items are eligible for this product. Enables buyers to make informed product_selector choices in create_media_buy. Only present for products where catalog matching is relevant (e.g. sponsored product listings on retail media). Sellers SHOULD include at least one of matched_gtins or matched_skus.&#34;
         ),
     ] = None
     channels: Annotated[
@@ -15620,14 +15614,16 @@ attributes &ndash; see the documentation for details.</p></div>
     description: Annotated[
         str, Field(description=&#39;Detailed description of the product and its inventory&#39;)
     ]
-    estimated_exposures: Annotated[
-        int | None,
-        Field(description=&#39;Estimated exposures/impressions for guaranteed products&#39;, ge=0),
-    ] = None
     expires_at: Annotated[
         AwareDatetime | None, Field(description=&#39;Expiration timestamp for custom products&#39;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
+    forecast: Annotated[
+        delivery_forecast.DeliveryForecast | None,
+        Field(
+            description=&#39;Forecasted delivery metrics for this product. Gives buyers an estimate of expected performance before requesting a proposal.&#39;
+        ),
+    ] = None
     format_ids: Annotated[
         list[format_id_1.FormatId],
         Field(
@@ -15733,15 +15729,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.Product.estimated_exposures"><code class="name">var <span class="ident">estimated_exposures</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="adcp.Product.expires_at"><code class="name">var <span class="ident">expires_at</span> : pydantic.types.AwareDatetime | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.Product.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="types/generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Product.forecast"><code class="name">var <span class="ident">forecast</span> : <a title="adcp.types.generated_poc.core.delivery_forecast.DeliveryForecast" href="types/generated_poc/core/delivery_forecast.html#adcp.types.generated_poc.core.delivery_forecast.DeliveryForecast">DeliveryForecast</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -16789,7 +16785,7 @@ validated to form a valid model.</p>
 <pre><code class="python">class RegistryClient:
     &#34;&#34;&#34;Client for the AdCP registry API.
 
-    Provides brand and property lookups against the central AdCP registry.
+    Provides brand, property, and member lookups against the central AdCP registry.
 
     Args:
         base_url: Registry API base URL.
@@ -16838,16 +16834,22 @@ validated to form a valid model.</p>
         await self.close()
 
     async def lookup_brand(self, domain: str) -&gt; ResolvedBrand | None:
-        &#34;&#34;&#34;Resolve a single domain to its canonical brand identity.
+        &#34;&#34;&#34;Resolve a domain to its brand identity.
+
+        Works for any domain — brand houses, sub-brands, and operators
+        (agencies, DSPs) are all brands in the registry.
 
         Args:
-            domain: Domain to resolve (e.g., &#34;nike.com&#34;).
+            domain: Domain to resolve (e.g., &#34;nike.com&#34;, &#34;wpp.com&#34;).
 
         Returns:
-            ResolvedBrand if found, None if the domain is not in the registry.
+            ResolvedBrand if found, None if not in the registry.
 
         Raises:
             RegistryError: On HTTP or parsing errors.
+
+        Example:
+            brand = await registry.lookup_brand(request.brand.domain)
         &#34;&#34;&#34;
         client = await self._get_client()
         try:
@@ -16902,14 +16904,11 @@ validated to form a valid model.</p>
         ]
 
         chunk_results = await asyncio.gather(
-            *[self._lookup_brands_chunk(chunk) for chunk in chunks],
-            return_exceptions=True,
+            *[self._lookup_brands_chunk(chunk) for chunk in chunks]
         )
 
         merged: dict[str, ResolvedBrand | None] = {}
         for result in chunk_results:
-            if isinstance(result, BaseException):
-                raise result
             merged.update(result)
         return merged
 
@@ -17015,14 +17014,11 @@ validated to form a valid model.</p>
         ]
 
         chunk_results = await asyncio.gather(
-            *[self._lookup_properties_chunk(chunk) for chunk in chunks],
-            return_exceptions=True,
+            *[self._lookup_properties_chunk(chunk) for chunk in chunks]
         )
 
         merged: dict[str, ResolvedProperty | None] = {}
         for result in chunk_results:
-            if isinstance(result, BaseException):
-                raise result
             merged.update(result)
         return merged
 
@@ -17059,12 +17055,88 @@ validated to form a valid model.</p>
         except httpx.HTTPError as e:
             raise RegistryError(f&#34;Bulk property lookup failed: {e}&#34;) from e
         except (ValidationError, ValueError) as e:
-            raise RegistryError(
-                f&#34;Bulk property lookup failed: invalid response: {e}&#34;
-            ) from e</code></pre>
+            raise RegistryError(f&#34;Bulk property lookup failed: invalid response: {e}&#34;) from e
+
+    async def list_members(self, limit: int = 100) -&gt; list[Member]:
+        &#34;&#34;&#34;List organizations registered in the AAO member directory.
+
+        Args:
+            limit: Maximum number of members to return.
+
+        Returns:
+            List of Member objects.
+
+        Raises:
+            RegistryError: On HTTP or parsing errors.
+        &#34;&#34;&#34;
+        if limit &lt; 1:
+            raise ValueError(f&#34;limit must be at least 1, got {limit}&#34;)
+
+        client = await self._get_client()
+        try:
+            response = await client.get(
+                f&#34;{self._base_url}/api/members&#34;,
+                params={&#34;limit&#34;: limit},
+                headers={&#34;User-Agent&#34;: self._user_agent},
+                timeout=self._timeout,
+            )
+            if response.status_code != 200:
+                raise RegistryError(
+                    f&#34;Member list failed: HTTP {response.status_code}&#34;,
+                    status_code=response.status_code,
+                )
+            data = response.json()
+            return [Member.model_validate(m) for m in data.get(&#34;members&#34;, [])]
+        except RegistryError:
+            raise
+        except httpx.TimeoutException as e:
+            raise RegistryError(f&#34;Member list timed out after {self._timeout}s&#34;) from e
+        except httpx.HTTPError as e:
+            raise RegistryError(f&#34;Member list failed: {e}&#34;) from e
+        except (ValidationError, ValueError) as e:
+            raise RegistryError(f&#34;Member list failed: invalid response: {e}&#34;) from e
+
+    async def get_member(self, slug: str) -&gt; Member | None:
+        &#34;&#34;&#34;Get a single AAO member by their slug.
+
+        Args:
+            slug: Member slug (e.g., &#34;adgentek&#34;).
+
+        Returns:
+            Member if found, None if not in the registry.
+
+        Raises:
+            RegistryError: On HTTP or parsing errors.
+        &#34;&#34;&#34;
+        client = await self._get_client()
+        try:
+            response = await client.get(
+                f&#34;{self._base_url}/api/members/{slug}&#34;,
+                headers={&#34;User-Agent&#34;: self._user_agent},
+                timeout=self._timeout,
+            )
+            if response.status_code == 404:
+                return None
+            if response.status_code != 200:
+                raise RegistryError(
+                    f&#34;Member lookup failed: HTTP {response.status_code}&#34;,
+                    status_code=response.status_code,
+                )
+            data = response.json()
+            if data is None:
+                return None
+            return Member.model_validate(data)
+        except RegistryError:
+            raise
+        except httpx.TimeoutException as e:
+            raise RegistryError(f&#34;Member lookup timed out after {self._timeout}s&#34;) from e
+        except httpx.HTTPError as e:
+            raise RegistryError(f&#34;Member lookup failed: {e}&#34;) from e
+        except (ValidationError, ValueError) as e:
+            raise RegistryError(f&#34;Member lookup failed: invalid response: {e}&#34;) from e</code></pre>
 </details>
 <div class="desc"><p>Client for the AdCP registry API.</p>
-<p>Provides brand and property lookups against the central AdCP registry.</p>
+<p>Provides brand, property, and member lookups against the central AdCP registry.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>base_url</code></strong></dt>
@@ -17095,6 +17167,128 @@ If provided, caller is responsible for client lifecycle.</dd>
 </details>
 <div class="desc"><p>Close owned HTTP client. No-op if using external client.</p></div>
 </dd>
+<dt id="adcp.RegistryClient.get_member"><code class="name flex">
+<span>async def <span class="ident">get_member</span></span>(<span>self, slug: str) ‑> <a title="adcp.types.core.Member" href="types/core.html#adcp.types.core.Member">Member</a> | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_member(self, slug: str) -&gt; Member | None:
+    &#34;&#34;&#34;Get a single AAO member by their slug.
+
+    Args:
+        slug: Member slug (e.g., &#34;adgentek&#34;).
+
+    Returns:
+        Member if found, None if not in the registry.
+
+    Raises:
+        RegistryError: On HTTP or parsing errors.
+    &#34;&#34;&#34;
+    client = await self._get_client()
+    try:
+        response = await client.get(
+            f&#34;{self._base_url}/api/members/{slug}&#34;,
+            headers={&#34;User-Agent&#34;: self._user_agent},
+            timeout=self._timeout,
+        )
+        if response.status_code == 404:
+            return None
+        if response.status_code != 200:
+            raise RegistryError(
+                f&#34;Member lookup failed: HTTP {response.status_code}&#34;,
+                status_code=response.status_code,
+            )
+        data = response.json()
+        if data is None:
+            return None
+        return Member.model_validate(data)
+    except RegistryError:
+        raise
+    except httpx.TimeoutException as e:
+        raise RegistryError(f&#34;Member lookup timed out after {self._timeout}s&#34;) from e
+    except httpx.HTTPError as e:
+        raise RegistryError(f&#34;Member lookup failed: {e}&#34;) from e
+    except (ValidationError, ValueError) as e:
+        raise RegistryError(f&#34;Member lookup failed: invalid response: {e}&#34;) from e</code></pre>
+</details>
+<div class="desc"><p>Get a single AAO member by their slug.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>slug</code></strong></dt>
+<dd>Member slug (e.g., "adgentek").</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Member if found, None if not in the registry.</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code><a title="adcp.RegistryError" href="#adcp.RegistryError">RegistryError</a></code></dt>
+<dd>On HTTP or parsing errors.</dd>
+</dl></div>
+</dd>
+<dt id="adcp.RegistryClient.list_members"><code class="name flex">
+<span>async def <span class="ident">list_members</span></span>(<span>self, limit: int = 100) ‑> list[<a title="adcp.types.core.Member" href="types/core.html#adcp.types.core.Member">Member</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_members(self, limit: int = 100) -&gt; list[Member]:
+    &#34;&#34;&#34;List organizations registered in the AAO member directory.
+
+    Args:
+        limit: Maximum number of members to return.
+
+    Returns:
+        List of Member objects.
+
+    Raises:
+        RegistryError: On HTTP or parsing errors.
+    &#34;&#34;&#34;
+    if limit &lt; 1:
+        raise ValueError(f&#34;limit must be at least 1, got {limit}&#34;)
+
+    client = await self._get_client()
+    try:
+        response = await client.get(
+            f&#34;{self._base_url}/api/members&#34;,
+            params={&#34;limit&#34;: limit},
+            headers={&#34;User-Agent&#34;: self._user_agent},
+            timeout=self._timeout,
+        )
+        if response.status_code != 200:
+            raise RegistryError(
+                f&#34;Member list failed: HTTP {response.status_code}&#34;,
+                status_code=response.status_code,
+            )
+        data = response.json()
+        return [Member.model_validate(m) for m in data.get(&#34;members&#34;, [])]
+    except RegistryError:
+        raise
+    except httpx.TimeoutException as e:
+        raise RegistryError(f&#34;Member list timed out after {self._timeout}s&#34;) from e
+    except httpx.HTTPError as e:
+        raise RegistryError(f&#34;Member list failed: {e}&#34;) from e
+    except (ValidationError, ValueError) as e:
+        raise RegistryError(f&#34;Member list failed: invalid response: {e}&#34;) from e</code></pre>
+</details>
+<div class="desc"><p>List organizations registered in the AAO member directory.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>limit</code></strong></dt>
+<dd>Maximum number of members to return.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>List of Member objects.</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code><a title="adcp.RegistryError" href="#adcp.RegistryError">RegistryError</a></code></dt>
+<dd>On HTTP or parsing errors.</dd>
+</dl></div>
+</dd>
 <dt id="adcp.RegistryClient.lookup_brand"><code class="name flex">
 <span>async def <span class="ident">lookup_brand</span></span>(<span>self, domain: str) ‑> <a title="adcp.types.core.ResolvedBrand" href="types/core.html#adcp.types.core.ResolvedBrand">ResolvedBrand</a> | None</span>
 </code></dt>
@@ -17104,16 +17298,22 @@ If provided, caller is responsible for client lifecycle.</dd>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def lookup_brand(self, domain: str) -&gt; ResolvedBrand | None:
-    &#34;&#34;&#34;Resolve a single domain to its canonical brand identity.
+    &#34;&#34;&#34;Resolve a domain to its brand identity.
+
+    Works for any domain — brand houses, sub-brands, and operators
+    (agencies, DSPs) are all brands in the registry.
 
     Args:
-        domain: Domain to resolve (e.g., &#34;nike.com&#34;).
+        domain: Domain to resolve (e.g., &#34;nike.com&#34;, &#34;wpp.com&#34;).
 
     Returns:
-        ResolvedBrand if found, None if the domain is not in the registry.
+        ResolvedBrand if found, None if not in the registry.
 
     Raises:
         RegistryError: On HTTP or parsing errors.
+
+    Example:
+        brand = await registry.lookup_brand(request.brand.domain)
     &#34;&#34;&#34;
     client = await self._get_client()
     try:
@@ -17143,19 +17343,23 @@ If provided, caller is responsible for client lifecycle.</dd>
     except (ValidationError, ValueError) as e:
         raise RegistryError(f&#34;Brand lookup failed: invalid response: {e}&#34;) from e</code></pre>
 </details>
-<div class="desc"><p>Resolve a single domain to its canonical brand identity.</p>
+<div class="desc"><p>Resolve a domain to its brand identity.</p>
+<p>Works for any domain — brand houses, sub-brands, and operators
+(agencies, DSPs) are all brands in the registry.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>domain</code></strong></dt>
-<dd>Domain to resolve (e.g., "nike.com").</dd>
+<dd>Domain to resolve (e.g., "nike.com", "wpp.com").</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>ResolvedBrand if found, None if the domain is not in the registry.</p>
+<p>ResolvedBrand if found, None if not in the registry.</p>
 <h2 id="raises">Raises</h2>
 <dl>
 <dt><code><a title="adcp.RegistryError" href="#adcp.RegistryError">RegistryError</a></code></dt>
 <dd>On HTTP or parsing errors.</dd>
-</dl></div>
+</dl>
+<h2 id="example">Example</h2>
+<p>brand = await registry.lookup_brand(request.brand.domain)</p></div>
 </dd>
 <dt id="adcp.RegistryClient.lookup_brands"><code class="name flex">
 <span>async def <span class="ident">lookup_brands</span></span>(<span>self, domains: list[str]) ‑> dict[str, <a title="adcp.types.core.ResolvedBrand" href="types/core.html#adcp.types.core.ResolvedBrand">ResolvedBrand</a> | None]</span>
@@ -17190,14 +17394,11 @@ If provided, caller is responsible for client lifecycle.</dd>
     ]
 
     chunk_results = await asyncio.gather(
-        *[self._lookup_brands_chunk(chunk) for chunk in chunks],
-        return_exceptions=True,
+        *[self._lookup_brands_chunk(chunk) for chunk in chunks]
     )
 
     merged: dict[str, ResolvedBrand | None] = {}
     for result in chunk_results:
-        if isinstance(result, BaseException):
-            raise result
         merged.update(result)
     return merged</code></pre>
 </details>
@@ -17249,14 +17450,11 @@ If provided, caller is responsible for client lifecycle.</dd>
     ]
 
     chunk_results = await asyncio.gather(
-        *[self._lookup_properties_chunk(chunk) for chunk in chunks],
-        return_exceptions=True,
+        *[self._lookup_properties_chunk(chunk) for chunk in chunks]
     )
 
     merged: dict[str, ResolvedProperty | None] = {}
     for result in chunk_results:
-        if isinstance(result, BaseException):
-            raise result
         merged.update(result)
     return merged</code></pre>
 </details>
@@ -17391,8 +17589,21 @@ If provided, caller is responsible for client lifecycle.</dd>
     house_domain: str | None = None
     house_name: str | None = None
     brand_agent_url: str | None = None
+    brand: dict[str, Any] | None = None
     brand_manifest: dict[str, Any] | None = None
-    source: str</code></pre>
+    source: str
+
+    @model_validator(mode=&#34;before&#34;)
+    @classmethod
+    def _normalize_brand_fields(cls, data: Any) -&gt; Any:
+        &#34;&#34;&#34;Cross-populate brand and brand_manifest so both names are always accessible.&#34;&#34;&#34;
+        if isinstance(data, dict):
+            data = dict(data)
+            if &#34;brand&#34; in data and &#34;brand_manifest&#34; not in data:
+                data[&#34;brand_manifest&#34;] = data[&#34;brand&#34;]
+            elif &#34;brand_manifest&#34; in data and &#34;brand&#34; not in data:
+                data[&#34;brand&#34;] = data[&#34;brand_manifest&#34;]
+        return data</code></pre>
 </details>
 <div class="desc"><p>Brand identity resolved from the AdCP registry.</p>
 <p>Create a new model by parsing and validating input data from keyword arguments.</p>
@@ -17405,6 +17616,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.ResolvedBrand.brand"><code class="name">var <span class="ident">brand</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.ResolvedBrand.brand_agent_url"><code class="name">var <span class="ident">brand_agent_url</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -18094,7 +18309,7 @@ validated to form a valid model.</p>
         ),
     ] = None
     assignments: Annotated[
-        dict[str, list[str]] | None,
+        dict[Annotated[str, StringConstraints(pattern=r&#39;^[a-zA-Z0-9_-]+$&#39;)], list[str]] | None,
         Field(description=&#39;Optional bulk assignment of creatives to packages&#39;),
     ] = None
     context: context_1.ContextObject | None = None
@@ -20183,31 +20398,16 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.BrandManifest" href="#adcp.BrandManifest">BrandManifest</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.BrandManifest.assets" href="#adcp.BrandManifest.assets">assets</a></code></li>
-<li><code><a title="adcp.BrandManifest.avatar" href="#adcp.BrandManifest.avatar">avatar</a></code></li>
-<li><code><a title="adcp.BrandManifest.colors" href="#adcp.BrandManifest.colors">colors</a></code></li>
-<li><code><a title="adcp.BrandManifest.contact" href="#adcp.BrandManifest.contact">contact</a></code></li>
-<li><code><a title="adcp.BrandManifest.disclaimers" href="#adcp.BrandManifest.disclaimers">disclaimers</a></code></li>
-<li><code><a title="adcp.BrandManifest.fonts" href="#adcp.BrandManifest.fonts">fonts</a></code></li>
-<li><code><a title="adcp.BrandManifest.industry" href="#adcp.BrandManifest.industry">industry</a></code></li>
-<li><code><a title="adcp.BrandManifest.logos" href="#adcp.BrandManifest.logos">logos</a></code></li>
-<li><code><a title="adcp.BrandManifest.metadata" href="#adcp.BrandManifest.metadata">metadata</a></code></li>
+<ul class="">
 <li><code><a title="adcp.BrandManifest.model_config" href="#adcp.BrandManifest.model_config">model_config</a></code></li>
-<li><code><a title="adcp.BrandManifest.name" href="#adcp.BrandManifest.name">name</a></code></li>
-<li><code><a title="adcp.BrandManifest.privacy_policy_url" href="#adcp.BrandManifest.privacy_policy_url">privacy_policy_url</a></code></li>
-<li><code><a title="adcp.BrandManifest.product_catalog" href="#adcp.BrandManifest.product_catalog">product_catalog</a></code></li>
-<li><code><a title="adcp.BrandManifest.tagline" href="#adcp.BrandManifest.tagline">tagline</a></code></li>
-<li><code><a title="adcp.BrandManifest.target_audience" href="#adcp.BrandManifest.target_audience">target_audience</a></code></li>
-<li><code><a title="adcp.BrandManifest.tone" href="#adcp.BrandManifest.tone">tone</a></code></li>
-<li><code><a title="adcp.BrandManifest.url" href="#adcp.BrandManifest.url">url</a></code></li>
-<li><code><a title="adcp.BrandManifest.voice" href="#adcp.BrandManifest.voice">voice</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="adcp.BuildCreativeRequest" href="#adcp.BuildCreativeRequest">BuildCreativeRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.BuildCreativeRequest.brand" href="#adcp.BuildCreativeRequest.brand">brand</a></code></li>
 <li><code><a title="adcp.BuildCreativeRequest.context" href="#adcp.BuildCreativeRequest.context">context</a></code></li>
+<li><code><a title="adcp.BuildCreativeRequest.creative_brief" href="#adcp.BuildCreativeRequest.creative_brief">creative_brief</a></code></li>
 <li><code><a title="adcp.BuildCreativeRequest.creative_manifest" href="#adcp.BuildCreativeRequest.creative_manifest">creative_manifest</a></code></li>
 <li><code><a title="adcp.BuildCreativeRequest.ext" href="#adcp.BuildCreativeRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.BuildCreativeRequest.message" href="#adcp.BuildCreativeRequest.message">message</a></code></li>
@@ -20352,7 +20552,7 @@ validated to form a valid model.</p>
 <ul class="two-column">
 <li><code><a title="adcp.CreateMediaBuyRequest.account_id" href="#adcp.CreateMediaBuyRequest.account_id">account_id</a></code></li>
 <li><code><a title="adcp.CreateMediaBuyRequest.artifact_webhook" href="#adcp.CreateMediaBuyRequest.artifact_webhook">artifact_webhook</a></code></li>
-<li><code><a title="adcp.CreateMediaBuyRequest.brand_manifest" href="#adcp.CreateMediaBuyRequest.brand_manifest">brand_manifest</a></code></li>
+<li><code><a title="adcp.CreateMediaBuyRequest.brand" href="#adcp.CreateMediaBuyRequest.brand">brand</a></code></li>
 <li><code><a title="adcp.CreateMediaBuyRequest.buyer_ref" href="#adcp.CreateMediaBuyRequest.buyer_ref">buyer_ref</a></code></li>
 <li><code><a title="adcp.CreateMediaBuyRequest.context" href="#adcp.CreateMediaBuyRequest.context">context</a></code></li>
 <li><code><a title="adcp.CreateMediaBuyRequest.end_time" href="#adcp.CreateMediaBuyRequest.end_time">end_time</a></code></li>
@@ -20738,7 +20938,7 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.GetProductsRequest" href="#adcp.GetProductsRequest">GetProductsRequest</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.GetProductsRequest.account_id" href="#adcp.GetProductsRequest.account_id">account_id</a></code></li>
-<li><code><a title="adcp.GetProductsRequest.brand_manifest" href="#adcp.GetProductsRequest.brand_manifest">brand_manifest</a></code></li>
+<li><code><a title="adcp.GetProductsRequest.brand" href="#adcp.GetProductsRequest.brand">brand</a></code></li>
 <li><code><a title="adcp.GetProductsRequest.brief" href="#adcp.GetProductsRequest.brief">brief</a></code></li>
 <li><code><a title="adcp.GetProductsRequest.context" href="#adcp.GetProductsRequest.context">context</a></code></li>
 <li><code><a title="adcp.GetProductsRequest.ext" href="#adcp.GetProductsRequest.ext">ext</a></code></li>
@@ -20747,7 +20947,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.GetProductsRequest.pagination" href="#adcp.GetProductsRequest.pagination">pagination</a></code></li>
 <li><code><a title="adcp.GetProductsRequest.product_selectors" href="#adcp.GetProductsRequest.product_selectors">product_selectors</a></code></li>
 <li><code><a title="adcp.GetProductsRequest.property_list" href="#adcp.GetProductsRequest.property_list">property_list</a></code></li>
-<li><code><a title="adcp.GetProductsRequest.proposal_id" href="#adcp.GetProductsRequest.proposal_id">proposal_id</a></code></li>
 </ul>
 </li>
 <li>
@@ -20965,6 +21164,30 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.Member" href="#adcp.Member">Member</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.Member.agents" href="#adcp.Member.agents">agents</a></code></li>
+<li><code><a title="adcp.Member.brands" href="#adcp.Member.brands">brands</a></code></li>
+<li><code><a title="adcp.Member.contact_email" href="#adcp.Member.contact_email">contact_email</a></code></li>
+<li><code><a title="adcp.Member.contact_website" href="#adcp.Member.contact_website">contact_website</a></code></li>
+<li><code><a title="adcp.Member.description" href="#adcp.Member.description">description</a></code></li>
+<li><code><a title="adcp.Member.display_name" href="#adcp.Member.display_name">display_name</a></code></li>
+<li><code><a title="adcp.Member.featured" href="#adcp.Member.featured">featured</a></code></li>
+<li><code><a title="adcp.Member.id" href="#adcp.Member.id">id</a></code></li>
+<li><code><a title="adcp.Member.is_founding_member" href="#adcp.Member.is_founding_member">is_founding_member</a></code></li>
+<li><code><a title="adcp.Member.is_public" href="#adcp.Member.is_public">is_public</a></code></li>
+<li><code><a title="adcp.Member.logo_dark_url" href="#adcp.Member.logo_dark_url">logo_dark_url</a></code></li>
+<li><code><a title="adcp.Member.logo_light_url" href="#adcp.Member.logo_light_url">logo_light_url</a></code></li>
+<li><code><a title="adcp.Member.logo_url" href="#adcp.Member.logo_url">logo_url</a></code></li>
+<li><code><a title="adcp.Member.markets" href="#adcp.Member.markets">markets</a></code></li>
+<li><code><a title="adcp.Member.model_config" href="#adcp.Member.model_config">model_config</a></code></li>
+<li><code><a title="adcp.Member.offerings" href="#adcp.Member.offerings">offerings</a></code></li>
+<li><code><a title="adcp.Member.si_enabled" href="#adcp.Member.si_enabled">si_enabled</a></code></li>
+<li><code><a title="adcp.Member.slug" href="#adcp.Member.slug">slug</a></code></li>
+<li><code><a title="adcp.Member.tagline" href="#adcp.Member.tagline">tagline</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.Package" href="#adcp.Package">Package</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.Package.bid_price" href="#adcp.Package.bid_price">bid_price</a></code></li>
@@ -21138,9 +21361,9 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.Product.delivery_measurement" href="#adcp.Product.delivery_measurement">delivery_measurement</a></code></li>
 <li><code><a title="adcp.Product.delivery_type" href="#adcp.Product.delivery_type">delivery_type</a></code></li>
 <li><code><a title="adcp.Product.description" href="#adcp.Product.description">description</a></code></li>
-<li><code><a title="adcp.Product.estimated_exposures" href="#adcp.Product.estimated_exposures">estimated_exposures</a></code></li>
 <li><code><a title="adcp.Product.expires_at" href="#adcp.Product.expires_at">expires_at</a></code></li>
 <li><code><a title="adcp.Product.ext" href="#adcp.Product.ext">ext</a></code></li>
+<li><code><a title="adcp.Product.forecast" href="#adcp.Product.forecast">forecast</a></code></li>
 <li><code><a title="adcp.Product.format_ids" href="#adcp.Product.format_ids">format_ids</a></code></li>
 <li><code><a title="adcp.Product.is_custom" href="#adcp.Product.is_custom">is_custom</a></code></li>
 <li><code><a title="adcp.Product.measurement" href="#adcp.Product.measurement">measurement</a></code></li>
@@ -21281,8 +21504,10 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.RegistryClient" href="#adcp.RegistryClient">RegistryClient</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.RegistryClient.close" href="#adcp.RegistryClient.close">close</a></code></li>
+<li><code><a title="adcp.RegistryClient.get_member" href="#adcp.RegistryClient.get_member">get_member</a></code></li>
+<li><code><a title="adcp.RegistryClient.list_members" href="#adcp.RegistryClient.list_members">list_members</a></code></li>
 <li><code><a title="adcp.RegistryClient.lookup_brand" href="#adcp.RegistryClient.lookup_brand">lookup_brand</a></code></li>
 <li><code><a title="adcp.RegistryClient.lookup_brands" href="#adcp.RegistryClient.lookup_brands">lookup_brands</a></code></li>
 <li><code><a title="adcp.RegistryClient.lookup_properties" href="#adcp.RegistryClient.lookup_properties">lookup_properties</a></code></li>
@@ -21295,6 +21520,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.ResolvedBrand" href="#adcp.ResolvedBrand">ResolvedBrand</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.ResolvedBrand.brand" href="#adcp.ResolvedBrand.brand">brand</a></code></li>
 <li><code><a title="adcp.ResolvedBrand.brand_agent_url" href="#adcp.ResolvedBrand.brand_agent_url">brand_agent_url</a></code></li>
 <li><code><a title="adcp.ResolvedBrand.brand_manifest" href="#adcp.ResolvedBrand.brand_manifest">brand_manifest</a></code></li>
 <li><code><a title="adcp.ResolvedBrand.brand_name" href="#adcp.ResolvedBrand.brand_name">brand_name</a></code></li>

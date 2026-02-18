@@ -186,7 +186,7 @@ validated to form a valid model.</p>
     ] = None
     assets: Annotated[
         dict[
-            str,
+            Annotated[str, StringConstraints(pattern=r&#39;^[a-zA-Z0-9_-]+$&#39;)],
             image_asset.ImageAsset
             | video_asset.VideoAsset
             | audio_asset.AudioAsset
@@ -333,7 +333,8 @@ validated to form a valid model.</p>
     ]
     ext: ext_1.ExtensionObject | None = None
     format_summary: Annotated[
-        dict[str, int] | None, Field(description=&#39;Breakdown of creatives by format type&#39;)
+        dict[Annotated[str, StringConstraints(pattern=r&#39;^[a-zA-Z0-9_-]+$&#39;)], int] | None,
+        Field(description=&#39;Breakdown of creatives by format type&#39;),
     ] = None
     pagination: pagination_response.PaginationResponse
     query_summary: Annotated[

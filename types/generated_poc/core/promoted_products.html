@@ -113,7 +113,7 @@ validated to form a valid model.</p>
     manifest_category: Annotated[
         str | None,
         Field(
-            description=&#34;Select products from a specific category in the brand manifest product catalog (e.g., &#39;beverages/soft-drinks&#39;, &#39;food/sauces&#39;)&#34;
+            description=&#34;Select products from a specific category in the brand&#39;s product catalog (e.g., &#39;beverages/soft-drinks&#39;, &#39;food/sauces&#39;)&#34;
         ),
     ] = None
     manifest_gtins: Annotated[
@@ -125,17 +125,17 @@ validated to form a valid model.</p>
     manifest_query: Annotated[
         str | None,
         Field(
-            description=&#34;Natural language query to select products from the brand manifest (e.g., &#39;all Kraft Heinz pasta sauces&#39;, &#39;organic products under $20&#39;)&#34;
+            description=&#34;Natural language query to select products from the brand&#39;s catalog (e.g., &#39;all pasta sauces&#39;, &#39;organic products under $20&#39;)&#34;
         ),
     ] = None
     manifest_skus: Annotated[
         list[str] | None,
-        Field(description=&#39;Direct product SKU references from the brand manifest product catalog&#39;),
+        Field(description=&#34;Direct product SKU references from the brand&#39;s product catalog&#34;),
     ] = None
     manifest_tags: Annotated[
         list[str] | None,
         Field(
-            description=&#34;Select products by tags from the brand manifest product catalog (e.g., &#39;organic&#39;, &#39;sauces&#39;, &#39;holiday&#39;)&#34;
+            description=&#34;Select products by tags from the brand&#39;s product catalog (e.g., &#39;organic&#39;, &#39;sauces&#39;, &#39;holiday&#39;)&#34;
         ),
     ] = None</code></pre>
 </details>
