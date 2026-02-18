@@ -532,11 +532,11 @@ class TestListMembers:
         with pytest.raises(RegistryError, match="timed out"):
             await rc.list_members()
 
-    def test_raises_on_invalid_limit(self):
+    @pytest.mark.asyncio
+    async def test_raises_on_invalid_limit(self):
         rc = RegistryClient(client=MagicMock())
         with pytest.raises(ValueError, match="limit must be at least 1"):
-            import asyncio
-            asyncio.run(rc.list_members(limit=0))
+            await rc.list_members(limit=0)
 
     @pytest.mark.asyncio
     async def test_missing_members_key_returns_empty_list(self):
