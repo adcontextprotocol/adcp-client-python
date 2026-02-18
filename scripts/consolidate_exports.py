@@ -273,21 +273,25 @@ def main():
     print(f"\nWriting {OUTPUT_FILE}...")
     OUTPUT_FILE.write_text(content)
 
-    # Run black to format the generated file
+    # Run black to format the generated file.
+    # Try uv run first (works in the project virtualenv), then fall back to sys.executable.
     print("Formatting with black...")
-    try:
-        result = subprocess.run(
-            [sys.executable, "-m", "black", str(OUTPUT_FILE), "--quiet"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode == 0:
-            print("✓ Formatted with black")
-        else:
-            print(f"⚠ Black formatting had issues: {result.stderr}")
-    except Exception as e:
-        print(f"⚠ Could not run black (not critical): {e}")
+    black_commands = [
+        ["uv", "run", "black", str(OUTPUT_FILE), "--quiet"],
+        [sys.executable, "-m", "black", str(OUTPUT_FILE), "--quiet"],
+    ]
+    formatted = False
+    for cmd in black_commands:
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            if result.returncode == 0:
+                print("✓ Formatted with black")
+                formatted = True
+                break
+        except FileNotFoundError:
+            continue
+    if not formatted:
+        print("⚠ Could not format with black (not installed)")
 
     print("✓ Successfully generated consolidated exports")
     export_count = len(
