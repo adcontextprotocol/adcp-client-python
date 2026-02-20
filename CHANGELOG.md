@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.4.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v3.3.0...v3.4.0) (2026-02-20)
+
+
+### Features
+
+* add brand and property registry lookup methods ([#130](https://github.com/adcontextprotocol/adcp-client-python/issues/130)) ([9bfb0fb](https://github.com/adcontextprotocol/adcp-client-python/commit/9bfb0fb2f02890883ccdb0e052a6bf3c4ae86317)), closes [#129](https://github.com/adcontextprotocol/adcp-client-python/issues/129)
+* export PromotedOfferingsRequirement and PromotedOfferingsAssetRequirements, sync latest schemas ([#133](https://github.com/adcontextprotocol/adcp-client-python/issues/133)) ([9216ea7](https://github.com/adcontextprotocol/adcp-client-python/commit/9216ea799f21f508feb86484dcac7c05d732495d))
+* sync ADCP schemas to latest, add brand compat and AAO member API ([#132](https://github.com/adcontextprotocol/adcp-client-python/issues/132)) ([0dca021](https://github.com/adcontextprotocol/adcp-client-python/commit/0dca021f5c9a1b8e46326cb9cfcea314bfb28710))
+
 ## [3.3.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v3.2.0...v3.3.0) (2026-02-12)
 
 
