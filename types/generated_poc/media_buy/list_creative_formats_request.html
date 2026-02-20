@@ -75,6 +75,13 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
+    input_format_ids: Annotated[
+        list[format_id.FormatId] | None,
+        Field(
+            description=&#34;Filter to formats whose input_format_ids includes any of these format IDs. Returns formats that accept these creatives as input — inspect each result&#39;s output_format_ids to see what they can produce.&#34;,
+            min_length=1,
+        ),
+    ] = None
     is_responsive: Annotated[
         bool | None,
         Field(
@@ -107,6 +114,13 @@ el.replaceWith(d);
     ] = None
     name_search: Annotated[
         str | None, Field(description=&#39;Search for formats by name (case-insensitive partial match)&#39;)
+    ] = None
+    output_format_ids: Annotated[
+        list[format_id.FormatId] | None,
+        Field(
+            description=&#34;Filter to formats whose output_format_ids includes any of these format IDs. Returns formats that can produce these outputs — inspect each result&#39;s input_format_ids to see what inputs they accept.&#34;,
+            min_length=1,
+        ),
     ] = None
     pagination: pagination_request.PaginationRequest | None = None
     type: Annotated[
@@ -153,6 +167,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.input_format_ids"><code class="name">var <span class="ident">input_format_ids</span> : list[<a title="adcp.types.generated_poc.core.format_id.FormatId" href="../core/format_id.html#adcp.types.generated_poc.core.format_id.FormatId">FormatId</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.is_responsive"><code class="name">var <span class="ident">is_responsive</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -178,6 +196,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.name_search"><code class="name">var <span class="ident">name_search</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.output_format_ids"><code class="name">var <span class="ident">output_format_ids</span> : list[<a title="adcp.types.generated_poc.core.format_id.FormatId" href="../core/format_id.html#adcp.types.generated_poc.core.format_id.FormatId">FormatId</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -227,6 +249,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.context" href="#adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.ext" href="#adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.format_ids" href="#adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.format_ids">format_ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.input_format_ids" href="#adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.input_format_ids">input_format_ids</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.is_responsive" href="#adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.is_responsive">is_responsive</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.max_height" href="#adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.max_height">max_height</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.max_width" href="#adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.max_width">max_width</a></code></li>
@@ -234,6 +257,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.min_width" href="#adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.min_width">min_width</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.model_config" href="#adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.name_search" href="#adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.name_search">name_search</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.output_format_ids" href="#adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.output_format_ids">output_format_ids</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.pagination" href="#adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.pagination">pagination</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.type" href="#adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.type">type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.wcag_level" href="#adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.wcag_level">wcag_level</a></code></li>

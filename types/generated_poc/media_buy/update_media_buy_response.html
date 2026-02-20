@@ -127,7 +127,11 @@ validated to form a valid model.</p>
         AwareDatetime | None,
         Field(description=&#39;ISO 8601 timestamp when changes take effect (null if pending approval)&#39;),
     ] = None
-    media_buy_id: Annotated[str, Field(description=&#34;Publisher&#39;s identifier for the media buy&#34;)]</code></pre>
+    media_buy_id: Annotated[str, Field(description=&#34;Publisher&#39;s identifier for the media buy&#34;)]
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -169,6 +173,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -279,6 +287,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.implementation_date" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.implementation_date">implementation_date</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.media_buy_id" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.model_config" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.sandbox" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 <li>

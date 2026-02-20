@@ -324,6 +324,94 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AudienceTargeting"><code class="flex name class">
+<span>class <span class="ident">AudienceTargeting</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AudienceTargeting(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    matching_latency_hours: Annotated[
+        MatchingLatencyHours | None,
+        Field(
+            description=&#39;Expected matching latency range in hours after upload. Use to calibrate polling cadence and set appropriate expectations before configuring push_notification_config.&#39;
+        ),
+    ] = None
+    minimum_audience_size: Annotated[
+        int,
+        Field(
+            description=&#39;Minimum matched audience size required for targeting. Audiences below this threshold will have status: too_small. Varies by platform (100–1000 is typical).&#39;,
+            ge=1,
+        ),
+    ]
+    supported_identifier_types: Annotated[
+        list[SupportedIdentifierType],
+        Field(
+            description=&#39;Hashed PII types accepted for audience matching. Buyers should only send identifiers the seller supports.&#39;,
+            min_length=1,
+        ),
+    ]
+    supported_uid_types: Annotated[
+        list[uid_type.UidType] | None,
+        Field(
+            description=&#39;Universal ID types accepted for audience matching (MAIDs, RampID, UID2, etc.). MAID support varies significantly by platform — check this field before sending uids with type: maid.&#39;,
+            min_length=1,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AudienceTargeting.matching_latency_hours"><code class="name">var <span class="ident">matching_latency_hours</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MatchingLatencyHours" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MatchingLatencyHours">MatchingLatencyHours</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AudienceTargeting.minimum_audience_size"><code class="name">var <span class="ident">minimum_audience_size</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AudienceTargeting.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AudienceTargeting.supported_identifier_types"><code class="name">var <span class="ident">supported_identifier_types</span> : list[<a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedIdentifierType" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedIdentifierType">SupportedIdentifierType</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AudienceTargeting.supported_uid_types"><code class="name">var <span class="ident">supported_uid_types</span> : list[<a title="adcp.types.generated_poc.enums.uid_type.UidType" href="../enums/uid_type.html#adcp.types.generated_poc.enums.uid_type.UidType">UidType</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ConversionTracking"><code class="flex name class">
 <span>class <span class="ident">ConversionTracking</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -355,7 +443,7 @@ validated to form a valid model.</p>
         ),
     ] = None
     supported_hashed_identifiers: Annotated[
-        list[SupportedHashedIdentifier] | None,
+        list[SupportedIdentifierType] | None,
         Field(
             description=&#39;Hashed PII types accepted for user matching. Buyers must hash before sending (SHA-256, normalized).&#39;,
             min_length=1,
@@ -397,7 +485,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ConversionTracking.supported_hashed_identifiers"><code class="name">var <span class="ident">supported_hashed_identifiers</span> : list[<a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedHashedIdentifier" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedHashedIdentifier">SupportedHashedIdentifier</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ConversionTracking.supported_hashed_identifiers"><code class="name">var <span class="ident">supported_hashed_identifiers</span> : list[<a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedIdentifierType" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedIdentifierType">SupportedIdentifierType</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1324,6 +1412,61 @@ validated to form a valid model.</p>
 </dd>
 </dl>
 </dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MatchingLatencyHours"><code class="flex name class">
+<span>class <span class="ident">MatchingLatencyHours</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MatchingLatencyHours(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    max: Annotated[int | None, Field(ge=0)] = None
+    min: Annotated[int | None, Field(ge=0)] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MatchingLatencyHours.max"><code class="name">var <span class="ident">max</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MatchingLatencyHours.min"><code class="name">var <span class="ident">min</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MatchingLatencyHours.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy"><code class="flex name class">
 <span>class <span class="ident">MediaBuy</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -1334,6 +1477,12 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class MediaBuy(AdCPBaseModel):
+    audience_targeting: Annotated[
+        AudienceTargeting | None,
+        Field(
+            description=&#39;Audience targeting capabilities. Only present when features.audience_targeting is true.&#39;
+        ),
+    ] = None
     conversion_tracking: Annotated[
         ConversionTracking | None,
         Field(
@@ -1364,6 +1513,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.audience_targeting"><code class="name">var <span class="ident">audience_targeting</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AudienceTargeting" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AudienceTargeting">AudienceTargeting</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.conversion_tracking"><code class="name">var <span class="ident">conversion_tracking</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ConversionTracking" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ConversionTracking">ConversionTracking</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -1980,8 +2133,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedHashedIdentifier"><code class="flex name class">
-<span>class <span class="ident">SupportedHashedIdentifier</span></span>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedIdentifierType"><code class="flex name class">
+<span>class <span class="ident">SupportedIdentifierType</span></span>
 <span>(</span><span>*args, **kwds)</span>
 </code></dt>
 <dd>
@@ -1989,7 +2142,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class SupportedHashedIdentifier(Enum):
+<pre><code class="python">class SupportedIdentifierType(Enum):
     hashed_email = &#39;hashed_email&#39;
     hashed_phone = &#39;hashed_phone&#39;</code></pre>
 </details>
@@ -2034,11 +2187,11 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedHashedIdentifier.hashed_email"><code class="name">var <span class="ident">hashed_email</span></code></dt>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedIdentifierType.hashed_email"><code class="name">var <span class="ident">hashed_email</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedHashedIdentifier.hashed_phone"><code class="name">var <span class="ident">hashed_phone</span></code></dt>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedIdentifierType.hashed_phone"><code class="name">var <span class="ident">hashed_phone</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2137,6 +2290,18 @@ attributes &ndash; see the documentation for details.</p></div>
         AgeRestriction | None,
         Field(description=&#39;Age restriction capabilities for compliance (alcohol, gambling)&#39;),
     ] = None
+    audience_exclude: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether seller supports audience_exclude in targeting overlays (requires features.audience_targeting)&#39;
+        ),
+    ] = None
+    audience_include: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether seller supports audience_include in targeting overlays (requires features.audience_targeting)&#39;
+        ),
+    ] = None
     device_platform: Annotated[
         bool | None,
         Field(
@@ -2188,6 +2353,14 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.age_restriction"><code class="name">var <span class="ident">age_restriction</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AgeRestriction" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AgeRestriction">AgeRestriction</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.audience_exclude"><code class="name">var <span class="ident">audience_exclude</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.audience_include"><code class="name">var <span class="ident">audience_include</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2454,6 +2627,16 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AudienceTargeting" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AudienceTargeting">AudienceTargeting</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AudienceTargeting.matching_latency_hours" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AudienceTargeting.matching_latency_hours">matching_latency_hours</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AudienceTargeting.minimum_audience_size" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AudienceTargeting.minimum_audience_size">minimum_audience_size</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AudienceTargeting.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AudienceTargeting.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AudienceTargeting.supported_identifier_types" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AudienceTargeting.supported_identifier_types">supported_identifier_types</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AudienceTargeting.supported_uid_types" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AudienceTargeting.supported_uid_types">supported_uid_types</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ConversionTracking" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ConversionTracking">ConversionTracking</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ConversionTracking.attribution_windows" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ConversionTracking.attribution_windows">attribution_windows</a></code></li>
@@ -2585,8 +2768,17 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy">MediaBuy</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MatchingLatencyHours" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MatchingLatencyHours">MatchingLatencyHours</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MatchingLatencyHours.max" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MatchingLatencyHours.max">max</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MatchingLatencyHours.min" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MatchingLatencyHours.min">min</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MatchingLatencyHours.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MatchingLatencyHours.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy">MediaBuy</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.audience_targeting" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.audience_targeting">audience_targeting</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.conversion_tracking" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.conversion_tracking">conversion_tracking</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.execution" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.execution">execution</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.features" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.features">features</a></code></li>
@@ -2671,10 +2863,10 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedHashedIdentifier" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedHashedIdentifier">SupportedHashedIdentifier</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedIdentifierType" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedIdentifierType">SupportedIdentifierType</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedHashedIdentifier.hashed_email" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedHashedIdentifier.hashed_email">hashed_email</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedHashedIdentifier.hashed_phone" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedHashedIdentifier.hashed_phone">hashed_phone</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedIdentifierType.hashed_email" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedIdentifierType.hashed_email">hashed_email</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedIdentifierType.hashed_phone" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.SupportedIdentifierType.hashed_phone">hashed_phone</a></code></li>
 </ul>
 </li>
 <li>
@@ -2691,6 +2883,8 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting">Targeting</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.age_restriction" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.age_restriction">age_restriction</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.audience_exclude" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.audience_exclude">audience_exclude</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.audience_include" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.audience_include">audience_include</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.device_platform" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.device_platform">device_platform</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.geo_countries" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.geo_countries">geo_countries</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.geo_metros" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.geo_metros">geo_metros</a></code></li>

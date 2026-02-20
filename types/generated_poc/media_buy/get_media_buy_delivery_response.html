@@ -608,6 +608,10 @@ attributes &ndash; see the documentation for details.</p></div>
         ReportingPeriod,
         Field(description=&#39;Date range for the report. All periods use UTC timezone.&#39;),
     ]
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None
     sequence_number: Annotated[
         int | None,
         Field(
@@ -683,6 +687,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.reporting_period"><code class="name">var <span class="ident">reporting_period</span> : <a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ReportingPeriod" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ReportingPeriod">ReportingPeriod</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1191,6 +1199,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.notification_type" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.notification_type">notification_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.partial_data" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.partial_data">partial_data</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.reporting_period" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.reporting_period">reporting_period</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.sandbox" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.sandbox">sandbox</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.sequence_number" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.sequence_number">sequence_number</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.unavailable_count" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.GetMediaBuyDeliveryResponse.unavailable_count">unavailable_count</a></code></li>
 </ul>

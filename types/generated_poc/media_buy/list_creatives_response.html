@@ -340,6 +340,10 @@ validated to form a valid model.</p>
     query_summary: Annotated[
         QuerySummary, Field(description=&#39;Summary of the query that was executed&#39;)
     ]
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None
     status_summary: Annotated[
         StatusSummary | None, Field(description=&#39;Breakdown of creatives by status&#39;)
     ] = None</code></pre>
@@ -384,6 +388,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse.query_summary"><code class="name">var <span class="ident">query_summary</span> : <a title="adcp.types.generated_poc.media_buy.list_creatives_response.QuerySummary" href="#adcp.types.generated_poc.media_buy.list_creatives_response.QuerySummary">QuerySummary</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -750,6 +758,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse.model_config" href="#adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse.pagination" href="#adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse.pagination">pagination</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse.query_summary" href="#adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse.query_summary">query_summary</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse.sandbox" href="#adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse.sandbox">sandbox</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse.status_summary" href="#adcp.types.generated_poc.media_buy.list_creatives_response.ListCreativesResponse.status_summary">status_summary</a></code></li>
 </ul>
 </li>

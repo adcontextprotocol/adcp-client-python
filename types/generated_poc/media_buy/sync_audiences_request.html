@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.account.sync_accounts_request API documentation</title>
+<title>adcp.types.generated_poc.media_buy.sync_audiences_request API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.account.sync_accounts_request</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.media_buy.sync_audiences_request</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,8 +46,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.Account"><code class="flex name class">
-<span>class <span class="ident">Account</span></span>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.Audience"><code class="flex name class">
+<span>class <span class="ident">Audience</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -55,41 +55,41 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Account(AdCPBaseModel):
+<pre><code class="python">class Audience(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    billing: Annotated[
-        Billing | None,
+    add: Annotated[
+        list[audience_member.AudienceMember] | None,
         Field(
-            description=&#34;Who should be invoiced. brand: seller invoices the brand directly. operator: seller invoices the operator (agency). agent: agent consolidates billing across brands. Omit to accept the seller&#39;s default.&#34;
+            description=&#39;Members to add to this audience. Hashed before sending — normalize emails to lowercase+trim, phones to E.164.&#39;,
+            min_length=1,
         ),
     ] = None
-    brand_id: Annotated[
-        str | None,
-        Field(
-            description=&#34;Brand ID within the house portfolio (from brand.json). Required when the house has multiple brands (e.g., &#39;dove&#39; under unilever.com, &#39;tide&#39; under pg.com). Omit for single-brand houses.&#34;,
-            pattern=&#39;^[a-z0-9_]+$&#39;,
-        ),
-    ] = None
-    house: Annotated[
+    audience_id: Annotated[
         str,
         Field(
-            description=&#34;House domain where brand.json is hosted (e.g., &#39;unilever.com&#39;, &#39;acme-corp.com&#39;). This is the canonical identity anchor for the brand, resolved via /.well-known/brand.json. For single-brand houses, this alone identifies the brand.&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            description=&#34;Buyer&#39;s identifier for this audience. Used to reference the audience in targeting overlays.&#34;
         ),
     ]
-    operator: Annotated[
-        str | None,
+    consent_basis: Annotated[
+        ConsentBasis | None,
         Field(
-            description=&#34;Domain of the entity operating the seat (e.g., &#39;groupm.com&#39;, &#39;mindshare.com&#39;). Verified against the brand&#39;s authorized_operators in brand.json. Omit if the brand operates its own seat.&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            description=&#39;GDPR lawful basis for processing this audience list. Informational — not validated by the protocol, but required by some sellers operating in regulated markets (e.g. EU). When omitted, the buyer asserts they have a lawful basis appropriate to their jurisdiction.&#39;
         ),
     ] = None
-    sandbox: Annotated[
+    delete: Annotated[
         bool | None,
         Field(
-            description=&#39;When true, provision this as a sandbox account. No real platform calls or billing. Sandbox accounts are identified by account_id in subsequent requests.&#39;
+            description=&#39;When true, delete this audience from the account entirely. All other fields on this audience object are ignored. Use this to delete a specific audience without affecting others.&#39;
+        ),
+    ] = None
+    name: Annotated[str | None, Field(description=&#39;Human-readable name for this audience&#39;)] = None
+    remove: Annotated[
+        list[audience_member.AudienceMember] | None,
+        Field(
+            description=&#39;Members to remove from this audience. If the same identifier appears in both add and remove in a single request, remove takes precedence.&#39;,
+            min_length=1,
         ),
     ] = None</code></pre>
 </details>
@@ -108,27 +108,31 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.Account.billing"><code class="name">var <span class="ident">billing</span> : <a title="adcp.types.generated_poc.account.sync_accounts_request.Billing" href="#adcp.types.generated_poc.account.sync_accounts_request.Billing">Billing</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.Audience.add"><code class="name">var <span class="ident">add</span> : list[<a title="adcp.types.generated_poc.core.audience_member.AudienceMember" href="../core/audience_member.html#adcp.types.generated_poc.core.audience_member.AudienceMember">AudienceMember</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.Account.brand_id"><code class="name">var <span class="ident">brand_id</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.Audience.audience_id"><code class="name">var <span class="ident">audience_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.Account.house"><code class="name">var <span class="ident">house</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.Audience.consent_basis"><code class="name">var <span class="ident">consent_basis</span> : <a title="adcp.types.generated_poc.media_buy.sync_audiences_request.ConsentBasis" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.ConsentBasis">ConsentBasis</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.Account.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.Audience.delete"><code class="name">var <span class="ident">delete</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.Account.operator"><code class="name">var <span class="ident">operator</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.Audience.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.Account.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.Audience.name"><code class="name">var <span class="ident">name</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.Audience.remove"><code class="name">var <span class="ident">remove</span> : list[<a title="adcp.types.generated_poc.core.audience_member.AudienceMember" href="../core/audience_member.html#adcp.types.generated_poc.core.audience_member.AudienceMember">AudienceMember</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -144,8 +148,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.Billing"><code class="flex name class">
-<span>class <span class="ident">Billing</span></span>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.ConsentBasis"><code class="flex name class">
+<span>class <span class="ident">ConsentBasis</span></span>
 <span>(</span><span>*args, **kwds)</span>
 </code></dt>
 <dd>
@@ -153,10 +157,11 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Billing(Enum):
-    brand = &#39;brand&#39;
-    operator = &#39;operator&#39;
-    agent = &#39;agent&#39;</code></pre>
+<pre><code class="python">class ConsentBasis(Enum):
+    consent = &#39;consent&#39;
+    legitimate_interest = &#39;legitimate_interest&#39;
+    contract = &#39;contract&#39;
+    legal_obligation = &#39;legal_obligation&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -199,22 +204,26 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.Billing.agent"><code class="name">var <span class="ident">agent</span></code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.ConsentBasis.consent"><code class="name">var <span class="ident">consent</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.Billing.brand"><code class="name">var <span class="ident">brand</span></code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.ConsentBasis.contract"><code class="name">var <span class="ident">contract</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.Billing.operator"><code class="name">var <span class="ident">operator</span></code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.ConsentBasis.legal_obligation"><code class="name">var <span class="ident">legal_obligation</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.ConsentBasis.legitimate_interest"><code class="name">var <span class="ident">legitimate_interest</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 </dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest"><code class="flex name class">
-<span>class <span class="ident">SyncAccountsRequest</span></span>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest"><code class="flex name class">
+<span>class <span class="ident">SyncAudiencesRequest</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -222,33 +231,26 @@ attributes &ndash; see the documentation for details.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class SyncAccountsRequest(AdCPBaseModel):
+<pre><code class="python">class SyncAudiencesRequest(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    accounts: Annotated[
-        list[Account], Field(description=&#39;Advertiser accounts to sync&#39;, max_length=1000)
-    ]
+    account_id: Annotated[str, Field(description=&#39;Account to manage audiences for&#39;)]
+    audiences: Annotated[
+        list[Audience] | None,
+        Field(
+            description=&#39;Audiences to sync (create or update). When omitted, the call is discovery-only and returns all existing audiences on the account without modification.&#39;,
+            min_length=1,
+        ),
+    ] = None
     context: context_1.ContextObject | None = None
     delete_missing: Annotated[
         bool | None,
         Field(
-            description=&#39;When true, accounts previously synced by this agent but not included in this request will be deactivated. Scoped to the authenticated agent — does not affect accounts managed by other agents. Use with caution.&#39;
+            description=&#39;When true, buyer-managed audiences on the account not included in this sync will be removed. Does not affect seller-managed audiences. Do not combine with an omitted audiences array or all buyer-managed audiences will be deleted.&#39;
         ),
     ] = False
-    dry_run: Annotated[
-        bool | None,
-        Field(
-            description=&#39;When true, preview what would change without applying. Returns what would be created/updated/deactivated.&#39;
-        ),
-    ] = False
-    ext: ext_1.ExtensionObject | None = None
-    push_notification_config: Annotated[
-        push_notification_config_1.PushNotificationConfig | None,
-        Field(
-            description=&#39;Optional webhook for async notifications when account status changes (e.g., pending_approval transitions to active).&#39;
-        ),
-    ] = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -265,31 +267,27 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.accounts"><code class="name">var <span class="ident">accounts</span> : list[<a title="adcp.types.generated_poc.account.sync_accounts_request.Account" href="#adcp.types.generated_poc.account.sync_accounts_request.Account">Account</a>]</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.account_id"><code class="name">var <span class="ident">account_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.audiences"><code class="name">var <span class="ident">audiences</span> : list[<a title="adcp.types.generated_poc.media_buy.sync_audiences_request.Audience" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.Audience">Audience</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.delete_missing"><code class="name">var <span class="ident">delete_missing</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.dry_run"><code class="name">var <span class="ident">dry_run</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.delete_missing"><code class="name">var <span class="ident">delete_missing</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.push_notification_config"><code class="name">var <span class="ident">push_notification_config</span> : <a title="adcp.types.generated_poc.core.push_notification_config.PushNotificationConfig" href="../core/push_notification_config.html#adcp.types.generated_poc.core.push_notification_config.PushNotificationConfig">PushNotificationConfig</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -315,40 +313,41 @@ validated to form a valid model.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.account" href="index.html">adcp.types.generated_poc.account</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy" href="index.html">adcp.types.generated_poc.media_buy</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account" href="#adcp.types.generated_poc.account.sync_accounts_request.Account">Account</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.Audience" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.Audience">Audience</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account.billing" href="#adcp.types.generated_poc.account.sync_accounts_request.Account.billing">billing</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account.brand_id" href="#adcp.types.generated_poc.account.sync_accounts_request.Account.brand_id">brand_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account.house" href="#adcp.types.generated_poc.account.sync_accounts_request.Account.house">house</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account.model_config" href="#adcp.types.generated_poc.account.sync_accounts_request.Account.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account.operator" href="#adcp.types.generated_poc.account.sync_accounts_request.Account.operator">operator</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account.sandbox" href="#adcp.types.generated_poc.account.sync_accounts_request.Account.sandbox">sandbox</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.Audience.add" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.Audience.add">add</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.Audience.audience_id" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.Audience.audience_id">audience_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.Audience.consent_basis" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.Audience.consent_basis">consent_basis</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.Audience.delete" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.Audience.delete">delete</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.Audience.model_config" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.Audience.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.Audience.name" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.Audience.name">name</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.Audience.remove" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.Audience.remove">remove</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Billing" href="#adcp.types.generated_poc.account.sync_accounts_request.Billing">Billing</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.ConsentBasis" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.ConsentBasis">ConsentBasis</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Billing.agent" href="#adcp.types.generated_poc.account.sync_accounts_request.Billing.agent">agent</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Billing.brand" href="#adcp.types.generated_poc.account.sync_accounts_request.Billing.brand">brand</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Billing.operator" href="#adcp.types.generated_poc.account.sync_accounts_request.Billing.operator">operator</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.ConsentBasis.consent" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.ConsentBasis.consent">consent</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.ConsentBasis.contract" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.ConsentBasis.contract">contract</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.ConsentBasis.legal_obligation" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.ConsentBasis.legal_obligation">legal_obligation</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.ConsentBasis.legitimate_interest" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.ConsentBasis.legitimate_interest">legitimate_interest</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest" href="#adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest">SyncAccountsRequest</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.accounts" href="#adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.accounts">accounts</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.context" href="#adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.delete_missing" href="#adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.delete_missing">delete_missing</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.dry_run" href="#adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.dry_run">dry_run</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.ext" href="#adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.model_config" href="#adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.push_notification_config" href="#adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.push_notification_config">push_notification_config</a></code></li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest">SyncAudiencesRequest</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.account_id" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.account_id">account_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.audiences" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.audiences">audiences</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.context" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.delete_missing" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.delete_missing">delete_missing</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.ext" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.model_config" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.model_config">model_config</a></code></li>
 </ul>
 </li>
 </ul>

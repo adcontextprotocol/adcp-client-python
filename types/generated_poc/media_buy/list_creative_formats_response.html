@@ -144,7 +144,11 @@ validated to form a valid model.</p>
             description=&#34;Full format definitions for all formats this agent supports. Each format&#39;s authoritative source is indicated by its agent_url field.&#34;
         ),
     ]
-    pagination: pagination_response.PaginationResponse | None = None</code></pre>
+    pagination: pagination_response.PaginationResponse | None = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -186,6 +190,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.list_creative_formats_response.ListCreativeFormatsResponse.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_response.PaginationResponse" href="../core/pagination_response.html#adcp.types.generated_poc.core.pagination_response.PaginationResponse">PaginationResponse</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.list_creative_formats_response.ListCreativeFormatsResponse.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -235,6 +243,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_response.ListCreativeFormatsResponse.formats" href="#adcp.types.generated_poc.media_buy.list_creative_formats_response.ListCreativeFormatsResponse.formats">formats</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_response.ListCreativeFormatsResponse.model_config" href="#adcp.types.generated_poc.media_buy.list_creative_formats_response.ListCreativeFormatsResponse.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_response.ListCreativeFormatsResponse.pagination" href="#adcp.types.generated_poc.media_buy.list_creative_formats_response.ListCreativeFormatsResponse.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_response.ListCreativeFormatsResponse.sandbox" href="#adcp.types.generated_poc.media_buy.list_creative_formats_response.ListCreativeFormatsResponse.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 </ul>

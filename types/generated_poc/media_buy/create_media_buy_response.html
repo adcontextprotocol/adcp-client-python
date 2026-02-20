@@ -134,7 +134,11 @@ validated to form a valid model.</p>
     packages: Annotated[
         list[package.Package],
         Field(description=&#39;Array of created packages with complete state information&#39;),
-    ]</code></pre>
+    ]
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -180,6 +184,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.core.package.Package" href="../core/package.html#adcp.types.generated_poc.core.package.Package">Package</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -291,6 +299,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.media_buy_id" href="#adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.model_config" href="#adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.packages" href="#adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.packages">packages</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.sandbox" href="#adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 <li>

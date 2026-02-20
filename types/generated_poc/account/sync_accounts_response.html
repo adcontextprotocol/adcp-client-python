@@ -112,6 +112,10 @@ el.replaceWith(d);
         str | None, Field(description=&#34;Payment terms (e.g., &#39;net_30&#39;, &#39;prepay&#39;)&#34;)
     ] = None
     rate_card: Annotated[str | None, Field(description=&#39;Rate card applied to this account&#39;)] = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;Whether this is a sandbox account, echoed from the request.&#39;),
+    ] = None
     setup: Annotated[
         Setup | None,
         Field(
@@ -192,6 +196,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.account.sync_accounts_response.Account.rate_card"><code class="name">var <span class="ident">rate_card</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.sync_accounts_response.Account.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -834,6 +842,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.parent_account_id" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.parent_account_id">parent_account_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.payment_terms" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.payment_terms">payment_terms</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.rate_card" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.rate_card">rate_card</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.sandbox" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.sandbox">sandbox</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.setup" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.setup">setup</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.status" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.status">status</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.warnings" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.warnings">warnings</a></code></li>

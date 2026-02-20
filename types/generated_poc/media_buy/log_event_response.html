@@ -133,6 +133,10 @@ validated to form a valid model.</p>
     partial_failures: Annotated[
         list[PartialFailure] | None, Field(description=&#39;Events that failed validation&#39;)
     ] = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None
     warnings: Annotated[
         list[str] | None,
         Field(
@@ -180,6 +184,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse1.partial_failures"><code class="name">var <span class="ident">partial_failures</span> : list[<a title="adcp.types.generated_poc.media_buy.log_event_response.PartialFailure" href="#adcp.types.generated_poc.media_buy.log_event_response.PartialFailure">PartialFailure</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -351,6 +359,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse1.match_quality" href="#adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse1.match_quality">match_quality</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse1.model_config" href="#adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse1.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse1.partial_failures" href="#adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse1.partial_failures">partial_failures</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse1.sandbox" href="#adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse1.sandbox">sandbox</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse1.warnings" href="#adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse1.warnings">warnings</a></code></li>
 </ul>
 </li>

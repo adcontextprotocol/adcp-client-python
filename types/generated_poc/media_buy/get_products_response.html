@@ -84,6 +84,10 @@ el.replaceWith(d);
         Field(
             description=&#39;Optional array of proposed media plans with budget allocations across products. Publishers include proposals when they can provide strategic guidance based on the brief. Proposals are actionable - buyers can refine them via follow-up get_products calls within the same session, or execute them directly via create_media_buy.&#39;
         ),
+    ] = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -137,6 +141,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
@@ -176,6 +184,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.products" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.products">products</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.property_list_applied" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.property_list_applied">property_list_applied</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.proposals" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.proposals">proposals</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.sandbox" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 </ul>

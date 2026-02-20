@@ -651,6 +651,20 @@ validated to form a valid model.</p>
             description=&#39;Age restriction for compliance. Use for legal requirements (alcohol, gambling), not audience targeting.&#39;
         ),
     ] = None
+    audience_exclude: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Suppress delivery to members of these first-party CRM audiences. Matched users are excluded regardless of other targeting. References audience_id values from sync_audiences on the same seller account — audience IDs are not portable across sellers. Seller must declare support in get_adcp_capabilities.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    audience_include: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Restrict delivery to members of these first-party CRM audiences. Only users present in the uploaded lists are eligible. References audience_id values from sync_audiences on the same seller account — audience IDs are not portable across sellers. Not for lookalike expansion — express that intent in the campaign brief. Seller must declare support in get_adcp_capabilities.&#39;,
+            min_length=1,
+        ),
+    ] = None
     axe_exclude_segment: Annotated[
         str | None, Field(description=&#39;AXE segment ID to exclude from targeting&#39;)
     ] = None
@@ -758,6 +772,14 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.age_restriction"><code class="name">var <span class="ident">age_restriction</span> : <a title="adcp.types.generated_poc.core.targeting.AgeRestriction" href="#adcp.types.generated_poc.core.targeting.AgeRestriction">AgeRestriction</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.audience_exclude"><code class="name">var <span class="ident">audience_exclude</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.audience_include"><code class="name">var <span class="ident">audience_include</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -930,6 +952,8 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay">TargetingOverlay</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.age_restriction" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.age_restriction">age_restriction</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.audience_exclude" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.audience_exclude">audience_exclude</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.audience_include" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.audience_include">audience_include</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.axe_exclude_segment" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.axe_exclude_segment">axe_exclude_segment</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.axe_include_segment" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.axe_include_segment">axe_include_segment</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.daypart_targets" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.daypart_targets">daypart_targets</a></code></li>

@@ -273,6 +273,12 @@ validated to form a valid model.</p>
             description=&#34;Domain of the entity operating the seat (e.g., &#39;groupm.com&#39;, &#39;mindshare.com&#39;). Verified against the brand&#39;s authorized_operators in brand.json. Omit if the brand operates its own seat.&#34;,
             pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
         ),
+    ] = None
+    sandbox: Annotated[
+        bool | None,
+        Field(
+            description=&#39;When true, provision this as a sandbox account. No real platform calls or billing. Sandbox accounts are identified by account_id in subsequent requests.&#39;
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -307,6 +313,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.Account.operator"><code class="name">var <span class="ident">operator</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Account.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -470,7 +480,11 @@ validated to form a valid model.</p>
         list[deployment.Deployment],
         Field(description=&#39;Array of deployment results for each deployment target&#39;),
     ]
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -500,6 +514,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.ActivateSignalResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ActivateSignalResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2651,7 +2669,11 @@ validated to form a valid model.</p>
         creative_manifest_1.CreativeManifest,
         Field(description=&#39;The generated or transformed creative manifest&#39;),
     ]
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -2681,6 +2703,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.BuildCreativeResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.BuildCreativeResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -4698,7 +4724,11 @@ validated to form a valid model.</p>
     packages: Annotated[
         list[package.Package],
         Field(description=&#39;Array of created packages with complete state information&#39;),
-    ]</code></pre>
+    ]
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -4744,6 +4774,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.CreateMediaBuyResponse1.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.core.package.Package" href="generated_poc/core/package.html#adcp.types.generated_poc.core.package.Package">Package</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.CreateMediaBuyResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -9283,11 +9317,17 @@ attributes &ndash; see the documentation for details.</p></div>
         format_id_1.FormatId,
         Field(description=&#39;Structured format identifier with agent URL and format name&#39;),
     ]
+    input_format_ids: Annotated[
+        list[format_id_1.FormatId] | None,
+        Field(
+            description=&#39;Array of format IDs this format accepts as input creative manifests. When present, indicates this format can take existing creatives in these formats as input. Omit for formats that work from raw assets (images, text, etc.) rather than existing creatives.&#39;
+        ),
+    ] = None
     name: Annotated[str, Field(description=&#39;Human-readable format name&#39;)]
     output_format_ids: Annotated[
         list[format_id_1.FormatId] | None,
         Field(
-            description=&#39;For generative formats: array of format IDs that this format can generate. When a format accepts inputs like brand context and message, this specifies what concrete output formats can be produced (e.g., a generative banner format might output standard image banner formats).&#39;
+            description=&#39;Array of format IDs that this format can produce as output. When present, indicates this format can build creatives in these output formats (e.g., a multi-publisher template format might produce standard display formats across many publishers). Omit for formats that produce a single fixed output (the format itself).&#39;
         ),
     ] = None
     renders: Annotated[
@@ -9365,6 +9405,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.Format.format_id"><code class="name">var <span class="ident">format_id</span> : <a title="adcp.types.generated_poc.core.format_id.FormatId" href="generated_poc/core/format_id.html#adcp.types.generated_poc.core.format_id.FormatId">FormatId</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.Format.input_format_ids"><code class="name">var <span class="ident">input_format_ids</span> : list[<a title="adcp.types.generated_poc.core.format_id.FormatId" href="generated_poc/core/format_id.html#adcp.types.generated_poc.core.format_id.FormatId">FormatId</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -11773,6 +11817,10 @@ validated to form a valid model.</p>
         ReportingPeriod,
         Field(description=&#39;Date range for the report. All periods use UTC timezone.&#39;),
     ]
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None
     sequence_number: Annotated[
         int | None,
         Field(
@@ -11848,6 +11896,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.GetMediaBuyDeliveryResponse.reporting_period"><code class="name">var <span class="ident">reporting_period</span> : <a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ReportingPeriod" href="generated_poc/media_buy/get_media_buy_delivery_response.html#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ReportingPeriod">ReportingPeriod</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetMediaBuyDeliveryResponse.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -12021,6 +12073,10 @@ validated to form a valid model.</p>
         Field(
             description=&#39;Optional array of proposed media plans with budget allocations across products. Publishers include proposals when they can provide strategic guidance based on the brief. Proposals are actionable - buyers can refine them via follow-up get_products calls within the same session, or execute them directly via create_media_buy.&#39;
         ),
+    ] = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -12071,6 +12127,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.GetProductsResponse.proposals"><code class="name">var <span class="ident">proposals</span> : list[<a title="adcp.types.generated_poc.core.proposal.Proposal" href="generated_poc/core/proposal.html#adcp.types.generated_poc.core.proposal.Proposal">Proposal</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetProductsResponse.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -12345,6 +12405,10 @@ validated to form a valid model.</p>
     ] = None
     ext: ext_1.ExtensionObject | None = None
     pagination: pagination_response.PaginationResponse | None = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None
     signals: Annotated[list[Signal], Field(description=&#39;Array of matching signals&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -12379,6 +12443,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.GetSignalsResponse.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_response.PaginationResponse" href="generated_poc/core/pagination_response.html#adcp.types.generated_poc.core.pagination_response.PaginationResponse">PaginationResponse</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetSignalsResponse.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -13146,6 +13214,12 @@ attributes &ndash; see the documentation for details.</p></div>
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     pagination: pagination_request.PaginationRequest | None = None
+    sandbox: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Filter by sandbox status. true returns only sandbox accounts, false returns only production accounts. Omit to return all accounts.&#39;
+        ),
+    ] = None
     status: Annotated[
         Status | None,
         Field(description=&#39;Filter accounts by status. Omit to return accounts in all statuses.&#39;),
@@ -13179,6 +13253,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.ListAccountsRequest.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="generated_poc/core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ListAccountsRequest.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -13579,6 +13657,13 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
+    input_format_ids: Annotated[
+        list[format_id.FormatId] | None,
+        Field(
+            description=&#34;Filter to formats whose input_format_ids includes any of these format IDs. Returns formats that accept these creatives as input — inspect each result&#39;s output_format_ids to see what they can produce.&#34;,
+            min_length=1,
+        ),
+    ] = None
     is_responsive: Annotated[
         bool | None,
         Field(
@@ -13611,6 +13696,13 @@ validated to form a valid model.</p>
     ] = None
     name_search: Annotated[
         str | None, Field(description=&#39;Search for formats by name (case-insensitive partial match)&#39;)
+    ] = None
+    output_format_ids: Annotated[
+        list[format_id.FormatId] | None,
+        Field(
+            description=&#34;Filter to formats whose output_format_ids includes any of these format IDs. Returns formats that can produce these outputs — inspect each result&#39;s input_format_ids to see what inputs they accept.&#34;,
+            min_length=1,
+        ),
     ] = None
     pagination: pagination_request.PaginationRequest | None = None
     type: Annotated[
@@ -13657,6 +13749,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.ListCreativeFormatsRequest.input_format_ids"><code class="name">var <span class="ident">input_format_ids</span> : list[<a title="adcp.types.generated_poc.core.format_id.FormatId" href="generated_poc/core/format_id.html#adcp.types.generated_poc.core.format_id.FormatId">FormatId</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.ListCreativeFormatsRequest.is_responsive"><code class="name">var <span class="ident">is_responsive</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -13682,6 +13778,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.ListCreativeFormatsRequest.name_search"><code class="name">var <span class="ident">name_search</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ListCreativeFormatsRequest.output_format_ids"><code class="name">var <span class="ident">output_format_ids</span> : list[<a title="adcp.types.generated_poc.core.format_id.FormatId" href="generated_poc/core/format_id.html#adcp.types.generated_poc.core.format_id.FormatId">FormatId</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -13740,7 +13840,11 @@ validated to form a valid model.</p>
             description=&#34;Full format definitions for all formats this agent supports. Each format&#39;s authoritative source is indicated by its agent_url field.&#34;
         ),
     ]
-    pagination: pagination_response.PaginationResponse | None = None</code></pre>
+    pagination: pagination_response.PaginationResponse | None = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -13782,6 +13886,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.ListCreativeFormatsResponse.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_response.PaginationResponse" href="generated_poc/core/pagination_response.html#adcp.types.generated_poc.core.pagination_response.PaginationResponse">PaginationResponse</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ListCreativeFormatsResponse.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -13925,6 +14033,10 @@ validated to form a valid model.</p>
     query_summary: Annotated[
         QuerySummary, Field(description=&#39;Summary of the query that was executed&#39;)
     ]
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None
     status_summary: Annotated[
         StatusSummary | None, Field(description=&#39;Breakdown of creatives by status&#39;)
     ] = None</code></pre>
@@ -13969,6 +14081,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.ListCreativesResponse.query_summary"><code class="name">var <span class="ident">query_summary</span> : <a title="adcp.types.generated_poc.media_buy.list_creatives_response.QuerySummary" href="generated_poc/media_buy/list_creatives_response.html#adcp.types.generated_poc.media_buy.list_creatives_response.QuerySummary">QuerySummary</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ListCreativesResponse.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -14291,6 +14407,10 @@ validated to form a valid model.</p>
     partial_failures: Annotated[
         list[PartialFailure] | None, Field(description=&#39;Events that failed validation&#39;)
     ] = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None
     warnings: Annotated[
         list[str] | None,
         Field(
@@ -14338,6 +14458,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.LogEventResponse1.partial_failures"><code class="name">var <span class="ident">partial_failures</span> : list[<a title="adcp.types.generated_poc.media_buy.log_event_response.PartialFailure" href="generated_poc/media_buy/log_event_response.html#adcp.types.generated_poc.media_buy.log_event_response.PartialFailure">PartialFailure</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.LogEventResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -18618,6 +18742,151 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.PromotedOfferingsAssetRequirements"><code class="flex name class">
+<span>class <span class="ident">PromotedOfferingsAssetRequirements</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PromotedOfferingsAssetRequirements(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    requires: Annotated[
+        list[promoted_offerings_requirement.PromotedOfferingsRequirement] | None,
+        Field(
+            description=&#34;Content that must be available in this format&#39;s promoted offerings. Each value is a presence check: the referenced field must exist and be non-empty. For brand.* paths, the validating agent resolves the brand reference first.&#34;,
+            min_length=1,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.PromotedOfferingsAssetRequirements.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PromotedOfferingsAssetRequirements.requires"><code class="name">var <span class="ident">requires</span> : list[<a title="adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement" href="generated_poc/enums/promoted_offerings_requirement.html#adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement">PromotedOfferingsRequirement</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.PromotedOfferingsRequirement"><code class="flex name class">
+<span>class <span class="ident">PromotedOfferingsRequirement</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PromotedOfferingsRequirement(Enum):
+    si_agent_url = &#39;si_agent_url&#39;
+    offerings = &#39;offerings&#39;
+    brand_logos = &#39;brand.logos&#39;
+    brand_colors = &#39;brand.colors&#39;
+    brand_tone = &#39;brand.tone&#39;
+    brand_assets = &#39;brand.assets&#39;
+    brand_product_catalog = &#39;brand.product_catalog&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.PromotedOfferingsRequirement.brand_assets"><code class="name">var <span class="ident">brand_assets</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PromotedOfferingsRequirement.brand_colors"><code class="name">var <span class="ident">brand_colors</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PromotedOfferingsRequirement.brand_logos"><code class="name">var <span class="ident">brand_logos</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PromotedOfferingsRequirement.brand_product_catalog"><code class="name">var <span class="ident">brand_product_catalog</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PromotedOfferingsRequirement.brand_tone"><code class="name">var <span class="ident">brand_tone</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PromotedOfferingsRequirement.offerings"><code class="name">var <span class="ident">offerings</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PromotedOfferingsRequirement.si_agent_url"><code class="name">var <span class="ident">si_agent_url</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.PromotedProducts"><code class="flex name class">
 <span>class <span class="ident">PromotedProducts</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -19894,6 +20163,10 @@ validated to form a valid model.</p>
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None
     success: Annotated[
         Literal[True],
         Field(description=&#39;Whether the performance feedback was successfully received&#39;),
@@ -19923,6 +20196,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.ProvidePerformanceFeedbackResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -23867,7 +24144,11 @@ validated to form a valid model.</p>
     dry_run: Annotated[
         bool | None, Field(description=&#39;Whether this was a dry run (no actual changes made)&#39;)
     ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -23901,6 +24182,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.SyncCreativesResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.SyncCreativesResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -24138,7 +24423,11 @@ validated to form a valid model.</p>
             description=&#39;Results for each event source, including both synced and seller-managed sources on the account&#39;
         ),
     ]
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -24168,6 +24457,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.SyncEventSourcesResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.SyncEventSourcesResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -24309,6 +24602,20 @@ validated to form a valid model.</p>
             description=&#39;Age restriction for compliance. Use for legal requirements (alcohol, gambling), not audience targeting.&#39;
         ),
     ] = None
+    audience_exclude: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Suppress delivery to members of these first-party CRM audiences. Matched users are excluded regardless of other targeting. References audience_id values from sync_audiences on the same seller account — audience IDs are not portable across sellers. Seller must declare support in get_adcp_capabilities.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    audience_include: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Restrict delivery to members of these first-party CRM audiences. Only users present in the uploaded lists are eligible. References audience_id values from sync_audiences on the same seller account — audience IDs are not portable across sellers. Not for lookalike expansion — express that intent in the campaign brief. Seller must declare support in get_adcp_capabilities.&#39;,
+            min_length=1,
+        ),
+    ] = None
     axe_exclude_segment: Annotated[
         str | None, Field(description=&#39;AXE segment ID to exclude from targeting&#39;)
     ] = None
@@ -24416,6 +24723,14 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.TargetingOverlay.age_restriction"><code class="name">var <span class="ident">age_restriction</span> : <a title="adcp.types.generated_poc.core.targeting.AgeRestriction" href="generated_poc/core/targeting.html#adcp.types.generated_poc.core.targeting.AgeRestriction">AgeRestriction</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.TargetingOverlay.audience_exclude"><code class="name">var <span class="ident">audience_exclude</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.TargetingOverlay.audience_include"><code class="name">var <span class="ident">audience_include</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -24734,6 +25049,7 @@ attributes &ndash; see the documentation for details.</p></div>
     sync_accounts = &#39;sync_accounts&#39;
     get_creative_delivery = &#39;get_creative_delivery&#39;
     sync_event_sources = &#39;sync_event_sources&#39;
+    sync_audiences = &#39;sync_audiences&#39;
     log_event = &#39;log_event&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
@@ -24814,6 +25130,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.TaskType.sync_accounts"><code class="name">var <span class="ident">sync_accounts</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.TaskType.sync_audiences"><code class="name">var <span class="ident">sync_audiences</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -25560,7 +25880,11 @@ validated to form a valid model.</p>
         AwareDatetime | None,
         Field(description=&#39;ISO 8601 timestamp when changes take effect (null if pending approval)&#39;),
     ] = None
-    media_buy_id: Annotated[str, Field(description=&#34;Publisher&#39;s identifier for the media buy&#34;)]</code></pre>
+    media_buy_id: Annotated[str, Field(description=&#34;Publisher&#39;s identifier for the media buy&#34;)]
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -25602,6 +25926,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.UpdateMediaBuyResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -27781,12 +28109,13 @@ attributes &ndash; see the documentation for details.</p></div>
 </li>
 <li>
 <h4><code><a title="adcp.types.Account" href="#adcp.types.Account">Account</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.Account.billing" href="#adcp.types.Account.billing">billing</a></code></li>
 <li><code><a title="adcp.types.Account.brand_id" href="#adcp.types.Account.brand_id">brand_id</a></code></li>
 <li><code><a title="adcp.types.Account.house" href="#adcp.types.Account.house">house</a></code></li>
 <li><code><a title="adcp.types.Account.model_config" href="#adcp.types.Account.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.Account.operator" href="#adcp.types.Account.operator">operator</a></code></li>
+<li><code><a title="adcp.types.Account.sandbox" href="#adcp.types.Account.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 <li>
@@ -27813,6 +28142,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.ActivateSignalResponse1.deployments" href="#adcp.types.ActivateSignalResponse1.deployments">deployments</a></code></li>
 <li><code><a title="adcp.types.ActivateSignalResponse1.ext" href="#adcp.types.ActivateSignalResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.ActivateSignalResponse1.model_config" href="#adcp.types.ActivateSignalResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.ActivateSignalResponse1.sandbox" href="#adcp.types.ActivateSignalResponse1.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 <li>
@@ -28106,6 +28436,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.BuildCreativeResponse1.creative_manifest" href="#adcp.types.BuildCreativeResponse1.creative_manifest">creative_manifest</a></code></li>
 <li><code><a title="adcp.types.BuildCreativeResponse1.ext" href="#adcp.types.BuildCreativeResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.BuildCreativeResponse1.model_config" href="#adcp.types.BuildCreativeResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.BuildCreativeResponse1.sandbox" href="#adcp.types.BuildCreativeResponse1.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 <li>
@@ -28370,6 +28701,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.CreateMediaBuyResponse1.media_buy_id" href="#adcp.types.CreateMediaBuyResponse1.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.CreateMediaBuyResponse1.model_config" href="#adcp.types.CreateMediaBuyResponse1.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.CreateMediaBuyResponse1.packages" href="#adcp.types.CreateMediaBuyResponse1.packages">packages</a></code></li>
+<li><code><a title="adcp.types.CreateMediaBuyResponse1.sandbox" href="#adcp.types.CreateMediaBuyResponse1.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 <li>
@@ -28958,6 +29290,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.Format.format_card" href="#adcp.types.Format.format_card">format_card</a></code></li>
 <li><code><a title="adcp.types.Format.format_card_detailed" href="#adcp.types.Format.format_card_detailed">format_card_detailed</a></code></li>
 <li><code><a title="adcp.types.Format.format_id" href="#adcp.types.Format.format_id">format_id</a></code></li>
+<li><code><a title="adcp.types.Format.input_format_ids" href="#adcp.types.Format.input_format_ids">input_format_ids</a></code></li>
 <li><code><a title="adcp.types.Format.model_config" href="#adcp.types.Format.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.Format.name" href="#adcp.types.Format.name">name</a></code></li>
 <li><code><a title="adcp.types.Format.output_format_ids" href="#adcp.types.Format.output_format_ids">output_format_ids</a></code></li>
@@ -29275,6 +29608,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.GetMediaBuyDeliveryResponse.notification_type" href="#adcp.types.GetMediaBuyDeliveryResponse.notification_type">notification_type</a></code></li>
 <li><code><a title="adcp.types.GetMediaBuyDeliveryResponse.partial_data" href="#adcp.types.GetMediaBuyDeliveryResponse.partial_data">partial_data</a></code></li>
 <li><code><a title="adcp.types.GetMediaBuyDeliveryResponse.reporting_period" href="#adcp.types.GetMediaBuyDeliveryResponse.reporting_period">reporting_period</a></code></li>
+<li><code><a title="adcp.types.GetMediaBuyDeliveryResponse.sandbox" href="#adcp.types.GetMediaBuyDeliveryResponse.sandbox">sandbox</a></code></li>
 <li><code><a title="adcp.types.GetMediaBuyDeliveryResponse.sequence_number" href="#adcp.types.GetMediaBuyDeliveryResponse.sequence_number">sequence_number</a></code></li>
 <li><code><a title="adcp.types.GetMediaBuyDeliveryResponse.unavailable_count" href="#adcp.types.GetMediaBuyDeliveryResponse.unavailable_count">unavailable_count</a></code></li>
 </ul>
@@ -29306,6 +29640,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.GetProductsResponse.products" href="#adcp.types.GetProductsResponse.products">products</a></code></li>
 <li><code><a title="adcp.types.GetProductsResponse.property_list_applied" href="#adcp.types.GetProductsResponse.property_list_applied">property_list_applied</a></code></li>
 <li><code><a title="adcp.types.GetProductsResponse.proposals" href="#adcp.types.GetProductsResponse.proposals">proposals</a></code></li>
+<li><code><a title="adcp.types.GetProductsResponse.sandbox" href="#adcp.types.GetProductsResponse.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 <li>
@@ -29347,6 +29682,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.GetSignalsResponse.ext" href="#adcp.types.GetSignalsResponse.ext">ext</a></code></li>
 <li><code><a title="adcp.types.GetSignalsResponse.model_config" href="#adcp.types.GetSignalsResponse.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.GetSignalsResponse.pagination" href="#adcp.types.GetSignalsResponse.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.GetSignalsResponse.sandbox" href="#adcp.types.GetSignalsResponse.sandbox">sandbox</a></code></li>
 <li><code><a title="adcp.types.GetSignalsResponse.signals" href="#adcp.types.GetSignalsResponse.signals">signals</a></code></li>
 </ul>
 </li>
@@ -29444,11 +29780,12 @@ attributes &ndash; see the documentation for details.</p></div>
 </li>
 <li>
 <h4><code><a title="adcp.types.ListAccountsRequest" href="#adcp.types.ListAccountsRequest">ListAccountsRequest</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.ListAccountsRequest.context" href="#adcp.types.ListAccountsRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.ListAccountsRequest.ext" href="#adcp.types.ListAccountsRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.ListAccountsRequest.model_config" href="#adcp.types.ListAccountsRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.ListAccountsRequest.pagination" href="#adcp.types.ListAccountsRequest.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.ListAccountsRequest.sandbox" href="#adcp.types.ListAccountsRequest.sandbox">sandbox</a></code></li>
 <li><code><a title="adcp.types.ListAccountsRequest.status" href="#adcp.types.ListAccountsRequest.status">status</a></code></li>
 </ul>
 </li>
@@ -29510,6 +29847,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.ListCreativeFormatsRequest.context" href="#adcp.types.ListCreativeFormatsRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.ListCreativeFormatsRequest.ext" href="#adcp.types.ListCreativeFormatsRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.ListCreativeFormatsRequest.format_ids" href="#adcp.types.ListCreativeFormatsRequest.format_ids">format_ids</a></code></li>
+<li><code><a title="adcp.types.ListCreativeFormatsRequest.input_format_ids" href="#adcp.types.ListCreativeFormatsRequest.input_format_ids">input_format_ids</a></code></li>
 <li><code><a title="adcp.types.ListCreativeFormatsRequest.is_responsive" href="#adcp.types.ListCreativeFormatsRequest.is_responsive">is_responsive</a></code></li>
 <li><code><a title="adcp.types.ListCreativeFormatsRequest.max_height" href="#adcp.types.ListCreativeFormatsRequest.max_height">max_height</a></code></li>
 <li><code><a title="adcp.types.ListCreativeFormatsRequest.max_width" href="#adcp.types.ListCreativeFormatsRequest.max_width">max_width</a></code></li>
@@ -29517,6 +29855,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.ListCreativeFormatsRequest.min_width" href="#adcp.types.ListCreativeFormatsRequest.min_width">min_width</a></code></li>
 <li><code><a title="adcp.types.ListCreativeFormatsRequest.model_config" href="#adcp.types.ListCreativeFormatsRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.ListCreativeFormatsRequest.name_search" href="#adcp.types.ListCreativeFormatsRequest.name_search">name_search</a></code></li>
+<li><code><a title="adcp.types.ListCreativeFormatsRequest.output_format_ids" href="#adcp.types.ListCreativeFormatsRequest.output_format_ids">output_format_ids</a></code></li>
 <li><code><a title="adcp.types.ListCreativeFormatsRequest.pagination" href="#adcp.types.ListCreativeFormatsRequest.pagination">pagination</a></code></li>
 <li><code><a title="adcp.types.ListCreativeFormatsRequest.type" href="#adcp.types.ListCreativeFormatsRequest.type">type</a></code></li>
 <li><code><a title="adcp.types.ListCreativeFormatsRequest.wcag_level" href="#adcp.types.ListCreativeFormatsRequest.wcag_level">wcag_level</a></code></li>
@@ -29532,6 +29871,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.ListCreativeFormatsResponse.formats" href="#adcp.types.ListCreativeFormatsResponse.formats">formats</a></code></li>
 <li><code><a title="adcp.types.ListCreativeFormatsResponse.model_config" href="#adcp.types.ListCreativeFormatsResponse.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.ListCreativeFormatsResponse.pagination" href="#adcp.types.ListCreativeFormatsResponse.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.ListCreativeFormatsResponse.sandbox" href="#adcp.types.ListCreativeFormatsResponse.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 <li>
@@ -29559,6 +29899,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.ListCreativesResponse.model_config" href="#adcp.types.ListCreativesResponse.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.ListCreativesResponse.pagination" href="#adcp.types.ListCreativesResponse.pagination">pagination</a></code></li>
 <li><code><a title="adcp.types.ListCreativesResponse.query_summary" href="#adcp.types.ListCreativesResponse.query_summary">query_summary</a></code></li>
+<li><code><a title="adcp.types.ListCreativesResponse.sandbox" href="#adcp.types.ListCreativesResponse.sandbox">sandbox</a></code></li>
 <li><code><a title="adcp.types.ListCreativesResponse.status_summary" href="#adcp.types.ListCreativesResponse.status_summary">status_summary</a></code></li>
 </ul>
 </li>
@@ -29610,6 +29951,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.LogEventResponse1.match_quality" href="#adcp.types.LogEventResponse1.match_quality">match_quality</a></code></li>
 <li><code><a title="adcp.types.LogEventResponse1.model_config" href="#adcp.types.LogEventResponse1.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.LogEventResponse1.partial_failures" href="#adcp.types.LogEventResponse1.partial_failures">partial_failures</a></code></li>
+<li><code><a title="adcp.types.LogEventResponse1.sandbox" href="#adcp.types.LogEventResponse1.sandbox">sandbox</a></code></li>
 <li><code><a title="adcp.types.LogEventResponse1.warnings" href="#adcp.types.LogEventResponse1.warnings">warnings</a></code></li>
 </ul>
 </li>
@@ -30167,6 +30509,25 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.PromotedOfferingsAssetRequirements" href="#adcp.types.PromotedOfferingsAssetRequirements">PromotedOfferingsAssetRequirements</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.PromotedOfferingsAssetRequirements.model_config" href="#adcp.types.PromotedOfferingsAssetRequirements.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.PromotedOfferingsAssetRequirements.requires" href="#adcp.types.PromotedOfferingsAssetRequirements.requires">requires</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.PromotedOfferingsRequirement" href="#adcp.types.PromotedOfferingsRequirement">PromotedOfferingsRequirement</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.PromotedOfferingsRequirement.brand_assets" href="#adcp.types.PromotedOfferingsRequirement.brand_assets">brand_assets</a></code></li>
+<li><code><a title="adcp.types.PromotedOfferingsRequirement.brand_colors" href="#adcp.types.PromotedOfferingsRequirement.brand_colors">brand_colors</a></code></li>
+<li><code><a title="adcp.types.PromotedOfferingsRequirement.brand_logos" href="#adcp.types.PromotedOfferingsRequirement.brand_logos">brand_logos</a></code></li>
+<li><code><a title="adcp.types.PromotedOfferingsRequirement.brand_product_catalog" href="#adcp.types.PromotedOfferingsRequirement.brand_product_catalog">brand_product_catalog</a></code></li>
+<li><code><a title="adcp.types.PromotedOfferingsRequirement.brand_tone" href="#adcp.types.PromotedOfferingsRequirement.brand_tone">brand_tone</a></code></li>
+<li><code><a title="adcp.types.PromotedOfferingsRequirement.offerings" href="#adcp.types.PromotedOfferingsRequirement.offerings">offerings</a></code></li>
+<li><code><a title="adcp.types.PromotedOfferingsRequirement.si_agent_url" href="#adcp.types.PromotedOfferingsRequirement.si_agent_url">si_agent_url</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.PromotedProducts" href="#adcp.types.PromotedProducts">PromotedProducts</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.PromotedProducts.manifest_category" href="#adcp.types.PromotedProducts.manifest_category">manifest_category</a></code></li>
@@ -30340,6 +30701,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.ProvidePerformanceFeedbackResponse1.context" href="#adcp.types.ProvidePerformanceFeedbackResponse1.context">context</a></code></li>
 <li><code><a title="adcp.types.ProvidePerformanceFeedbackResponse1.ext" href="#adcp.types.ProvidePerformanceFeedbackResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.ProvidePerformanceFeedbackResponse1.model_config" href="#adcp.types.ProvidePerformanceFeedbackResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackResponse1.sandbox" href="#adcp.types.ProvidePerformanceFeedbackResponse1.sandbox">sandbox</a></code></li>
 <li><code><a title="adcp.types.ProvidePerformanceFeedbackResponse1.success" href="#adcp.types.ProvidePerformanceFeedbackResponse1.success">success</a></code></li>
 </ul>
 </li>
@@ -30862,12 +31224,13 @@ attributes &ndash; see the documentation for details.</p></div>
 </li>
 <li>
 <h4><code><a title="adcp.types.SyncCreativesResponse1" href="#adcp.types.SyncCreativesResponse1">SyncCreativesResponse1</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.SyncCreativesResponse1.context" href="#adcp.types.SyncCreativesResponse1.context">context</a></code></li>
 <li><code><a title="adcp.types.SyncCreativesResponse1.creatives" href="#adcp.types.SyncCreativesResponse1.creatives">creatives</a></code></li>
 <li><code><a title="adcp.types.SyncCreativesResponse1.dry_run" href="#adcp.types.SyncCreativesResponse1.dry_run">dry_run</a></code></li>
 <li><code><a title="adcp.types.SyncCreativesResponse1.ext" href="#adcp.types.SyncCreativesResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.SyncCreativesResponse1.model_config" href="#adcp.types.SyncCreativesResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.SyncCreativesResponse1.sandbox" href="#adcp.types.SyncCreativesResponse1.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 <li>
@@ -30904,6 +31267,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.SyncEventSourcesResponse1.event_sources" href="#adcp.types.SyncEventSourcesResponse1.event_sources">event_sources</a></code></li>
 <li><code><a title="adcp.types.SyncEventSourcesResponse1.ext" href="#adcp.types.SyncEventSourcesResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.SyncEventSourcesResponse1.model_config" href="#adcp.types.SyncEventSourcesResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.SyncEventSourcesResponse1.sandbox" href="#adcp.types.SyncEventSourcesResponse1.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 <li>
@@ -30925,6 +31289,8 @@ attributes &ndash; see the documentation for details.</p></div>
 <h4><code><a title="adcp.types.TargetingOverlay" href="#adcp.types.TargetingOverlay">TargetingOverlay</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.TargetingOverlay.age_restriction" href="#adcp.types.TargetingOverlay.age_restriction">age_restriction</a></code></li>
+<li><code><a title="adcp.types.TargetingOverlay.audience_exclude" href="#adcp.types.TargetingOverlay.audience_exclude">audience_exclude</a></code></li>
+<li><code><a title="adcp.types.TargetingOverlay.audience_include" href="#adcp.types.TargetingOverlay.audience_include">audience_include</a></code></li>
 <li><code><a title="adcp.types.TargetingOverlay.axe_exclude_segment" href="#adcp.types.TargetingOverlay.axe_exclude_segment">axe_exclude_segment</a></code></li>
 <li><code><a title="adcp.types.TargetingOverlay.axe_include_segment" href="#adcp.types.TargetingOverlay.axe_include_segment">axe_include_segment</a></code></li>
 <li><code><a title="adcp.types.TargetingOverlay.daypart_targets" href="#adcp.types.TargetingOverlay.daypart_targets">daypart_targets</a></code></li>
@@ -30985,6 +31351,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.TaskType.list_property_lists" href="#adcp.types.TaskType.list_property_lists">list_property_lists</a></code></li>
 <li><code><a title="adcp.types.TaskType.log_event" href="#adcp.types.TaskType.log_event">log_event</a></code></li>
 <li><code><a title="adcp.types.TaskType.sync_accounts" href="#adcp.types.TaskType.sync_accounts">sync_accounts</a></code></li>
+<li><code><a title="adcp.types.TaskType.sync_audiences" href="#adcp.types.TaskType.sync_audiences">sync_audiences</a></code></li>
 <li><code><a title="adcp.types.TaskType.sync_creatives" href="#adcp.types.TaskType.sync_creatives">sync_creatives</a></code></li>
 <li><code><a title="adcp.types.TaskType.sync_event_sources" href="#adcp.types.TaskType.sync_event_sources">sync_event_sources</a></code></li>
 <li><code><a title="adcp.types.TaskType.update_media_buy" href="#adcp.types.TaskType.update_media_buy">update_media_buy</a></code></li>
@@ -31095,6 +31462,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.UpdateMediaBuyResponse1.implementation_date" href="#adcp.types.UpdateMediaBuyResponse1.implementation_date">implementation_date</a></code></li>
 <li><code><a title="adcp.types.UpdateMediaBuyResponse1.media_buy_id" href="#adcp.types.UpdateMediaBuyResponse1.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.UpdateMediaBuyResponse1.model_config" href="#adcp.types.UpdateMediaBuyResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyResponse1.sandbox" href="#adcp.types.UpdateMediaBuyResponse1.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 <li>

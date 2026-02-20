@@ -109,6 +109,12 @@ el.replaceWith(d);
     rate_card: Annotated[
         str | None, Field(description=&#39;Identifier for the rate card applied to this account&#39;)
     ] = None
+    sandbox: Annotated[
+        bool | None,
+        Field(
+            description=&#39;When true, this is a sandbox account. All requests using this account_id are treated as sandbox — no real platform calls, no real spend.&#39;
+        ),
+    ] = None
     status: Annotated[
         Status,
         Field(
@@ -180,6 +186,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.account.Account.rate_card"><code class="name">var <span class="ident">rate_card</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.Account.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -430,6 +440,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.operator" href="#adcp.types.generated_poc.core.account.Account.operator">operator</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.payment_terms" href="#adcp.types.generated_poc.core.account.Account.payment_terms">payment_terms</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.rate_card" href="#adcp.types.generated_poc.core.account.Account.rate_card">rate_card</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Account.sandbox" href="#adcp.types.generated_poc.core.account.Account.sandbox">sandbox</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.status" href="#adcp.types.generated_poc.core.account.Account.status">status</a></code></li>
 </ul>
 </li>

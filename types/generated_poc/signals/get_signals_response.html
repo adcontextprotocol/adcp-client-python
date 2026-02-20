@@ -68,6 +68,10 @@ el.replaceWith(d);
     ] = None
     ext: ext_1.ExtensionObject | None = None
     pagination: pagination_response.PaginationResponse | None = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None
     signals: Annotated[list[Signal], Field(description=&#39;Array of matching signals&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -102,6 +106,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.signals.get_signals_response.GetSignalsResponse.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_response.PaginationResponse" href="../core/pagination_response.html#adcp.types.generated_poc.core.pagination_response.PaginationResponse">PaginationResponse</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.signals.get_signals_response.GetSignalsResponse.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -314,6 +322,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.signals.get_signals_response.GetSignalsResponse.ext" href="#adcp.types.generated_poc.signals.get_signals_response.GetSignalsResponse.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.signals.get_signals_response.GetSignalsResponse.model_config" href="#adcp.types.generated_poc.signals.get_signals_response.GetSignalsResponse.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.signals.get_signals_response.GetSignalsResponse.pagination" href="#adcp.types.generated_poc.signals.get_signals_response.GetSignalsResponse.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.get_signals_response.GetSignalsResponse.sandbox" href="#adcp.types.generated_poc.signals.get_signals_response.GetSignalsResponse.sandbox">sandbox</a></code></li>
 <li><code><a title="adcp.types.generated_poc.signals.get_signals_response.GetSignalsResponse.signals" href="#adcp.types.generated_poc.signals.get_signals_response.GetSignalsResponse.signals">signals</a></code></li>
 </ul>
 </li>

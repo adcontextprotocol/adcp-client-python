@@ -182,7 +182,11 @@ product = Product(
         list[deployment.Deployment],
         Field(description=&#39;Array of deployment results for each deployment target&#39;),
     ]
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -212,6 +216,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.aliases.ActivateSignalResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ActivateSignalResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -637,7 +645,11 @@ validated to form a valid model.</p>
         creative_manifest_1.CreativeManifest,
         Field(description=&#39;The generated or transformed creative manifest&#39;),
     ]
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -667,6 +679,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.aliases.BuildCreativeResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.BuildCreativeResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1049,7 +1065,11 @@ validated to form a valid model.</p>
     packages: Annotated[
         list[package.Package],
         Field(description=&#39;Array of created packages with complete state information&#39;),
-    ]</code></pre>
+    ]
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -1095,6 +1115,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.aliases.CreateMediaBuyResponse1.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.core.package.Package" href="generated_poc/core/package.html#adcp.types.generated_poc.core.package.Package">Package</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2683,6 +2707,10 @@ validated to form a valid model.</p>
     partial_failures: Annotated[
         list[PartialFailure] | None, Field(description=&#39;Events that failed validation&#39;)
     ] = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None
     warnings: Annotated[
         list[str] | None,
         Field(
@@ -2730,6 +2758,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.aliases.LogEventResponse1.partial_failures"><code class="name">var <span class="ident">partial_failures</span> : list[<a title="adcp.types.generated_poc.media_buy.log_event_response.PartialFailure" href="generated_poc/media_buy/log_event_response.html#adcp.types.generated_poc.media_buy.log_event_response.PartialFailure">PartialFailure</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.LogEventResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3746,6 +3778,10 @@ validated to form a valid model.</p>
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None
     success: Annotated[
         Literal[True],
         Field(description=&#39;Whether the performance feedback was successfully received&#39;),
@@ -3775,6 +3811,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.aliases.ProvidePerformanceFeedbackResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.ProvidePerformanceFeedbackResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -4383,7 +4423,11 @@ validated to form a valid model.</p>
     dry_run: Annotated[
         bool | None, Field(description=&#39;Whether this was a dry run (no actual changes made)&#39;)
     ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -4417,6 +4461,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.aliases.SyncCreativesResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncCreativesResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -4518,7 +4566,11 @@ validated to form a valid model.</p>
             description=&#39;Results for each event source, including both synced and seller-managed sources on the account&#39;
         ),
     ]
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -4548,6 +4600,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.aliases.SyncEventSourcesResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncEventSourcesResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -4880,7 +4936,11 @@ validated to form a valid model.</p>
         AwareDatetime | None,
         Field(description=&#39;ISO 8601 timestamp when changes take effect (null if pending approval)&#39;),
     ] = None
-    media_buy_id: Annotated[str, Field(description=&#34;Publisher&#39;s identifier for the media buy&#34;)]</code></pre>
+    media_buy_id: Annotated[str, Field(description=&#34;Publisher&#39;s identifier for the media buy&#34;)]
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -4922,6 +4982,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.aliases.UpdateMediaBuyResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.UpdateMediaBuyResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -5370,6 +5434,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.ActivateSignalResponse1.deployments" href="#adcp.types.aliases.ActivateSignalResponse1.deployments">deployments</a></code></li>
 <li><code><a title="adcp.types.aliases.ActivateSignalResponse1.ext" href="#adcp.types.aliases.ActivateSignalResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.ActivateSignalResponse1.model_config" href="#adcp.types.aliases.ActivateSignalResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.ActivateSignalResponse1.sandbox" href="#adcp.types.aliases.ActivateSignalResponse1.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 <li>
@@ -5428,6 +5493,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.BuildCreativeResponse1.creative_manifest" href="#adcp.types.aliases.BuildCreativeResponse1.creative_manifest">creative_manifest</a></code></li>
 <li><code><a title="adcp.types.aliases.BuildCreativeResponse1.ext" href="#adcp.types.aliases.BuildCreativeResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.BuildCreativeResponse1.model_config" href="#adcp.types.aliases.BuildCreativeResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.BuildCreativeResponse1.sandbox" href="#adcp.types.aliases.BuildCreativeResponse1.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 <li>
@@ -5490,6 +5556,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.media_buy_id" href="#adcp.types.aliases.CreateMediaBuyResponse1.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.model_config" href="#adcp.types.aliases.CreateMediaBuyResponse1.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.packages" href="#adcp.types.aliases.CreateMediaBuyResponse1.packages">packages</a></code></li>
+<li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.sandbox" href="#adcp.types.aliases.CreateMediaBuyResponse1.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 <li>
@@ -5708,6 +5775,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.LogEventResponse1.match_quality" href="#adcp.types.aliases.LogEventResponse1.match_quality">match_quality</a></code></li>
 <li><code><a title="adcp.types.aliases.LogEventResponse1.model_config" href="#adcp.types.aliases.LogEventResponse1.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.aliases.LogEventResponse1.partial_failures" href="#adcp.types.aliases.LogEventResponse1.partial_failures">partial_failures</a></code></li>
+<li><code><a title="adcp.types.aliases.LogEventResponse1.sandbox" href="#adcp.types.aliases.LogEventResponse1.sandbox">sandbox</a></code></li>
 <li><code><a title="adcp.types.aliases.LogEventResponse1.warnings" href="#adcp.types.aliases.LogEventResponse1.warnings">warnings</a></code></li>
 </ul>
 </li>
@@ -5844,6 +5912,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse1.context" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse1.context">context</a></code></li>
 <li><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse1.ext" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse1.model_config" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse1.sandbox" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse1.sandbox">sandbox</a></code></li>
 <li><code><a title="adcp.types.aliases.ProvidePerformanceFeedbackResponse1.success" href="#adcp.types.aliases.ProvidePerformanceFeedbackResponse1.success">success</a></code></li>
 </ul>
 </li>
@@ -5923,12 +5992,13 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.aliases.SyncCreativesResponse1" href="#adcp.types.aliases.SyncCreativesResponse1">SyncCreativesResponse1</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.aliases.SyncCreativesResponse1.context" href="#adcp.types.aliases.SyncCreativesResponse1.context">context</a></code></li>
 <li><code><a title="adcp.types.aliases.SyncCreativesResponse1.creatives" href="#adcp.types.aliases.SyncCreativesResponse1.creatives">creatives</a></code></li>
 <li><code><a title="adcp.types.aliases.SyncCreativesResponse1.dry_run" href="#adcp.types.aliases.SyncCreativesResponse1.dry_run">dry_run</a></code></li>
 <li><code><a title="adcp.types.aliases.SyncCreativesResponse1.ext" href="#adcp.types.aliases.SyncCreativesResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.SyncCreativesResponse1.model_config" href="#adcp.types.aliases.SyncCreativesResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncCreativesResponse1.sandbox" href="#adcp.types.aliases.SyncCreativesResponse1.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 <li>
@@ -5947,6 +6017,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.SyncEventSourcesResponse1.event_sources" href="#adcp.types.aliases.SyncEventSourcesResponse1.event_sources">event_sources</a></code></li>
 <li><code><a title="adcp.types.aliases.SyncEventSourcesResponse1.ext" href="#adcp.types.aliases.SyncEventSourcesResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.SyncEventSourcesResponse1.model_config" href="#adcp.types.aliases.SyncEventSourcesResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncEventSourcesResponse1.sandbox" href="#adcp.types.aliases.SyncEventSourcesResponse1.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 <li>
@@ -6000,6 +6071,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse1.implementation_date" href="#adcp.types.aliases.UpdateMediaBuyResponse1.implementation_date">implementation_date</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse1.media_buy_id" href="#adcp.types.aliases.UpdateMediaBuyResponse1.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse1.model_config" href="#adcp.types.aliases.UpdateMediaBuyResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.UpdateMediaBuyResponse1.sandbox" href="#adcp.types.aliases.UpdateMediaBuyResponse1.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 <li>

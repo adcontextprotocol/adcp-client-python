@@ -523,7 +523,11 @@ validated to form a valid model.</p>
             description=&#39;Results for each event source, including both synced and seller-managed sources on the account&#39;
         ),
     ]
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -553,6 +557,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.sync_event_sources_response.SyncEventSourcesResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_event_sources_response.SyncEventSourcesResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -710,6 +718,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_event_sources_response.SyncEventSourcesResponse1.event_sources" href="#adcp.types.generated_poc.media_buy.sync_event_sources_response.SyncEventSourcesResponse1.event_sources">event_sources</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_event_sources_response.SyncEventSourcesResponse1.ext" href="#adcp.types.generated_poc.media_buy.sync_event_sources_response.SyncEventSourcesResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_event_sources_response.SyncEventSourcesResponse1.model_config" href="#adcp.types.generated_poc.media_buy.sync_event_sources_response.SyncEventSourcesResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_event_sources_response.SyncEventSourcesResponse1.sandbox" href="#adcp.types.generated_poc.media_buy.sync_event_sources_response.SyncEventSourcesResponse1.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 <li>

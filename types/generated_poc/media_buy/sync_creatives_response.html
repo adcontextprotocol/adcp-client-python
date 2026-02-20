@@ -260,7 +260,11 @@ validated to form a valid model.</p>
     dry_run: Annotated[
         bool | None, Field(description=&#39;Whether this was a dry run (no actual changes made)&#39;)
     ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -294,6 +298,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -416,12 +424,13 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1">SyncCreativesResponse1</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.context" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.creatives" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.creatives">creatives</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.dry_run" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.dry_run">dry_run</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.ext" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.model_config" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.sandbox" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 <li>
