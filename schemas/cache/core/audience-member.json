@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "anyOf": [
+    {
+      "required": [
+        "hashed_email"
+      ]
+    },
+    {
+      "required": [
+        "hashed_phone"
+      ]
+    },
+    {
+      "required": [
+        "uids"
+      ]
+    }
+  ],
+  "description": "Hashed identifiers for a CRM audience member. All identifiers must be normalized before hashing: emails to lowercase+trim, phone numbers to E.164 format (e.g. +12065551234). At least one identifier is required. Providing multiple identifiers for the same person improves match rates. Composite identifiers (e.g. hashed first name + last name + zip for Google Customer Match) are not yet standardized \u2014 use the ext field for platform-specific extensions.",
+  "properties": {
+    "ext": {
+      "$ref": "ext.json"
+    },
+    "hashed_email": {
+      "description": "SHA-256 hash of lowercase, trimmed email address.",
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "hashed_phone": {
+      "description": "SHA-256 hash of E.164-formatted phone number (e.g. +12065551234).",
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "uids": {
+      "description": "Universal ID values (MAIDs, RampID, UID2, etc.) for user matching.",
+      "items": {
+        "additionalProperties": true,
+        "properties": {
+          "type": {
+            "$ref": "../enums/uid-type.json",
+            "description": "Universal ID type"
+          },
+          "value": {
+            "description": "Universal ID value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "title": "Audience Member",
+  "type": "object"
+}

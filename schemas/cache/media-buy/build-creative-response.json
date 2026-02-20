@@ -20,6 +20,10 @@
         },
         "ext": {
           "$ref": "../core/ext.json"
+        },
+        "sandbox": {
+          "description": "When true, this response contains simulated data from sandbox mode.",
+          "type": "boolean"
         }
       },
       "required": [
@@ -32,8 +36,17 @@
       "additionalProperties": true,
       "description": "Error response - creative generation failed",
       "not": {
-        "required": [
-          "creative_manifest"
+        "anyOf": [
+          {
+            "required": [
+              "creative_manifest"
+            ]
+          },
+          {
+            "required": [
+              "sandbox"
+            ]
+          }
         ]
       },
       "properties": {

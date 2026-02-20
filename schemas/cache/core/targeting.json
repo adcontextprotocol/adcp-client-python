@@ -32,6 +32,22 @@
       ],
       "type": "object"
     },
+    "audience_exclude": {
+      "description": "Suppress delivery to members of these first-party CRM audiences. Matched users are excluded regardless of other targeting. References audience_id values from sync_audiences on the same seller account \u2014 audience IDs are not portable across sellers. Seller must declare support in get_adcp_capabilities.",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "audience_include": {
+      "description": "Restrict delivery to members of these first-party CRM audiences. Only users present in the uploaded lists are eligible. References audience_id values from sync_audiences on the same seller account \u2014 audience IDs are not portable across sellers. Not for lookalike expansion \u2014 express that intent in the campaign brief. Seller must declare support in get_adcp_capabilities.",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
     "axe_exclude_segment": {
       "description": "AXE segment ID to exclude from targeting",
       "type": "string"

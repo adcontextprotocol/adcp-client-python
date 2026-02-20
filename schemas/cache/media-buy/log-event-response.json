@@ -60,6 +60,10 @@
           },
           "type": "array"
         },
+        "sandbox": {
+          "description": "When true, this response contains simulated data from sandbox mode.",
+          "type": "boolean"
+        },
         "warnings": {
           "description": "Non-fatal issues (low match quality, missing recommended fields, deprecation notices)",
           "items": {
@@ -88,6 +92,11 @@
           {
             "required": [
               "events_processed"
+            ]
+          },
+          {
+            "required": [
+              "sandbox"
             ]
           }
         ]

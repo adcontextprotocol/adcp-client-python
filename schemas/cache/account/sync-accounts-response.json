@@ -146,6 +146,10 @@
                 "description": "Rate card applied to this account",
                 "type": "string"
               },
+              "sandbox": {
+                "description": "Whether this is a sandbox account, echoed from the request.",
+                "type": "boolean"
+              },
               "setup": {
                 "additionalProperties": true,
                 "description": "Setup information for pending accounts. Provides the agent (or human) with next steps to complete account activation.",

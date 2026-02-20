@@ -12,6 +12,10 @@
     "pagination": {
       "$ref": "../core/pagination-request.json"
     },
+    "sandbox": {
+      "description": "Filter by sandbox status. true returns only sandbox accounts, false returns only production accounts. Omit to return all accounts.",
+      "type": "boolean"
+    },
     "status": {
       "description": "Filter accounts by status. Omit to return accounts in all statuses.",
       "enum": [

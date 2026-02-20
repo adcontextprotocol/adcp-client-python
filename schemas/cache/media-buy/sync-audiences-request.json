@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Request parameters for managing CRM-based audiences on an account with upsert semantics. Existing audiences matched by audience_id are updated, new ones are created. Members are specified as delta operations: add appends new members, remove drops existing ones. Recommend no more than 100,000 members per call; for larger lists, chunk and call incrementally using add/remove deltas. When delete_missing is true, buyer-managed audiences on the account not in this request are removed \u2014 do not combine with omitted audiences or all buyer-managed audiences will be deleted. When audiences is omitted, the call is discovery-only: it returns all audiences on the account without modification.",
+  "if": {
+    "properties": {
+      "delete_missing": {
+        "const": true
+      }
+    },
+    "required": [
+      "delete_missing"
+    ]
+  },
+  "properties": {
+    "account_id": {
+      "description": "Account to manage audiences for",
+      "type": "string"
+    },
+    "audiences": {
+      "description": "Audiences to sync (create or update). When omitted, the call is discovery-only and returns all existing audiences on the account without modification.",
+      "items": {
+        "additionalProperties": true,
+        "properties": {
+          "add": {
+            "description": "Members to add to this audience. Hashed before sending \u2014 normalize emails to lowercase+trim, phones to E.164.",
+            "items": {
+              "$ref": "../core/audience-member.json"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "audience_id": {
+            "description": "Buyer's identifier for this audience. Used to reference the audience in targeting overlays.",
+            "type": "string"
+          },
+          "consent_basis": {
+            "description": "GDPR lawful basis for processing this audience list. Informational \u2014 not validated by the protocol, but required by some sellers operating in regulated markets (e.g. EU). When omitted, the buyer asserts they have a lawful basis appropriate to their jurisdiction.",
+            "enum": [
+              "consent",
+              "legitimate_interest",
+              "contract",
+              "legal_obligation"
+            ],
+            "type": "string"
+          },
+          "delete": {
+            "description": "When true, delete this audience from the account entirely. All other fields on this audience object are ignored. Use this to delete a specific audience without affecting others.",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Human-readable name for this audience",
+            "type": "string"
+          },
+          "remove": {
+            "description": "Members to remove from this audience. If the same identifier appears in both add and remove in a single request, remove takes precedence.",
+            "items": {
+              "$ref": "../core/audience-member.json"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "audience_id"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "delete_missing": {
+      "default": false,
+      "description": "When true, buyer-managed audiences on the account not included in this sync will be removed. Does not affect seller-managed audiences. Do not combine with an omitted audiences array or all buyer-managed audiences will be deleted.",
+      "type": "boolean"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    }
+  },
+  "required": [
+    "account_id"
+  ],
+  "then": {
+    "errorMessage": "audiences is required when delete_missing is true \u2014 omitting it would delete all buyer-managed audiences on the account",
+    "required": [
+      "audiences"
+    ]
+  },
+  "title": "Sync Audiences Request",
+  "type": "object"
+}

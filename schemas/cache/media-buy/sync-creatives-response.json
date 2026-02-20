@@ -99,6 +99,10 @@
         },
         "ext": {
           "$ref": "../core/ext.json"
+        },
+        "sandbox": {
+          "description": "When true, this response contains simulated data from sandbox mode.",
+          "type": "boolean"
         }
       },
       "required": [
@@ -120,6 +124,11 @@
           {
             "required": [
               "dry_run"
+            ]
+          },
+          {
+            "required": [
+              "sandbox"
             ]
           }
         ]

@@ -345,6 +345,10 @@
       ],
       "type": "object"
     },
+    "sandbox": {
+      "description": "When true, this response contains simulated data from sandbox mode.",
+      "type": "boolean"
+    },
     "sequence_number": {
       "description": "Sequential notification number (only present in webhook deliveries, starts at 1)",
       "minimum": 1,

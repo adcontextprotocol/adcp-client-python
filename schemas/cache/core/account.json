@@ -135,6 +135,10 @@
       "description": "Identifier for the rate card applied to this account",
       "type": "string"
     },
+    "sandbox": {
+      "description": "When true, this is a sandbox account. All requests using this account_id are treated as sandbox \u2014 no real platform calls, no real spend.",
+      "type": "boolean"
+    },
     "status": {
       "description": "Account status. pending_approval: seller reviewing (credit, contracts). payment_required: credit limit reached or funds depleted. suspended: was active, now paused. closed: terminated.",
       "enum": [

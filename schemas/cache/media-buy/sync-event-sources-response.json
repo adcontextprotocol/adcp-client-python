@@ -104,6 +104,10 @@
         },
         "ext": {
           "$ref": "../core/ext.json"
+        },
+        "sandbox": {
+          "description": "When true, this response contains simulated data from sandbox mode.",
+          "type": "boolean"
         }
       },
       "required": [
@@ -116,8 +120,17 @@
       "additionalProperties": true,
       "description": "Error response - operation failed completely",
       "not": {
-        "required": [
-          "event_sources"
+        "anyOf": [
+          {
+            "required": [
+              "event_sources"
+            ]
+          },
+          {
+            "required": [
+              "sandbox"
+            ]
+          }
         ]
       },
       "properties": {

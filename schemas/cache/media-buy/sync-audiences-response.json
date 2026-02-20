@@ -1,0 +1,146 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Response from audience sync operation. Returns either per-audience results OR operation-level errors.",
+  "oneOf": [
+    {
+      "additionalProperties": true,
+      "description": "Success response - sync operation processed audiences",
+      "not": {
+        "required": [
+          "errors"
+        ]
+      },
+      "properties": {
+        "audiences": {
+          "description": "Results for each audience on the account",
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "action": {
+                "description": "Action taken for this audience. 'status' is present when action is created, updated, or unchanged. 'status' is absent when action is deleted or failed.",
+                "enum": [
+                  "created",
+                  "updated",
+                  "unchanged",
+                  "deleted",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              "audience_id": {
+                "description": "Audience ID from the request (buyer's identifier)",
+                "type": "string"
+              },
+              "errors": {
+                "description": "Errors for this audience (only present when action='failed')",
+                "items": {
+                  "$ref": "../core/error.json"
+                },
+                "type": "array"
+              },
+              "last_synced_at": {
+                "description": "ISO 8601 timestamp of when the most recent sync operation was accepted by the platform. Useful for agents reasoning about audience freshness. Omitted if the seller does not track this.",
+                "format": "date-time",
+                "type": "string"
+              },
+              "matched_count": {
+                "description": "Total members matched to platform users across all syncs (cumulative, not just this call). Populated when status is 'ready'.",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "minimum_size": {
+                "description": "Minimum matched audience size required for targeting on this platform. Populated when status is 'too_small'. Helps agents know how many more members are needed.",
+                "minimum": 1,
+                "type": "integer"
+              },
+              "name": {
+                "description": "Name of the audience",
+                "type": "string"
+              },
+              "seller_id": {
+                "description": "Seller-assigned identifier for this audience in their ad platform",
+                "type": "string"
+              },
+              "status": {
+                "description": "Matching status. Present when action is created, updated, or unchanged; absent when action is deleted or failed. 'processing': platform is still matching members against its user base. 'ready': audience is available for targeting, matched_count is populated. 'too_small': matched audience is below the platform's minimum size \u2014 add more members and re-sync.",
+                "enum": [
+                  "processing",
+                  "ready",
+                  "too_small"
+                ],
+                "type": "string"
+              },
+              "uploaded_count": {
+                "description": "Number of members submitted in this sync operation (delta, not cumulative). In discovery-only calls (no audiences array), this is 0.",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "audience_id",
+              "action"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
+        "sandbox": {
+          "description": "When true, this response contains simulated data from sandbox mode.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "audiences"
+      ],
+      "title": "SyncAudiencesSuccess",
+      "type": "object"
+    },
+    {
+      "additionalProperties": true,
+      "description": "Error response - operation failed completely",
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "audiences"
+            ]
+          },
+          {
+            "required": [
+              "sandbox"
+            ]
+          }
+        ]
+      },
+      "properties": {
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "errors": {
+          "description": "Operation-level errors that prevented processing",
+          "items": {
+            "$ref": "../core/error.json"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        }
+      },
+      "required": [
+        "errors"
+      ],
+      "title": "SyncAudiencesError",
+      "type": "object"
+    }
+  ],
+  "title": "Sync Audiences Response",
+  "type": "object"
+}

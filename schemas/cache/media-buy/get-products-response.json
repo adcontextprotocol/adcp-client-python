@@ -40,6 +40,10 @@
         "$ref": "../core/proposal.json"
       },
       "type": "array"
+    },
+    "sandbox": {
+      "description": "When true, this response contains simulated data from sandbox mode.",
+      "type": "boolean"
     }
   },
   "required": [

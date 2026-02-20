@@ -175,6 +175,57 @@
     "media_buy": {
       "description": "Media-buy protocol capabilities. Only present if media_buy is in supported_protocols.",
       "properties": {
+        "audience_targeting": {
+          "additionalProperties": true,
+          "description": "Audience targeting capabilities. Only present when features.audience_targeting is true.",
+          "properties": {
+            "matching_latency_hours": {
+              "additionalProperties": false,
+              "description": "Expected matching latency range in hours after upload. Use to calibrate polling cadence and set appropriate expectations before configuring push_notification_config.",
+              "properties": {
+                "max": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "min": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "minimum_audience_size": {
+              "description": "Minimum matched audience size required for targeting. Audiences below this threshold will have status: too_small. Varies by platform (100\u20131000 is typical).",
+              "minimum": 1,
+              "type": "integer"
+            },
+            "supported_identifier_types": {
+              "description": "Hashed PII types accepted for audience matching. Buyers should only send identifiers the seller supports.",
+              "items": {
+                "enum": [
+                  "hashed_email",
+                  "hashed_phone"
+                ],
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "supported_uid_types": {
+              "description": "Universal ID types accepted for audience matching (MAIDs, RampID, UID2, etc.). MAID support varies significantly by platform \u2014 check this field before sending uids with type: maid.",
+              "items": {
+                "$ref": "../enums/uid-type.json"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          },
+          "required": [
+            "supported_identifier_types",
+            "minimum_audience_size"
+          ],
+          "type": "object"
+        },
         "conversion_tracking": {
           "additionalProperties": true,
           "description": "Seller-level conversion tracking capabilities. Only present when features.conversion_tracking is true.",
@@ -311,6 +362,14 @@
                     }
                   },
                   "type": "object"
+                },
+                "audience_exclude": {
+                  "description": "Whether seller supports audience_exclude in targeting overlays (requires features.audience_targeting)",
+                  "type": "boolean"
+                },
+                "audience_include": {
+                  "description": "Whether seller supports audience_include in targeting overlays (requires features.audience_targeting)",
+                  "type": "boolean"
                 },
                 "device_platform": {
                   "description": "Whether seller supports device platform targeting (Sec-CH-UA-Platform values)",

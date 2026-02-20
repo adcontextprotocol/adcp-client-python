@@ -120,6 +120,8 @@ from adcp.types import (
     PricingModel,
     Product,
     ProductFilters,
+    PromotedOfferingsAssetRequirements,
+    PromotedOfferingsRequirement,
     Property,
     ProvidePerformanceFeedbackRequest,
     ProvidePerformanceFeedbackResponse,
@@ -325,11 +327,12 @@ __all__ = [
     "Error",
     "Format",
     "FormatId",
-    # New type enums from PR #222
     "AssetContentType",
     "FormatCategory",
     "Product",
     "ProductFilters",
+    "PromotedOfferingsAssetRequirements",
+    "PromotedOfferingsRequirement",
     "Property",
     # Core domain types (from stable API)
     "BrandManifest",

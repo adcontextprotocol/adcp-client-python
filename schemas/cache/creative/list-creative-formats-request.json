@@ -34,6 +34,14 @@
       "minItems": 1,
       "type": "array"
     },
+    "input_format_ids": {
+      "description": "Filter to formats whose input_format_ids includes any of these format IDs. Returns formats that accept these creatives as input \u2014 inspect each result's output_format_ids to see what they can produce.",
+      "items": {
+        "$ref": "../core/format-id.json"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
     "is_responsive": {
       "description": "Filter for responsive formats that adapt to container size. When true, returns formats without fixed dimensions.",
       "type": "boolean"
@@ -57,6 +65,14 @@
     "name_search": {
       "description": "Search for formats by name (case-insensitive partial match)",
       "type": "string"
+    },
+    "output_format_ids": {
+      "description": "Filter to formats whose output_format_ids includes any of these format IDs. Returns formats that can produce these outputs \u2014 inspect each result's input_format_ids to see what inputs they accept.",
+      "items": {
+        "$ref": "../core/format-id.json"
+      },
+      "minItems": 1,
+      "type": "array"
     },
     "pagination": {
       "$ref": "../core/pagination-request.json"

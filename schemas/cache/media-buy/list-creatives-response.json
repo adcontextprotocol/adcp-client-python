@@ -350,6 +350,10 @@
       "required": [],
       "type": "object"
     },
+    "sandbox": {
+      "description": "When true, this response contains simulated data from sandbox mode.",
+      "type": "boolean"
+    },
     "status_summary": {
       "additionalProperties": true,
       "description": "Breakdown of creatives by status",

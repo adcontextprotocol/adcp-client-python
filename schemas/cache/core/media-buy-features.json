@@ -5,6 +5,10 @@
   },
   "description": "Optional media-buy protocol features. Used in capability declarations (seller declares support) and product filters (buyer requires support). If a seller declares a feature as true, they MUST honor requests using that feature.",
   "properties": {
+    "audience_targeting": {
+      "description": "Supports sync_audiences task and audience_include/audience_exclude in targeting overlays for first-party CRM audience management",
+      "type": "boolean"
+    },
     "content_standards": {
       "description": "Full support for content_standards configuration including sampling rates and category filtering",
       "type": "boolean"
@@ -19,6 +23,10 @@
     },
     "property_list_filtering": {
       "description": "Honors property_list parameter in get_products to filter results to buyer-approved properties",
+      "type": "boolean"
+    },
+    "sandbox": {
+      "description": "Supports sandbox mode for operations without real platform calls or spend",
       "type": "boolean"
     }
   },

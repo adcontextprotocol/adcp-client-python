@@ -17,6 +17,10 @@
         "ext": {
           "$ref": "../core/ext.json"
         },
+        "sandbox": {
+          "description": "When true, this response contains simulated data from sandbox mode.",
+          "type": "boolean"
+        },
         "success": {
           "const": true,
           "description": "Whether the performance feedback was successfully received",
@@ -33,8 +37,17 @@
       "additionalProperties": true,
       "description": "Error response - feedback rejected or could not be processed",
       "not": {
-        "required": [
-          "success"
+        "anyOf": [
+          {
+            "required": [
+              "success"
+            ]
+          },
+          {
+            "required": [
+              "sandbox"
+            ]
+          }
         ]
       },
       "properties": {
