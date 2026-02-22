@@ -43,12 +43,11 @@
             "assets": {
               "generation_prompt": {
                 "content": "Create a warm, festive holiday campaign featuring winter products"
-              },
-              "promoted_offerings": {
-                "brand": {
-                  "domain": "acmeretailer.com"
-                }
               }
+            },
+            "catalog": {
+              "catalog_id": "winter-products",
+              "type": "product"
             },
             "creative_id": "holiday_hero",
             "format_id": {

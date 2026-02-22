@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Request parameters for syncing catalog feeds with upsert semantics. Supports bulk operations across multiple catalog types (products, inventory, stores, promotions, offerings). Existing catalogs matched by catalog_id are updated, new ones are created. When catalogs is omitted, the call is discovery-only: returns all catalogs on the account without modification.",
+  "examples": [
+    {
+      "data": {
+        "account_id": "acct_acmecorp",
+        "catalogs": [
+          {
+            "catalog_id": "product-feed",
+            "feed_format": "google_merchant_center",
+            "name": "Acme Product Catalog",
+            "type": "product",
+            "update_frequency": "daily",
+            "url": "https://feeds.acmecorp.com/products.xml"
+          },
+          {
+            "catalog_id": "inventory-feed",
+            "feed_format": "custom",
+            "name": "Store Inventory",
+            "type": "inventory",
+            "update_frequency": "hourly",
+            "url": "https://feeds.acmecorp.com/inventory.json"
+          }
+        ]
+      },
+      "description": "Sync product and inventory feeds for a retail media campaign"
+    },
+    {
+      "data": {
+        "account_id": "acct_restaurants",
+        "catalogs": [
+          {
+            "catalog_id": "chef-vacancies",
+            "items": [
+              {
+                "description": "Lead our kitchen team in central Amsterdam",
+                "geo_targets": {
+                  "countries": [
+                    "NL"
+                  ],
+                  "regions": [
+                    "NL-NH"
+                  ]
+                },
+                "landing_url": "https://jobs.acme-restaurants.com/chef-amsterdam-42",
+                "name": "Head Chef - Amsterdam",
+                "offering_id": "chef-amsterdam-42"
+              }
+            ],
+            "name": "Chef Position Vacancies",
+            "type": "offering"
+          }
+        ]
+      },
+      "description": "Sync inline offerings for a recruitment campaign"
+    },
+    {
+      "data": {
+        "account_id": "acct_acmecorp"
+      },
+      "description": "Discovery-only: list all catalogs on the account"
+    }
+  ],
+  "if": {
+    "properties": {
+      "delete_missing": {
+        "const": true
+      }
+    },
+    "required": [
+      "delete_missing"
+    ]
+  },
+  "properties": {
+    "account_id": {
+      "description": "Account that owns these catalogs. Required if the agent has multiple accounts and the seller cannot route automatically.",
+      "type": "string"
+    },
+    "catalog_ids": {
+      "description": "Optional filter to limit sync scope to specific catalog IDs. When provided, only these catalogs will be created/updated. Other catalogs on the account are unaffected.",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 50,
+      "minItems": 1,
+      "type": "array"
+    },
+    "catalogs": {
+      "description": "Array of catalog feeds to sync (create or update). When omitted, the call is discovery-only and returns all existing catalogs on the account without modification.",
+      "items": {
+        "$ref": "../core/catalog.json"
+      },
+      "maxItems": 50,
+      "minItems": 1,
+      "type": "array"
+    },
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "delete_missing": {
+      "default": false,
+      "description": "When true, buyer-managed catalogs on the account not included in this sync will be removed. Does not affect seller-managed catalogs. Do not combine with an omitted catalogs array or all buyer-managed catalogs will be deleted.",
+      "type": "boolean"
+    },
+    "dry_run": {
+      "default": false,
+      "description": "When true, preview changes without applying them. Returns what would be created/updated/deleted.",
+      "type": "boolean"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "push_notification_config": {
+      "$ref": "../core/push-notification-config.json",
+      "description": "Optional webhook configuration for async sync notifications. Publisher will send webhook when sync completes if operation takes longer than immediate response time (common for large feeds requiring platform review)."
+    },
+    "validation_mode": {
+      "$ref": "../enums/validation-mode.json",
+      "default": "strict",
+      "description": "Validation strictness. 'strict' fails entire sync on any validation error. 'lenient' processes valid catalogs and reports errors."
+    }
+  },
+  "then": {
+    "errorMessage": "catalogs is required when delete_missing is true \u2014 omitting it would delete all buyer-managed catalogs on the account",
+    "required": [
+      "catalogs"
+    ]
+  },
+  "title": "Sync Catalogs Request",
+  "type": "object"
+}

@@ -48,7 +48,13 @@ def extract_exports_from_module(module_path: Path) -> set[str]:
 def generate_consolidated_exports() -> str:
     """Generate the consolidated exports file content."""
     # Discover all modules recursively (including subdirectories)
-    modules = sorted(GENERATED_POC_DIR.rglob("*.py"))
+    # Process enums/ first so canonical enum definitions take priority over inline duplicates
+    def _module_sort_key(p: Path) -> tuple[int, str]:
+        rel = p.relative_to(GENERATED_POC_DIR)
+        is_enum = rel.parts[0] == "enums" if len(rel.parts) > 1 else False
+        return (0 if is_enum else 1, str(p))
+
+    modules = sorted(GENERATED_POC_DIR.rglob("*.py"), key=_module_sort_key)
     modules = [m for m in modules if m.stem != "__init__" and not m.stem.startswith(".")]
 
     print(f"Found {len(modules)} modules to consolidate")
@@ -64,6 +70,9 @@ def generate_consolidated_exports() -> str:
     # We need BOTH versions of these types available, so import them with qualified names
     known_collisions = {
         "Package": {"package", "create_media_buy_response"},
+        # Note: "Catalog" also collides between core.catalog and media_buy.sync_catalogs_response.
+        # We intentionally let core.catalog win (first-seen, since core/ sorts before media_buy/).
+        # The response-level Catalog is imported directly in aliases.py as SyncCatalogResult.
     }
 
     special_imports = []
@@ -193,21 +202,49 @@ def generate_consolidated_exports() -> str:
 
     lines.extend(alias_lines)
 
-    # Add backwards-compat stub for BrandManifest (removed from upstream schemas in latest).
-    # Kept as a permissive model so existing code importing it continues to work.
+    # Add backwards-compat stubs for types removed from upstream schemas.
+    # Kept as permissive models so existing code importing them continues to work.
     compat_lines = [
         "",
-        "# Backwards-compat: BrandManifest was removed from upstream schemas.",
-        "# Kept as a permissive model so existing code importing it continues to work.",
+        "# Backwards-compat: Types removed from upstream schemas.",
+        "# Kept as permissive models so existing code importing them continues to work.",
         "from adcp.types.base import AdCPBaseModel as _AdCPBaseModel",
         "from pydantic import ConfigDict as _ConfigDict",
         "",
         "class BrandManifest(_AdCPBaseModel):",
         '    model_config = _ConfigDict(extra="allow")',
         "",
+        "",
+        "# PromotedOfferings and related types are superseded by Catalog with type='offering'.",
+        "class PromotedOfferings(_AdCPBaseModel):",
+        '    model_config = _ConfigDict(extra="allow")',
+        "",
+        "",
+        "class PromotedOfferingsAssetRequirements(_AdCPBaseModel):",
+        '    model_config = _ConfigDict(extra="allow")',
+        "",
+        "",
+        "class PromotedOfferingsRequirement(_AdCPBaseModel):",
+        '    model_config = _ConfigDict(extra="allow")',
+        "",
+        "",
+        "class PromotedProducts(_AdCPBaseModel):",
+        '    model_config = _ConfigDict(extra="allow")',
+        "",
+        "",
+        "class AssetSelectors(_AdCPBaseModel):",
+        '    model_config = _ConfigDict(extra="allow")',
+        "",
     ]
     lines.extend(compat_lines)
-    all_exports_with_aliases = all_exports_with_aliases | {"BrandManifest"}
+    all_exports_with_aliases = all_exports_with_aliases | {
+        "AssetSelectors",
+        "BrandManifest",
+        "PromotedOfferings",
+        "PromotedOfferingsAssetRequirements",
+        "PromotedOfferingsRequirement",
+        "PromotedProducts",
+    }
 
     # Format __all__ list with proper line breaks (max 100 chars per line)
     exports_list = sorted(list(all_exports_with_aliases))
@@ -248,7 +285,6 @@ def generate_consolidated_exports() -> str:
         "from adcp.types import generated_poc",
         "",
         "# Rebuild models that reference other models via forward refs",
-        "PromotedOfferings.model_rebuild()",
         "CreativeManifest.model_rebuild()",
         "PreviewCreativeRequest1.model_rebuild()",
         "PreviewCreativeRequest2.model_rebuild()",

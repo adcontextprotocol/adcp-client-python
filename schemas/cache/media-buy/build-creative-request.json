@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
-  "description": "Request to transform or generate a creative manifest. Takes a source manifest (which may be minimal for pure generation) and produces a target manifest in the specified format. The source manifest should include all assets required by the target format (e.g., promoted_offerings for generative formats).",
+  "description": "Request to transform or generate a creative manifest. Takes a source manifest (which may be minimal for pure generation) and produces a target manifest in the specified format.",
   "properties": {
     "brand": {
       "$ref": "../core/brand-ref.json",
@@ -16,7 +16,7 @@
     },
     "creative_manifest": {
       "$ref": "../core/creative-manifest.json",
-      "description": "Creative manifest to transform or generate from. For pure generation, this should include the target format_id and any required input assets (e.g., promoted_offerings for generative formats). For transformation (e.g., resizing, reformatting), this is the complete creative to adapt."
+      "description": "Creative manifest to transform or generate from. For pure generation, this should include the target format_id and any required input assets. For transformation (e.g., resizing, reformatting), this is the complete creative to adapt."
     },
     "ext": {
       "$ref": "../core/ext.json"

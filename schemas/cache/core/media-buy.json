@@ -11,6 +11,10 @@
       "description": "Buyer's reference identifier for this media buy",
       "type": "string"
     },
+    "campaign_ref": {
+      "description": "Buyer's campaign reference label. Groups related operations under a single campaign for CRM and ad server correlation.",
+      "type": "string"
+    },
     "created_at": {
       "description": "Creation timestamp",
       "format": "date-time",
@@ -35,10 +39,6 @@
       },
       "type": "array"
     },
-    "promoted_offering": {
-      "description": "Description of advertiser and what is being promoted",
-      "type": "string"
-    },
     "status": {
       "$ref": "../enums/media-buy-status.json"
     },
@@ -56,7 +56,6 @@
   "required": [
     "media_buy_id",
     "status",
-    "promoted_offering",
     "total_budget",
     "packages"
   ],

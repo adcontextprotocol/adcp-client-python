@@ -80,6 +80,26 @@
       "$ref": "../media-buy/sync-creatives-async-response-submitted.json",
       "description": "Acknowledgment for submitted sync_creatives",
       "title": "SyncCreativesAsyncSubmitted"
+    },
+    {
+      "$ref": "../media-buy/sync-catalogs-response.json",
+      "description": "Response for completed or failed sync_catalogs",
+      "title": "SyncCatalogsResponse"
+    },
+    {
+      "$ref": "../media-buy/sync-catalogs-async-response-working.json",
+      "description": "Progress data for working sync_catalogs",
+      "title": "SyncCatalogsAsyncWorking"
+    },
+    {
+      "$ref": "../media-buy/sync-catalogs-async-response-input-required.json",
+      "description": "Input requirements for sync_catalogs needing buyer input",
+      "title": "SyncCatalogsAsyncInputRequired"
+    },
+    {
+      "$ref": "../media-buy/sync-catalogs-async-response-submitted.json",
+      "description": "Acknowledgment for submitted sync_catalogs",
+      "title": "SyncCatalogsAsyncSubmitted"
     }
   ],
   "description": "Union of all possible data payloads for async task webhook responses. For completed/failed statuses, use the main task response schema. For working/input-required/submitted, use the status-specific schemas.",

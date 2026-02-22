@@ -37,15 +37,16 @@
               "$ref": "assets/daast-asset.json"
             },
             {
-              "$ref": "promoted-offerings.json"
-            },
-            {
               "$ref": "assets/url-asset.json"
             }
           ]
         }
       },
       "type": "object"
+    },
+    "catalog": {
+      "$ref": "catalog.json",
+      "description": "Catalog of items this creative promotes. Used for dynamic product ads, carousels, and any format that renders catalog items. The catalog can be inline (with items), a reference to a synced catalog (by catalog_id), or a URL to an external feed."
     },
     "creative_id": {
       "description": "Unique identifier for the creative",

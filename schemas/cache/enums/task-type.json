@@ -16,6 +16,7 @@
     "get_creative_delivery",
     "sync_event_sources",
     "sync_audiences",
+    "sync_catalogs",
     "log_event"
   ],
   "enumDescriptions": {
@@ -30,6 +31,7 @@
     "log_event": "Media-buy domain: Send conversion or marketing events for attribution",
     "sync_accounts": "Account domain: Sync advertiser accounts with a seller, declaring brands, operators, and billing arrangements",
     "sync_audiences": "Media-buy domain: Manage first-party CRM audiences on an account with delta upsert semantics",
+    "sync_catalogs": "Media-buy domain: Sync catalog feeds (products, inventory, stores, promotions, offerings) to a platform with approval workflow",
     "sync_creatives": "Media-buy domain: Sync creative assets to publisher's library with upsert semantics",
     "sync_event_sources": "Media-buy domain: Configure event sources on an account with upsert semantics",
     "update_media_buy": "Media-buy domain: Update campaign settings, package configuration, or delivery parameters",

@@ -90,6 +90,10 @@
       "description": "Buyer's reference identifier for this media buy",
       "type": "string"
     },
+    "campaign_ref": {
+      "description": "Buyer's campaign reference label. Groups related discovery and buy operations under a single campaign for CRM and ad server correlation (e.g., 'NovaDrink_Meals_Q2').",
+      "type": "string"
+    },
     "context": {
       "$ref": "../core/context.json"
     },

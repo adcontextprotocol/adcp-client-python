@@ -1,0 +1,159 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "An educational program or course within an education-type catalog. Carries the program details that platforms use for education ads and student recruitment campaigns. Maps to Google DynamicEducationAsset, schema.org Course, and similar formats.",
+  "examples": [
+    {
+      "data": {
+        "degree_type": "master",
+        "description": "Two-year research master's covering AI, distributed systems, and software engineering. Taught in English with industry internship track.",
+        "duration": "2 years",
+        "language": "en",
+        "level": "advanced",
+        "location": "Amsterdam, NL",
+        "modality": "in_person",
+        "name": "MSc Computer Science",
+        "price": {
+          "amount": 2314,
+          "currency": "EUR",
+          "period": "year"
+        },
+        "program_id": "uva-msc-cs-2025",
+        "school": "University of Amsterdam",
+        "start_date": "2025-09-01",
+        "subject": "computer-science",
+        "tags": [
+          "stem",
+          "research"
+        ],
+        "url": "https://www.uva.nl/programmes/masters/computer-science"
+      },
+      "description": "University master's program"
+    },
+    {
+      "data": {
+        "degree_type": "certificate",
+        "description": "8-week online program covering SEO, paid media, analytics, and social strategy.",
+        "duration": "8 weeks",
+        "level": "beginner",
+        "modality": "online",
+        "name": "Digital Marketing Certificate",
+        "price": {
+          "amount": 499,
+          "currency": "USD"
+        },
+        "program_id": "acme-digital-mkt-cert",
+        "school": "Acme Academy",
+        "subject": "marketing",
+        "tags": [
+          "self-paced",
+          "career-change"
+        ],
+        "url": "https://academy.acme.com/digital-marketing"
+      },
+      "description": "Online professional certificate"
+    }
+  ],
+  "properties": {
+    "degree_type": {
+      "description": "Type of credential awarded.",
+      "enum": [
+        "certificate",
+        "associate",
+        "bachelor",
+        "master",
+        "doctorate",
+        "professional",
+        "bootcamp"
+      ],
+      "type": "string"
+    },
+    "description": {
+      "description": "Program description including curriculum highlights and outcomes.",
+      "type": "string"
+    },
+    "duration": {
+      "description": "Program duration as a human-readable string (e.g., '4 weeks', '2 years', '6 months').",
+      "type": "string"
+    },
+    "ext": {
+      "$ref": "ext.json"
+    },
+    "image_url": {
+      "description": "Program or institution image URL.",
+      "format": "uri",
+      "type": "string"
+    },
+    "language": {
+      "description": "Language of instruction (e.g., 'en', 'nl', 'es').",
+      "type": "string"
+    },
+    "level": {
+      "description": "Difficulty or prerequisite level.",
+      "enum": [
+        "beginner",
+        "intermediate",
+        "advanced"
+      ],
+      "type": "string"
+    },
+    "location": {
+      "description": "Campus or instruction location (e.g., 'Amsterdam, NL'). Omit for fully online programs.",
+      "type": "string"
+    },
+    "modality": {
+      "description": "Delivery format.",
+      "enum": [
+        "online",
+        "in_person",
+        "hybrid"
+      ],
+      "type": "string"
+    },
+    "name": {
+      "description": "Program or course name (e.g., 'MSc Computer Science', 'Digital Marketing Certificate').",
+      "type": "string"
+    },
+    "price": {
+      "$ref": "price.json",
+      "description": "Tuition or course fee."
+    },
+    "program_id": {
+      "description": "Unique identifier for this program or course.",
+      "type": "string"
+    },
+    "school": {
+      "description": "Institution or provider name.",
+      "type": "string"
+    },
+    "start_date": {
+      "description": "Next available start date (ISO 8601 date).",
+      "format": "date",
+      "type": "string"
+    },
+    "subject": {
+      "description": "Subject area or field of study (e.g., 'computer-science', 'business', 'healthcare').",
+      "type": "string"
+    },
+    "tags": {
+      "description": "Tags for filtering (e.g., 'stem', 'scholarship-available', 'evening-classes').",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "url": {
+      "description": "Program landing page or enrollment URL.",
+      "format": "uri",
+      "type": "string"
+    }
+  },
+  "required": [
+    "program_id",
+    "name",
+    "school"
+  ],
+  "title": "Education Item",
+  "type": "object"
+}

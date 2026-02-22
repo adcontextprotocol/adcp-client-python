@@ -231,6 +231,40 @@
     "property_list": {
       "$ref": "property-list-ref.json",
       "description": "Reference to a property list for targeting specific properties within this product. The package runs on the intersection of the product's publisher_properties and this list. Sellers SHOULD return a validation error if the product has property_targeting_allowed: false."
+    },
+    "store_catchments": {
+      "description": "Target users within store catchment areas from a synced store catalog. Each entry references a store-type catalog and optionally narrows to specific stores or catchment zones.",
+      "items": {
+        "additionalProperties": true,
+        "properties": {
+          "catalog_id": {
+            "description": "Synced store-type catalog ID from sync_catalogs.",
+            "type": "string"
+          },
+          "catchment_ids": {
+            "description": "Catchment zone IDs to target (e.g., 'walk', 'drive'). Omit to target all catchment zones.",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "store_ids": {
+            "description": "Filter to specific stores within the catalog. Omit to target all stores.",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "catalog_id"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
     }
   },
   "title": "Targeting Overlay",

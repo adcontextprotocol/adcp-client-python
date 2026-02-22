@@ -16,7 +16,7 @@
       "type": "boolean"
     },
     "offering_id": {
-      "description": "Offering identifier from promoted offerings to get details for",
+      "description": "Offering identifier from the catalog to get details for",
       "type": "string"
     },
     "product_limit": {

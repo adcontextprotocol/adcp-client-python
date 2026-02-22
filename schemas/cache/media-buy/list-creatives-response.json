@@ -147,9 +147,6 @@
                     "$ref": "../core/assets/daast-asset.json"
                   },
                   {
-                    "$ref": "../core/promoted-offerings.json"
-                  },
-                  {
                     "$ref": "../core/assets/url-asset.json"
                   }
                 ]
@@ -198,6 +195,10 @@
               "assignment_count"
             ],
             "type": "object"
+          },
+          "catalog": {
+            "$ref": "../core/catalog.json",
+            "description": "Catalog referenced by this creative, if any"
           },
           "created_date": {
             "description": "When the creative was uploaded to the library",

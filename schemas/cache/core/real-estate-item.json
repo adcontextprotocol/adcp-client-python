@@ -1,0 +1,232 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "A property listing within a real-estate-type catalog. Carries the address, pricing, and specification data that platforms use for real estate ads and dynamic remarketing. Maps to Google DynamicRealEstateAsset, Meta home listing catalogs, and similar formats.",
+  "examples": [
+    {
+      "data": {
+        "address": {
+          "city": "Amsterdam",
+          "country": "NL",
+          "postal_code": "1017 KE",
+          "region": "NL-NH",
+          "street": "Prinsengracht 450"
+        },
+        "area": {
+          "unit": "sqm",
+          "value": 95
+        },
+        "bathrooms": 1,
+        "bedrooms": 3,
+        "image_url": "https://images.acmerealty.com/jordaan-3br/hero.jpg",
+        "listing_id": "ams-jordaan-3br",
+        "listing_type": "for_sale",
+        "location": {
+          "lat": 52.3667,
+          "lng": 4.8833
+        },
+        "neighborhood": "Jordaan",
+        "price": {
+          "amount": 650000,
+          "currency": "EUR"
+        },
+        "property_type": "apartment",
+        "tags": [
+          "canal-view",
+          "renovated"
+        ],
+        "title": "Spacious 3BR Apartment in Jordaan",
+        "url": "https://acmerealty.com/listings/ams-jordaan-3br",
+        "year_built": 1920
+      },
+      "description": "City apartment for sale"
+    },
+    {
+      "data": {
+        "address": {
+          "city": "Brooklyn",
+          "country": "US",
+          "postal_code": "11201",
+          "region": "US-NY",
+          "street": "100 Atlantic Ave"
+        },
+        "bathrooms": 1,
+        "bedrooms": 2,
+        "listing_id": "bklyn-2br-rental",
+        "listing_type": "for_rent",
+        "price": {
+          "amount": 3200,
+          "currency": "USD",
+          "period": "month"
+        },
+        "property_type": "apartment",
+        "tags": [
+          "doorman",
+          "laundry"
+        ],
+        "title": "Modern 2BR in Brooklyn Heights",
+        "url": "https://acmerealty.com/listings/bklyn-2br-rental"
+      },
+      "description": "Suburban rental"
+    }
+  ],
+  "properties": {
+    "address": {
+      "additionalProperties": false,
+      "description": "Property address.",
+      "properties": {
+        "city": {
+          "description": "City name.",
+          "type": "string"
+        },
+        "country": {
+          "description": "ISO 3166-1 alpha-2 country code.",
+          "pattern": "^[A-Z]{2}$",
+          "type": "string"
+        },
+        "postal_code": {
+          "description": "Postal or ZIP code.",
+          "type": "string"
+        },
+        "region": {
+          "description": "State, province, or region.",
+          "type": "string"
+        },
+        "street": {
+          "description": "Street address.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "area": {
+      "additionalProperties": false,
+      "description": "Property size.",
+      "properties": {
+        "unit": {
+          "description": "Area unit.",
+          "enum": [
+            "sqft",
+            "sqm"
+          ],
+          "type": "string"
+        },
+        "value": {
+          "description": "Area value.",
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "value",
+        "unit"
+      ],
+      "type": "object"
+    },
+    "bathrooms": {
+      "description": "Number of bathrooms (e.g., 2.5 for two full and one half bath).",
+      "minimum": 0,
+      "type": "number"
+    },
+    "bedrooms": {
+      "description": "Number of bedrooms.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "description": {
+      "description": "Property description.",
+      "type": "string"
+    },
+    "ext": {
+      "$ref": "ext.json"
+    },
+    "image_url": {
+      "description": "Primary property image URL.",
+      "format": "uri",
+      "type": "string"
+    },
+    "listing_id": {
+      "description": "Unique identifier for this property listing.",
+      "type": "string"
+    },
+    "listing_type": {
+      "description": "Whether the property is for sale or rent.",
+      "enum": [
+        "for_sale",
+        "for_rent"
+      ],
+      "type": "string"
+    },
+    "location": {
+      "additionalProperties": false,
+      "description": "Geographic coordinates of the property.",
+      "properties": {
+        "lat": {
+          "description": "Latitude in decimal degrees (WGS 84).",
+          "maximum": 90,
+          "minimum": -90,
+          "type": "number"
+        },
+        "lng": {
+          "description": "Longitude in decimal degrees (WGS 84).",
+          "maximum": 180,
+          "minimum": -180,
+          "type": "number"
+        }
+      },
+      "required": [
+        "lat",
+        "lng"
+      ],
+      "type": "object"
+    },
+    "neighborhood": {
+      "description": "Neighborhood or area name.",
+      "type": "string"
+    },
+    "price": {
+      "$ref": "price.json",
+      "description": "Property price or rental rate. Use period 'month' for rentals."
+    },
+    "property_type": {
+      "description": "Type of property.",
+      "enum": [
+        "house",
+        "apartment",
+        "condo",
+        "townhouse",
+        "land",
+        "commercial"
+      ],
+      "type": "string"
+    },
+    "tags": {
+      "description": "Tags for filtering (e.g., 'garden', 'parking', 'renovated', 'waterfront').",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "title": {
+      "description": "Listing title (e.g., 'Spacious 3BR Apartment in Jordaan').",
+      "type": "string"
+    },
+    "url": {
+      "description": "Listing page URL.",
+      "format": "uri",
+      "type": "string"
+    },
+    "year_built": {
+      "description": "Year the property was built.",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "listing_id",
+    "title",
+    "address"
+  ],
+  "title": "Real Estate Item",
+  "type": "object"
+}

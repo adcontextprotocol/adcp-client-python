@@ -58,11 +58,6 @@
       "schema": "/schemas/core/assets/markdown-asset.json",
       "typical_use": "Product specifications, format documentation, rich descriptions, structured content"
     },
-    "promoted_offerings": {
-      "description": "Brand manifest and product selectors for generative creative formats",
-      "schema": "/schemas/core/promoted-offerings.json",
-      "typical_use": "AI-generated creatives that need brand context and product information"
-    },
     "text": {
       "description": "Plain text content asset",
       "schema": "/schemas/core/assets/text-asset.json",
@@ -91,7 +86,7 @@
   },
   "baseUrl": "/schemas/latest",
   "description": "Registry of asset types used in AdCP creative manifests. Each asset type defines the structure of actual content payloads (what you send), not requirements or constraints (which belong in format specifications).",
-  "lastUpdated": "2026-02-20",
+  "lastUpdated": "2026-02-22",
   "title": "AdCP Asset Type Registry",
   "usage_notes": {
     "creative_manifests": "Creative manifests provide actual asset content, keyed by asset_id from the format. Asset type is determined by the format specification, not declared in the payload.",

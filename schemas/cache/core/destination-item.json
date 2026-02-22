@@ -1,0 +1,159 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "A travel destination within a destination-type catalog. Carries the location, imagery, and pricing data that platforms use for destination ads and travel remarketing. Maps to Meta destination catalogs, Google travel ads, and similar formats.",
+  "examples": [
+    {
+      "data": {
+        "city": "Barcelona",
+        "country": "ES",
+        "description": "Mediterranean city blending Gaud\u00ed architecture, beaches, and world-class dining.",
+        "destination_id": "barcelona",
+        "destination_type": "urban",
+        "image_url": "https://images.acmetravel.com/barcelona/hero.jpg",
+        "location": {
+          "lat": 41.3874,
+          "lng": 2.1686
+        },
+        "name": "Barcelona",
+        "price": {
+          "amount": 399,
+          "currency": "EUR"
+        },
+        "rating": 4.7,
+        "region": "Catalonia",
+        "tags": [
+          "city-break",
+          "beach",
+          "culture"
+        ],
+        "url": "https://acmetravel.com/destinations/barcelona"
+      },
+      "description": "European city break"
+    },
+    {
+      "data": {
+        "country": "CH",
+        "description": "Gateway to the Jungfrau region with paragliding, hiking, and glacier views.",
+        "destination_id": "swiss-alps-interlaken",
+        "destination_type": "adventure",
+        "location": {
+          "lat": 46.6863,
+          "lng": 7.8632
+        },
+        "name": "Swiss Alps \u2014 Interlaken",
+        "price": {
+          "amount": 799,
+          "currency": "CHF"
+        },
+        "tags": [
+          "adventure",
+          "mountains",
+          "winter-sports"
+        ],
+        "url": "https://acmetravel.com/destinations/interlaken"
+      },
+      "description": "Adventure destination"
+    }
+  ],
+  "properties": {
+    "city": {
+      "description": "City name, if applicable.",
+      "type": "string"
+    },
+    "country": {
+      "description": "ISO 3166-1 alpha-2 country code.",
+      "pattern": "^[A-Z]{2}$",
+      "type": "string"
+    },
+    "description": {
+      "description": "Destination description highlighting attractions and appeal.",
+      "type": "string"
+    },
+    "destination_id": {
+      "description": "Unique identifier for this destination.",
+      "type": "string"
+    },
+    "destination_type": {
+      "description": "Destination category.",
+      "enum": [
+        "beach",
+        "mountain",
+        "urban",
+        "cultural",
+        "adventure",
+        "wellness",
+        "cruise"
+      ],
+      "type": "string"
+    },
+    "ext": {
+      "$ref": "ext.json"
+    },
+    "image_url": {
+      "description": "Destination hero image URL.",
+      "format": "uri",
+      "type": "string"
+    },
+    "location": {
+      "additionalProperties": false,
+      "description": "Geographic coordinates of the destination.",
+      "properties": {
+        "lat": {
+          "description": "Latitude in decimal degrees (WGS 84).",
+          "maximum": 90,
+          "minimum": -90,
+          "type": "number"
+        },
+        "lng": {
+          "description": "Longitude in decimal degrees (WGS 84).",
+          "maximum": 180,
+          "minimum": -180,
+          "type": "number"
+        }
+      },
+      "required": [
+        "lat",
+        "lng"
+      ],
+      "type": "object"
+    },
+    "name": {
+      "description": "Destination name (e.g., 'Barcelona', 'Bali', 'Swiss Alps').",
+      "type": "string"
+    },
+    "price": {
+      "$ref": "price.json",
+      "description": "Starting price for a trip to this destination."
+    },
+    "rating": {
+      "description": "Destination rating (1\u20135).",
+      "maximum": 5,
+      "minimum": 1,
+      "type": "number"
+    },
+    "region": {
+      "description": "State, province, or region name.",
+      "type": "string"
+    },
+    "tags": {
+      "description": "Tags for filtering (e.g., 'family', 'romantic', 'solo', 'winter-sun').",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "url": {
+      "description": "Destination landing page or booking URL.",
+      "format": "uri",
+      "type": "string"
+    }
+  },
+  "required": [
+    "destination_id",
+    "name"
+  ],
+  "title": "Destination Item",
+  "type": "object"
+}

@@ -1,0 +1,258 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "A physical store or location within a store-type catalog. Carries the location data, catchment areas, and metadata that platforms use for proximity targeting, store locator creatives, and inventory-aware ad serving.",
+  "examples": [
+    {
+      "data": {
+        "address": {
+          "city": "Amsterdam",
+          "country": "NL",
+          "postal_code": "1012 NX",
+          "region": "NL-NH",
+          "street": "Kalverstraat 1"
+        },
+        "catchments": [
+          {
+            "catchment_id": "walk",
+            "label": "10-min walk",
+            "transport_mode": "walking",
+            "travel_time": {
+              "unit": "min",
+              "value": 10
+            }
+          },
+          {
+            "catchment_id": "drive",
+            "label": "15-min drive",
+            "transport_mode": "driving",
+            "travel_time": {
+              "unit": "min",
+              "value": 15
+            }
+          }
+        ],
+        "hours": {
+          "friday": "09:00-21:00",
+          "monday": "09:00-21:00",
+          "saturday": "10:00-18:00",
+          "sunday": "12:00-17:00",
+          "thursday": "09:00-21:00",
+          "tuesday": "09:00-21:00",
+          "wednesday": "09:00-21:00"
+        },
+        "location": {
+          "lat": 52.3676,
+          "lng": 4.9041
+        },
+        "name": "Amsterdam Flagship",
+        "phone": "+31201234567",
+        "store_id": "amsterdam-flagship",
+        "tags": [
+          "flagship",
+          "pickup"
+        ],
+        "url": "https://acme.com/stores/amsterdam-flagship"
+      },
+      "description": "Urban store with walking and driving catchments"
+    },
+    {
+      "data": {
+        "address": {
+          "city": "Amstelveen",
+          "country": "NL",
+          "postal_code": "1182 XX",
+          "region": "NL-NH",
+          "street": "Industrieweg 42"
+        },
+        "catchments": [
+          {
+            "catchment_id": "local",
+            "radius": {
+              "unit": "km",
+              "value": 10
+            }
+          }
+        ],
+        "location": {
+          "lat": 52.2942,
+          "lng": 4.9581
+        },
+        "name": "East Warehouse Store",
+        "store_id": "warehouse-east",
+        "tags": [
+          "warehouse",
+          "pickup",
+          "parking"
+        ]
+      },
+      "description": "Suburban store with radius-based catchment"
+    },
+    {
+      "data": {
+        "address": {
+          "city": "Brooklyn",
+          "country": "US",
+          "postal_code": "11201",
+          "region": "US-NY",
+          "street": "100 Atlantic Ave"
+        },
+        "catchments": [
+          {
+            "catchment_id": "trade-area",
+            "geometry": {
+              "coordinates": [
+                [
+                  [
+                    -74.01,
+                    40.68
+                  ],
+                  [
+                    -73.97,
+                    40.68
+                  ],
+                  [
+                    -73.97,
+                    40.71
+                  ],
+                  [
+                    -74.01,
+                    40.71
+                  ],
+                  [
+                    -74.01,
+                    40.68
+                  ]
+                ]
+              ],
+              "type": "Polygon"
+            },
+            "label": "Primary trade area"
+          }
+        ],
+        "location": {
+          "lat": 40.696,
+          "lng": -73.9936
+        },
+        "name": "Brooklyn Heights",
+        "store_id": "brooklyn-heights"
+      },
+      "description": "Store with pre-computed trade area boundary"
+    }
+  ],
+  "properties": {
+    "address": {
+      "additionalProperties": false,
+      "description": "Structured address for display and geocoding fallback.",
+      "properties": {
+        "city": {
+          "description": "City name.",
+          "type": "string"
+        },
+        "country": {
+          "description": "ISO 3166-1 alpha-2 country code.",
+          "pattern": "^[A-Z]{2}$",
+          "type": "string"
+        },
+        "postal_code": {
+          "description": "Postal or ZIP code.",
+          "type": "string"
+        },
+        "region": {
+          "description": "State, province, or region. ISO 3166-2 subdivision code preferred (e.g., 'NL-NH', 'US-CA').",
+          "type": "string"
+        },
+        "street": {
+          "description": "Street address (e.g., '123 Main St').",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "catchments": {
+      "description": "Catchment areas for this store. Each defines a reachable area using travel time (isochrone), simple radius, or pre-computed GeoJSON. Multiple catchments allow different modes \u2014 e.g., 15-minute drive AND 10-minute walk.",
+      "items": {
+        "$ref": "catchment.json"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "ext": {
+      "$ref": "ext.json"
+    },
+    "hours": {
+      "additionalProperties": {
+        "description": "Time range in HH:MM-HH:MM format (e.g., '09:00-21:00'). Use 'closed' for days the store is not open.",
+        "type": "string"
+      },
+      "description": "Operating hours. Keys are ISO day names (monday\u2013sunday), values are time ranges.",
+      "propertyNames": {
+        "enum": [
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday",
+          "saturday",
+          "sunday"
+        ]
+      },
+      "type": "object"
+    },
+    "location": {
+      "additionalProperties": false,
+      "description": "Geographic coordinates of the store.",
+      "properties": {
+        "lat": {
+          "description": "Latitude in decimal degrees (WGS 84).",
+          "maximum": 90,
+          "minimum": -90,
+          "type": "number"
+        },
+        "lng": {
+          "description": "Longitude in decimal degrees (WGS 84).",
+          "maximum": 180,
+          "minimum": -180,
+          "type": "number"
+        }
+      },
+      "required": [
+        "lat",
+        "lng"
+      ],
+      "type": "object"
+    },
+    "name": {
+      "description": "Human-readable store name (e.g., 'Amsterdam Flagship', 'Brooklyn Heights').",
+      "type": "string"
+    },
+    "phone": {
+      "description": "Store phone number in E.164 format (e.g., '+31201234567').",
+      "type": "string"
+    },
+    "store_id": {
+      "description": "Unique identifier for this store. Used to reference specific stores in targeting, inventory feeds, and creative templates.",
+      "type": "string"
+    },
+    "tags": {
+      "description": "Tags for filtering stores in targeting and creative selection (e.g., 'flagship', 'pickup', 'pharmacy').",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "url": {
+      "description": "Store-specific page URL (e.g., store locator detail page).",
+      "format": "uri",
+      "type": "string"
+    }
+  },
+  "required": [
+    "store_id",
+    "name",
+    "location"
+  ],
+  "title": "Store Item",
+  "type": "object"
+}

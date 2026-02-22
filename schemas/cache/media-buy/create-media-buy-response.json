@@ -19,6 +19,10 @@
           "description": "Buyer's reference identifier for this media buy",
           "type": "string"
         },
+        "campaign_ref": {
+          "description": "Buyer's campaign reference label, echoed from the request",
+          "type": "string"
+        },
         "context": {
           "$ref": "../core/context.json"
         },

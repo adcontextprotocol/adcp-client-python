@@ -110,6 +110,35 @@
                       "description": "Buyer's reference identifier for this package",
                       "type": "string"
                     },
+                    "by_catalog_item": {
+                      "description": "Delivery by catalog item within this package. Available for catalog-driven packages when the seller supports item-level reporting.",
+                      "items": {
+                        "allOf": [
+                          {
+                            "$ref": "../core/delivery-metrics.json"
+                          },
+                          {
+                            "properties": {
+                              "content_id": {
+                                "description": "Catalog item identifier (e.g., SKU, GTIN, job_id, offering_id)",
+                                "type": "string"
+                              },
+                              "content_id_type": {
+                                "$ref": "../enums/content-id-type.json",
+                                "description": "Identifier type for this content_id"
+                              }
+                            },
+                            "required": [
+                              "content_id",
+                              "impressions",
+                              "spend"
+                            ],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "type": "array"
+                    },
                     "by_creative": {
                       "description": "Metrics broken down by creative within this package. Available when the seller supports creative-level reporting.",
                       "items": {
@@ -192,6 +221,10 @@
               ]
             },
             "type": "array"
+          },
+          "campaign_ref": {
+            "description": "Buyer's campaign reference label. Groups related operations under a single campaign for CRM and ad server correlation.",
+            "type": "string"
           },
           "daily_breakdown": {
             "description": "Day-by-day delivery",

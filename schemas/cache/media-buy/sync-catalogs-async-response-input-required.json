@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Payload when sync_catalogs task is paused waiting for buyer clarification or approval.",
+  "properties": {
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "reason": {
+      "description": "Reason code indicating why buyer input is needed. APPROVAL_REQUIRED: platform requires explicit approval before activating the catalog. FEED_VALIDATION: feed URL returned unexpected format or schema errors. ITEM_REVIEW: platform flagged items for manual review. FEED_ACCESS: platform cannot access the feed URL (authentication, CORS, etc.).",
+      "enum": [
+        "APPROVAL_REQUIRED",
+        "FEED_VALIDATION",
+        "ITEM_REVIEW",
+        "FEED_ACCESS"
+      ],
+      "type": "string"
+    }
+  },
+  "title": "Sync Catalogs - Input Required",
+  "type": "object"
+}

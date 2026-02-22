@@ -1,0 +1,222 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "A vehicle listing within a vehicle-type catalog. Carries the make/model, pricing, and specification data that platforms use for automotive inventory ads. Maps to Meta Automotive Inventory Ads, Microsoft Auto Inventory feeds, Google vehicle ads, and similar formats.",
+  "examples": [
+    {
+      "data": {
+        "body_style": "sedan",
+        "condition": "new",
+        "exterior_color": "Lunar Silver Metallic",
+        "fuel_type": "gasoline",
+        "image_url": "https://images.acmemotors.com/civic-ex-2024.jpg",
+        "make": "Honda",
+        "model": "Civic",
+        "price": {
+          "amount": 28500,
+          "currency": "USD"
+        },
+        "tags": [
+          "new-arrival"
+        ],
+        "title": "2024 Honda Civic EX Sedan",
+        "transmission": "cvt",
+        "trim": "EX",
+        "url": "https://acmemotors.com/inventory/civic-001",
+        "vehicle_id": "dlr-2024-civic-001",
+        "year": 2024
+      },
+      "description": "New sedan at dealership"
+    },
+    {
+      "data": {
+        "body_style": "suv",
+        "condition": "used",
+        "fuel_type": "electric",
+        "make": "Tesla",
+        "mileage": {
+          "unit": "mi",
+          "value": 28000
+        },
+        "model": "Model Y",
+        "price": {
+          "amount": 38900,
+          "currency": "USD"
+        },
+        "tags": [
+          "low-mileage",
+          "one-owner"
+        ],
+        "title": "2022 Tesla Model Y Long Range",
+        "url": "https://acmemotors.com/inventory/my-042",
+        "vehicle_id": "dlr-2022-my-042",
+        "vin": "5YJYGDEE4NF123456",
+        "year": 2022
+      },
+      "description": "Used electric SUV"
+    }
+  ],
+  "properties": {
+    "body_style": {
+      "description": "Vehicle body style.",
+      "enum": [
+        "sedan",
+        "suv",
+        "truck",
+        "coupe",
+        "convertible",
+        "wagon",
+        "van",
+        "hatchback"
+      ],
+      "type": "string"
+    },
+    "condition": {
+      "description": "Vehicle condition.",
+      "enum": [
+        "new",
+        "used",
+        "certified_pre_owned"
+      ],
+      "type": "string"
+    },
+    "ext": {
+      "$ref": "ext.json"
+    },
+    "exterior_color": {
+      "description": "Exterior color.",
+      "type": "string"
+    },
+    "fuel_type": {
+      "description": "Fuel or powertrain type.",
+      "enum": [
+        "gasoline",
+        "diesel",
+        "electric",
+        "hybrid",
+        "plug_in_hybrid"
+      ],
+      "type": "string"
+    },
+    "image_url": {
+      "description": "Primary vehicle image URL.",
+      "format": "uri",
+      "type": "string"
+    },
+    "interior_color": {
+      "description": "Interior color.",
+      "type": "string"
+    },
+    "location": {
+      "additionalProperties": false,
+      "description": "Dealer or vehicle location.",
+      "properties": {
+        "lat": {
+          "description": "Latitude in decimal degrees (WGS 84).",
+          "maximum": 90,
+          "minimum": -90,
+          "type": "number"
+        },
+        "lng": {
+          "description": "Longitude in decimal degrees (WGS 84).",
+          "maximum": 180,
+          "minimum": -180,
+          "type": "number"
+        }
+      },
+      "required": [
+        "lat",
+        "lng"
+      ],
+      "type": "object"
+    },
+    "make": {
+      "description": "Vehicle manufacturer (e.g., 'Honda', 'Ford', 'BMW').",
+      "type": "string"
+    },
+    "mileage": {
+      "additionalProperties": false,
+      "description": "Odometer reading.",
+      "properties": {
+        "unit": {
+          "description": "Distance unit.",
+          "enum": [
+            "km",
+            "mi"
+          ],
+          "type": "string"
+        },
+        "value": {
+          "description": "Mileage value.",
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "value",
+        "unit"
+      ],
+      "type": "object"
+    },
+    "model": {
+      "description": "Vehicle model (e.g., 'Civic', 'F-150', 'X5').",
+      "type": "string"
+    },
+    "price": {
+      "$ref": "price.json",
+      "description": "Vehicle price."
+    },
+    "tags": {
+      "description": "Tags for filtering (e.g., 'low-mileage', 'one-owner', 'dealer-certified').",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "title": {
+      "description": "Listing title (e.g., '2024 Honda Civic EX Sedan').",
+      "type": "string"
+    },
+    "transmission": {
+      "description": "Transmission type.",
+      "enum": [
+        "automatic",
+        "manual",
+        "cvt"
+      ],
+      "type": "string"
+    },
+    "trim": {
+      "description": "Trim level (e.g., 'EX', 'Limited', 'Sport').",
+      "type": "string"
+    },
+    "url": {
+      "description": "Vehicle listing page URL.",
+      "format": "uri",
+      "type": "string"
+    },
+    "vehicle_id": {
+      "description": "Unique identifier for this vehicle listing.",
+      "type": "string"
+    },
+    "vin": {
+      "description": "Vehicle Identification Number (17-character VIN).",
+      "type": "string"
+    },
+    "year": {
+      "description": "Model year.",
+      "minimum": 1900,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "vehicle_id",
+    "title",
+    "make",
+    "model",
+    "year"
+  ],
+  "title": "Vehicle Item",
+  "type": "object"
+}

@@ -11,7 +11,7 @@
         },
         "creative_manifest": {
           "$ref": "../core/creative-manifest.json",
-          "description": "Complete creative manifest with all required assets (including promoted_offerings if required by the format)"
+          "description": "Complete creative manifest with all required assets for the format"
         },
         "ext": {
           "$ref": "../core/ext.json"

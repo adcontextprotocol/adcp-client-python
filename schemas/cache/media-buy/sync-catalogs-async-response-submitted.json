@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Payload acknowledging sync_catalogs task is queued for processing.",
+  "properties": {
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    }
+  },
+  "title": "Sync Catalogs - Submitted",
+  "type": "object"
+}

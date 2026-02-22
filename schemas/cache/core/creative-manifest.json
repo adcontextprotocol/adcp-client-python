@@ -41,14 +41,15 @@
             },
             {
               "$ref": "assets/daast-asset.json"
-            },
-            {
-              "$ref": "promoted-offerings.json"
             }
           ]
         }
       },
       "type": "object"
+    },
+    "catalog": {
+      "$ref": "catalog.json",
+      "description": "Catalog of items this creative renders. Tells the creative what data to display \u2014 product listings for a carousel, job vacancies for a recruitment ad, store locations for a locator. This is a data reference, not a campaign expansion directive; campaign structure and budget allocation are handled by create_media_buy packages. The catalog can be inline (with items), a reference to a synced catalog (by catalog_id), or a URL to an external feed."
     },
     "ext": {
       "$ref": "ext.json"
@@ -56,10 +57,6 @@
     "format_id": {
       "$ref": "format-id.json",
       "description": "Format identifier this manifest is for. Can be a template format (id only) or a deterministic format (id + dimensions/duration). For dimension-specific creatives, include width/height/unit in the format_id to create a unique identifier (e.g., {id: 'display_static', width: 300, height: 250, unit: 'px'})."
-    },
-    "promoted_offering": {
-      "description": "Product name or offering being advertised. Maps to promoted_offerings in create_media_buy request to associate creative with the product being promoted.",
-      "type": "string"
     }
   },
   "required": [

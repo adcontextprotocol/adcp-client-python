@@ -1,0 +1,109 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "A structured group of creative assets within an offering, identified by a group ID and asset type. Enables offerings to carry per-group creative pools (headlines, images, videos) using the same vocabulary as format-level asset definitions.",
+  "examples": [
+    {
+      "data": {
+        "asset_group_id": "headlines",
+        "asset_type": "text",
+        "items": [
+          {
+            "content": "Shop the Summer Sale"
+          },
+          {
+            "content": "50% Off Everything"
+          },
+          {
+            "content": "Summer Savings Event"
+          }
+        ]
+      },
+      "description": "Headline text assets"
+    },
+    {
+      "data": {
+        "asset_group_id": "images_landscape",
+        "asset_type": "image",
+        "items": [
+          {
+            "height": 628,
+            "url": "https://cdn.acme.com/hero.jpg",
+            "width": 1200
+          },
+          {
+            "height": 628,
+            "url": "https://cdn.acme.com/hero2.jpg",
+            "width": 1200
+          }
+        ]
+      },
+      "description": "Landscape image assets"
+    }
+  ],
+  "properties": {
+    "asset_group_id": {
+      "description": "Identifies the creative role this group fills. Values are defined by each format's offering_asset_constraints \u2014 not protocol constants. Discover them via list_creative_formats (e.g., a format might declare 'headlines', 'images', or 'videos').",
+      "type": "string"
+    },
+    "asset_type": {
+      "$ref": "../enums/asset-content-type.json",
+      "description": "The content type of all items in this group."
+    },
+    "ext": {
+      "$ref": "ext.json"
+    },
+    "items": {
+      "description": "The assets in this group. Each item should match the structure for the declared asset_type. Note: JSON Schema validation accepts any valid asset structure here; enforcement that items match asset_type is the responsibility of the consuming agent.",
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "assets/text-asset.json"
+          },
+          {
+            "$ref": "assets/image-asset.json"
+          },
+          {
+            "$ref": "assets/video-asset.json"
+          },
+          {
+            "$ref": "assets/audio-asset.json"
+          },
+          {
+            "$ref": "assets/url-asset.json"
+          },
+          {
+            "$ref": "assets/html-asset.json"
+          },
+          {
+            "$ref": "assets/markdown-asset.json"
+          },
+          {
+            "$ref": "assets/vast-asset.json"
+          },
+          {
+            "$ref": "assets/daast-asset.json"
+          },
+          {
+            "$ref": "assets/css-asset.json"
+          },
+          {
+            "$ref": "assets/javascript-asset.json"
+          },
+          {
+            "$ref": "assets/webhook-asset.json"
+          }
+        ]
+      },
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "asset_group_id",
+    "asset_type",
+    "items"
+  ],
+  "title": "Offering Asset Group",
+  "type": "object"
+}

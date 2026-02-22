@@ -9,6 +9,10 @@
       "description": "Supports sync_audiences task and audience_include/audience_exclude in targeting overlays for first-party CRM audience management",
       "type": "boolean"
     },
+    "catalog_management": {
+      "description": "Supports sync_catalogs task for catalog feed management with platform review and approval",
+      "type": "boolean"
+    },
     "content_standards": {
       "description": "Full support for content_standards configuration including sampling rates and category filtering",
       "type": "boolean"

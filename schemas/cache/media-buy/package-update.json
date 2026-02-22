@@ -29,6 +29,10 @@
       "description": "Buyer's reference for the package to update",
       "type": "string"
     },
+    "catalog": {
+      "$ref": "../core/catalog.json",
+      "description": "Update the catalog this package promotes. Replaces the current catalog reference."
+    },
     "creative_assignments": {
       "description": "Replace creative assignments for this package with optional weights and placement targeting. Uses replacement semantics - omit to leave assignments unchanged.",
       "items": {

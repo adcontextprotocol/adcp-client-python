@@ -3,6 +3,10 @@
   "additionalProperties": true,
   "description": "Response payload for get_products task",
   "properties": {
+    "catalog_applied": {
+      "description": "Whether the seller filtered results based on the provided catalog. True if the seller matched catalog items against its inventory. Absent or false if no catalog was provided or the seller does not support catalog matching.",
+      "type": "boolean"
+    },
     "context": {
       "$ref": "../core/context.json"
     },
@@ -18,10 +22,6 @@
     },
     "pagination": {
       "$ref": "../core/pagination-response.json"
-    },
-    "product_selectors_applied": {
-      "description": "Indicates whether product_selectors filtering was applied. True if the seller filtered results based on the provided product_selectors. Absent or false if product_selectors was not provided or not supported by this agent.",
-      "type": "boolean"
     },
     "products": {
       "description": "Array of matching products",

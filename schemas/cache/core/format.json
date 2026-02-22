@@ -281,25 +281,6 @@
                 "$ref": "#/$defs/baseIndividualAsset"
               }
             ],
-            "description": "Promoted offerings asset",
-            "properties": {
-              "asset_type": {
-                "const": "promoted_offerings"
-              },
-              "item_type": {
-                "const": "individual"
-              },
-              "requirements": {
-                "$ref": "requirements/promoted-offerings-asset-requirements.json"
-              }
-            }
-          },
-          {
-            "allOf": [
-              {
-                "$ref": "#/$defs/baseIndividualAsset"
-              }
-            ],
             "description": "URL asset",
             "properties": {
               "asset_type": {
@@ -509,22 +490,6 @@
                           "$ref": "#/$defs/baseGroupAsset"
                         }
                       ],
-                      "description": "Promoted offerings asset in group",
-                      "properties": {
-                        "asset_type": {
-                          "const": "promoted_offerings"
-                        },
-                        "requirements": {
-                          "$ref": "requirements/promoted-offerings-asset-requirements.json"
-                        }
-                      }
-                    },
-                    {
-                      "allOf": [
-                        {
-                          "$ref": "#/$defs/baseGroupAsset"
-                        }
-                      ],
                       "description": "URL asset in group",
                       "properties": {
                         "asset_type": {
@@ -596,6 +561,14 @@
           }
         ]
       },
+      "type": "array"
+    },
+    "catalog_requirements": {
+      "description": "Catalog feeds this format requires for rendering. Formats that display product listings, store locators, inventory availability, or promotional pricing declare what catalog types must be synced to the account. Buyers ensure the required catalogs are synced via sync_catalogs before submitting creatives in this format.",
+      "items": {
+        "$ref": "requirements/catalog-requirements.json"
+      },
+      "minItems": 1,
       "type": "array"
     },
     "delivery": {

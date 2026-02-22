@@ -17,6 +17,10 @@
       "description": "Buyer's reference identifier for this package",
       "type": "string"
     },
+    "catalog": {
+      "$ref": "../core/catalog.json",
+      "description": "Catalog this package promotes. Makes the package catalog-driven: one budget envelope, platform optimizes across items. Reference a synced catalog by catalog_id with optional selectors to narrow scope."
+    },
     "creative_assignments": {
       "description": "Assign existing library creatives to this package with optional weights and placement targeting",
       "items": {

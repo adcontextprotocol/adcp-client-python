@@ -8,25 +8,30 @@
       "type": "string"
     },
     "catalog_match": {
-      "description": "When the buyer provides a brand with product_catalog, indicates which of the buyer's catalog items are eligible for this product. Enables buyers to make informed product_selector choices in create_media_buy. Only present for products where catalog matching is relevant (e.g. sponsored product listings on retail media). Sellers SHOULD include at least one of matched_gtins or matched_skus.",
+      "description": "When the buyer provides a catalog on get_products, indicates which catalog items are eligible for this product. Only present for products where catalog matching is relevant (e.g., sponsored product listings, job boards, hotel ads).",
       "properties": {
+        "matched_count": {
+          "description": "Number of catalog items that matched this product's inventory.",
+          "minimum": 0,
+          "type": "integer"
+        },
         "matched_gtins": {
-          "description": "GTINs from the buyer's catalog that are eligible on this product's inventory. Buyers can use these values in product_selectors.manifest_gtins when creating media buys. Standard GTIN formats (GTIN-8 through GTIN-14).",
+          "description": "GTINs from the buyer's catalog that are eligible on this product's inventory. Standard GTIN formats (GTIN-8 through GTIN-14). Only present for product-type catalogs with GTIN matching.",
           "items": {
             "pattern": "^[0-9]{8,14}$",
             "type": "string"
           },
           "type": "array"
         },
-        "matched_skus": {
-          "description": "SKUs from the buyer's catalog that are eligible on this product's inventory. Buyers can use these values in product_selectors.manifest_skus when creating media buys.",
+        "matched_ids": {
+          "description": "Item IDs from the buyer's catalog that matched this product's inventory. The ID type depends on the catalog type and content_id_type (e.g., SKUs for product catalogs, job_ids for job catalogs, offering_ids for offering catalogs).",
           "items": {
             "type": "string"
           },
           "type": "array"
         },
         "submitted_count": {
-          "description": "Total catalog items evaluated from the buyer's feed.",
+          "description": "Total catalog items evaluated from the buyer's catalog.",
           "minimum": 0,
           "type": "integer"
         }
@@ -35,6 +40,15 @@
         "submitted_count"
       ],
       "type": "object"
+    },
+    "catalog_types": {
+      "description": "Catalog types this product supports for catalog-driven campaigns. A sponsored product listing declares [\"product\"], a job board declares [\"job\", \"offering\"]. Buyers match synced catalogs to products via this field.",
+      "items": {
+        "$ref": "../enums/catalog-type.json"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
     },
     "channels": {
       "description": "Advertising channels this product is sold as. Products inherit from their properties' supported_channels but may narrow the scope. For example, a product covering YouTube properties might be sold as ['ctv'] even though those properties support ['olv', 'social', 'ctv'].",

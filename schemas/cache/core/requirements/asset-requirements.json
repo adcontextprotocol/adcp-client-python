@@ -1,7 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "description": "Technical requirements for creative assets. The applicable schema is determined by the sibling asset_type field.",
-  "oneOf": [
+  "anyOf": [
     {
       "$ref": "image-asset-requirements.json"
     },
@@ -33,14 +32,12 @@
       "$ref": "daast-asset-requirements.json"
     },
     {
-      "$ref": "promoted-offerings-asset-requirements.json"
-    },
-    {
       "$ref": "url-asset-requirements.json"
     },
     {
       "$ref": "webhook-asset-requirements.json"
     }
   ],
+  "description": "Technical requirements for creative assets. The applicable schema is determined by the sibling asset_type field.",
   "title": "Asset Requirements"
 }

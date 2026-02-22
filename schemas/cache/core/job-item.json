@@ -1,0 +1,190 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "A job posting within a job-type catalog. Carries the position details that platforms use for job ads and recruitment campaigns. Maps to LinkedIn Jobs XML, Google DynamicJobsAsset, schema.org JobPosting, and similar formats.",
+  "examples": [
+    {
+      "data": {
+        "apply_url": "https://acmecorp.com/careers/eng-sr-2025-042",
+        "company_name": "Acme Corp",
+        "date_posted": "2025-06-01",
+        "description": "We're looking for a senior engineer to lead our platform team. You'll design and build distributed systems serving millions of daily requests.",
+        "employment_type": "full_time",
+        "experience_level": "senior",
+        "industries": [
+          "technology"
+        ],
+        "job_functions": [
+          "engineering"
+        ],
+        "job_id": "eng-sr-2025-042",
+        "location": "Amsterdam, NL",
+        "salary": {
+          "currency": "EUR",
+          "max": 110000,
+          "min": 80000,
+          "period": "year"
+        },
+        "tags": [
+          "visa-sponsorship",
+          "equity"
+        ],
+        "title": "Senior Software Engineer",
+        "valid_through": "2025-08-01"
+      },
+      "description": "Senior engineering role"
+    },
+    {
+      "data": {
+        "apply_url": "https://novabrands.com/careers/mkt-099",
+        "company_name": "Nova Brands",
+        "description": "6-month contract to develop and execute content strategy across owned channels.",
+        "employment_type": "contract",
+        "job_id": "mkt-contract-099",
+        "location": "Remote",
+        "salary": {
+          "currency": "USD",
+          "max": 7000,
+          "min": 5000,
+          "period": "month"
+        },
+        "tags": [
+          "remote",
+          "contract"
+        ],
+        "title": "Content Marketing Specialist"
+      },
+      "description": "Remote contract role"
+    }
+  ],
+  "properties": {
+    "apply_url": {
+      "description": "Direct application URL.",
+      "format": "uri",
+      "type": "string"
+    },
+    "company_name": {
+      "description": "Hiring company or organization name.",
+      "type": "string"
+    },
+    "date_posted": {
+      "description": "Date the job was posted (ISO 8601 date).",
+      "format": "date",
+      "type": "string"
+    },
+    "description": {
+      "description": "Full job description including responsibilities and qualifications.",
+      "type": "string"
+    },
+    "employment_type": {
+      "description": "Type of employment.",
+      "enum": [
+        "full_time",
+        "part_time",
+        "contract",
+        "temporary",
+        "internship",
+        "freelance"
+      ],
+      "type": "string"
+    },
+    "experience_level": {
+      "description": "Required experience level.",
+      "enum": [
+        "entry_level",
+        "mid_level",
+        "senior",
+        "director",
+        "executive"
+      ],
+      "type": "string"
+    },
+    "ext": {
+      "$ref": "ext.json"
+    },
+    "industries": {
+      "description": "Industry classifications (e.g., 'technology', 'healthcare', 'retail').",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "job_functions": {
+      "description": "Job function categories (e.g., 'engineering', 'marketing', 'sales', 'finance').",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "job_id": {
+      "description": "Unique identifier for this job posting.",
+      "type": "string"
+    },
+    "location": {
+      "description": "Job location as a display string (e.g., 'Amsterdam, NL', 'Remote', 'New York, NY'). Use 'Remote' for fully remote positions.",
+      "type": "string"
+    },
+    "salary": {
+      "additionalProperties": false,
+      "description": "Salary range. Specify min and/or max with currency and period.",
+      "properties": {
+        "currency": {
+          "description": "ISO 4217 currency code.",
+          "pattern": "^[A-Z]{3}$",
+          "type": "string"
+        },
+        "max": {
+          "description": "Maximum salary.",
+          "minimum": 0,
+          "type": "number"
+        },
+        "min": {
+          "description": "Minimum salary.",
+          "minimum": 0,
+          "type": "number"
+        },
+        "period": {
+          "description": "Pay period.",
+          "enum": [
+            "hour",
+            "month",
+            "year"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "currency",
+        "period"
+      ],
+      "type": "object"
+    },
+    "tags": {
+      "description": "Tags for filtering (e.g., 'remote', 'visa-sponsorship', 'equity').",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "title": {
+      "description": "Job title (e.g., 'Senior Software Engineer', 'Marketing Manager').",
+      "type": "string"
+    },
+    "valid_through": {
+      "description": "Application deadline (ISO 8601 date).",
+      "format": "date",
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id",
+    "title",
+    "company_name",
+    "description"
+  ],
+  "title": "Job Item",
+  "type": "object"
+}

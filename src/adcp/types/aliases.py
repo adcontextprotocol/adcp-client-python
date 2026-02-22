@@ -105,6 +105,9 @@ from adcp.types._generated import (
     # Sync accounts responses
     SyncAccountsResponse1,
     SyncAccountsResponse2,
+    # Sync catalogs responses
+    SyncCatalogsResponse1,
+    SyncCatalogsResponse2,
     # Sync creatives responses
     SyncCreativesResponse1,
     SyncCreativesResponse2,
@@ -142,6 +145,9 @@ from adcp.types._generated import (
 from adcp.types._generated import _PackageFromPackage as Package
 
 # Import nested types that aren't exported by _generated but are useful for type hints
+from adcp.types.generated_poc.media_buy.sync_catalogs_response import (
+    Catalog as SyncCatalogResultInternal,
+)
 from adcp.types.generated_poc.media_buy.sync_creatives_response import (
     Creative as SyncCreativeResultInternal,
 )
@@ -218,6 +224,30 @@ LogEventSuccessResponse = LogEventResponse1
 
 LogEventErrorResponse = LogEventResponse2
 """Error response - event logging failed."""
+
+# Sync Catalogs Response Variants
+SyncCatalogsSuccessResponse = SyncCatalogsResponse1
+"""Success response - sync operation processed catalogs (may include per-catalog failures)."""
+
+SyncCatalogsErrorResponse = SyncCatalogsResponse2
+"""Error response - operation failed completely, no catalogs were processed."""
+
+# Sync Catalog Result (nested type from SyncCatalogsResponse1.catalogs[])
+SyncCatalogResult = SyncCatalogResultInternal
+"""Result of syncing a single catalog - indicates action taken and per-item status.
+
+This is the item type from SyncCatalogsSuccessResponse.catalogs[]. In TypeScript, this would be:
+    type SyncCatalogResult = SyncCatalogsSuccessResponse["catalogs"][number]
+
+Example usage:
+    from adcp import SyncCatalogResult, SyncCatalogsSuccessResponse
+
+    def process_result(result: SyncCatalogResult) -> None:
+        if result.action == "created":
+            print(f"Created catalog {result.catalog_id}")
+        elif result.action == "failed":
+            print(f"Failed: {result.errors}")
+"""
 
 # Sync Event Sources Response Variants
 SyncEventSourcesSuccessResponse = SyncEventSourcesResponse1
@@ -912,6 +942,10 @@ __all__ = [
     "SyncCreativesSuccessResponse",
     "SyncCreativesErrorResponse",
     "SyncCreativeResult",
+    # Sync catalogs responses
+    "SyncCatalogResult",
+    "SyncCatalogsSuccessResponse",
+    "SyncCatalogsErrorResponse",
     # Sync event sources responses
     "SyncEventSourcesSuccessResponse",
     "SyncEventSourcesErrorResponse",

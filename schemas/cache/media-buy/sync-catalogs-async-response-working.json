@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Progress payload for active sync_catalogs task.",
+  "properties": {
+    "catalogs_processed": {
+      "description": "Number of catalogs processed so far",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "catalogs_total": {
+      "description": "Total number of catalogs to process",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "current_step": {
+      "description": "Current step or phase of the operation (e.g., 'Fetching product feed', 'Validating items', 'Platform review')",
+      "type": "string"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "items_processed": {
+      "description": "Total number of catalog items processed across all catalogs",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "items_total": {
+      "description": "Total number of catalog items to process across all catalogs",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "percentage": {
+      "description": "Completion percentage (0-100)",
+      "maximum": 100,
+      "minimum": 0,
+      "type": "number"
+    },
+    "step_number": {
+      "description": "Current step number",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "total_steps": {
+      "description": "Total number of steps in the operation",
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "title": "Sync Catalogs - Working",
+  "type": "object"
+}
