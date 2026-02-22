@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.5.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v3.4.0...v3.5.0) (2026-02-22)
+
+
+### Features
+
+* sync upstream catalog schemas and add catalog type support ([#134](https://github.com/adcontextprotocol/adcp-client-python/issues/134)) ([9de1eda](https://github.com/adcontextprotocol/adcp-client-python/commit/9de1eda9bb056dc16122000c2affedab63e323e9))
+
 ## [3.4.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v3.3.0...v3.4.0) (2026-02-20)
 
 
