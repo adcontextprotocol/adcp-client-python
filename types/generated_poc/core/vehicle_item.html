@@ -1,0 +1,805 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.core.vehicle_item API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.core.vehicle_item</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.core.vehicle_item.BodyStyle"><code class="flex name class">
+<span>class <span class="ident">BodyStyle</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class BodyStyle(Enum):
+    sedan = &#39;sedan&#39;
+    suv = &#39;suv&#39;
+    truck = &#39;truck&#39;
+    coupe = &#39;coupe&#39;
+    convertible = &#39;convertible&#39;
+    wagon = &#39;wagon&#39;
+    van = &#39;van&#39;
+    hatchback = &#39;hatchback&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.vehicle_item.BodyStyle.convertible"><code class="name">var <span class="ident">convertible</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.BodyStyle.coupe"><code class="name">var <span class="ident">coupe</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.BodyStyle.hatchback"><code class="name">var <span class="ident">hatchback</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.BodyStyle.sedan"><code class="name">var <span class="ident">sedan</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.BodyStyle.suv"><code class="name">var <span class="ident">suv</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.BodyStyle.truck"><code class="name">var <span class="ident">truck</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.BodyStyle.van"><code class="name">var <span class="ident">van</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.BodyStyle.wagon"><code class="name">var <span class="ident">wagon</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.Condition"><code class="flex name class">
+<span>class <span class="ident">Condition</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Condition(Enum):
+    new = &#39;new&#39;
+    used = &#39;used&#39;
+    certified_pre_owned = &#39;certified_pre_owned&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.vehicle_item.Condition.certified_pre_owned"><code class="name">var <span class="ident">certified_pre_owned</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.Condition.new"><code class="name">var <span class="ident">new</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.Condition.used"><code class="name">var <span class="ident">used</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.FuelType"><code class="flex name class">
+<span>class <span class="ident">FuelType</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FuelType(Enum):
+    gasoline = &#39;gasoline&#39;
+    diesel = &#39;diesel&#39;
+    electric = &#39;electric&#39;
+    hybrid = &#39;hybrid&#39;
+    plug_in_hybrid = &#39;plug_in_hybrid&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.vehicle_item.FuelType.diesel"><code class="name">var <span class="ident">diesel</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.FuelType.electric"><code class="name">var <span class="ident">electric</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.FuelType.gasoline"><code class="name">var <span class="ident">gasoline</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.FuelType.hybrid"><code class="name">var <span class="ident">hybrid</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.FuelType.plug_in_hybrid"><code class="name">var <span class="ident">plug_in_hybrid</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.Location"><code class="flex name class">
+<span>class <span class="ident">Location</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Location(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    lat: Annotated[
+        float, Field(description=&#39;Latitude in decimal degrees (WGS 84).&#39;, ge=-90.0, le=90.0)
+    ]
+    lng: Annotated[
+        float, Field(description=&#39;Longitude in decimal degrees (WGS 84).&#39;, ge=-180.0, le=180.0)
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.vehicle_item.Location.lat"><code class="name">var <span class="ident">lat</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.Location.lng"><code class="name">var <span class="ident">lng</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.Location.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.Mileage"><code class="flex name class">
+<span>class <span class="ident">Mileage</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Mileage(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    unit: Annotated[Unit, Field(description=&#39;Distance unit.&#39;)]
+    value: Annotated[float, Field(description=&#39;Mileage value.&#39;, ge=0.0)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.vehicle_item.Mileage.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.Mileage.unit"><code class="name">var <span class="ident">unit</span> : <a title="adcp.types.generated_poc.core.vehicle_item.Unit" href="#adcp.types.generated_poc.core.vehicle_item.Unit">Unit</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.Mileage.value"><code class="name">var <span class="ident">value</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.Transmission"><code class="flex name class">
+<span>class <span class="ident">Transmission</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Transmission(Enum):
+    automatic = &#39;automatic&#39;
+    manual = &#39;manual&#39;
+    cvt = &#39;cvt&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.vehicle_item.Transmission.automatic"><code class="name">var <span class="ident">automatic</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.Transmission.cvt"><code class="name">var <span class="ident">cvt</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.Transmission.manual"><code class="name">var <span class="ident">manual</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.Unit"><code class="flex name class">
+<span>class <span class="ident">Unit</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Unit(Enum):
+    km = &#39;km&#39;
+    mi = &#39;mi&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.vehicle_item.Unit.km"><code class="name">var <span class="ident">km</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.Unit.mi"><code class="name">var <span class="ident">mi</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem"><code class="flex name class">
+<span>class <span class="ident">VehicleItem</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class VehicleItem(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    body_style: Annotated[BodyStyle | None, Field(description=&#39;Vehicle body style.&#39;)] = None
+    condition: Annotated[Condition | None, Field(description=&#39;Vehicle condition.&#39;)] = None
+    ext: ext_1.ExtensionObject | None = None
+    exterior_color: Annotated[str | None, Field(description=&#39;Exterior color.&#39;)] = None
+    fuel_type: Annotated[FuelType | None, Field(description=&#39;Fuel or powertrain type.&#39;)] = None
+    image_url: Annotated[AnyUrl | None, Field(description=&#39;Primary vehicle image URL.&#39;)] = None
+    interior_color: Annotated[str | None, Field(description=&#39;Interior color.&#39;)] = None
+    location: Annotated[Location | None, Field(description=&#39;Dealer or vehicle location.&#39;)] = None
+    make: Annotated[str, Field(description=&#34;Vehicle manufacturer (e.g., &#39;Honda&#39;, &#39;Ford&#39;, &#39;BMW&#39;).&#34;)]
+    mileage: Annotated[Mileage | None, Field(description=&#39;Odometer reading.&#39;)] = None
+    model: Annotated[str, Field(description=&#34;Vehicle model (e.g., &#39;Civic&#39;, &#39;F-150&#39;, &#39;X5&#39;).&#34;)]
+    price: Annotated[price_1.Price | None, Field(description=&#39;Vehicle price.&#39;)] = None
+    tags: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Tags for filtering (e.g., &#39;low-mileage&#39;, &#39;one-owner&#39;, &#39;dealer-certified&#39;).&#34;,
+            min_length=1,
+        ),
+    ] = None
+    title: Annotated[str, Field(description=&#34;Listing title (e.g., &#39;2024 Honda Civic EX Sedan&#39;).&#34;)]
+    transmission: Annotated[Transmission | None, Field(description=&#39;Transmission type.&#39;)] = None
+    trim: Annotated[
+        str | None, Field(description=&#34;Trim level (e.g., &#39;EX&#39;, &#39;Limited&#39;, &#39;Sport&#39;).&#34;)
+    ] = None
+    url: Annotated[AnyUrl | None, Field(description=&#39;Vehicle listing page URL.&#39;)] = None
+    vehicle_id: Annotated[str, Field(description=&#39;Unique identifier for this vehicle listing.&#39;)]
+    vin: Annotated[
+        str | None, Field(description=&#39;Vehicle Identification Number (17-character VIN).&#39;)
+    ] = None
+    year: Annotated[int, Field(description=&#39;Model year.&#39;, ge=1900)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.body_style"><code class="name">var <span class="ident">body_style</span> : <a title="adcp.types.generated_poc.core.vehicle_item.BodyStyle" href="#adcp.types.generated_poc.core.vehicle_item.BodyStyle">BodyStyle</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.condition"><code class="name">var <span class="ident">condition</span> : <a title="adcp.types.generated_poc.core.vehicle_item.Condition" href="#adcp.types.generated_poc.core.vehicle_item.Condition">Condition</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.exterior_color"><code class="name">var <span class="ident">exterior_color</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.fuel_type"><code class="name">var <span class="ident">fuel_type</span> : <a title="adcp.types.generated_poc.core.vehicle_item.FuelType" href="#adcp.types.generated_poc.core.vehicle_item.FuelType">FuelType</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.image_url"><code class="name">var <span class="ident">image_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.interior_color"><code class="name">var <span class="ident">interior_color</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.location"><code class="name">var <span class="ident">location</span> : <a title="adcp.types.generated_poc.core.vehicle_item.Location" href="#adcp.types.generated_poc.core.vehicle_item.Location">Location</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.make"><code class="name">var <span class="ident">make</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.mileage"><code class="name">var <span class="ident">mileage</span> : <a title="adcp.types.generated_poc.core.vehicle_item.Mileage" href="#adcp.types.generated_poc.core.vehicle_item.Mileage">Mileage</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.model"><code class="name">var <span class="ident">model</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.price"><code class="name">var <span class="ident">price</span> : <a title="adcp.types.generated_poc.core.price.Price" href="price.html#adcp.types.generated_poc.core.price.Price">Price</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.tags"><code class="name">var <span class="ident">tags</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.title"><code class="name">var <span class="ident">title</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.transmission"><code class="name">var <span class="ident">transmission</span> : <a title="adcp.types.generated_poc.core.vehicle_item.Transmission" href="#adcp.types.generated_poc.core.vehicle_item.Transmission">Transmission</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.trim"><code class="name">var <span class="ident">trim</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.vehicle_id"><code class="name">var <span class="ident">vehicle_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.vin"><code class="name">var <span class="ident">vin</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.year"><code class="name">var <span class="ident">year</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc.core" href="index.html">adcp.types.generated_poc.core</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.vehicle_item.BodyStyle" href="#adcp.types.generated_poc.core.vehicle_item.BodyStyle">BodyStyle</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.BodyStyle.convertible" href="#adcp.types.generated_poc.core.vehicle_item.BodyStyle.convertible">convertible</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.BodyStyle.coupe" href="#adcp.types.generated_poc.core.vehicle_item.BodyStyle.coupe">coupe</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.BodyStyle.hatchback" href="#adcp.types.generated_poc.core.vehicle_item.BodyStyle.hatchback">hatchback</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.BodyStyle.sedan" href="#adcp.types.generated_poc.core.vehicle_item.BodyStyle.sedan">sedan</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.BodyStyle.suv" href="#adcp.types.generated_poc.core.vehicle_item.BodyStyle.suv">suv</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.BodyStyle.truck" href="#adcp.types.generated_poc.core.vehicle_item.BodyStyle.truck">truck</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.BodyStyle.van" href="#adcp.types.generated_poc.core.vehicle_item.BodyStyle.van">van</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.BodyStyle.wagon" href="#adcp.types.generated_poc.core.vehicle_item.BodyStyle.wagon">wagon</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.vehicle_item.Condition" href="#adcp.types.generated_poc.core.vehicle_item.Condition">Condition</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.Condition.certified_pre_owned" href="#adcp.types.generated_poc.core.vehicle_item.Condition.certified_pre_owned">certified_pre_owned</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.Condition.new" href="#adcp.types.generated_poc.core.vehicle_item.Condition.new">new</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.Condition.used" href="#adcp.types.generated_poc.core.vehicle_item.Condition.used">used</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.vehicle_item.FuelType" href="#adcp.types.generated_poc.core.vehicle_item.FuelType">FuelType</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.FuelType.diesel" href="#adcp.types.generated_poc.core.vehicle_item.FuelType.diesel">diesel</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.FuelType.electric" href="#adcp.types.generated_poc.core.vehicle_item.FuelType.electric">electric</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.FuelType.gasoline" href="#adcp.types.generated_poc.core.vehicle_item.FuelType.gasoline">gasoline</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.FuelType.hybrid" href="#adcp.types.generated_poc.core.vehicle_item.FuelType.hybrid">hybrid</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.FuelType.plug_in_hybrid" href="#adcp.types.generated_poc.core.vehicle_item.FuelType.plug_in_hybrid">plug_in_hybrid</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.vehicle_item.Location" href="#adcp.types.generated_poc.core.vehicle_item.Location">Location</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.Location.lat" href="#adcp.types.generated_poc.core.vehicle_item.Location.lat">lat</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.Location.lng" href="#adcp.types.generated_poc.core.vehicle_item.Location.lng">lng</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.Location.model_config" href="#adcp.types.generated_poc.core.vehicle_item.Location.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.vehicle_item.Mileage" href="#adcp.types.generated_poc.core.vehicle_item.Mileage">Mileage</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.Mileage.model_config" href="#adcp.types.generated_poc.core.vehicle_item.Mileage.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.Mileage.unit" href="#adcp.types.generated_poc.core.vehicle_item.Mileage.unit">unit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.Mileage.value" href="#adcp.types.generated_poc.core.vehicle_item.Mileage.value">value</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.vehicle_item.Transmission" href="#adcp.types.generated_poc.core.vehicle_item.Transmission">Transmission</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.Transmission.automatic" href="#adcp.types.generated_poc.core.vehicle_item.Transmission.automatic">automatic</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.Transmission.cvt" href="#adcp.types.generated_poc.core.vehicle_item.Transmission.cvt">cvt</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.Transmission.manual" href="#adcp.types.generated_poc.core.vehicle_item.Transmission.manual">manual</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.vehicle_item.Unit" href="#adcp.types.generated_poc.core.vehicle_item.Unit">Unit</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.Unit.km" href="#adcp.types.generated_poc.core.vehicle_item.Unit.km">km</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.Unit.mi" href="#adcp.types.generated_poc.core.vehicle_item.Unit.mi">mi</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem">VehicleItem</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.body_style" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.body_style">body_style</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.condition" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.condition">condition</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.ext" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.exterior_color" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.exterior_color">exterior_color</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.fuel_type" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.fuel_type">fuel_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.image_url" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.image_url">image_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.interior_color" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.interior_color">interior_color</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.location" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.location">location</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.make" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.make">make</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.mileage" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.mileage">mileage</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.model" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.model">model</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.model_config" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.price" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.price">price</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.tags" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.tags">tags</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.title" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.title">title</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.transmission" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.transmission">transmission</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.trim" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.trim">trim</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.url" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.url">url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.vehicle_id" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.vehicle_id">vehicle_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.vin" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.vin">vin</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.year" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.year">year</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

@@ -128,11 +128,17 @@ validated to form a valid model.</p>
         str | None, Field(description=&#39;Category of the product or content&#39;)
     ] = None
     content_ids: Annotated[
-        list[str] | None, Field(description=&#39;Product or content identifiers&#39;)
+        list[str] | None,
+        Field(
+            description=&#34;Item identifiers for catalog attribution. Values are matched against catalog items using the identifier type declared by the catalog&#39;s content_id_type field (e.g., SKUs, GTINs, or vertical-specific IDs like job_id).&#34;
+        ),
     ] = None
     content_name: Annotated[str | None, Field(description=&#39;Name of the product or content&#39;)] = None
     content_type: Annotated[
-        str | None, Field(description=&#39;Category of content (product, service, etc.)&#39;)
+        str | None,
+        Field(
+            description=&#34;Category of content associated with the event (e.g., &#39;product&#39;, &#39;job&#39;, &#39;hotel&#39;). Corresponds to the catalog type when used for catalog attribution.&#34;
+        ),
     ] = None
     contents: Annotated[
         list[Content] | None, Field(description=&#39;Per-item details for e-commerce events&#39;)

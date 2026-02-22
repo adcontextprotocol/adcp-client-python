@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.core.media_buy_features API documentation</title>
+<title>adcp.types.generated_poc.core.assets.markdown_asset API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.core.media_buy_features</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.core.assets.markdown_asset</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,8 +46,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures"><code class="flex name class">
-<span>class <span class="ident">MediaBuyFeatures</span></span>
+<dt id="adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset"><code class="flex name class">
+<span>class <span class="ident">MarkdownAsset</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -55,47 +55,31 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class MediaBuyFeatures(AdCPBaseModel):
-    audience_targeting: Annotated[
+<pre><code class="python">class MarkdownAsset(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    allow_raw_html: Annotated[
         bool | None,
         Field(
-            description=&#39;Supports sync_audiences task and audience_include/audience_exclude in targeting overlays for first-party CRM audience management&#39;
+            description=&#39;Whether raw HTML blocks are allowed in the markdown. False recommended for security.&#39;
         ),
-    ] = None
-    catalog_management: Annotated[
-        bool | None,
+    ] = False
+    content: Annotated[
+        str,
         Field(
-            description=&#39;Supports sync_catalogs task for catalog feed management with platform review and approval&#39;
+            description=&#39;Markdown content following CommonMark spec with optional GitHub Flavored Markdown extensions&#39;
         ),
-    ] = None
-    content_standards: Annotated[
-        bool | None,
+    ]
+    language: Annotated[str | None, Field(description=&#34;Language code (e.g., &#39;en&#39;, &#39;es&#39;, &#39;fr&#39;)&#34;)] = (
+        None
+    )
+    markdown_flavor: Annotated[
+        markdown_flavor_1.MarkdownFlavor | None,
         Field(
-            description=&#39;Full support for content_standards configuration including sampling rates and category filtering&#39;
+            description=&#39;Markdown flavor used. CommonMark for strict compatibility, GFM for tables/task lists/strikethrough.&#39;
         ),
-    ] = None
-    conversion_tracking: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Supports sync_event_sources and log_event tasks for conversion event tracking&#39;
-        ),
-    ] = None
-    inline_creative_management: Annotated[
-        bool | None,
-        Field(description=&#39;Supports creatives provided inline in create_media_buy requests&#39;),
-    ] = None
-    property_list_filtering: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Honors property_list parameter in get_products to filter results to buyer-approved properties&#39;
-        ),
-    ] = None
-    sandbox: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Supports sandbox mode for operations without real platform calls or spend&#39;
-        ),
-    ] = None</code></pre>
+    ] = markdown_flavor_1.MarkdownFlavor.commonmark</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -107,51 +91,39 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.audience_targeting"><code class="name">var <span class="ident">audience_targeting</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset.allow_raw_html"><code class="name">var <span class="ident">allow_raw_html</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.catalog_management"><code class="name">var <span class="ident">catalog_management</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset.content"><code class="name">var <span class="ident">content</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.content_standards"><code class="name">var <span class="ident">content_standards</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset.language"><code class="name">var <span class="ident">language</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.conversion_tracking"><code class="name">var <span class="ident">conversion_tracking</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset.markdown_flavor"><code class="name">var <span class="ident">markdown_flavor</span> : <a title="adcp.types.generated_poc.enums.markdown_flavor.MarkdownFlavor" href="../../enums/markdown_flavor.html#adcp.types.generated_poc.enums.markdown_flavor.MarkdownFlavor">MarkdownFlavor</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.inline_creative_management"><code class="name">var <span class="ident">inline_creative_management</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.property_list_filtering"><code class="name">var <span class="ident">property_list_filtering</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
 <ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -166,22 +138,19 @@ validated to form a valid model.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.core" href="index.html">adcp.types.generated_poc.core</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets" href="index.html">adcp.types.generated_poc.core.assets</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures">MediaBuyFeatures</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset" href="#adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset">MarkdownAsset</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.audience_targeting" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.audience_targeting">audience_targeting</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.catalog_management" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.catalog_management">catalog_management</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.content_standards" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.content_standards">content_standards</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.conversion_tracking" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.conversion_tracking">conversion_tracking</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.inline_creative_management" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.inline_creative_management">inline_creative_management</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.model_config" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.property_list_filtering" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.property_list_filtering">property_list_filtering</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.sandbox" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.sandbox">sandbox</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset.allow_raw_html" href="#adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset.allow_raw_html">allow_raw_html</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset.content" href="#adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset.content">content</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset.language" href="#adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset.language">language</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset.markdown_flavor" href="#adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset.markdown_flavor">markdown_flavor</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset.model_config" href="#adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset.model_config">model_config</a></code></li>
 </ul>
 </li>
 </ul>

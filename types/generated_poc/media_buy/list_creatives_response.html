@@ -196,7 +196,6 @@ validated to form a valid model.</p>
             | javascript_asset.JavascriptAsset
             | vast_asset.VastAsset
             | daast_asset.DaastAsset
-            | promoted_offerings.PromotedOfferings
             | url_asset.UrlAsset,
         ]
         | None,
@@ -205,6 +204,10 @@ validated to form a valid model.</p>
     assignments: Annotated[
         Assignments | None,
         Field(description=&#39;Current package assignments (included when include_assignments=true)&#39;),
+    ] = None
+    catalogs: Annotated[
+        list[catalog.Catalog] | None,
+        Field(description=&#39;Catalogs this creative renders, if any&#39;, min_length=1),
     ] = None
     created_date: Annotated[
         AwareDatetime, Field(description=&#39;When the creative was uploaded to the library&#39;)
@@ -254,11 +257,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.list_creatives_response.Creative.assets"><code class="name">var <span class="ident">assets</span> : dict[str, <a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset" href="../core/assets/image_asset.html#adcp.types.generated_poc.core.assets.image_asset.ImageAsset">ImageAsset</a> | <a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset" href="../core/assets/video_asset.html#adcp.types.generated_poc.core.assets.video_asset.VideoAsset">VideoAsset</a> | <a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset" href="../core/assets/audio_asset.html#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset">AudioAsset</a> | <a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset" href="../core/assets/text_asset.html#adcp.types.generated_poc.core.assets.text_asset.TextAsset">TextAsset</a> | <a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset" href="../core/assets/html_asset.html#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset">HtmlAsset</a> | <a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset" href="../core/assets/css_asset.html#adcp.types.generated_poc.core.assets.css_asset.CssAsset">CssAsset</a> | <a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset" href="../core/assets/javascript_asset.html#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset">JavascriptAsset</a> | <a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset" href="../core/assets/vast_asset.html#adcp.types.generated_poc.core.assets.vast_asset.VastAsset">VastAsset</a> | <a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset" href="../core/assets/daast_asset.html#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset">DaastAsset</a> | <a title="adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings" href="../core/promoted_offerings.html#adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings">PromotedOfferings</a> | <a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset" href="../core/assets/url_asset.html#adcp.types.generated_poc.core.assets.url_asset.UrlAsset">UrlAsset</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.list_creatives_response.Creative.assets"><code class="name">var <span class="ident">assets</span> : dict[str, <a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset" href="../core/assets/image_asset.html#adcp.types.generated_poc.core.assets.image_asset.ImageAsset">ImageAsset</a> | <a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset" href="../core/assets/video_asset.html#adcp.types.generated_poc.core.assets.video_asset.VideoAsset">VideoAsset</a> | <a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset" href="../core/assets/audio_asset.html#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset">AudioAsset</a> | <a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset" href="../core/assets/text_asset.html#adcp.types.generated_poc.core.assets.text_asset.TextAsset">TextAsset</a> | <a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset" href="../core/assets/html_asset.html#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset">HtmlAsset</a> | <a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset" href="../core/assets/css_asset.html#adcp.types.generated_poc.core.assets.css_asset.CssAsset">CssAsset</a> | <a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset" href="../core/assets/javascript_asset.html#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset">JavascriptAsset</a> | <a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset" href="../core/assets/vast_asset.html#adcp.types.generated_poc.core.assets.vast_asset.VastAsset">VastAsset</a> | <a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset" href="../core/assets/daast_asset.html#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset">DaastAsset</a> | <a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset" href="../core/assets/url_asset.html#adcp.types.generated_poc.core.assets.url_asset.UrlAsset">UrlAsset</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.list_creatives_response.Creative.assignments"><code class="name">var <span class="ident">assignments</span> : <a title="adcp.types.generated_poc.media_buy.list_creatives_response.Assignments" href="#adcp.types.generated_poc.media_buy.list_creatives_response.Assignments">Assignments</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.list_creatives_response.Creative.catalogs"><code class="name">var <span class="ident">catalogs</span> : list[<a title="adcp.types.generated_poc.core.catalog.Catalog" href="../core/catalog.html#adcp.types.generated_poc.core.catalog.Catalog">Catalog</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -736,6 +743,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.Creative.account" href="#adcp.types.generated_poc.media_buy.list_creatives_response.Creative.account">account</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.Creative.assets" href="#adcp.types.generated_poc.media_buy.list_creatives_response.Creative.assets">assets</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.Creative.assignments" href="#adcp.types.generated_poc.media_buy.list_creatives_response.Creative.assignments">assignments</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.Creative.catalogs" href="#adcp.types.generated_poc.media_buy.list_creatives_response.Creative.catalogs">catalogs</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.Creative.created_date" href="#adcp.types.generated_poc.media_buy.list_creatives_response.Creative.created_date">created_date</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.Creative.creative_id" href="#adcp.types.generated_poc.media_buy.list_creatives_response.Creative.creative_id">creative_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creatives_response.Creative.format_id" href="#adcp.types.generated_poc.media_buy.list_creatives_response.Creative.format_id">format_id</a></code></li>

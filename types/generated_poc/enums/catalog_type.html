@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.core.media_buy_features API documentation</title>
+<title>adcp.types.generated_poc.enums.catalog_type API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.core.media_buy_features</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.enums.catalog_type</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,115 +46,119 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures"><code class="flex name class">
-<span>class <span class="ident">MediaBuyFeatures</span></span>
-<span>(</span><span>**data: Any)</span>
+<dt id="adcp.types.generated_poc.enums.catalog_type.CatalogType"><code class="flex name class">
+<span>class <span class="ident">CatalogType</span></span>
+<span>(</span><span>*args, **kwds)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class MediaBuyFeatures(AdCPBaseModel):
-    audience_targeting: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Supports sync_audiences task and audience_include/audience_exclude in targeting overlays for first-party CRM audience management&#39;
-        ),
-    ] = None
-    catalog_management: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Supports sync_catalogs task for catalog feed management with platform review and approval&#39;
-        ),
-    ] = None
-    content_standards: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Full support for content_standards configuration including sampling rates and category filtering&#39;
-        ),
-    ] = None
-    conversion_tracking: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Supports sync_event_sources and log_event tasks for conversion event tracking&#39;
-        ),
-    ] = None
-    inline_creative_management: Annotated[
-        bool | None,
-        Field(description=&#39;Supports creatives provided inline in create_media_buy requests&#39;),
-    ] = None
-    property_list_filtering: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Honors property_list parameter in get_products to filter results to buyer-approved properties&#39;
-        ),
-    ] = None
-    sandbox: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Supports sandbox mode for operations without real platform calls or spend&#39;
-        ),
-    ] = None</code></pre>
+<pre><code class="python">class CatalogType(Enum):
+    offering = &#39;offering&#39;
+    product = &#39;product&#39;
+    inventory = &#39;inventory&#39;
+    store = &#39;store&#39;
+    promotion = &#39;promotion&#39;
+    hotel = &#39;hotel&#39;
+    flight = &#39;flight&#39;
+    job = &#39;job&#39;
+    vehicle = &#39;vehicle&#39;
+    real_estate = &#39;real_estate&#39;
+    education = &#39;education&#39;
+    destination = &#39;destination&#39;</code></pre>
 </details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
+<li>enum.Enum</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.audience_targeting"><code class="name">var <span class="ident">audience_targeting</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.enums.catalog_type.CatalogType.destination"><code class="name">var <span class="ident">destination</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.catalog_management"><code class="name">var <span class="ident">catalog_management</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.enums.catalog_type.CatalogType.education"><code class="name">var <span class="ident">education</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.content_standards"><code class="name">var <span class="ident">content_standards</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.enums.catalog_type.CatalogType.flight"><code class="name">var <span class="ident">flight</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.conversion_tracking"><code class="name">var <span class="ident">conversion_tracking</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.enums.catalog_type.CatalogType.hotel"><code class="name">var <span class="ident">hotel</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.inline_creative_management"><code class="name">var <span class="ident">inline_creative_management</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.enums.catalog_type.CatalogType.inventory"><code class="name">var <span class="ident">inventory</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.enums.catalog_type.CatalogType.job"><code class="name">var <span class="ident">job</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.property_list_filtering"><code class="name">var <span class="ident">property_list_filtering</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.enums.catalog_type.CatalogType.offering"><code class="name">var <span class="ident">offering</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.enums.catalog_type.CatalogType.product"><code class="name">var <span class="ident">product</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.catalog_type.CatalogType.promotion"><code class="name">var <span class="ident">promotion</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.catalog_type.CatalogType.real_estate"><code class="name">var <span class="ident">real_estate</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.catalog_type.CatalogType.store"><code class="name">var <span class="ident">store</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.catalog_type.CatalogType.vehicle"><code class="name">var <span class="ident">vehicle</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
 </dd>
 </dl>
 </section>
@@ -166,22 +170,26 @@ validated to form a valid model.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.core" href="index.html">adcp.types.generated_poc.core</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums" href="index.html">adcp.types.generated_poc.enums</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures">MediaBuyFeatures</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.audience_targeting" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.audience_targeting">audience_targeting</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.catalog_management" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.catalog_management">catalog_management</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.content_standards" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.content_standards">content_standards</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.conversion_tracking" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.conversion_tracking">conversion_tracking</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.inline_creative_management" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.inline_creative_management">inline_creative_management</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.model_config" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.property_list_filtering" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.property_list_filtering">property_list_filtering</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.sandbox" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.sandbox">sandbox</a></code></li>
+<h4><code><a title="adcp.types.generated_poc.enums.catalog_type.CatalogType" href="#adcp.types.generated_poc.enums.catalog_type.CatalogType">CatalogType</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.enums.catalog_type.CatalogType.destination" href="#adcp.types.generated_poc.enums.catalog_type.CatalogType.destination">destination</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.catalog_type.CatalogType.education" href="#adcp.types.generated_poc.enums.catalog_type.CatalogType.education">education</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.catalog_type.CatalogType.flight" href="#adcp.types.generated_poc.enums.catalog_type.CatalogType.flight">flight</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.catalog_type.CatalogType.hotel" href="#adcp.types.generated_poc.enums.catalog_type.CatalogType.hotel">hotel</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.catalog_type.CatalogType.inventory" href="#adcp.types.generated_poc.enums.catalog_type.CatalogType.inventory">inventory</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.catalog_type.CatalogType.job" href="#adcp.types.generated_poc.enums.catalog_type.CatalogType.job">job</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.catalog_type.CatalogType.offering" href="#adcp.types.generated_poc.enums.catalog_type.CatalogType.offering">offering</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.catalog_type.CatalogType.product" href="#adcp.types.generated_poc.enums.catalog_type.CatalogType.product">product</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.catalog_type.CatalogType.promotion" href="#adcp.types.generated_poc.enums.catalog_type.CatalogType.promotion">promotion</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.catalog_type.CatalogType.real_estate" href="#adcp.types.generated_poc.enums.catalog_type.CatalogType.real_estate">real_estate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.catalog_type.CatalogType.store" href="#adcp.types.generated_poc.enums.catalog_type.CatalogType.store">store</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.catalog_type.CatalogType.vehicle" href="#adcp.types.generated_poc.enums.catalog_type.CatalogType.vehicle">vehicle</a></code></li>
 </ul>
 </li>
 </ul>

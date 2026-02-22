@@ -71,6 +71,12 @@ el.replaceWith(d);
         Field(description=&#34;Budget allocation for this package in the media buy&#39;s currency&#34;, ge=0.0),
     ]
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this package&#34;)]
+    catalog: Annotated[
+        catalog_1.Catalog | None,
+        Field(
+            description=&#39;Catalog this package promotes. Makes the package catalog-driven: one budget envelope, platform optimizes across items. Reference a synced catalog by catalog_id with optional selectors to narrow scope.&#39;
+        ),
+    ] = None
     creative_assignments: Annotated[
         list[creative_assignment.CreativeAssignment] | None,
         Field(
@@ -138,6 +144,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.package_request.PackageRequest.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.package_request.PackageRequest.catalog"><code class="name">var <span class="ident">catalog</span> : <a title="adcp.types.generated_poc.core.catalog.Catalog" href="../core/catalog.html#adcp.types.generated_poc.core.catalog.Catalog">Catalog</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -222,6 +232,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.bid_price" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.bid_price">bid_price</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.budget" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.budget">budget</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.buyer_ref" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.catalog" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.catalog">catalog</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.creative_assignments" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.creative_assignments">creative_assignments</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.creatives" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.creatives">creatives</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest.ext" href="#adcp.types.generated_poc.media_buy.package_request.PackageRequest.ext">ext</a></code></li>

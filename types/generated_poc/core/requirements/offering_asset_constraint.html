@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.core.media_buy_features API documentation</title>
+<title>adcp.types.generated_poc.core.requirements.offering_asset_constraint API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.core.media_buy_features</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.core.requirements.offering_asset_constraint</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,8 +46,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures"><code class="flex name class">
-<span>class <span class="ident">MediaBuyFeatures</span></span>
+<dt id="adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint"><code class="flex name class">
+<span>class <span class="ident">OfferingAssetConstraint</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -55,47 +55,39 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class MediaBuyFeatures(AdCPBaseModel):
-    audience_targeting: Annotated[
-        bool | None,
+<pre><code class="python">class OfferingAssetConstraint(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    asset_group_id: Annotated[
+        str,
         Field(
-            description=&#39;Supports sync_audiences task and audience_include/audience_exclude in targeting overlays for first-party CRM audience management&#39;
+            description=&#34;The asset group this constraint applies to. Values are format-defined vocabulary — each format chooses its own group IDs (e.g., &#39;headlines&#39;, &#39;images&#39;, &#39;videos&#39;). Buyers discover them via list_creative_formats.&#34;
+        ),
+    ]
+    asset_requirements: Annotated[
+        asset_requirements_1.AssetRequirements | None,
+        Field(
+            description=&#39;Technical requirements for each item in this group (e.g., max_length for text, min_width/aspect_ratio for images). Applies uniformly to all items in the group.&#39;
         ),
     ] = None
-    catalog_management: Annotated[
+    asset_type: Annotated[
+        asset_content_type.AssetContentType,
+        Field(description=&#39;The expected content type for this group.&#39;),
+    ]
+    ext: ext_1.ExtensionObject | None = None
+    max_count: Annotated[
+        int | None, Field(description=&#39;Maximum number of items allowed in this group.&#39;, ge=1)
+    ] = None
+    min_count: Annotated[
+        int | None, Field(description=&#39;Minimum number of items required in this group.&#39;, ge=1)
+    ] = None
+    required: Annotated[
         bool | None,
         Field(
-            description=&#39;Supports sync_catalogs task for catalog feed management with platform review and approval&#39;
+            description=&#39;Whether this asset group must be present in each offering. Defaults to true.&#39;
         ),
-    ] = None
-    content_standards: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Full support for content_standards configuration including sampling rates and category filtering&#39;
-        ),
-    ] = None
-    conversion_tracking: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Supports sync_event_sources and log_event tasks for conversion event tracking&#39;
-        ),
-    ] = None
-    inline_creative_management: Annotated[
-        bool | None,
-        Field(description=&#39;Supports creatives provided inline in create_media_buy requests&#39;),
-    ] = None
-    property_list_filtering: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Honors property_list parameter in get_products to filter results to buyer-approved properties&#39;
-        ),
-    ] = None
-    sandbox: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Supports sandbox mode for operations without real platform calls or spend&#39;
-        ),
-    ] = None</code></pre>
+    ] = True</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -107,51 +99,51 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.audience_targeting"><code class="name">var <span class="ident">audience_targeting</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.asset_group_id"><code class="name">var <span class="ident">asset_group_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.catalog_management"><code class="name">var <span class="ident">catalog_management</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.asset_requirements"><code class="name">var <span class="ident">asset_requirements</span> : <a title="adcp.types.generated_poc.core.requirements.asset_requirements.AssetRequirements" href="asset_requirements.html#adcp.types.generated_poc.core.requirements.asset_requirements.AssetRequirements">AssetRequirements</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.content_standards"><code class="name">var <span class="ident">content_standards</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.asset_type"><code class="name">var <span class="ident">asset_type</span> : <a title="adcp.types.generated_poc.enums.asset_content_type.AssetContentType" href="../../enums/asset_content_type.html#adcp.types.generated_poc.enums.asset_content_type.AssetContentType">AssetContentType</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.conversion_tracking"><code class="name">var <span class="ident">conversion_tracking</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.inline_creative_management"><code class="name">var <span class="ident">inline_creative_management</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.max_count"><code class="name">var <span class="ident">max_count</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.min_count"><code class="name">var <span class="ident">min_count</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.property_list_filtering"><code class="name">var <span class="ident">property_list_filtering</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.required"><code class="name">var <span class="ident">required</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
 <ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -166,22 +158,22 @@ validated to form a valid model.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.core" href="index.html">adcp.types.generated_poc.core</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements" href="index.html">adcp.types.generated_poc.core.requirements</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures">MediaBuyFeatures</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.audience_targeting" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.audience_targeting">audience_targeting</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.catalog_management" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.catalog_management">catalog_management</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.content_standards" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.content_standards">content_standards</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.conversion_tracking" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.conversion_tracking">conversion_tracking</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.inline_creative_management" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.inline_creative_management">inline_creative_management</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.model_config" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.property_list_filtering" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.property_list_filtering">property_list_filtering</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.sandbox" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.sandbox">sandbox</a></code></li>
+<h4><code><a title="adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint" href="#adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint">OfferingAssetConstraint</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.asset_group_id" href="#adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.asset_group_id">asset_group_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.asset_requirements" href="#adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.asset_requirements">asset_requirements</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.asset_type" href="#adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.asset_type">asset_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.ext" href="#adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.max_count" href="#adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.max_count">max_count</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.min_count" href="#adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.min_count">min_count</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.model_config" href="#adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.required" href="#adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint.required">required</a></code></li>
 </ul>
 </li>
 </ul>

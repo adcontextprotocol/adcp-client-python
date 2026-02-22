@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.core.media_buy_features API documentation</title>
+<title>adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.core.media_buy_features</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,8 +46,82 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures"><code class="flex name class">
-<span>class <span class="ident">MediaBuyFeatures</span></span>
+<dt id="adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.Reason"><code class="flex name class">
+<span>class <span class="ident">Reason</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Reason(Enum):
+    APPROVAL_REQUIRED = &#39;APPROVAL_REQUIRED&#39;
+    FEED_VALIDATION = &#39;FEED_VALIDATION&#39;
+    ITEM_REVIEW = &#39;ITEM_REVIEW&#39;
+    FEED_ACCESS = &#39;FEED_ACCESS&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.Reason.APPROVAL_REQUIRED"><code class="name">var <span class="ident">APPROVAL_REQUIRED</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.Reason.FEED_ACCESS"><code class="name">var <span class="ident">FEED_ACCESS</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.Reason.FEED_VALIDATION"><code class="name">var <span class="ident">FEED_VALIDATION</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.Reason.ITEM_REVIEW"><code class="name">var <span class="ident">ITEM_REVIEW</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.SyncCatalogsInputRequired"><code class="flex name class">
+<span>class <span class="ident">SyncCatalogsInputRequired</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -55,45 +129,16 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class MediaBuyFeatures(AdCPBaseModel):
-    audience_targeting: Annotated[
-        bool | None,
+<pre><code class="python">class SyncCatalogsInputRequired(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+    reason: Annotated[
+        Reason | None,
         Field(
-            description=&#39;Supports sync_audiences task and audience_include/audience_exclude in targeting overlays for first-party CRM audience management&#39;
-        ),
-    ] = None
-    catalog_management: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Supports sync_catalogs task for catalog feed management with platform review and approval&#39;
-        ),
-    ] = None
-    content_standards: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Full support for content_standards configuration including sampling rates and category filtering&#39;
-        ),
-    ] = None
-    conversion_tracking: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Supports sync_event_sources and log_event tasks for conversion event tracking&#39;
-        ),
-    ] = None
-    inline_creative_management: Annotated[
-        bool | None,
-        Field(description=&#39;Supports creatives provided inline in create_media_buy requests&#39;),
-    ] = None
-    property_list_filtering: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Honors property_list parameter in get_products to filter results to buyer-approved properties&#39;
-        ),
-    ] = None
-    sandbox: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Supports sandbox mode for operations without real platform calls or spend&#39;
+            description=&#39;Reason code indicating why buyer input is needed. APPROVAL_REQUIRED: platform requires explicit approval before activating the catalog. FEED_VALIDATION: feed URL returned unexpected format or schema errors. ITEM_REVIEW: platform flagged items for manual review. FEED_ACCESS: platform cannot access the feed URL (authentication, CORS, etc.).&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -112,35 +157,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.audience_targeting"><code class="name">var <span class="ident">audience_targeting</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.SyncCatalogsInputRequired.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.catalog_management"><code class="name">var <span class="ident">catalog_management</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.SyncCatalogsInputRequired.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.content_standards"><code class="name">var <span class="ident">content_standards</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.SyncCatalogsInputRequired.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.conversion_tracking"><code class="name">var <span class="ident">conversion_tracking</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.inline_creative_management"><code class="name">var <span class="ident">inline_creative_management</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.property_list_filtering"><code class="name">var <span class="ident">property_list_filtering</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.SyncCatalogsInputRequired.reason"><code class="name">var <span class="ident">reason</span> : <a title="adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.Reason" href="#adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.Reason">Reason</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -166,22 +195,27 @@ validated to form a valid model.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.core" href="index.html">adcp.types.generated_poc.core</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy" href="index.html">adcp.types.generated_poc.media_buy</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures">MediaBuyFeatures</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.Reason" href="#adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.Reason">Reason</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.audience_targeting" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.audience_targeting">audience_targeting</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.catalog_management" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.catalog_management">catalog_management</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.content_standards" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.content_standards">content_standards</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.conversion_tracking" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.conversion_tracking">conversion_tracking</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.inline_creative_management" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.inline_creative_management">inline_creative_management</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.model_config" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.property_list_filtering" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.property_list_filtering">property_list_filtering</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.sandbox" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.sandbox">sandbox</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.Reason.APPROVAL_REQUIRED" href="#adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.Reason.APPROVAL_REQUIRED">APPROVAL_REQUIRED</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.Reason.FEED_ACCESS" href="#adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.Reason.FEED_ACCESS">FEED_ACCESS</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.Reason.FEED_VALIDATION" href="#adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.Reason.FEED_VALIDATION">FEED_VALIDATION</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.Reason.ITEM_REVIEW" href="#adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.Reason.ITEM_REVIEW">ITEM_REVIEW</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.SyncCatalogsInputRequired" href="#adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.SyncCatalogsInputRequired">SyncCatalogsInputRequired</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.SyncCatalogsInputRequired.context" href="#adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.SyncCatalogsInputRequired.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.SyncCatalogsInputRequired.ext" href="#adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.SyncCatalogsInputRequired.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.SyncCatalogsInputRequired.model_config" href="#adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.SyncCatalogsInputRequired.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.SyncCatalogsInputRequired.reason" href="#adcp.types.generated_poc.media_buy.sync_catalogs_async_response_input_required.SyncCatalogsInputRequired.reason">reason</a></code></li>
 </ul>
 </li>
 </ul>

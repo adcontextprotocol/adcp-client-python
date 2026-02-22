@@ -894,6 +894,163 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.aliases.Catalog"><code class="flex name class">
+<span>class <span class="ident">SyncCatalogResult</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Catalog(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    action: Annotated[
+        catalog_action.CatalogAction, Field(description=&#39;Action taken for this catalog&#39;)
+    ]
+    catalog_id: Annotated[str, Field(description=&#39;Catalog ID from the request&#39;)]
+    changes: Annotated[
+        list[str] | None,
+        Field(description=&#34;Field names that were modified (only present when action=&#39;updated&#39;)&#34;),
+    ] = None
+    errors: Annotated[
+        list[str] | None,
+        Field(description=&#34;Validation or processing errors (only present when action=&#39;failed&#39;)&#34;),
+    ] = None
+    item_count: Annotated[
+        int | None, Field(description=&#39;Total number of items in the catalog after sync&#39;, ge=0)
+    ] = None
+    item_issues: Annotated[
+        list[ItemIssue] | None,
+        Field(
+            description=&#39;Per-item issues reported by the platform (rejections, warnings). Only present when the platform performs item-level review.&#39;
+        ),
+    ] = None
+    items_approved: Annotated[
+        int | None,
+        Field(
+            description=&#39;Number of items approved by the platform. Populated when the platform performs item-level review.&#39;,
+            ge=0,
+        ),
+    ] = None
+    items_pending: Annotated[
+        int | None,
+        Field(
+            description=&#39;Number of items pending platform review. Common for product catalogs where items must pass content policy checks.&#39;,
+            ge=0,
+        ),
+    ] = None
+    items_rejected: Annotated[
+        int | None,
+        Field(
+            description=&#39;Number of items rejected by the platform. Check item_issues for rejection reasons.&#39;,
+            ge=0,
+        ),
+    ] = None
+    last_synced_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;ISO 8601 timestamp of when the most recent sync was accepted by the platform&#39;
+        ),
+    ] = None
+    next_fetch_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;ISO 8601 timestamp of when the platform will next fetch the feed URL. Only present for URL-based catalogs with update_frequency.&#39;
+        ),
+    ] = None
+    platform_id: Annotated[
+        str | None, Field(description=&#39;Platform-specific ID assigned to the catalog&#39;)
+    ] = None
+    warnings: Annotated[
+        list[str] | None, Field(description=&#39;Non-fatal warnings about this catalog&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.Catalog.action"><code class="name">var <span class="ident">action</span> : <a title="adcp.types.generated_poc.enums.catalog_action.CatalogAction" href="generated_poc/enums/catalog_action.html#adcp.types.generated_poc.enums.catalog_action.CatalogAction">CatalogAction</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Catalog.catalog_id"><code class="name">var <span class="ident">catalog_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Catalog.changes"><code class="name">var <span class="ident">changes</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Catalog.errors"><code class="name">var <span class="ident">errors</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Catalog.item_count"><code class="name">var <span class="ident">item_count</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Catalog.item_issues"><code class="name">var <span class="ident">item_issues</span> : list[<a title="adcp.types.generated_poc.media_buy.sync_catalogs_response.ItemIssue" href="generated_poc/media_buy/sync_catalogs_response.html#adcp.types.generated_poc.media_buy.sync_catalogs_response.ItemIssue">ItemIssue</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Catalog.items_approved"><code class="name">var <span class="ident">items_approved</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Catalog.items_pending"><code class="name">var <span class="ident">items_pending</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Catalog.items_rejected"><code class="name">var <span class="ident">items_rejected</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Catalog.last_synced_at"><code class="name">var <span class="ident">last_synced_at</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Catalog.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Catalog.next_fetch_at"><code class="name">var <span class="ident">next_fetch_at</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Catalog.platform_id"><code class="name">var <span class="ident">platform_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Catalog.warnings"><code class="name">var <span class="ident">warnings</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.aliases.CreateContentStandardsResponse1"><code class="flex name class">
 <span>class <span class="ident">CreateContentStandardsSuccessResponse</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -1054,6 +1211,9 @@ validated to form a valid model.</p>
         ),
     ] = None
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
+    campaign_ref: Annotated[
+        str | None, Field(description=&#34;Buyer&#39;s campaign reference label, echoed from the request&#34;)
+    ] = None
     context: context_1.ContextObject | None = None
     creative_deadline: Annotated[
         AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
@@ -1091,6 +1251,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.aliases.CreateMediaBuyResponse1.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse1.campaign_ref"><code class="name">var <span class="ident">campaign_ref</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3006,9 +3170,7 @@ validated to form a valid model.</p>
     context: context_1.ContextObject | None = None
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest,
-        Field(
-            description=&#39;Complete creative manifest with all required assets (including promoted_offerings if required by the format)&#39;
-        ),
+        Field(description=&#39;Complete creative manifest with all required assets for the format&#39;),
     ]
     ext: ext_1.ExtensionObject | None = None
     format_id: Annotated[
@@ -4400,6 +4562,152 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.aliases.SyncCatalogsResponse1"><code class="flex name class">
+<span>class <span class="ident">SyncCatalogsSuccessResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SyncCatalogsResponse1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    catalogs: Annotated[
+        list[Catalog],
+        Field(
+            description=&#34;Results for each catalog processed. Items with action=&#39;failed&#39; indicate per-catalog validation/processing failures, not operation-level failures.&#34;
+        ),
+    ]
+    context: context_1.ContextObject | None = None
+    dry_run: Annotated[
+        bool | None, Field(description=&#39;Whether this was a dry run (no actual changes made)&#39;)
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.SyncCatalogsResponse1.catalogs"><code class="name">var <span class="ident">catalogs</span> : list[<a title="adcp.types.generated_poc.media_buy.sync_catalogs_response.Catalog" href="generated_poc/media_buy/sync_catalogs_response.html#adcp.types.generated_poc.media_buy.sync_catalogs_response.Catalog">Catalog</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncCatalogsResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncCatalogsResponse1.dry_run"><code class="name">var <span class="ident">dry_run</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncCatalogsResponse1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncCatalogsResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncCatalogsResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.aliases.SyncCatalogsResponse2"><code class="flex name class">
+<span>class <span class="ident">SyncCatalogsErrorResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SyncCatalogsResponse2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    context: context_1.ContextObject | None = None
+    errors: Annotated[
+        list[error.Error],
+        Field(
+            description=&#39;Operation-level errors that prevented processing any catalogs (e.g., authentication failure, service unavailable, invalid request format)&#39;,
+            min_length=1,
+        ),
+    ]
+    ext: ext_1.ExtensionObject | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.aliases.SyncCatalogsResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncCatalogsResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="generated_poc/core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncCatalogsResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.SyncCatalogsResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.aliases.SyncCreativesResponse1"><code class="flex name class">
 <span>class <span class="ident">SyncCreativesSuccessResponse</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -5525,6 +5833,25 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.aliases.Catalog" href="#adcp.types.aliases.Catalog">Catalog</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.aliases.Catalog.action" href="#adcp.types.aliases.Catalog.action">action</a></code></li>
+<li><code><a title="adcp.types.aliases.Catalog.catalog_id" href="#adcp.types.aliases.Catalog.catalog_id">catalog_id</a></code></li>
+<li><code><a title="adcp.types.aliases.Catalog.changes" href="#adcp.types.aliases.Catalog.changes">changes</a></code></li>
+<li><code><a title="adcp.types.aliases.Catalog.errors" href="#adcp.types.aliases.Catalog.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.Catalog.item_count" href="#adcp.types.aliases.Catalog.item_count">item_count</a></code></li>
+<li><code><a title="adcp.types.aliases.Catalog.item_issues" href="#adcp.types.aliases.Catalog.item_issues">item_issues</a></code></li>
+<li><code><a title="adcp.types.aliases.Catalog.items_approved" href="#adcp.types.aliases.Catalog.items_approved">items_approved</a></code></li>
+<li><code><a title="adcp.types.aliases.Catalog.items_pending" href="#adcp.types.aliases.Catalog.items_pending">items_pending</a></code></li>
+<li><code><a title="adcp.types.aliases.Catalog.items_rejected" href="#adcp.types.aliases.Catalog.items_rejected">items_rejected</a></code></li>
+<li><code><a title="adcp.types.aliases.Catalog.last_synced_at" href="#adcp.types.aliases.Catalog.last_synced_at">last_synced_at</a></code></li>
+<li><code><a title="adcp.types.aliases.Catalog.model_config" href="#adcp.types.aliases.Catalog.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.Catalog.next_fetch_at" href="#adcp.types.aliases.Catalog.next_fetch_at">next_fetch_at</a></code></li>
+<li><code><a title="adcp.types.aliases.Catalog.platform_id" href="#adcp.types.aliases.Catalog.platform_id">platform_id</a></code></li>
+<li><code><a title="adcp.types.aliases.Catalog.warnings" href="#adcp.types.aliases.Catalog.warnings">warnings</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.aliases.CreateContentStandardsResponse1" href="#adcp.types.aliases.CreateContentStandardsResponse1">CreateContentStandardsResponse1</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.aliases.CreateContentStandardsResponse1.context" href="#adcp.types.aliases.CreateContentStandardsResponse1.context">context</a></code></li>
@@ -5550,6 +5877,7 @@ validated to form a valid model.</p>
 <ul class="two-column">
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.account" href="#adcp.types.aliases.CreateMediaBuyResponse1.account">account</a></code></li>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.buyer_ref" href="#adcp.types.aliases.CreateMediaBuyResponse1.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.campaign_ref" href="#adcp.types.aliases.CreateMediaBuyResponse1.campaign_ref">campaign_ref</a></code></li>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.context" href="#adcp.types.aliases.CreateMediaBuyResponse1.context">context</a></code></li>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.creative_deadline" href="#adcp.types.aliases.CreateMediaBuyResponse1.creative_deadline">creative_deadline</a></code></li>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.ext" href="#adcp.types.aliases.CreateMediaBuyResponse1.ext">ext</a></code></li>
@@ -5988,6 +6316,26 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.SyncAccountsResponse2.errors" href="#adcp.types.aliases.SyncAccountsResponse2.errors">errors</a></code></li>
 <li><code><a title="adcp.types.aliases.SyncAccountsResponse2.ext" href="#adcp.types.aliases.SyncAccountsResponse2.ext">ext</a></code></li>
 <li><code><a title="adcp.types.aliases.SyncAccountsResponse2.model_config" href="#adcp.types.aliases.SyncAccountsResponse2.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.SyncCatalogsResponse1" href="#adcp.types.aliases.SyncCatalogsResponse1">SyncCatalogsResponse1</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.aliases.SyncCatalogsResponse1.catalogs" href="#adcp.types.aliases.SyncCatalogsResponse1.catalogs">catalogs</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncCatalogsResponse1.context" href="#adcp.types.aliases.SyncCatalogsResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncCatalogsResponse1.dry_run" href="#adcp.types.aliases.SyncCatalogsResponse1.dry_run">dry_run</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncCatalogsResponse1.ext" href="#adcp.types.aliases.SyncCatalogsResponse1.ext">ext</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncCatalogsResponse1.model_config" href="#adcp.types.aliases.SyncCatalogsResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncCatalogsResponse1.sandbox" href="#adcp.types.aliases.SyncCatalogsResponse1.sandbox">sandbox</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.aliases.SyncCatalogsResponse2" href="#adcp.types.aliases.SyncCatalogsResponse2">SyncCatalogsResponse2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.aliases.SyncCatalogsResponse2.context" href="#adcp.types.aliases.SyncCatalogsResponse2.context">context</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncCatalogsResponse2.errors" href="#adcp.types.aliases.SyncCatalogsResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncCatalogsResponse2.ext" href="#adcp.types.aliases.SyncCatalogsResponse2.ext">ext</a></code></li>
+<li><code><a title="adcp.types.aliases.SyncCatalogsResponse2.model_config" href="#adcp.types.aliases.SyncCatalogsResponse2.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.core.requirements.promoted_offerings_asset_requirements API documentation</title>
+<title>adcp.types.generated_poc.enums.distance_unit API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.core.requirements.promoted_offerings_asset_requirements</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.enums.distance_unit</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,61 +46,74 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.core.requirements.promoted_offerings_asset_requirements.PromotedOfferingsAssetRequirements"><code class="flex name class">
-<span>class <span class="ident">PromotedOfferingsAssetRequirements</span></span>
-<span>(</span><span>**data: Any)</span>
+<dt id="adcp.types.generated_poc.enums.distance_unit.DistanceUnit"><code class="flex name class">
+<span>class <span class="ident">DistanceUnit</span></span>
+<span>(</span><span>*args, **kwds)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PromotedOfferingsAssetRequirements(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;allow&#39;,
-    )
-    requires: Annotated[
-        list[promoted_offerings_requirement.PromotedOfferingsRequirement] | None,
-        Field(
-            description=&#34;Content that must be available in this format&#39;s promoted offerings. Each value is a presence check: the referenced field must exist and be non-empty. For brand.* paths, the validating agent resolves the brand reference first.&#34;,
-            min_length=1,
-        ),
-    ] = None</code></pre>
+<pre><code class="python">class DistanceUnit(Enum):
+    km = &#39;km&#39;
+    mi = &#39;mi&#39;
+    m = &#39;m&#39;</code></pre>
 </details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
+<li>enum.Enum</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.requirements.promoted_offerings_asset_requirements.PromotedOfferingsAssetRequirements.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.enums.distance_unit.DistanceUnit.km"><code class="name">var <span class="ident">km</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.requirements.promoted_offerings_asset_requirements.PromotedOfferingsAssetRequirements.requires"><code class="name">var <span class="ident">requires</span> : list[<a title="adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement" href="../../enums/promoted_offerings_requirement.html#adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement">PromotedOfferingsRequirement</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.enums.distance_unit.DistanceUnit.m"><code class="name">var <span class="ident">m</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.distance_unit.DistanceUnit.mi"><code class="name">var <span class="ident">mi</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
 </dd>
 </dl>
 </section>
@@ -112,16 +125,17 @@ validated to form a valid model.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.core.requirements" href="index.html">adcp.types.generated_poc.core.requirements</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums" href="index.html">adcp.types.generated_poc.enums</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.requirements.promoted_offerings_asset_requirements.PromotedOfferingsAssetRequirements" href="#adcp.types.generated_poc.core.requirements.promoted_offerings_asset_requirements.PromotedOfferingsAssetRequirements">PromotedOfferingsAssetRequirements</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.enums.distance_unit.DistanceUnit" href="#adcp.types.generated_poc.enums.distance_unit.DistanceUnit">DistanceUnit</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.requirements.promoted_offerings_asset_requirements.PromotedOfferingsAssetRequirements.model_config" href="#adcp.types.generated_poc.core.requirements.promoted_offerings_asset_requirements.PromotedOfferingsAssetRequirements.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.requirements.promoted_offerings_asset_requirements.PromotedOfferingsAssetRequirements.requires" href="#adcp.types.generated_poc.core.requirements.promoted_offerings_asset_requirements.PromotedOfferingsAssetRequirements.requires">requires</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.distance_unit.DistanceUnit.km" href="#adcp.types.generated_poc.enums.distance_unit.DistanceUnit.km">km</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.distance_unit.DistanceUnit.m" href="#adcp.types.generated_poc.enums.distance_unit.DistanceUnit.m">m</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.distance_unit.DistanceUnit.mi" href="#adcp.types.generated_poc.enums.distance_unit.DistanceUnit.mi">mi</a></code></li>
 </ul>
 </li>
 </ul>

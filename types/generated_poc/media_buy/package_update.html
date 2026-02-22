@@ -133,6 +133,12 @@ validated to form a valid model.</p>
     buyer_ref: Annotated[
         str | None, Field(description=&#34;Buyer&#39;s reference for the package to update&#34;)
     ] = None
+    catalog: Annotated[
+        catalog_1.Catalog | None,
+        Field(
+            description=&#39;Update the catalog this package promotes. Replaces the current catalog reference.&#39;
+        ),
+    ] = None
     creative_assignments: Annotated[
         list[creative_assignment.CreativeAssignment] | None,
         Field(
@@ -184,6 +190,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.package_update.PackageUpdate1.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.package_update.PackageUpdate1.catalog"><code class="name">var <span class="ident">catalog</span> : <a title="adcp.types.generated_poc.core.catalog.Catalog" href="../core/catalog.html#adcp.types.generated_poc.core.catalog.Catalog">Catalog</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -267,6 +277,12 @@ validated to form a valid model.</p>
         ),
     ] = None
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference for the package to update&#34;)]
+    catalog: Annotated[
+        catalog_1.Catalog | None,
+        Field(
+            description=&#39;Update the catalog this package promotes. Replaces the current catalog reference.&#39;
+        ),
+    ] = None
     creative_assignments: Annotated[
         list[creative_assignment.CreativeAssignment] | None,
         Field(
@@ -320,6 +336,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.package_update.PackageUpdate2.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.package_update.PackageUpdate2.catalog"><code class="name">var <span class="ident">catalog</span> : <a title="adcp.types.generated_poc.core.catalog.Catalog" href="../core/catalog.html#adcp.types.generated_poc.core.catalog.Catalog">Catalog</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -403,6 +423,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate1.bid_price" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate1.bid_price">bid_price</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate1.budget" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate1.budget">budget</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate1.buyer_ref" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate1.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate1.catalog" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate1.catalog">catalog</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate1.creative_assignments" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate1.creative_assignments">creative_assignments</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate1.creatives" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate1.creatives">creatives</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate1.ext" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate1.ext">ext</a></code></li>
@@ -421,6 +442,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate2.bid_price" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate2.bid_price">bid_price</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate2.budget" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate2.budget">budget</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate2.buyer_ref" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate2.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate2.catalog" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate2.catalog">catalog</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate2.creative_assignments" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate2.creative_assignments">creative_assignments</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate2.creatives" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate2.creatives">creatives</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate2.ext" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate2.ext">ext</a></code></li>

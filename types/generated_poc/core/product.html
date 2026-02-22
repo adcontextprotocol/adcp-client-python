@@ -56,20 +56,24 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class CatalogMatch(AdCPBaseModel):
+    matched_count: Annotated[
+        int | None,
+        Field(description=&#34;Number of catalog items that matched this product&#39;s inventory.&#34;, ge=0),
+    ] = None
     matched_gtins: Annotated[
         list[MatchedGtin] | None,
         Field(
-            description=&#34;GTINs from the buyer&#39;s catalog that are eligible on this product&#39;s inventory. Buyers can use these values in product_selectors.manifest_gtins when creating media buys. Standard GTIN formats (GTIN-8 through GTIN-14).&#34;
+            description=&#34;GTINs from the buyer&#39;s catalog that are eligible on this product&#39;s inventory. Standard GTIN formats (GTIN-8 through GTIN-14). Only present for product-type catalogs with GTIN matching.&#34;
         ),
     ] = None
-    matched_skus: Annotated[
+    matched_ids: Annotated[
         list[str] | None,
         Field(
-            description=&#34;SKUs from the buyer&#39;s catalog that are eligible on this product&#39;s inventory. Buyers can use these values in product_selectors.manifest_skus when creating media buys.&#34;
+            description=&#34;Item IDs from the buyer&#39;s catalog that matched this product&#39;s inventory. The ID type depends on the catalog type and content_id_type (e.g., SKUs for product catalogs, job_ids for job catalogs, offering_ids for offering catalogs).&#34;
         ),
     ] = None
     submitted_count: Annotated[
-        int, Field(description=&#34;Total catalog items evaluated from the buyer&#39;s feed.&#34;, ge=0)
+        int, Field(description=&#34;Total catalog items evaluated from the buyer&#39;s catalog.&#34;, ge=0)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -87,11 +91,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.core.product.CatalogMatch.matched_count"><code class="name">var <span class="ident">matched_count</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.product.CatalogMatch.matched_gtins"><code class="name">var <span class="ident">matched_gtins</span> : list[<a title="adcp.types.generated_poc.core.product.MatchedGtin" href="#adcp.types.generated_poc.core.product.MatchedGtin">MatchedGtin</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product.CatalogMatch.matched_skus"><code class="name">var <span class="ident">matched_skus</span> : list[str] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product.CatalogMatch.matched_ids"><code class="name">var <span class="ident">matched_ids</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -327,7 +335,14 @@ validated to form a valid model.</p>
     catalog_match: Annotated[
         CatalogMatch | None,
         Field(
-            description=&#34;When the buyer provides a brand with product_catalog, indicates which of the buyer&#39;s catalog items are eligible for this product. Enables buyers to make informed product_selector choices in create_media_buy. Only present for products where catalog matching is relevant (e.g. sponsored product listings on retail media). Sellers SHOULD include at least one of matched_gtins or matched_skus.&#34;
+            description=&#39;When the buyer provides a catalog on get_products, indicates which catalog items are eligible for this product. Only present for products where catalog matching is relevant (e.g., sponsored product listings, job boards, hotel ads).&#39;
+        ),
+    ] = None
+    catalog_types: Annotated[
+        list[catalog_type.CatalogType] | None,
+        Field(
+            description=&#39;Catalog types this product supports for catalog-driven campaigns. A sponsored product listing declares [&#34;product&#34;], a job board declares [&#34;job&#34;, &#34;offering&#34;]. Buyers match synced catalogs to products via this field.&#39;,
+            min_length=1,
         ),
     ] = None
     channels: Annotated[
@@ -443,6 +458,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.product.Product.catalog_match"><code class="name">var <span class="ident">catalog_match</span> : <a title="adcp.types.generated_poc.core.product.CatalogMatch" href="#adcp.types.generated_poc.core.product.CatalogMatch">CatalogMatch</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.Product.catalog_types"><code class="name">var <span class="ident">catalog_types</span> : list[<a title="adcp.types.generated_poc.enums.catalog_type.CatalogType" href="../enums/catalog_type.html#adcp.types.generated_poc.enums.catalog_type.CatalogType">CatalogType</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -769,8 +788,9 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.product.CatalogMatch" href="#adcp.types.generated_poc.core.product.CatalogMatch">CatalogMatch</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.core.product.CatalogMatch.matched_count" href="#adcp.types.generated_poc.core.product.CatalogMatch.matched_count">matched_count</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.CatalogMatch.matched_gtins" href="#adcp.types.generated_poc.core.product.CatalogMatch.matched_gtins">matched_gtins</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product.CatalogMatch.matched_skus" href="#adcp.types.generated_poc.core.product.CatalogMatch.matched_skus">matched_skus</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.CatalogMatch.matched_ids" href="#adcp.types.generated_poc.core.product.CatalogMatch.matched_ids">matched_ids</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.CatalogMatch.model_config" href="#adcp.types.generated_poc.core.product.CatalogMatch.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.CatalogMatch.submitted_count" href="#adcp.types.generated_poc.core.product.CatalogMatch.submitted_count">submitted_count</a></code></li>
 </ul>
@@ -804,6 +824,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.product.Product.brief_relevance" href="#adcp.types.generated_poc.core.product.Product.brief_relevance">brief_relevance</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.catalog_match" href="#adcp.types.generated_poc.core.product.Product.catalog_match">catalog_match</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.Product.catalog_types" href="#adcp.types.generated_poc.core.product.Product.catalog_types">catalog_types</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.channels" href="#adcp.types.generated_poc.core.product.Product.channels">channels</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.conversion_tracking" href="#adcp.types.generated_poc.core.product.Product.conversion_tracking">conversion_tracking</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.creative_policy" href="#adcp.types.generated_poc.core.product.Product.creative_policy">creative_policy</a></code></li>

@@ -65,6 +65,12 @@ el.replaceWith(d);
     buyer_ref: Annotated[
         str | None, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)
     ] = None
+    campaign_ref: Annotated[
+        str | None,
+        Field(
+            description=&#34;Buyer&#39;s campaign reference label. Groups related operations under a single campaign for CRM and ad server correlation.&#34;
+        ),
+    ] = None
     created_at: Annotated[AwareDatetime | None, Field(description=&#39;Creation timestamp&#39;)] = None
     creative_deadline: Annotated[
         AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
@@ -75,9 +81,6 @@ el.replaceWith(d);
     ]
     packages: Annotated[
         list[package.Package], Field(description=&#39;Array of packages within this media buy&#39;)
-    ]
-    promoted_offering: Annotated[
-        str, Field(description=&#39;Description of advertiser and what is being promoted&#39;)
     ]
     status: media_buy_status.MediaBuyStatus
     total_budget: Annotated[float, Field(description=&#39;Total budget amount&#39;, ge=0.0)]
@@ -106,6 +109,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.media_buy.MediaBuy.campaign_ref"><code class="name">var <span class="ident">campaign_ref</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.media_buy.MediaBuy.created_at"><code class="name">var <span class="ident">created_at</span> : pydantic.types.AwareDatetime | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -127,10 +134,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.media_buy.MediaBuy.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.core.package.Package" href="package.html#adcp.types.generated_poc.core.package.Package">Package</a>]</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.media_buy.MediaBuy.promoted_offering"><code class="name">var <span class="ident">promoted_offering</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -178,13 +181,13 @@ validated to form a valid model.</p>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.account" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.account">account</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.buyer_ref" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.campaign_ref" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.campaign_ref">campaign_ref</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.created_at" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.created_at">created_at</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.creative_deadline" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.creative_deadline">creative_deadline</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.ext" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.media_buy_id" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.model_config" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.packages" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.packages">packages</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.promoted_offering" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.promoted_offering">promoted_offering</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.status" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.status">status</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.total_budget" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.total_budget">total_budget</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.updated_at" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.updated_at">updated_at</a></code></li>

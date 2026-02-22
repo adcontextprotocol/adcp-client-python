@@ -72,26 +72,26 @@ el.replaceWith(d);
             | javascript_asset.JavascriptAsset
             | webhook_asset.WebhookAsset
             | css_asset.CssAsset
-            | daast_asset.DaastAsset
-            | promoted_offerings.PromotedOfferings,
+            | daast_asset.DaastAsset,
         ],
         Field(
             description=&#34;Map of asset IDs to actual asset content. Each key MUST match an asset_id from the format&#39;s assets array (e.g., &#39;banner_image&#39;, &#39;clickthrough_url&#39;, &#39;video_file&#39;, &#39;vast_tag&#39;). The asset_id is the technical identifier used to match assets to format requirements.\n\nIMPORTANT: Full validation requires format context. The format defines what type each asset_id should be. Standalone schema validation only checks structural conformance — each asset must match at least one valid asset type schema.&#34;
         ),
     ]
+    catalogs: Annotated[
+        list[catalog.Catalog] | None,
+        Field(
+            description=&#34;Catalogs this creative renders. Each entry satisfies one of the format&#39;s catalog_requirements, matched by type. Tells the creative what data to display — product listings for a carousel, job vacancies for a recruitment ad, store locations for a locator. This is a data reference, not a campaign expansion directive; campaign structure and budget allocation are handled by create_media_buy packages. Each catalog can be inline (with items), a reference to a synced catalog (by catalog_id), or a URL to an external feed.&#34;,
+            min_length=1,
+        ),
+    ] = None
     ext: ext_1.ExtensionObject | None = None
     format_id: Annotated[
         format_id_1.FormatId,
         Field(
             description=&#34;Format identifier this manifest is for. Can be a template format (id only) or a deterministic format (id + dimensions/duration). For dimension-specific creatives, include width/height/unit in the format_id to create a unique identifier (e.g., {id: &#39;display_static&#39;, width: 300, height: 250, unit: &#39;px&#39;}).&#34;
         ),
-    ]
-    promoted_offering: Annotated[
-        str | None,
-        Field(
-            description=&#39;Product name or offering being advertised. Maps to promoted_offerings in create_media_buy request to associate creative with the product being promoted.&#39;
-        ),
-    ] = None</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -108,7 +108,11 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.creative_manifest.CreativeManifest.assets"><code class="name">var <span class="ident">assets</span> : dict[str, <a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset" href="assets/image_asset.html#adcp.types.generated_poc.core.assets.image_asset.ImageAsset">ImageAsset</a> | <a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset" href="assets/video_asset.html#adcp.types.generated_poc.core.assets.video_asset.VideoAsset">VideoAsset</a> | <a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset" href="assets/audio_asset.html#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset">AudioAsset</a> | <a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset" href="assets/vast_asset.html#adcp.types.generated_poc.core.assets.vast_asset.VastAsset">VastAsset</a> | <a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset" href="assets/text_asset.html#adcp.types.generated_poc.core.assets.text_asset.TextAsset">TextAsset</a> | <a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset" href="assets/url_asset.html#adcp.types.generated_poc.core.assets.url_asset.UrlAsset">UrlAsset</a> | <a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset" href="assets/html_asset.html#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset">HtmlAsset</a> | <a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset" href="assets/javascript_asset.html#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset">JavascriptAsset</a> | <a title="adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset" href="assets/webhook_asset.html#adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset">WebhookAsset</a> | <a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset" href="assets/css_asset.html#adcp.types.generated_poc.core.assets.css_asset.CssAsset">CssAsset</a> | <a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset" href="assets/daast_asset.html#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset">DaastAsset</a> | <a title="adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings" href="promoted_offerings.html#adcp.types.generated_poc.core.promoted_offerings.PromotedOfferings">PromotedOfferings</a>]</code></dt>
+<dt id="adcp.types.generated_poc.core.creative_manifest.CreativeManifest.assets"><code class="name">var <span class="ident">assets</span> : dict[str, <a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset" href="assets/image_asset.html#adcp.types.generated_poc.core.assets.image_asset.ImageAsset">ImageAsset</a> | <a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset" href="assets/video_asset.html#adcp.types.generated_poc.core.assets.video_asset.VideoAsset">VideoAsset</a> | <a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset" href="assets/audio_asset.html#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset">AudioAsset</a> | <a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset" href="assets/vast_asset.html#adcp.types.generated_poc.core.assets.vast_asset.VastAsset">VastAsset</a> | <a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset" href="assets/text_asset.html#adcp.types.generated_poc.core.assets.text_asset.TextAsset">TextAsset</a> | <a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset" href="assets/url_asset.html#adcp.types.generated_poc.core.assets.url_asset.UrlAsset">UrlAsset</a> | <a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset" href="assets/html_asset.html#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset">HtmlAsset</a> | <a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset" href="assets/javascript_asset.html#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset">JavascriptAsset</a> | <a title="adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset" href="assets/webhook_asset.html#adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset">WebhookAsset</a> | <a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset" href="assets/css_asset.html#adcp.types.generated_poc.core.assets.css_asset.CssAsset">CssAsset</a> | <a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset" href="assets/daast_asset.html#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset">DaastAsset</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.creative_manifest.CreativeManifest.catalogs"><code class="name">var <span class="ident">catalogs</span> : list[<a title="adcp.types.generated_poc.core.catalog.Catalog" href="catalog.html#adcp.types.generated_poc.core.catalog.Catalog">Catalog</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -121,10 +125,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.creative_manifest.CreativeManifest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.creative_manifest.CreativeManifest.promoted_offering"><code class="name">var <span class="ident">promoted_offering</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -159,10 +159,10 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.core.creative_manifest.CreativeManifest" href="#adcp.types.generated_poc.core.creative_manifest.CreativeManifest">CreativeManifest</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.creative_manifest.CreativeManifest.assets" href="#adcp.types.generated_poc.core.creative_manifest.CreativeManifest.assets">assets</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.creative_manifest.CreativeManifest.catalogs" href="#adcp.types.generated_poc.core.creative_manifest.CreativeManifest.catalogs">catalogs</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_manifest.CreativeManifest.ext" href="#adcp.types.generated_poc.core.creative_manifest.CreativeManifest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_manifest.CreativeManifest.format_id" href="#adcp.types.generated_poc.core.creative_manifest.CreativeManifest.format_id">format_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_manifest.CreativeManifest.model_config" href="#adcp.types.generated_poc.core.creative_manifest.CreativeManifest.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.creative_manifest.CreativeManifest.promoted_offering" href="#adcp.types.generated_poc.core.creative_manifest.CreativeManifest.promoted_offering">promoted_offering</a></code></li>
 </ul>
 </li>
 </ul>

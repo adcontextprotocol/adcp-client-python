@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.enums.promoted_offerings_requirement API documentation</title>
+<title>adcp.types.generated_poc.enums.content_id_type API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.enums.promoted_offerings_requirement</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.enums.content_id_type</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,8 +46,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement"><code class="flex name class">
-<span>class <span class="ident">PromotedOfferingsRequirement</span></span>
+<dt id="adcp.types.generated_poc.enums.content_id_type.ContentIdType"><code class="flex name class">
+<span>class <span class="ident">ContentIdType</span></span>
 <span>(</span><span>*args, **kwds)</span>
 </code></dt>
 <dd>
@@ -55,14 +55,18 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PromotedOfferingsRequirement(Enum):
-    si_agent_url = &#39;si_agent_url&#39;
-    offerings = &#39;offerings&#39;
-    brand_logos = &#39;brand.logos&#39;
-    brand_colors = &#39;brand.colors&#39;
-    brand_tone = &#39;brand.tone&#39;
-    brand_assets = &#39;brand.assets&#39;
-    brand_product_catalog = &#39;brand.product_catalog&#39;</code></pre>
+<pre><code class="python">class ContentIdType(Enum):
+    sku = &#39;sku&#39;
+    gtin = &#39;gtin&#39;
+    offering_id = &#39;offering_id&#39;
+    job_id = &#39;job_id&#39;
+    hotel_id = &#39;hotel_id&#39;
+    flight_id = &#39;flight_id&#39;
+    vehicle_id = &#39;vehicle_id&#39;
+    listing_id = &#39;listing_id&#39;
+    store_id = &#39;store_id&#39;
+    program_id = &#39;program_id&#39;
+    destination_id = &#39;destination_id&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -105,31 +109,47 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement.brand_assets"><code class="name">var <span class="ident">brand_assets</span></code></dt>
+<dt id="adcp.types.generated_poc.enums.content_id_type.ContentIdType.destination_id"><code class="name">var <span class="ident">destination_id</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement.brand_colors"><code class="name">var <span class="ident">brand_colors</span></code></dt>
+<dt id="adcp.types.generated_poc.enums.content_id_type.ContentIdType.flight_id"><code class="name">var <span class="ident">flight_id</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement.brand_logos"><code class="name">var <span class="ident">brand_logos</span></code></dt>
+<dt id="adcp.types.generated_poc.enums.content_id_type.ContentIdType.gtin"><code class="name">var <span class="ident">gtin</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement.brand_product_catalog"><code class="name">var <span class="ident">brand_product_catalog</span></code></dt>
+<dt id="adcp.types.generated_poc.enums.content_id_type.ContentIdType.hotel_id"><code class="name">var <span class="ident">hotel_id</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement.brand_tone"><code class="name">var <span class="ident">brand_tone</span></code></dt>
+<dt id="adcp.types.generated_poc.enums.content_id_type.ContentIdType.job_id"><code class="name">var <span class="ident">job_id</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement.offerings"><code class="name">var <span class="ident">offerings</span></code></dt>
+<dt id="adcp.types.generated_poc.enums.content_id_type.ContentIdType.listing_id"><code class="name">var <span class="ident">listing_id</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement.si_agent_url"><code class="name">var <span class="ident">si_agent_url</span></code></dt>
+<dt id="adcp.types.generated_poc.enums.content_id_type.ContentIdType.offering_id"><code class="name">var <span class="ident">offering_id</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.content_id_type.ContentIdType.program_id"><code class="name">var <span class="ident">program_id</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.content_id_type.ContentIdType.sku"><code class="name">var <span class="ident">sku</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.content_id_type.ContentIdType.store_id"><code class="name">var <span class="ident">store_id</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.content_id_type.ContentIdType.vehicle_id"><code class="name">var <span class="ident">vehicle_id</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -151,15 +171,19 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement" href="#adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement">PromotedOfferingsRequirement</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement.brand_assets" href="#adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement.brand_assets">brand_assets</a></code></li>
-<li><code><a title="adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement.brand_colors" href="#adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement.brand_colors">brand_colors</a></code></li>
-<li><code><a title="adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement.brand_logos" href="#adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement.brand_logos">brand_logos</a></code></li>
-<li><code><a title="adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement.brand_product_catalog" href="#adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement.brand_product_catalog">brand_product_catalog</a></code></li>
-<li><code><a title="adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement.brand_tone" href="#adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement.brand_tone">brand_tone</a></code></li>
-<li><code><a title="adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement.offerings" href="#adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement.offerings">offerings</a></code></li>
-<li><code><a title="adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement.si_agent_url" href="#adcp.types.generated_poc.enums.promoted_offerings_requirement.PromotedOfferingsRequirement.si_agent_url">si_agent_url</a></code></li>
+<h4><code><a title="adcp.types.generated_poc.enums.content_id_type.ContentIdType" href="#adcp.types.generated_poc.enums.content_id_type.ContentIdType">ContentIdType</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.enums.content_id_type.ContentIdType.destination_id" href="#adcp.types.generated_poc.enums.content_id_type.ContentIdType.destination_id">destination_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.content_id_type.ContentIdType.flight_id" href="#adcp.types.generated_poc.enums.content_id_type.ContentIdType.flight_id">flight_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.content_id_type.ContentIdType.gtin" href="#adcp.types.generated_poc.enums.content_id_type.ContentIdType.gtin">gtin</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.content_id_type.ContentIdType.hotel_id" href="#adcp.types.generated_poc.enums.content_id_type.ContentIdType.hotel_id">hotel_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.content_id_type.ContentIdType.job_id" href="#adcp.types.generated_poc.enums.content_id_type.ContentIdType.job_id">job_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.content_id_type.ContentIdType.listing_id" href="#adcp.types.generated_poc.enums.content_id_type.ContentIdType.listing_id">listing_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.content_id_type.ContentIdType.offering_id" href="#adcp.types.generated_poc.enums.content_id_type.ContentIdType.offering_id">offering_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.content_id_type.ContentIdType.program_id" href="#adcp.types.generated_poc.enums.content_id_type.ContentIdType.program_id">program_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.content_id_type.ContentIdType.sku" href="#adcp.types.generated_poc.enums.content_id_type.ContentIdType.sku">sku</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.content_id_type.ContentIdType.store_id" href="#adcp.types.generated_poc.enums.content_id_type.ContentIdType.store_id">store_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.content_id_type.ContentIdType.vehicle_id" href="#adcp.types.generated_poc.enums.content_id_type.ContentIdType.vehicle_id">vehicle_id</a></code></li>
 </ul>
 </li>
 </ul>

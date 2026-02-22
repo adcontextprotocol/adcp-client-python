@@ -74,16 +74,22 @@ el.replaceWith(d);
     brief: Annotated[
         str | None, Field(description=&#39;Natural language description of campaign requirements.&#39;)
     ] = None
+    campaign_ref: Annotated[
+        str | None,
+        Field(
+            description=&#34;Buyer&#39;s campaign reference label. Groups related discovery and buy operations under a single campaign for CRM and ad server correlation (e.g., &#39;NovaDrink_Meals_Q2&#39;).&#34;
+        ),
+    ] = None
+    catalog: Annotated[
+        catalog_1.Catalog | None,
+        Field(
+            description=&#39;Catalog of items the buyer wants to promote. The seller matches catalog items against its inventory and returns products where matches exist. Supports all catalog types: a job catalog finds job ad products, a product catalog finds sponsored product slots. Reference a synced catalog by catalog_id, or provide inline items.&#39;
+        ),
+    ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     filters: product_filters.ProductFilters | None = None
     pagination: pagination_request.PaginationRequest | None = None
-    product_selectors: Annotated[
-        promoted_products.PromotedProducts | None,
-        Field(
-            description=&#34;Selectors to filter the brand&#39;s product catalog for product discovery. When provided, sellers should only return advertising products where the selected catalog items have matches. Uses the same selection methods as promoted-offerings.&#34;
-        ),
-    ] = None
     property_list: Annotated[
         property_list_ref.PropertyListReference | None,
         Field(
@@ -118,6 +124,14 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.campaign_ref"><code class="name">var <span class="ident">campaign_ref</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.catalog"><code class="name">var <span class="ident">catalog</span> : <a title="adcp.types.generated_poc.core.catalog.Catalog" href="../core/catalog.html#adcp.types.generated_poc.core.catalog.Catalog">Catalog</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -135,10 +149,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="../core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.product_selectors"><code class="name">var <span class="ident">product_selectors</span> : <a title="adcp.types.generated_poc.core.promoted_products.PromotedProducts" href="../core/promoted_products.html#adcp.types.generated_poc.core.promoted_products.PromotedProducts">PromotedProducts</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -179,12 +189,13 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.account_id" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.account_id">account_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brand" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brand">brand</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brief" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brief">brief</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.campaign_ref" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.campaign_ref">campaign_ref</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.catalog" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.catalog">catalog</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.context" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.ext" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.filters" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.filters">filters</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.model_config" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.pagination" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.pagination">pagination</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.product_selectors" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.product_selectors">product_selectors</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.property_list" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.property_list">property_list</a></code></li>
 </ul>
 </li>

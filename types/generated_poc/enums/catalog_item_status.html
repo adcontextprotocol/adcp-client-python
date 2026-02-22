@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request API documentation</title>
+<title>adcp.types.generated_poc.enums.catalog_item_status API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.enums.catalog_item_status</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,86 +46,79 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request.SiGetOfferingRequest"><code class="flex name class">
-<span>class <span class="ident">SiGetOfferingRequest</span></span>
-<span>(</span><span>**data: Any)</span>
+<dt id="adcp.types.generated_poc.enums.catalog_item_status.CatalogItemStatus"><code class="flex name class">
+<span>class <span class="ident">CatalogItemStatus</span></span>
+<span>(</span><span>*args, **kwds)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class SiGetOfferingRequest(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;allow&#39;,
-    )
-    context: Annotated[
-        str | None,
-        Field(
-            description=&#34;Optional natural language context about user intent for personalized results (e.g., &#39;mens size 14 near Cincinnati&#39;). Must be anonymous - no PII.&#34;
-        ),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    include_products: Annotated[
-        bool | None, Field(description=&#39;Whether to include matching products in the response&#39;)
-    ] = False
-    offering_id: Annotated[
-        str, Field(description=&#39;Offering identifier from the catalog to get details for&#39;)
-    ]
-    product_limit: Annotated[
-        int | None, Field(description=&#39;Maximum number of matching products to return&#39;, ge=1, le=50)
-    ] = 5</code></pre>
+<pre><code class="python">class CatalogItemStatus(Enum):
+    approved = &#39;approved&#39;
+    pending = &#39;pending&#39;
+    rejected = &#39;rejected&#39;
+    warning = &#39;warning&#39;</code></pre>
 </details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
+<li>enum.Enum</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request.SiGetOfferingRequest.context"><code class="name">var <span class="ident">context</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.enums.catalog_item_status.CatalogItemStatus.approved"><code class="name">var <span class="ident">approved</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request.SiGetOfferingRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.enums.catalog_item_status.CatalogItemStatus.pending"><code class="name">var <span class="ident">pending</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request.SiGetOfferingRequest.include_products"><code class="name">var <span class="ident">include_products</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.enums.catalog_item_status.CatalogItemStatus.rejected"><code class="name">var <span class="ident">rejected</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request.SiGetOfferingRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request.SiGetOfferingRequest.offering_id"><code class="name">var <span class="ident">offering_id</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request.SiGetOfferingRequest.product_limit"><code class="name">var <span class="ident">product_limit</span> : int | None</code></dt>
+<dt id="adcp.types.generated_poc.enums.catalog_item_status.CatalogItemStatus.warning"><code class="name">var <span class="ident">warning</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
 </dd>
 </dl>
 </section>
@@ -137,20 +130,18 @@ validated to form a valid model.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.sponsored_intelligence" href="index.html">adcp.types.generated_poc.sponsored_intelligence</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums" href="index.html">adcp.types.generated_poc.enums</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request.SiGetOfferingRequest" href="#adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request.SiGetOfferingRequest">SiGetOfferingRequest</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request.SiGetOfferingRequest.context" href="#adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request.SiGetOfferingRequest.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request.SiGetOfferingRequest.ext" href="#adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request.SiGetOfferingRequest.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request.SiGetOfferingRequest.include_products" href="#adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request.SiGetOfferingRequest.include_products">include_products</a></code></li>
-<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request.SiGetOfferingRequest.model_config" href="#adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request.SiGetOfferingRequest.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request.SiGetOfferingRequest.offering_id" href="#adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request.SiGetOfferingRequest.offering_id">offering_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request.SiGetOfferingRequest.product_limit" href="#adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request.SiGetOfferingRequest.product_limit">product_limit</a></code></li>
+<h4><code><a title="adcp.types.generated_poc.enums.catalog_item_status.CatalogItemStatus" href="#adcp.types.generated_poc.enums.catalog_item_status.CatalogItemStatus">CatalogItemStatus</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.enums.catalog_item_status.CatalogItemStatus.approved" href="#adcp.types.generated_poc.enums.catalog_item_status.CatalogItemStatus.approved">approved</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.catalog_item_status.CatalogItemStatus.pending" href="#adcp.types.generated_poc.enums.catalog_item_status.CatalogItemStatus.pending">pending</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.catalog_item_status.CatalogItemStatus.rejected" href="#adcp.types.generated_poc.enums.catalog_item_status.CatalogItemStatus.rejected">rejected</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.catalog_item_status.CatalogItemStatus.warning" href="#adcp.types.generated_poc.enums.catalog_item_status.CatalogItemStatus.warning">warning</a></code></li>
 </ul>
 </li>
 </ul>

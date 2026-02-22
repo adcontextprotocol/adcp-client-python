@@ -408,11 +408,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets14(BaseIndividualAsset):
-    asset_type: Literal[&#39;promoted_offerings&#39;] = &#39;promoted_offerings&#39;
+    asset_type: Literal[&#39;url&#39;] = &#39;url&#39;
     item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
-    requirements: (
-        promoted_offerings_asset_requirements.PromotedOfferingsAssetRequirements | None
-    ) = None</code></pre>
+    requirements: url_asset_requirements.UrlAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -430,7 +428,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.format.Assets14.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['promoted_offerings']</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets14.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['url']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -442,7 +440,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets14.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.promoted_offerings_asset_requirements.PromotedOfferingsAssetRequirements" href="requirements/promoted_offerings_asset_requirements.html#adcp.types.generated_poc.core.requirements.promoted_offerings_asset_requirements.PromotedOfferingsAssetRequirements">PromotedOfferingsAssetRequirements</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets14.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.url_asset_requirements.UrlAssetRequirements" href="requirements/url_asset_requirements.html#adcp.types.generated_poc.core.requirements.url_asset_requirements.UrlAssetRequirements">UrlAssetRequirements</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -468,9 +466,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets15(BaseIndividualAsset):
-    asset_type: Literal[&#39;url&#39;] = &#39;url&#39;
+    asset_type: Literal[&#39;webhook&#39;] = &#39;webhook&#39;
     item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
-    requirements: url_asset_requirements.UrlAssetRequirements | None = None</code></pre>
+    requirements: webhook_asset_requirements.WebhookAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -488,7 +486,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.format.Assets15.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['url']</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets15.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['webhook']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -500,7 +498,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets15.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.url_asset_requirements.UrlAssetRequirements" href="requirements/url_asset_requirements.html#adcp.types.generated_poc.core.requirements.url_asset_requirements.UrlAssetRequirements">UrlAssetRequirements</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets15.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.webhook_asset_requirements.WebhookAssetRequirements" href="requirements/webhook_asset_requirements.html#adcp.types.generated_poc.core.requirements.webhook_asset_requirements.WebhookAssetRequirements">WebhookAssetRequirements</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -525,71 +523,14 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Assets16(BaseIndividualAsset):
-    asset_type: Literal[&#39;webhook&#39;] = &#39;webhook&#39;
-    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
-    requirements: webhook_asset_requirements.WebhookAssetRequirements | None = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.format.BaseIndividualAsset" href="#adcp.types.generated_poc.core.format.BaseIndividualAsset">BaseIndividualAsset</a></li>
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.format.Assets16.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['webhook']</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.format.Assets16.item_type"><code class="name">var <span class="ident">item_type</span> : Literal['individual']</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.format.Assets16.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.format.Assets16.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.webhook_asset_requirements.WebhookAssetRequirements" href="requirements/webhook_asset_requirements.html#adcp.types.generated_poc.core.requirements.webhook_asset_requirements.WebhookAssetRequirements">WebhookAssetRequirements</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.core.format.BaseIndividualAsset" href="#adcp.types.generated_poc.core.format.BaseIndividualAsset">BaseIndividualAsset</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.core.format.BaseIndividualAsset.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.BaseIndividualAsset.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.BaseIndividualAsset.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.core.format.Assets17"><code class="flex name class">
-<span>class <span class="ident">Assets17</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Assets17(AdCPBaseModel):
+<pre><code class="python">class Assets16(AdCPBaseModel):
     asset_group_id: Annotated[
         str, Field(description=&#34;Identifier for this asset group (e.g., &#39;product&#39;, &#39;slide&#39;, &#39;card&#39;)&#34;)
     ]
     assets: Annotated[
         list[
-            Assets18
+            Assets17
+            | Assets18
             | Assets19
             | Assets20
             | Assets21
@@ -600,8 +541,6 @@ validated to form a valid model.</p>
             | Assets26
             | Assets27
             | Assets28
-            | Assets29
-            | Assets30
         ],
         Field(description=&#39;Assets within each repetition of this group&#39;),
     ]
@@ -645,35 +584,35 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.format.Assets17.asset_group_id"><code class="name">var <span class="ident">asset_group_id</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets16.asset_group_id"><code class="name">var <span class="ident">asset_group_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets17.assets"><code class="name">var <span class="ident">assets</span> : list[<a title="adcp.types.generated_poc.core.format.Assets18" href="#adcp.types.generated_poc.core.format.Assets18">Assets18</a> | <a title="adcp.types.generated_poc.core.format.Assets19" href="#adcp.types.generated_poc.core.format.Assets19">Assets19</a> | <a title="adcp.types.generated_poc.core.format.Assets20" href="#adcp.types.generated_poc.core.format.Assets20">Assets20</a> | <a title="adcp.types.generated_poc.core.format.Assets21" href="#adcp.types.generated_poc.core.format.Assets21">Assets21</a> | <a title="adcp.types.generated_poc.core.format.Assets22" href="#adcp.types.generated_poc.core.format.Assets22">Assets22</a> | <a title="adcp.types.generated_poc.core.format.Assets23" href="#adcp.types.generated_poc.core.format.Assets23">Assets23</a> | <a title="adcp.types.generated_poc.core.format.Assets24" href="#adcp.types.generated_poc.core.format.Assets24">Assets24</a> | <a title="adcp.types.generated_poc.core.format.Assets25" href="#adcp.types.generated_poc.core.format.Assets25">Assets25</a> | <a title="adcp.types.generated_poc.core.format.Assets26" href="#adcp.types.generated_poc.core.format.Assets26">Assets26</a> | <a title="adcp.types.generated_poc.core.format.Assets27" href="#adcp.types.generated_poc.core.format.Assets27">Assets27</a> | <a title="adcp.types.generated_poc.core.format.Assets28" href="#adcp.types.generated_poc.core.format.Assets28">Assets28</a> | <a title="adcp.types.generated_poc.core.format.Assets29" href="#adcp.types.generated_poc.core.format.Assets29">Assets29</a> | <a title="adcp.types.generated_poc.core.format.Assets30" href="#adcp.types.generated_poc.core.format.Assets30">Assets30</a>]</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets16.assets"><code class="name">var <span class="ident">assets</span> : list[<a title="adcp.types.generated_poc.core.format.Assets17" href="#adcp.types.generated_poc.core.format.Assets17">Assets17</a> | <a title="adcp.types.generated_poc.core.format.Assets18" href="#adcp.types.generated_poc.core.format.Assets18">Assets18</a> | <a title="adcp.types.generated_poc.core.format.Assets19" href="#adcp.types.generated_poc.core.format.Assets19">Assets19</a> | <a title="adcp.types.generated_poc.core.format.Assets20" href="#adcp.types.generated_poc.core.format.Assets20">Assets20</a> | <a title="adcp.types.generated_poc.core.format.Assets21" href="#adcp.types.generated_poc.core.format.Assets21">Assets21</a> | <a title="adcp.types.generated_poc.core.format.Assets22" href="#adcp.types.generated_poc.core.format.Assets22">Assets22</a> | <a title="adcp.types.generated_poc.core.format.Assets23" href="#adcp.types.generated_poc.core.format.Assets23">Assets23</a> | <a title="adcp.types.generated_poc.core.format.Assets24" href="#adcp.types.generated_poc.core.format.Assets24">Assets24</a> | <a title="adcp.types.generated_poc.core.format.Assets25" href="#adcp.types.generated_poc.core.format.Assets25">Assets25</a> | <a title="adcp.types.generated_poc.core.format.Assets26" href="#adcp.types.generated_poc.core.format.Assets26">Assets26</a> | <a title="adcp.types.generated_poc.core.format.Assets27" href="#adcp.types.generated_poc.core.format.Assets27">Assets27</a> | <a title="adcp.types.generated_poc.core.format.Assets28" href="#adcp.types.generated_poc.core.format.Assets28">Assets28</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets17.item_type"><code class="name">var <span class="ident">item_type</span> : Literal['repeatable_group']</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets16.item_type"><code class="name">var <span class="ident">item_type</span> : Literal['repeatable_group']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets17.max_count"><code class="name">var <span class="ident">max_count</span> : int</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets16.max_count"><code class="name">var <span class="ident">max_count</span> : int</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets17.min_count"><code class="name">var <span class="ident">min_count</span> : int</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets16.min_count"><code class="name">var <span class="ident">min_count</span> : int</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets17.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets16.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets17.required"><code class="name">var <span class="ident">required</span> : bool</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets16.required"><code class="name">var <span class="ident">required</span> : bool</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets17.selection_mode"><code class="name">var <span class="ident">selection_mode</span> : <a title="adcp.types.generated_poc.core.format.SelectionMode" href="#adcp.types.generated_poc.core.format.SelectionMode">SelectionMode</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets16.selection_mode"><code class="name">var <span class="ident">selection_mode</span> : <a title="adcp.types.generated_poc.core.format.SelectionMode" href="#adcp.types.generated_poc.core.format.SelectionMode">SelectionMode</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -689,8 +628,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets18"><code class="flex name class">
-<span>class <span class="ident">Assets18</span></span>
+<dt id="adcp.types.generated_poc.core.format.Assets17"><code class="flex name class">
+<span>class <span class="ident">Assets17</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -698,7 +637,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Assets18(BaseGroupAsset):
+<pre><code class="python">class Assets17(BaseGroupAsset):
     asset_type: Literal[&#39;image&#39;] = &#39;image&#39;
     requirements: image_asset_requirements.ImageAssetRequirements | None = None</code></pre>
 </details>
@@ -718,7 +657,60 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.format.Assets18.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['image']</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets17.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['image']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Assets17.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Assets17.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements" href="requirements/image_asset_requirements.html#adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements">ImageAssetRequirements</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.core.format.BaseGroupAsset" href="#adcp.types.generated_poc.core.format.BaseGroupAsset">BaseGroupAsset</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.core.format.BaseGroupAsset.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.BaseGroupAsset.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.BaseGroupAsset.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Assets18"><code class="flex name class">
+<span>class <span class="ident">Assets18</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Assets18(BaseGroupAsset):
+    asset_type: Literal[&#39;video&#39;] = &#39;video&#39;
+    requirements: video_asset_requirements.VideoAssetRequirements | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.core.format.BaseGroupAsset" href="#adcp.types.generated_poc.core.format.BaseGroupAsset">BaseGroupAsset</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.format.Assets18.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['video']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -726,7 +718,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets18.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements" href="requirements/image_asset_requirements.html#adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements">ImageAssetRequirements</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets18.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.video_asset_requirements.VideoAssetRequirements" href="requirements/video_asset_requirements.html#adcp.types.generated_poc.core.requirements.video_asset_requirements.VideoAssetRequirements">VideoAssetRequirements</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -752,8 +744,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets19(BaseGroupAsset):
-    asset_type: Literal[&#39;video&#39;] = &#39;video&#39;
-    requirements: video_asset_requirements.VideoAssetRequirements | None = None</code></pre>
+    asset_type: Literal[&#39;audio&#39;] = &#39;audio&#39;
+    requirements: audio_asset_requirements.AudioAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -771,7 +763,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.format.Assets19.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['video']</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets19.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['audio']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -779,7 +771,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets19.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.video_asset_requirements.VideoAssetRequirements" href="requirements/video_asset_requirements.html#adcp.types.generated_poc.core.requirements.video_asset_requirements.VideoAssetRequirements">VideoAssetRequirements</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets19.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.audio_asset_requirements.AudioAssetRequirements" href="requirements/audio_asset_requirements.html#adcp.types.generated_poc.core.requirements.audio_asset_requirements.AudioAssetRequirements">AudioAssetRequirements</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -805,8 +797,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets20(BaseGroupAsset):
-    asset_type: Literal[&#39;audio&#39;] = &#39;audio&#39;
-    requirements: audio_asset_requirements.AudioAssetRequirements | None = None</code></pre>
+    asset_type: Literal[&#39;text&#39;] = &#39;text&#39;
+    requirements: text_asset_requirements.TextAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -824,7 +816,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.format.Assets20.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['audio']</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets20.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['text']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -832,7 +824,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets20.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.audio_asset_requirements.AudioAssetRequirements" href="requirements/audio_asset_requirements.html#adcp.types.generated_poc.core.requirements.audio_asset_requirements.AudioAssetRequirements">AudioAssetRequirements</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets20.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.text_asset_requirements.TextAssetRequirements" href="requirements/text_asset_requirements.html#adcp.types.generated_poc.core.requirements.text_asset_requirements.TextAssetRequirements">TextAssetRequirements</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -858,8 +850,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets21(BaseGroupAsset):
-    asset_type: Literal[&#39;text&#39;] = &#39;text&#39;
-    requirements: text_asset_requirements.TextAssetRequirements | None = None</code></pre>
+    asset_type: Literal[&#39;markdown&#39;] = &#39;markdown&#39;
+    requirements: markdown_asset_requirements.MarkdownAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -877,7 +869,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.format.Assets21.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['text']</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets21.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['markdown']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -885,7 +877,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets21.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.text_asset_requirements.TextAssetRequirements" href="requirements/text_asset_requirements.html#adcp.types.generated_poc.core.requirements.text_asset_requirements.TextAssetRequirements">TextAssetRequirements</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets21.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.markdown_asset_requirements.MarkdownAssetRequirements" href="requirements/markdown_asset_requirements.html#adcp.types.generated_poc.core.requirements.markdown_asset_requirements.MarkdownAssetRequirements">MarkdownAssetRequirements</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -911,8 +903,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets22(BaseGroupAsset):
-    asset_type: Literal[&#39;markdown&#39;] = &#39;markdown&#39;
-    requirements: markdown_asset_requirements.MarkdownAssetRequirements | None = None</code></pre>
+    asset_type: Literal[&#39;html&#39;] = &#39;html&#39;
+    requirements: html_asset_requirements.HtmlAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -930,7 +922,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.format.Assets22.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['markdown']</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets22.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['html']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -938,7 +930,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets22.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.markdown_asset_requirements.MarkdownAssetRequirements" href="requirements/markdown_asset_requirements.html#adcp.types.generated_poc.core.requirements.markdown_asset_requirements.MarkdownAssetRequirements">MarkdownAssetRequirements</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets22.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.html_asset_requirements.HtmlAssetRequirements" href="requirements/html_asset_requirements.html#adcp.types.generated_poc.core.requirements.html_asset_requirements.HtmlAssetRequirements">HtmlAssetRequirements</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -964,8 +956,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets23(BaseGroupAsset):
-    asset_type: Literal[&#39;html&#39;] = &#39;html&#39;
-    requirements: html_asset_requirements.HtmlAssetRequirements | None = None</code></pre>
+    asset_type: Literal[&#39;css&#39;] = &#39;css&#39;
+    requirements: css_asset_requirements.CssAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -983,7 +975,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.format.Assets23.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['html']</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets23.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['css']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -991,7 +983,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets23.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.html_asset_requirements.HtmlAssetRequirements" href="requirements/html_asset_requirements.html#adcp.types.generated_poc.core.requirements.html_asset_requirements.HtmlAssetRequirements">HtmlAssetRequirements</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets23.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.css_asset_requirements.CssAssetRequirements" href="requirements/css_asset_requirements.html#adcp.types.generated_poc.core.requirements.css_asset_requirements.CssAssetRequirements">CssAssetRequirements</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1017,8 +1009,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets24(BaseGroupAsset):
-    asset_type: Literal[&#39;css&#39;] = &#39;css&#39;
-    requirements: css_asset_requirements.CssAssetRequirements | None = None</code></pre>
+    asset_type: Literal[&#39;javascript&#39;] = &#39;javascript&#39;
+    requirements: javascript_asset_requirements.JavascriptAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -1036,7 +1028,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.format.Assets24.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['css']</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets24.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['javascript']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1044,7 +1036,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets24.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.css_asset_requirements.CssAssetRequirements" href="requirements/css_asset_requirements.html#adcp.types.generated_poc.core.requirements.css_asset_requirements.CssAssetRequirements">CssAssetRequirements</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets24.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.javascript_asset_requirements.JavascriptAssetRequirements" href="requirements/javascript_asset_requirements.html#adcp.types.generated_poc.core.requirements.javascript_asset_requirements.JavascriptAssetRequirements">JavascriptAssetRequirements</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1070,8 +1062,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets25(BaseGroupAsset):
-    asset_type: Literal[&#39;javascript&#39;] = &#39;javascript&#39;
-    requirements: javascript_asset_requirements.JavascriptAssetRequirements | None = None</code></pre>
+    asset_type: Literal[&#39;vast&#39;] = &#39;vast&#39;
+    requirements: vast_asset_requirements.VastAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -1089,7 +1081,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.format.Assets25.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['javascript']</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets25.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['vast']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1097,7 +1089,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets25.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.javascript_asset_requirements.JavascriptAssetRequirements" href="requirements/javascript_asset_requirements.html#adcp.types.generated_poc.core.requirements.javascript_asset_requirements.JavascriptAssetRequirements">JavascriptAssetRequirements</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets25.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.vast_asset_requirements.VastAssetRequirements" href="requirements/vast_asset_requirements.html#adcp.types.generated_poc.core.requirements.vast_asset_requirements.VastAssetRequirements">VastAssetRequirements</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1123,8 +1115,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets26(BaseGroupAsset):
-    asset_type: Literal[&#39;vast&#39;] = &#39;vast&#39;
-    requirements: vast_asset_requirements.VastAssetRequirements | None = None</code></pre>
+    asset_type: Literal[&#39;daast&#39;] = &#39;daast&#39;
+    requirements: daast_asset_requirements.DaastAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -1142,7 +1134,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.format.Assets26.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['vast']</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets26.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['daast']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1150,7 +1142,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets26.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.vast_asset_requirements.VastAssetRequirements" href="requirements/vast_asset_requirements.html#adcp.types.generated_poc.core.requirements.vast_asset_requirements.VastAssetRequirements">VastAssetRequirements</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets26.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.daast_asset_requirements.DaastAssetRequirements" href="requirements/daast_asset_requirements.html#adcp.types.generated_poc.core.requirements.daast_asset_requirements.DaastAssetRequirements">DaastAssetRequirements</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1176,8 +1168,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets27(BaseGroupAsset):
-    asset_type: Literal[&#39;daast&#39;] = &#39;daast&#39;
-    requirements: daast_asset_requirements.DaastAssetRequirements | None = None</code></pre>
+    asset_type: Literal[&#39;url&#39;] = &#39;url&#39;
+    requirements: url_asset_requirements.UrlAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -1195,7 +1187,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.format.Assets27.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['daast']</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets27.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['url']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1203,7 +1195,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets27.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.daast_asset_requirements.DaastAssetRequirements" href="requirements/daast_asset_requirements.html#adcp.types.generated_poc.core.requirements.daast_asset_requirements.DaastAssetRequirements">DaastAssetRequirements</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets27.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.url_asset_requirements.UrlAssetRequirements" href="requirements/url_asset_requirements.html#adcp.types.generated_poc.core.requirements.url_asset_requirements.UrlAssetRequirements">UrlAssetRequirements</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1229,114 +1221,6 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets28(BaseGroupAsset):
-    asset_type: Literal[&#39;promoted_offerings&#39;] = &#39;promoted_offerings&#39;
-    requirements: (
-        promoted_offerings_asset_requirements.PromotedOfferingsAssetRequirements | None
-    ) = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.format.BaseGroupAsset" href="#adcp.types.generated_poc.core.format.BaseGroupAsset">BaseGroupAsset</a></li>
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.format.Assets28.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['promoted_offerings']</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.format.Assets28.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.format.Assets28.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.promoted_offerings_asset_requirements.PromotedOfferingsAssetRequirements" href="requirements/promoted_offerings_asset_requirements.html#adcp.types.generated_poc.core.requirements.promoted_offerings_asset_requirements.PromotedOfferingsAssetRequirements">PromotedOfferingsAssetRequirements</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.core.format.BaseGroupAsset" href="#adcp.types.generated_poc.core.format.BaseGroupAsset">BaseGroupAsset</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.core.format.BaseGroupAsset.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.BaseGroupAsset.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.BaseGroupAsset.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.core.format.Assets29"><code class="flex name class">
-<span>class <span class="ident">Assets29</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Assets29(BaseGroupAsset):
-    asset_type: Literal[&#39;url&#39;] = &#39;url&#39;
-    requirements: url_asset_requirements.UrlAssetRequirements | None = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.format.BaseGroupAsset" href="#adcp.types.generated_poc.core.format.BaseGroupAsset">BaseGroupAsset</a></li>
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.format.Assets29.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['url']</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.format.Assets29.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.format.Assets29.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.url_asset_requirements.UrlAssetRequirements" href="requirements/url_asset_requirements.html#adcp.types.generated_poc.core.requirements.url_asset_requirements.UrlAssetRequirements">UrlAssetRequirements</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.core.format.BaseGroupAsset" href="#adcp.types.generated_poc.core.format.BaseGroupAsset">BaseGroupAsset</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.core.format.BaseGroupAsset.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.BaseGroupAsset.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.BaseGroupAsset.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.core.format.Assets30"><code class="flex name class">
-<span>class <span class="ident">Assets30</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Assets30(BaseGroupAsset):
     asset_type: Literal[&#39;webhook&#39;] = &#39;webhook&#39;
     requirements: webhook_asset_requirements.WebhookAssetRequirements | None = None</code></pre>
 </details>
@@ -1356,15 +1240,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.format.Assets30.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['webhook']</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets28.asset_type"><code class="name">var <span class="ident">asset_type</span> : Literal['webhook']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets30.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets28.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Assets30.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.webhook_asset_requirements.WebhookAssetRequirements" href="requirements/webhook_asset_requirements.html#adcp.types.generated_poc.core.requirements.webhook_asset_requirements.WebhookAssetRequirements">WebhookAssetRequirements</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Assets28.requirements"><code class="name">var <span class="ident">requirements</span> : <a title="adcp.types.generated_poc.core.requirements.webhook_asset_requirements.WebhookAssetRequirements" href="requirements/webhook_asset_requirements.html#adcp.types.generated_poc.core.requirements.webhook_asset_requirements.WebhookAssetRequirements">WebhookAssetRequirements</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1707,6 +1591,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
+<li><a title="adcp.types.generated_poc.core.format.Assets17" href="#adcp.types.generated_poc.core.format.Assets17">Assets17</a></li>
 <li><a title="adcp.types.generated_poc.core.format.Assets18" href="#adcp.types.generated_poc.core.format.Assets18">Assets18</a></li>
 <li><a title="adcp.types.generated_poc.core.format.Assets19" href="#adcp.types.generated_poc.core.format.Assets19">Assets19</a></li>
 <li><a title="adcp.types.generated_poc.core.format.Assets20" href="#adcp.types.generated_poc.core.format.Assets20">Assets20</a></li>
@@ -1718,8 +1603,6 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.generated_poc.core.format.Assets26" href="#adcp.types.generated_poc.core.format.Assets26">Assets26</a></li>
 <li><a title="adcp.types.generated_poc.core.format.Assets27" href="#adcp.types.generated_poc.core.format.Assets27">Assets27</a></li>
 <li><a title="adcp.types.generated_poc.core.format.Assets28" href="#adcp.types.generated_poc.core.format.Assets28">Assets28</a></li>
-<li><a title="adcp.types.generated_poc.core.format.Assets29" href="#adcp.types.generated_poc.core.format.Assets29">Assets29</a></li>
-<li><a title="adcp.types.generated_poc.core.format.Assets30" href="#adcp.types.generated_poc.core.format.Assets30">Assets30</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -1806,7 +1689,6 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.generated_poc.core.format.Assets13" href="#adcp.types.generated_poc.core.format.Assets13">Assets13</a></li>
 <li><a title="adcp.types.generated_poc.core.format.Assets14" href="#adcp.types.generated_poc.core.format.Assets14">Assets14</a></li>
 <li><a title="adcp.types.generated_poc.core.format.Assets15" href="#adcp.types.generated_poc.core.format.Assets15">Assets15</a></li>
-<li><a title="adcp.types.generated_poc.core.format.Assets16" href="#adcp.types.generated_poc.core.format.Assets16">Assets16</a></li>
 <li><a title="adcp.types.generated_poc.core.format.Assets5" href="#adcp.types.generated_poc.core.format.Assets5">Assets5</a></li>
 <li><a title="adcp.types.generated_poc.core.format.Assets6" href="#adcp.types.generated_poc.core.format.Assets6">Assets6</a></li>
 <li><a title="adcp.types.generated_poc.core.format.Assets7" href="#adcp.types.generated_poc.core.format.Assets7">Assets7</a></li>
@@ -2033,11 +1915,17 @@ validated to form a valid model.</p>
             | Assets14
             | Assets15
             | Assets16
-            | Assets17
         ]
         | None,
         Field(
             description=&#34;Array of all assets supported for this format. Each asset is identified by its asset_id, which must be used as the key in creative manifests. Use the &#39;required&#39; boolean on each asset to indicate whether it&#39;s mandatory.&#34;
+        ),
+    ] = None
+    catalog_requirements: Annotated[
+        list[catalog_requirements_1.CatalogRequirements] | None,
+        Field(
+            description=&#39;Catalog feeds this format requires for rendering. Formats that display product listings, store locators, inventory availability, or promotional pricing declare what catalog types must be synced to the account. Buyers ensure the required catalogs are synced via sync_catalogs before submitting creatives in this format.&#39;,
+            min_length=1,
         ),
     ] = None
     delivery: Annotated[
@@ -2135,7 +2023,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Format.assets"><code class="name">var <span class="ident">assets</span> : list[<a title="adcp.types.generated_poc.core.format.Assets" href="#adcp.types.generated_poc.core.format.Assets">Assets</a> | <a title="adcp.types.generated_poc.core.format.Assets5" href="#adcp.types.generated_poc.core.format.Assets5">Assets5</a> | <a title="adcp.types.generated_poc.core.format.Assets6" href="#adcp.types.generated_poc.core.format.Assets6">Assets6</a> | <a title="adcp.types.generated_poc.core.format.Assets7" href="#adcp.types.generated_poc.core.format.Assets7">Assets7</a> | <a title="adcp.types.generated_poc.core.format.Assets8" href="#adcp.types.generated_poc.core.format.Assets8">Assets8</a> | <a title="adcp.types.generated_poc.core.format.Assets9" href="#adcp.types.generated_poc.core.format.Assets9">Assets9</a> | <a title="adcp.types.generated_poc.core.format.Assets10" href="#adcp.types.generated_poc.core.format.Assets10">Assets10</a> | <a title="adcp.types.generated_poc.core.format.Assets11" href="#adcp.types.generated_poc.core.format.Assets11">Assets11</a> | <a title="adcp.types.generated_poc.core.format.Assets12" href="#adcp.types.generated_poc.core.format.Assets12">Assets12</a> | <a title="adcp.types.generated_poc.core.format.Assets13" href="#adcp.types.generated_poc.core.format.Assets13">Assets13</a> | <a title="adcp.types.generated_poc.core.format.Assets14" href="#adcp.types.generated_poc.core.format.Assets14">Assets14</a> | <a title="adcp.types.generated_poc.core.format.Assets15" href="#adcp.types.generated_poc.core.format.Assets15">Assets15</a> | <a title="adcp.types.generated_poc.core.format.Assets16" href="#adcp.types.generated_poc.core.format.Assets16">Assets16</a> | <a title="adcp.types.generated_poc.core.format.Assets17" href="#adcp.types.generated_poc.core.format.Assets17">Assets17</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Format.assets"><code class="name">var <span class="ident">assets</span> : list[<a title="adcp.types.generated_poc.core.format.Assets" href="#adcp.types.generated_poc.core.format.Assets">Assets</a> | <a title="adcp.types.generated_poc.core.format.Assets5" href="#adcp.types.generated_poc.core.format.Assets5">Assets5</a> | <a title="adcp.types.generated_poc.core.format.Assets6" href="#adcp.types.generated_poc.core.format.Assets6">Assets6</a> | <a title="adcp.types.generated_poc.core.format.Assets7" href="#adcp.types.generated_poc.core.format.Assets7">Assets7</a> | <a title="adcp.types.generated_poc.core.format.Assets8" href="#adcp.types.generated_poc.core.format.Assets8">Assets8</a> | <a title="adcp.types.generated_poc.core.format.Assets9" href="#adcp.types.generated_poc.core.format.Assets9">Assets9</a> | <a title="adcp.types.generated_poc.core.format.Assets10" href="#adcp.types.generated_poc.core.format.Assets10">Assets10</a> | <a title="adcp.types.generated_poc.core.format.Assets11" href="#adcp.types.generated_poc.core.format.Assets11">Assets11</a> | <a title="adcp.types.generated_poc.core.format.Assets12" href="#adcp.types.generated_poc.core.format.Assets12">Assets12</a> | <a title="adcp.types.generated_poc.core.format.Assets13" href="#adcp.types.generated_poc.core.format.Assets13">Assets13</a> | <a title="adcp.types.generated_poc.core.format.Assets14" href="#adcp.types.generated_poc.core.format.Assets14">Assets14</a> | <a title="adcp.types.generated_poc.core.format.Assets15" href="#adcp.types.generated_poc.core.format.Assets15">Assets15</a> | <a title="adcp.types.generated_poc.core.format.Assets16" href="#adcp.types.generated_poc.core.format.Assets16">Assets16</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Format.catalog_requirements"><code class="name">var <span class="ident">catalog_requirements</span> : list[<a title="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements" href="requirements/catalog_requirements.html#adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements">CatalogRequirements</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2677,24 +2569,23 @@ attributes &ndash; see the documentation for details.</p></div>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.format.Assets16" href="#adcp.types.generated_poc.core.format.Assets16">Assets16</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.core.format.Assets16.asset_type" href="#adcp.types.generated_poc.core.format.Assets16.asset_type">asset_type</a></code></li>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.format.Assets16.asset_group_id" href="#adcp.types.generated_poc.core.format.Assets16.asset_group_id">asset_group_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets16.assets" href="#adcp.types.generated_poc.core.format.Assets16.assets">assets</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.format.Assets16.item_type" href="#adcp.types.generated_poc.core.format.Assets16.item_type">item_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets16.max_count" href="#adcp.types.generated_poc.core.format.Assets16.max_count">max_count</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets16.min_count" href="#adcp.types.generated_poc.core.format.Assets16.min_count">min_count</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.format.Assets16.model_config" href="#adcp.types.generated_poc.core.format.Assets16.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.Assets16.requirements" href="#adcp.types.generated_poc.core.format.Assets16.requirements">requirements</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets16.required" href="#adcp.types.generated_poc.core.format.Assets16.required">required</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets16.selection_mode" href="#adcp.types.generated_poc.core.format.Assets16.selection_mode">selection_mode</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.format.Assets17" href="#adcp.types.generated_poc.core.format.Assets17">Assets17</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.core.format.Assets17.asset_group_id" href="#adcp.types.generated_poc.core.format.Assets17.asset_group_id">asset_group_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.Assets17.assets" href="#adcp.types.generated_poc.core.format.Assets17.assets">assets</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.Assets17.item_type" href="#adcp.types.generated_poc.core.format.Assets17.item_type">item_type</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.Assets17.max_count" href="#adcp.types.generated_poc.core.format.Assets17.max_count">max_count</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.Assets17.min_count" href="#adcp.types.generated_poc.core.format.Assets17.min_count">min_count</a></code></li>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.format.Assets17.asset_type" href="#adcp.types.generated_poc.core.format.Assets17.asset_type">asset_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.format.Assets17.model_config" href="#adcp.types.generated_poc.core.format.Assets17.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.Assets17.required" href="#adcp.types.generated_poc.core.format.Assets17.required">required</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.Assets17.selection_mode" href="#adcp.types.generated_poc.core.format.Assets17.selection_mode">selection_mode</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Assets17.requirements" href="#adcp.types.generated_poc.core.format.Assets17.requirements">requirements</a></code></li>
 </ul>
 </li>
 <li>
@@ -2783,22 +2674,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.core.format.Assets28.asset_type" href="#adcp.types.generated_poc.core.format.Assets28.asset_type">asset_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.format.Assets28.model_config" href="#adcp.types.generated_poc.core.format.Assets28.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.format.Assets28.requirements" href="#adcp.types.generated_poc.core.format.Assets28.requirements">requirements</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.core.format.Assets29" href="#adcp.types.generated_poc.core.format.Assets29">Assets29</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.core.format.Assets29.asset_type" href="#adcp.types.generated_poc.core.format.Assets29.asset_type">asset_type</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.Assets29.model_config" href="#adcp.types.generated_poc.core.format.Assets29.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.Assets29.requirements" href="#adcp.types.generated_poc.core.format.Assets29.requirements">requirements</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.core.format.Assets30" href="#adcp.types.generated_poc.core.format.Assets30">Assets30</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.core.format.Assets30.asset_type" href="#adcp.types.generated_poc.core.format.Assets30.asset_type">asset_type</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.Assets30.model_config" href="#adcp.types.generated_poc.core.format.Assets30.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.Assets30.requirements" href="#adcp.types.generated_poc.core.format.Assets30.requirements">requirements</a></code></li>
 </ul>
 </li>
 <li>
@@ -2891,6 +2766,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.core.format.Format.accepts_parameters" href="#adcp.types.generated_poc.core.format.Format.accepts_parameters">accepts_parameters</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.format.Format.accessibility" href="#adcp.types.generated_poc.core.format.Format.accessibility">accessibility</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.format.Format.assets" href="#adcp.types.generated_poc.core.format.Format.assets">assets</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Format.catalog_requirements" href="#adcp.types.generated_poc.core.format.Format.catalog_requirements">catalog_requirements</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.format.Format.delivery" href="#adcp.types.generated_poc.core.format.Format.delivery">delivery</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.format.Format.description" href="#adcp.types.generated_poc.core.format.Format.description">description</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.format.Format.example_url" href="#adcp.types.generated_poc.core.format.Format.example_url">example_url</a></code></li>

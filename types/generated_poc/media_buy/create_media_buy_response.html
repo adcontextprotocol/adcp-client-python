@@ -123,6 +123,9 @@ validated to form a valid model.</p>
         ),
     ] = None
     buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
+    campaign_ref: Annotated[
+        str | None, Field(description=&#34;Buyer&#39;s campaign reference label, echoed from the request&#34;)
+    ] = None
     context: context_1.ContextObject | None = None
     creative_deadline: Annotated[
         AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
@@ -160,6 +163,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.campaign_ref"><code class="name">var <span class="ident">campaign_ref</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -293,6 +300,7 @@ validated to form a valid model.</p>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.account" href="#adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.account">account</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.buyer_ref" href="#adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.campaign_ref" href="#adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.campaign_ref">campaign_ref</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.context" href="#adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.creative_deadline" href="#adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.creative_deadline">creative_deadline</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.ext" href="#adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.ext">ext</a></code></li>

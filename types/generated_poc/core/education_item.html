@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.core.education_item API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.core.education_item</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.core.education_item.DegreeType"><code class="flex name class">
+<span>class <span class="ident">DegreeType</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DegreeType(Enum):
+    certificate = &#39;certificate&#39;
+    associate = &#39;associate&#39;
+    bachelor = &#39;bachelor&#39;
+    master = &#39;master&#39;
+    doctorate = &#39;doctorate&#39;
+    professional = &#39;professional&#39;
+    bootcamp = &#39;bootcamp&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.education_item.DegreeType.associate"><code class="name">var <span class="ident">associate</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.DegreeType.bachelor"><code class="name">var <span class="ident">bachelor</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.DegreeType.bootcamp"><code class="name">var <span class="ident">bootcamp</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.DegreeType.certificate"><code class="name">var <span class="ident">certificate</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.DegreeType.doctorate"><code class="name">var <span class="ident">doctorate</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.DegreeType.master"><code class="name">var <span class="ident">master</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.DegreeType.professional"><code class="name">var <span class="ident">professional</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.EducationItem"><code class="flex name class">
+<span>class <span class="ident">EducationItem</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class EducationItem(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    degree_type: Annotated[DegreeType | None, Field(description=&#39;Type of credential awarded.&#39;)] = (
+        None
+    )
+    description: Annotated[
+        str | None,
+        Field(description=&#39;Program description including curriculum highlights and outcomes.&#39;),
+    ] = None
+    duration: Annotated[
+        str | None,
+        Field(
+            description=&#34;Program duration as a human-readable string (e.g., &#39;4 weeks&#39;, &#39;2 years&#39;, &#39;6 months&#39;).&#34;
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    image_url: Annotated[AnyUrl | None, Field(description=&#39;Program or institution image URL.&#39;)] = (
+        None
+    )
+    language: Annotated[
+        str | None, Field(description=&#34;Language of instruction (e.g., &#39;en&#39;, &#39;nl&#39;, &#39;es&#39;).&#34;)
+    ] = None
+    level: Annotated[Level | None, Field(description=&#39;Difficulty or prerequisite level.&#39;)] = None
+    location: Annotated[
+        str | None,
+        Field(
+            description=&#34;Campus or instruction location (e.g., &#39;Amsterdam, NL&#39;). Omit for fully online programs.&#34;
+        ),
+    ] = None
+    modality: Annotated[Modality | None, Field(description=&#39;Delivery format.&#39;)] = None
+    name: Annotated[
+        str,
+        Field(
+            description=&#34;Program or course name (e.g., &#39;MSc Computer Science&#39;, &#39;Digital Marketing Certificate&#39;).&#34;
+        ),
+    ]
+    price: Annotated[price_1.Price | None, Field(description=&#39;Tuition or course fee.&#39;)] = None
+    program_id: Annotated[str, Field(description=&#39;Unique identifier for this program or course.&#39;)]
+    school: Annotated[str, Field(description=&#39;Institution or provider name.&#39;)]
+    start_date: Annotated[
+        date | None, Field(description=&#39;Next available start date (ISO 8601 date).&#39;)
+    ] = None
+    subject: Annotated[
+        str | None,
+        Field(
+            description=&#34;Subject area or field of study (e.g., &#39;computer-science&#39;, &#39;business&#39;, &#39;healthcare&#39;).&#34;
+        ),
+    ] = None
+    tags: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Tags for filtering (e.g., &#39;stem&#39;, &#39;scholarship-available&#39;, &#39;evening-classes&#39;).&#34;,
+            min_length=1,
+        ),
+    ] = None
+    url: Annotated[AnyUrl | None, Field(description=&#39;Program landing page or enrollment URL.&#39;)] = (
+        None
+    )</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.education_item.EducationItem.degree_type"><code class="name">var <span class="ident">degree_type</span> : <a title="adcp.types.generated_poc.core.education_item.DegreeType" href="#adcp.types.generated_poc.core.education_item.DegreeType">DegreeType</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.EducationItem.description"><code class="name">var <span class="ident">description</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.EducationItem.duration"><code class="name">var <span class="ident">duration</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.EducationItem.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.EducationItem.image_url"><code class="name">var <span class="ident">image_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.EducationItem.language"><code class="name">var <span class="ident">language</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.EducationItem.level"><code class="name">var <span class="ident">level</span> : <a title="adcp.types.generated_poc.core.education_item.Level" href="#adcp.types.generated_poc.core.education_item.Level">Level</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.EducationItem.location"><code class="name">var <span class="ident">location</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.EducationItem.modality"><code class="name">var <span class="ident">modality</span> : <a title="adcp.types.generated_poc.core.education_item.Modality" href="#adcp.types.generated_poc.core.education_item.Modality">Modality</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.EducationItem.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.EducationItem.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.EducationItem.price"><code class="name">var <span class="ident">price</span> : <a title="adcp.types.generated_poc.core.price.Price" href="price.html#adcp.types.generated_poc.core.price.Price">Price</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.EducationItem.program_id"><code class="name">var <span class="ident">program_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.EducationItem.school"><code class="name">var <span class="ident">school</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.EducationItem.start_date"><code class="name">var <span class="ident">start_date</span> : datetime.date | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.EducationItem.subject"><code class="name">var <span class="ident">subject</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.EducationItem.tags"><code class="name">var <span class="ident">tags</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.EducationItem.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.Level"><code class="flex name class">
+<span>class <span class="ident">Level</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Level(Enum):
+    beginner = &#39;beginner&#39;
+    intermediate = &#39;intermediate&#39;
+    advanced = &#39;advanced&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.education_item.Level.advanced"><code class="name">var <span class="ident">advanced</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.Level.beginner"><code class="name">var <span class="ident">beginner</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.Level.intermediate"><code class="name">var <span class="ident">intermediate</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.Modality"><code class="flex name class">
+<span>class <span class="ident">Modality</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Modality(Enum):
+    online = &#39;online&#39;
+    in_person = &#39;in_person&#39;
+    hybrid = &#39;hybrid&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.education_item.Modality.hybrid"><code class="name">var <span class="ident">hybrid</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.Modality.in_person"><code class="name">var <span class="ident">in_person</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.education_item.Modality.online"><code class="name">var <span class="ident">online</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc.core" href="index.html">adcp.types.generated_poc.core</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.education_item.DegreeType" href="#adcp.types.generated_poc.core.education_item.DegreeType">DegreeType</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.education_item.DegreeType.associate" href="#adcp.types.generated_poc.core.education_item.DegreeType.associate">associate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.DegreeType.bachelor" href="#adcp.types.generated_poc.core.education_item.DegreeType.bachelor">bachelor</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.DegreeType.bootcamp" href="#adcp.types.generated_poc.core.education_item.DegreeType.bootcamp">bootcamp</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.DegreeType.certificate" href="#adcp.types.generated_poc.core.education_item.DegreeType.certificate">certificate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.DegreeType.doctorate" href="#adcp.types.generated_poc.core.education_item.DegreeType.doctorate">doctorate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.DegreeType.master" href="#adcp.types.generated_poc.core.education_item.DegreeType.master">master</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.DegreeType.professional" href="#adcp.types.generated_poc.core.education_item.DegreeType.professional">professional</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.education_item.EducationItem" href="#adcp.types.generated_poc.core.education_item.EducationItem">EducationItem</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.education_item.EducationItem.degree_type" href="#adcp.types.generated_poc.core.education_item.EducationItem.degree_type">degree_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.EducationItem.description" href="#adcp.types.generated_poc.core.education_item.EducationItem.description">description</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.EducationItem.duration" href="#adcp.types.generated_poc.core.education_item.EducationItem.duration">duration</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.EducationItem.ext" href="#adcp.types.generated_poc.core.education_item.EducationItem.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.EducationItem.image_url" href="#adcp.types.generated_poc.core.education_item.EducationItem.image_url">image_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.EducationItem.language" href="#adcp.types.generated_poc.core.education_item.EducationItem.language">language</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.EducationItem.level" href="#adcp.types.generated_poc.core.education_item.EducationItem.level">level</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.EducationItem.location" href="#adcp.types.generated_poc.core.education_item.EducationItem.location">location</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.EducationItem.modality" href="#adcp.types.generated_poc.core.education_item.EducationItem.modality">modality</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.EducationItem.model_config" href="#adcp.types.generated_poc.core.education_item.EducationItem.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.EducationItem.name" href="#adcp.types.generated_poc.core.education_item.EducationItem.name">name</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.EducationItem.price" href="#adcp.types.generated_poc.core.education_item.EducationItem.price">price</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.EducationItem.program_id" href="#adcp.types.generated_poc.core.education_item.EducationItem.program_id">program_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.EducationItem.school" href="#adcp.types.generated_poc.core.education_item.EducationItem.school">school</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.EducationItem.start_date" href="#adcp.types.generated_poc.core.education_item.EducationItem.start_date">start_date</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.EducationItem.subject" href="#adcp.types.generated_poc.core.education_item.EducationItem.subject">subject</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.EducationItem.tags" href="#adcp.types.generated_poc.core.education_item.EducationItem.tags">tags</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.EducationItem.url" href="#adcp.types.generated_poc.core.education_item.EducationItem.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.education_item.Level" href="#adcp.types.generated_poc.core.education_item.Level">Level</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.education_item.Level.advanced" href="#adcp.types.generated_poc.core.education_item.Level.advanced">advanced</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.Level.beginner" href="#adcp.types.generated_poc.core.education_item.Level.beginner">beginner</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.Level.intermediate" href="#adcp.types.generated_poc.core.education_item.Level.intermediate">intermediate</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.education_item.Modality" href="#adcp.types.generated_poc.core.education_item.Modality">Modality</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.education_item.Modality.hybrid" href="#adcp.types.generated_poc.core.education_item.Modality.hybrid">hybrid</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.Modality.in_person" href="#adcp.types.generated_poc.core.education_item.Modality.in_person">in_person</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.education_item.Modality.online" href="#adcp.types.generated_poc.core.education_item.Modality.online">online</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

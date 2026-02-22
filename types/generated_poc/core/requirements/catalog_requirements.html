@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.core.promoted_products API documentation</title>
+<title>adcp.types.generated_poc.core.requirements.catalog_requirements API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.core.promoted_products</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.core.requirements.catalog_requirements</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,59 +46,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.core.promoted_products.ManifestGtin"><code class="flex name class">
-<span>class <span class="ident">ManifestGtin</span></span>
-<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class ManifestGtin(RootModel[str]):
-    root: Annotated[str, Field(pattern=&#39;^[0-9]{8,14}$&#39;)]</code></pre>
-</details>
-<div class="desc"><div class="admonition abstract">
-<p class="admonition-title">Usage Documentation</p>
-<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
-</div>
-<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
-<h2 id="attributes">Attributes</h2>
-<dl>
-<dt><strong><code>root</code></strong></dt>
-<dd>The root object of the model.</dd>
-<dt><strong><code>__pydantic_root_model__</code></strong></dt>
-<dd>Whether the model is a RootModel.</dd>
-<dt><strong><code>__pydantic_private__</code></strong></dt>
-<dd>Private fields in the model.</dd>
-<dt><strong><code>__pydantic_extra__</code></strong></dt>
-<dd>Extra fields in the model.</dd>
-</dl>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>pydantic.root_model.RootModel[str]</li>
-<li>pydantic.root_model.RootModel</li>
-<li>pydantic.main.BaseModel</li>
-<li>typing.Generic</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.promoted_products.ManifestGtin.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.promoted_products.ManifestGtin.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.core.promoted_products.PromotedProducts"><code class="flex name class">
-<span>class <span class="ident">PromotedProducts</span></span>
+<dt id="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements"><code class="flex name class">
+<span>class <span class="ident">CatalogRequirements</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -106,36 +55,46 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PromotedProducts(AdCPBaseModel):
+<pre><code class="python">class CatalogRequirements(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    manifest_category: Annotated[
-        str | None,
+    catalog_type: Annotated[
+        catalog_type_1.CatalogType,
+        Field(description=&#39;The catalog type this requirement applies to&#39;),
+    ]
+    feed_formats: Annotated[
+        list[feed_format.FeedFormat] | None,
         Field(
-            description=&#34;Select products from a specific category in the brand&#39;s product catalog (e.g., &#39;beverages/soft-drinks&#39;, &#39;food/sauces&#39;)&#34;
+            description=&#39;Accepted feed formats for this catalog type. When specified, the synced catalog must use one of these formats. When omitted, any format is accepted.&#39;,
+            min_length=1,
         ),
     ] = None
-    manifest_gtins: Annotated[
-        list[ManifestGtin] | None,
+    min_items: Annotated[
+        int | None,
         Field(
-            description=&#39;GTIN product identifiers for cross-retailer catalog matching. Accepts standard GTIN formats (GTIN-8, UPC-A/GTIN-12, EAN-13/GTIN-13, GTIN-14).&#39;
+            description=&#39;Minimum number of items the catalog must contain for this format to render properly (e.g., a carousel might require at least 3 products)&#39;,
+            ge=1,
         ),
     ] = None
-    manifest_query: Annotated[
-        str | None,
+    offering_asset_constraints: Annotated[
+        list[offering_asset_constraint.OfferingAssetConstraint] | None,
         Field(
-            description=&#34;Natural language query to select products from the brand&#39;s catalog (e.g., &#39;all pasta sauces&#39;, &#39;organic products under $20&#39;)&#34;
+            description=&#34;Per-offering creative requirements. Only applicable when catalog_type is &#39;offering&#39;. Declares what asset groups (headlines, images, videos) each offering must provide, along with count bounds and per-asset technical constraints.&#34;,
+            min_length=1,
         ),
     ] = None
-    manifest_skus: Annotated[
+    required: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether this catalog type must be present. When true, creatives using this format must reference a synced catalog of this type.&#39;
+        ),
+    ] = True
+    required_fields: Annotated[
         list[str] | None,
-        Field(description=&#34;Direct product SKU references from the brand&#39;s product catalog&#34;),
-    ] = None
-    manifest_tags: Annotated[
-        list[str] | None,
         Field(
-            description=&#34;Select products by tags from the brand&#39;s product catalog (e.g., &#39;organic&#39;, &#39;sauces&#39;, &#39;holiday&#39;)&#34;
+            description=&#34;Fields that must be present and non-empty on every item in the catalog. Field names are catalog-type-specific (e.g., &#39;title&#39;, &#39;price&#39;, &#39;image_url&#39; for product catalogs; &#39;store_id&#39;, &#39;quantity&#39; for inventory feeds).&#34;,
+            min_length=1,
         ),
     ] = None</code></pre>
 </details>
@@ -149,43 +108,47 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_category"><code class="name">var <span class="ident">manifest_category</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.catalog_type"><code class="name">var <span class="ident">catalog_type</span> : <a title="adcp.types.generated_poc.enums.catalog_type.CatalogType" href="../../enums/catalog_type.html#adcp.types.generated_poc.enums.catalog_type.CatalogType">CatalogType</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_gtins"><code class="name">var <span class="ident">manifest_gtins</span> : list[<a title="adcp.types.generated_poc.core.promoted_products.ManifestGtin" href="#adcp.types.generated_poc.core.promoted_products.ManifestGtin">ManifestGtin</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.feed_formats"><code class="name">var <span class="ident">feed_formats</span> : list[<a title="adcp.types.generated_poc.enums.feed_format.FeedFormat" href="../../enums/feed_format.html#adcp.types.generated_poc.enums.feed_format.FeedFormat">FeedFormat</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_query"><code class="name">var <span class="ident">manifest_query</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.min_items"><code class="name">var <span class="ident">min_items</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_skus"><code class="name">var <span class="ident">manifest_skus</span> : list[str] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_tags"><code class="name">var <span class="ident">manifest_tags</span> : list[str] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.offering_asset_constraints"><code class="name">var <span class="ident">offering_asset_constraints</span> : list[<a title="adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint" href="offering_asset_constraint.html#adcp.types.generated_poc.core.requirements.offering_asset_constraint.OfferingAssetConstraint">OfferingAssetConstraint</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.promoted_products.PromotedProducts.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.required"><code class="name">var <span class="ident">required</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.required_fields"><code class="name">var <span class="ident">required_fields</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
 <ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -200,27 +163,21 @@ validated to form a valid model.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.core" href="index.html">adcp.types.generated_poc.core</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements" href="index.html">adcp.types.generated_poc.core.requirements</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.promoted_products.ManifestGtin" href="#adcp.types.generated_poc.core.promoted_products.ManifestGtin">ManifestGtin</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements" href="#adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements">CatalogRequirements</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.promoted_products.ManifestGtin.model_config" href="#adcp.types.generated_poc.core.promoted_products.ManifestGtin.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.promoted_products.ManifestGtin.root" href="#adcp.types.generated_poc.core.promoted_products.ManifestGtin.root">root</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.core.promoted_products.PromotedProducts" href="#adcp.types.generated_poc.core.promoted_products.PromotedProducts">PromotedProducts</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_category" href="#adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_category">manifest_category</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_gtins" href="#adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_gtins">manifest_gtins</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_query" href="#adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_query">manifest_query</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_skus" href="#adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_skus">manifest_skus</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_tags" href="#adcp.types.generated_poc.core.promoted_products.PromotedProducts.manifest_tags">manifest_tags</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.promoted_products.PromotedProducts.model_config" href="#adcp.types.generated_poc.core.promoted_products.PromotedProducts.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.catalog_type" href="#adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.catalog_type">catalog_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.feed_formats" href="#adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.feed_formats">feed_formats</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.min_items" href="#adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.min_items">min_items</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.model_config" href="#adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.offering_asset_constraints" href="#adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.offering_asset_constraints">offering_asset_constraints</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.required" href="#adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.required">required</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.required_fields" href="#adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.required_fields">required_fields</a></code></li>
 </ul>
 </li>
 </ul>

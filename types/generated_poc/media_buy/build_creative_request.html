@@ -75,7 +75,7 @@ el.replaceWith(d);
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest | None,
         Field(
-            description=&#39;Creative manifest to transform or generate from. For pure generation, this should include the target format_id and any required input assets (e.g., promoted_offerings for generative formats). For transformation (e.g., resizing, reformatting), this is the complete creative to adapt.&#39;
+            description=&#39;Creative manifest to transform or generate from. For pure generation, this should include the target format_id and any required input assets. For transformation (e.g., resizing, reformatting), this is the complete creative to adapt.&#39;
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None

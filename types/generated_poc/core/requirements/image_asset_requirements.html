@@ -153,7 +153,10 @@ attributes &ndash; see the documentation for details.</p></div>
     ] = None
     aspect_ratio: Annotated[
         str | None,
-        Field(description=&#34;Required aspect ratio (e.g., &#39;16:9&#39;, &#39;1:1&#39;)&#34;, pattern=&#39;^\\d+:\\d+$&#39;),
+        Field(
+            description=&#34;Required aspect ratio (e.g., &#39;16:9&#39;, &#39;1:1&#39;, &#39;1.91:1&#39;)&#34;,
+            pattern=&#39;^\\d+(\\.\\d+)?:\\d+(\\.\\d+)?$&#39;,
+        ),
     ] = None
     formats: Annotated[list[Format] | None, Field(description=&#39;Accepted image file formats&#39;)] = None
     max_animation_duration_ms: Annotated[

@@ -176,6 +176,74 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem"><code class="flex name class">
+<span>class <span class="ident">ByCatalogItemItem</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ByCatalogItemItem(DeliveryMetrics):
+    content_id: Annotated[
+        str, Field(description=&#39;Catalog item identifier (e.g., SKU, GTIN, job_id, offering_id)&#39;)
+    ]
+    content_id_type: Annotated[
+        content_id_type_1.ContentIdType | None,
+        Field(description=&#39;Identifier type for this content_id&#39;),
+    ] = None
+    impressions: Any
+    spend: Any</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics" href="../core/delivery_metrics.html#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics">DeliveryMetrics</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem.content_id"><code class="name">var <span class="ident">content_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem.content_id_type"><code class="name">var <span class="ident">content_id_type</span> : <a title="adcp.types.generated_poc.enums.content_id_type.ContentIdType" href="../enums/content_id_type.html#adcp.types.generated_poc.enums.content_id_type.ContentIdType">ContentIdType</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem.impressions"><code class="name">var <span class="ident">impressions</span> : Any</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem.spend"><code class="name">var <span class="ident">spend</span> : Any</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics" href="../core/delivery_metrics.html#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics">DeliveryMetrics</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCreativeItem"><code class="flex name class">
 <span>class <span class="ident">ByCreativeItem</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -261,6 +329,12 @@ validated to form a valid model.</p>
     buyer_ref: Annotated[
         str | None, Field(description=&#34;Buyer&#39;s reference identifier for this package&#34;)
     ] = None
+    by_catalog_item: Annotated[
+        list[ByCatalogItemItem] | None,
+        Field(
+            description=&#39;Delivery by catalog item within this package. Available for catalog-driven packages when the seller supports item-level reporting.&#39;
+        ),
+    ] = None
     by_creative: Annotated[
         list[ByCreativeItem] | None,
         Field(
@@ -320,6 +394,10 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.by_catalog_item"><code class="name">var <span class="ident">by_catalog_item</span> : list[<a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem">ByCatalogItemItem</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -731,6 +809,12 @@ validated to form a valid model.</p>
         str | None, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)
     ] = None
     by_package: Annotated[list[ByPackageItem], Field(description=&#39;Metrics broken down by package&#39;)]
+    campaign_ref: Annotated[
+        str | None,
+        Field(
+            description=&#34;Buyer&#39;s campaign reference label. Groups related operations under a single campaign for CRM and ad server correlation.&#34;
+        ),
+    ] = None
     daily_breakdown: Annotated[
         list[DailyBreakdownItem] | None, Field(description=&#39;Day-by-day delivery&#39;)
     ] = None
@@ -779,6 +863,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.by_package"><code class="name">var <span class="ident">by_package</span> : list[<a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem">ByPackageItem</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.campaign_ref"><code class="name">var <span class="ident">campaign_ref</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1136,6 +1224,16 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem">ByCatalogItemItem</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem.content_id" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem.content_id">content_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem.content_id_type" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem.content_id_type">content_id_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem.impressions" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem.impressions">impressions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem.model_config" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem.spend" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem.spend">spend</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCreativeItem" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCreativeItem">ByCreativeItem</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCreativeItem.creative_id" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCreativeItem.creative_id">creative_id</a></code></li>
@@ -1149,6 +1247,7 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem">ByPackageItem</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.buyer_ref" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.by_catalog_item" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.by_catalog_item">by_catalog_item</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.by_creative" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.by_creative">by_creative</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.currency" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.currency">currency</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.delivery_status" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.delivery_status">delivery_status</a></code></li>
@@ -1209,6 +1308,7 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.buyer_ref" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.buyer_ref">buyer_ref</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.by_package" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.by_package">by_package</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.campaign_ref" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.campaign_ref">campaign_ref</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.daily_breakdown" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.daily_breakdown">daily_breakdown</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.expected_availability" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.expected_availability">expected_availability</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.is_adjusted" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.is_adjusted">is_adjusted</a></code></li>
