@@ -274,15 +274,25 @@ def test_backward_compat_removed_types_still_importable():
         PromotedProducts,
     )
 
-    # Should accept anything (extra="allow")
+    # Model stubs accept any payload (extra="allow")
     po = PromotedOfferings.model_validate({"any_field": "any_value"})
     assert po is not None
 
     par = PromotedOfferingsAssetRequirements.model_validate({"requires": ["brand.logos"]})
     assert par is not None
 
-    por = PromotedOfferingsRequirement.model_validate({"value": "some_requirement"})
-    assert por is not None
+    # PromotedOfferingsRequirement is preserved as an Enum so attribute/iteration access works
+    assert PromotedOfferingsRequirement.si_agent_url.value == "si_agent_url"
+    assert PromotedOfferingsRequirement.brand_logos.value == "brand.logos"
+    assert {e.value for e in PromotedOfferingsRequirement} == {
+        "si_agent_url",
+        "offerings",
+        "brand.logos",
+        "brand.colors",
+        "brand.tone",
+        "brand.assets",
+        "brand.product_catalog",
+    }
 
     pp = PromotedProducts.model_validate({"product_id": "prod-123"})
     assert pp is not None

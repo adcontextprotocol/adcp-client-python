@@ -203,12 +203,14 @@ def generate_consolidated_exports() -> str:
     lines.extend(alias_lines)
 
     # Add backwards-compat stubs for types removed from upstream schemas.
-    # Kept as permissive models so existing code importing them continues to work.
+    # Kept so existing code importing them continues to work.
+    # Model stubs accept any payload (extra="allow").
+    # PromotedOfferingsRequirement is preserved as an Enum since it was one upstream.
     compat_lines = [
         "",
         "# Backwards-compat: Types removed from upstream schemas.",
-        "# Kept as permissive models so existing code importing them continues to work.",
         "from adcp.types.base import AdCPBaseModel as _AdCPBaseModel",
+        "from enum import Enum as _Enum",
         "from pydantic import ConfigDict as _ConfigDict",
         "",
         "class BrandManifest(_AdCPBaseModel):",
@@ -224,8 +226,15 @@ def generate_consolidated_exports() -> str:
         '    model_config = _ConfigDict(extra="allow")',
         "",
         "",
-        "class PromotedOfferingsRequirement(_AdCPBaseModel):",
-        '    model_config = _ConfigDict(extra="allow")',
+        "# Preserved as Enum (not model) so attribute access and iteration still work.",
+        "class PromotedOfferingsRequirement(str, _Enum):",
+        "    si_agent_url = 'si_agent_url'",
+        "    offerings = 'offerings'",
+        "    brand_logos = 'brand.logos'",
+        "    brand_colors = 'brand.colors'",
+        "    brand_tone = 'brand.tone'",
+        "    brand_assets = 'brand.assets'",
+        "    brand_product_catalog = 'brand.product_catalog'",
         "",
         "",
         "class PromotedProducts(_AdCPBaseModel):",
@@ -282,7 +291,7 @@ def generate_consolidated_exports() -> str:
         "# This must happen AFTER all imports to resolve forward reference chains",
         "",
         "# Import individual modules needed for rebuilding",
-        "from adcp.types import generated_poc",
+        "from adcp.types import generated_poc  # noqa: F401",
         "",
         "# Rebuild models that reference other models via forward refs",
         "CreativeManifest.model_rebuild()",
