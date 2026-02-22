@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/media-buy/list-creatives-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Response from creative library query with filtered results, metadata, and optional enriched data",
@@ -103,7 +104,7 @@
   ],
   "properties": {
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/latest/core/context.json"
     },
     "creatives": {
       "description": "Array of creative assets matching the query",
@@ -111,7 +112,7 @@
         "additionalProperties": true,
         "properties": {
           "account": {
-            "$ref": "../core/account.json",
+            "$ref": "/schemas/latest/core/account.json",
             "description": "Account that owns this creative"
           },
           "assets": {
@@ -120,34 +121,34 @@
               "^[a-zA-Z0-9_-]+$": {
                 "oneOf": [
                   {
-                    "$ref": "../core/assets/image-asset.json"
+                    "$ref": "/schemas/latest/core/assets/image-asset.json"
                   },
                   {
-                    "$ref": "../core/assets/video-asset.json"
+                    "$ref": "/schemas/latest/core/assets/video-asset.json"
                   },
                   {
-                    "$ref": "../core/assets/audio-asset.json"
+                    "$ref": "/schemas/latest/core/assets/audio-asset.json"
                   },
                   {
-                    "$ref": "../core/assets/text-asset.json"
+                    "$ref": "/schemas/latest/core/assets/text-asset.json"
                   },
                   {
-                    "$ref": "../core/assets/html-asset.json"
+                    "$ref": "/schemas/latest/core/assets/html-asset.json"
                   },
                   {
-                    "$ref": "../core/assets/css-asset.json"
+                    "$ref": "/schemas/latest/core/assets/css-asset.json"
                   },
                   {
-                    "$ref": "../core/assets/javascript-asset.json"
+                    "$ref": "/schemas/latest/core/assets/javascript-asset.json"
                   },
                   {
-                    "$ref": "../core/assets/vast-asset.json"
+                    "$ref": "/schemas/latest/core/assets/vast-asset.json"
                   },
                   {
-                    "$ref": "../core/assets/daast-asset.json"
+                    "$ref": "/schemas/latest/core/assets/daast-asset.json"
                   },
                   {
-                    "$ref": "../core/assets/url-asset.json"
+                    "$ref": "/schemas/latest/core/assets/url-asset.json"
                   }
                 ]
               }
@@ -196,9 +197,13 @@
             ],
             "type": "object"
           },
-          "catalog": {
-            "$ref": "../core/catalog.json",
-            "description": "Catalog referenced by this creative, if any"
+          "catalogs": {
+            "description": "Catalogs this creative renders, if any",
+            "items": {
+              "$ref": "/schemas/latest/core/catalog.json"
+            },
+            "minItems": 1,
+            "type": "array"
           },
           "created_date": {
             "description": "When the creative was uploaded to the library",
@@ -210,7 +215,7 @@
             "type": "string"
           },
           "format_id": {
-            "$ref": "../core/format-id.json",
+            "$ref": "/schemas/latest/core/format-id.json",
             "description": "Format identifier specifying which format this creative conforms to"
           },
           "name": {
@@ -261,13 +266,13 @@
             "type": "object"
           },
           "status": {
-            "$ref": "../enums/creative-status.json",
+            "$ref": "/schemas/latest/enums/creative-status.json",
             "description": "Current approval status of the creative"
           },
           "sub_assets": {
             "description": "Sub-assets for multi-asset formats (included when include_sub_assets=true)",
             "items": {
-              "$ref": "../core/sub-asset.json"
+              "$ref": "/schemas/latest/core/sub-asset.json"
             },
             "type": "array"
           },
@@ -297,7 +302,7 @@
       "type": "array"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/latest/core/ext.json"
     },
     "format_summary": {
       "additionalProperties": true,
@@ -312,7 +317,7 @@
       "type": "object"
     },
     "pagination": {
-      "$ref": "../core/pagination-response.json"
+      "$ref": "/schemas/latest/core/pagination-response.json"
     },
     "query_summary": {
       "additionalProperties": true,
@@ -334,7 +339,7 @@
           "description": "Sort order that was applied",
           "properties": {
             "direction": {
-              "$ref": "../enums/sort-direction.json"
+              "$ref": "/schemas/latest/enums/sort-direction.json"
             },
             "field": {
               "type": "string"
