@@ -316,3 +316,103 @@ def test_catalog_type_not_signal_catalog_type():
     assert CatalogType is not SignalCatalogType
     assert CatalogType.offering.value == "offering"
     assert SignalCatalogType.marketplace.value == "marketplace"
+
+
+def test_creative_catalogs_field_accepts_list():
+    """Creative in list_creatives_response accepts catalogs as a non-empty list."""
+    from adcp import Catalog
+    from adcp.types.generated_poc.media_buy.list_creatives_response import Creative as ListCreative
+
+    creative = ListCreative.model_validate(
+        {
+            "creative_id": "c1",
+            "name": "Test Creative",
+            "created_date": "2026-01-01T00:00:00Z",
+            "updated_date": "2026-01-01T00:00:00Z",
+            "format_id": {"agent_url": "https://creative.adcontextprotocol.org", "id": "banner"},
+            "status": "approved",
+            "catalogs": [{"type": "product", "catalog_id": "feed-1"}],
+        }
+    )
+    assert creative.catalogs is not None
+    assert len(creative.catalogs) == 1
+    assert isinstance(creative.catalogs[0], Catalog)
+
+
+def test_creative_catalogs_field_rejects_empty_list():
+    """Creative in list_creatives_response rejects empty catalogs list (min_length=1)."""
+    from adcp.types.generated_poc.media_buy.list_creatives_response import Creative as ListCreative
+
+    with pytest.raises(ValidationError):
+        ListCreative.model_validate(
+            {
+                "creative_id": "c1",
+                "name": "Test Creative",
+                "created_date": "2026-01-01T00:00:00Z",
+                "updated_date": "2026-01-01T00:00:00Z",
+                "format_id": {
+                    "agent_url": "https://creative.adcontextprotocol.org",
+                    "id": "banner",
+                },
+                "status": "approved",
+                "catalogs": [],
+            }
+        )
+
+
+def test_creative_asset_catalogs_field():
+    """CreativeAsset accepts catalogs as a non-empty list."""
+    from adcp import Catalog
+    from adcp.types import CreativeAsset
+
+    asset = CreativeAsset.model_validate(
+        {
+            "creative_id": "c1",
+            "name": "Test Creative",
+            "format_id": {"agent_url": "https://creative.adcontextprotocol.org", "id": "banner"},
+            "assets": {},
+            "catalogs": [{"type": "product", "catalog_id": "feed-1"}],
+        }
+    )
+    assert asset.catalogs is not None
+    assert len(asset.catalogs) == 1
+    assert isinstance(asset.catalogs[0], Catalog)
+
+
+def test_creative_manifest_catalogs_field():
+    """CreativeManifest accepts catalogs as a non-empty list."""
+    from adcp import Catalog
+    from adcp.types import CreativeManifest
+
+    manifest = CreativeManifest.model_validate(
+        {
+            "format_id": {"agent_url": "https://creative.adcontextprotocol.org", "id": "banner"},
+            "assets": {},
+            "catalogs": [{"type": "offering", "items": [{"offering_id": "o1", "name": "Deal"}]}],
+        }
+    )
+    assert manifest.catalogs is not None
+    assert len(manifest.catalogs) == 1
+    assert isinstance(manifest.catalogs[0], Catalog)
+
+
+def test_universal_macro_catalog_values():
+    """UniversalMacro contains catalog-context macros added in schema sync."""
+    from adcp.types._generated import UniversalMacro
+
+    catalog_macros = {
+        "CATALOG_ID",
+        "SKU",
+        "GTIN",
+        "OFFERING_ID",
+        "JOB_ID",
+        "HOTEL_ID",
+        "FLIGHT_ID",
+        "VEHICLE_ID",
+        "LISTING_ID",
+        "STORE_ID",
+        "PROGRAM_ID",
+        "DESTINATION_ID",
+        "CREATIVE_VARIANT_ID",
+    }
+    assert catalog_macros.issubset({e.value for e in UniversalMacro})
