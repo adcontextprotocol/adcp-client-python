@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.6.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v3.5.0...v3.6.0) (2026-02-23)
+
+
+### Features
+
+* sync upstream schemas and add get_media_buys ([#136](https://github.com/adcontextprotocol/adcp-client-python/issues/136)) ([3625a2b](https://github.com/adcontextprotocol/adcp-client-python/commit/3625a2ba085bf35b26f899915d104d9f53508724))
+
 ## [3.5.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v3.4.0...v3.5.0) (2026-02-22)
 
 
