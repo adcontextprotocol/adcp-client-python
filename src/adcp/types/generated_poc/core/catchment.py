@@ -16,34 +16,34 @@ from . import ext as ext_1
 
 
 class Type(Enum):
-    Polygon = 'Polygon'
-    MultiPolygon = 'MultiPolygon'
+    Polygon = "Polygon"
+    MultiPolygon = "MultiPolygon"
 
 
 class Geometry(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     coordinates: Annotated[
         Any,
         Field(
-            description='GeoJSON coordinates array. For Polygon: array of linear rings. For MultiPolygon: array of polygons.'
+            description="GeoJSON coordinates array. For Polygon: array of linear rings. For MultiPolygon: array of polygons."
         ),
     ]
-    type: Annotated[Type, Field(description='GeoJSON geometry type.')]
+    type: Annotated[Type, Field(description="GeoJSON geometry type.")]
 
 
 class Unit(Enum):
-    min = 'min'
-    hr = 'hr'
+    min = "min"
+    hr = "hr"
 
 
 class TravelTime(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    unit: Annotated[Unit, Field(description='Time unit.')]
-    value: Annotated[float, Field(description='Travel time limit.', ge=1.0)]
+    unit: Annotated[Unit, Field(description="Time unit.")]
+    value: Annotated[float, Field(description="Travel time limit.", ge=1.0)]
 
 
 class Geometry1(Geometry):
@@ -64,15 +64,15 @@ class TravelTime2(TravelTime):
 
 class Radius(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    unit: Annotated[distance_unit.DistanceUnit, Field(description='Distance unit.')]
-    value: Annotated[float, Field(description='Radius distance.', gt=0.0)]
+    unit: Annotated[distance_unit.DistanceUnit, Field(description="Distance unit.")]
+    value: Annotated[float, Field(description="Radius distance.", gt=0.0)]
 
 
 class Catchment1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     catchment_id: Annotated[
         str,
@@ -84,7 +84,7 @@ class Catchment1(AdCPBaseModel):
     geometry: Annotated[
         Geometry | None,
         Field(
-            description='Pre-computed GeoJSON geometry defining the catchment boundary. Use this when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom trade area boundaries. Supports Polygon and MultiPolygon types.'
+            description="Pre-computed GeoJSON geometry defining the catchment boundary. Use this when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom trade area boundaries. Supports Polygon and MultiPolygon types."
         ),
     ] = None
     label: Annotated[
@@ -102,20 +102,20 @@ class Catchment1(AdCPBaseModel):
     transport_mode: Annotated[
         transport_mode_1.TransportMode,
         Field(
-            description='Transportation mode for isochrone calculation. Required when travel_time is provided.'
+            description="Transportation mode for isochrone calculation. Required when travel_time is provided."
         ),
     ]
     travel_time: Annotated[
         TravelTime,
         Field(
-            description='Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks, accounting for road connectivity, transit schedules, and terrain.'
+            description="Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks, accounting for road connectivity, transit schedules, and terrain."
         ),
     ]
 
 
 class Catchment2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     catchment_id: Annotated[
         str,
@@ -127,7 +127,7 @@ class Catchment2(AdCPBaseModel):
     geometry: Annotated[
         Geometry1 | None,
         Field(
-            description='Pre-computed GeoJSON geometry defining the catchment boundary. Use this when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom trade area boundaries. Supports Polygon and MultiPolygon types.'
+            description="Pre-computed GeoJSON geometry defining the catchment boundary. Use this when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom trade area boundaries. Supports Polygon and MultiPolygon types."
         ),
     ] = None
     label: Annotated[
@@ -145,20 +145,20 @@ class Catchment2(AdCPBaseModel):
     transport_mode: Annotated[
         transport_mode_1.TransportMode | None,
         Field(
-            description='Transportation mode for isochrone calculation. Required when travel_time is provided.'
+            description="Transportation mode for isochrone calculation. Required when travel_time is provided."
         ),
     ] = None
     travel_time: Annotated[
         TravelTime1 | None,
         Field(
-            description='Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks, accounting for road connectivity, transit schedules, and terrain.'
+            description="Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks, accounting for road connectivity, transit schedules, and terrain."
         ),
     ] = None
 
 
 class Catchment3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     catchment_id: Annotated[
         str,
@@ -170,7 +170,7 @@ class Catchment3(AdCPBaseModel):
     geometry: Annotated[
         Geometry2,
         Field(
-            description='Pre-computed GeoJSON geometry defining the catchment boundary. Use this when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom trade area boundaries. Supports Polygon and MultiPolygon types.'
+            description="Pre-computed GeoJSON geometry defining the catchment boundary. Use this when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom trade area boundaries. Supports Polygon and MultiPolygon types."
         ),
     ]
     label: Annotated[
@@ -188,13 +188,13 @@ class Catchment3(AdCPBaseModel):
     transport_mode: Annotated[
         transport_mode_1.TransportMode | None,
         Field(
-            description='Transportation mode for isochrone calculation. Required when travel_time is provided.'
+            description="Transportation mode for isochrone calculation. Required when travel_time is provided."
         ),
     ] = None
     travel_time: Annotated[
         TravelTime2 | None,
         Field(
-            description='Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks, accounting for road connectivity, transit schedules, and terrain.'
+            description="Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks, accounting for road connectivity, transit schedules, and terrain."
         ),
     ] = None
 
@@ -203,39 +203,39 @@ class Catchment(RootModel[Catchment1 | Catchment2 | Catchment3]):
     root: Annotated[
         Catchment1 | Catchment2 | Catchment3,
         Field(
-            description='A catchment area definition for a store or location. Defines the geographic area from which a store draws customers. Three methods are supported: isochrone inputs (travel time + transport mode, platform resolves the shape), simple radius (distance from location), or pre-computed GeoJSON geometry (buyer provides the exact boundary). Provide exactly one method per catchment.',
+            description="A catchment area definition for a store or location. Defines the geographic area from which a store draws customers. Three methods are supported: isochrone inputs (travel time + transport mode, platform resolves the shape), simple radius (distance from location), or pre-computed GeoJSON geometry (buyer provides the exact boundary). Provide exactly one method per catchment.",
             examples=[
                 {
-                    'data': {
-                        'catchment_id': 'drive',
-                        'label': '15-min drive',
-                        'transport_mode': 'driving',
-                        'travel_time': {'unit': 'min', 'value': 15},
+                    "data": {
+                        "catchment_id": "drive",
+                        "label": "15-min drive",
+                        "transport_mode": "driving",
+                        "travel_time": {"unit": "min", "value": 15},
                     },
-                    'description': 'Isochrone: 15-minute drive',
+                    "description": "Isochrone: 15-minute drive",
                 },
                 {
-                    'data': {
-                        'catchment_id': 'walk',
-                        'label': '10-min walk',
-                        'transport_mode': 'walking',
-                        'travel_time': {'unit': 'min', 'value': 10},
+                    "data": {
+                        "catchment_id": "walk",
+                        "label": "10-min walk",
+                        "transport_mode": "walking",
+                        "travel_time": {"unit": "min", "value": 10},
                     },
-                    'description': 'Isochrone: 10-minute walk',
+                    "description": "Isochrone: 10-minute walk",
                 },
                 {
-                    'data': {
-                        'catchment_id': 'local',
-                        'label': '5km radius',
-                        'radius': {'unit': 'km', 'value': 5},
+                    "data": {
+                        "catchment_id": "local",
+                        "label": "5km radius",
+                        "radius": {"unit": "km", "value": 5},
                     },
-                    'description': 'Simple 5km radius',
+                    "description": "Simple 5km radius",
                 },
                 {
-                    'data': {
-                        'catchment_id': 'trade-area',
-                        'geometry': {
-                            'coordinates': [
+                    "data": {
+                        "catchment_id": "trade-area",
+                        "geometry": {
+                            "coordinates": [
                                 [
                                     [4.85, 52.35],
                                     [4.95, 52.35],
@@ -244,13 +244,13 @@ class Catchment(RootModel[Catchment1 | Catchment2 | Catchment3]):
                                     [4.85, 52.35],
                                 ]
                             ],
-                            'type': 'Polygon',
+                            "type": "Polygon",
                         },
-                        'label': 'Primary trade area',
+                        "label": "Primary trade area",
                     },
-                    'description': 'Pre-computed GeoJSON boundary',
+                    "description": "Pre-computed GeoJSON boundary",
                 },
             ],
-            title='Catchment',
+            title="Catchment",
         ),
     ]

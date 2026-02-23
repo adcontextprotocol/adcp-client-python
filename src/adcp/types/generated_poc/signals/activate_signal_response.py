@@ -16,29 +16,29 @@ from ..core import ext as ext_1
 
 class ActivateSignalResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     deployments: Annotated[
         list[deployment.Deployment],
-        Field(description='Array of deployment results for each deployment target'),
+        Field(description="Array of deployment results for each deployment target"),
     ]
     ext: ext_1.ExtensionObject | None = None
     sandbox: Annotated[
         bool | None,
-        Field(description='When true, this response contains simulated data from sandbox mode.'),
+        Field(description="When true, this response contains simulated data from sandbox mode."),
     ] = None
 
 
 class ActivateSignalResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
-            description='Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)',
+            description="Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)",
             min_length=1,
         ),
     ]
@@ -49,7 +49,7 @@ class ActivateSignalResponse(RootModel[ActivateSignalResponse1 | ActivateSignalR
     root: Annotated[
         ActivateSignalResponse1 | ActivateSignalResponse2,
         Field(
-            description='Response payload for activate_signal task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - the signal is either fully activated or not activated at all.',
-            title='Activate Signal Response',
+            description="Response payload for activate_signal task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - the signal is either fully activated or not activated at all.",
+            title="Activate Signal Response",
         ),
     ]

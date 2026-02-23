@@ -8,6 +8,6 @@ from enum import Enum
 
 
 class ReportingFrequency(Enum):
-    hourly = 'hourly'
-    daily = 'daily'
-    monthly = 'monthly'
+    hourly = "hourly"
+    daily = "daily"
+    monthly = "monthly"

@@ -17,32 +17,32 @@ from . import base_property_source, property_list_filters
 
 class UpdatePropertyListRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     base_properties: Annotated[
         list[base_property_source.BasePropertySource] | None,
         Field(
-            description='Complete replacement for the base properties list (not a patch). Each entry is a discriminated union: publisher_tags (publisher_domain + tags), publisher_ids (publisher_domain + property_ids), or identifiers (direct identifiers).'
+            description="Complete replacement for the base properties list (not a patch). Each entry is a discriminated union: publisher_tags (publisher_domain + tags), publisher_ids (publisher_domain + property_ids), or identifiers (direct identifiers)."
         ),
     ] = None
     brand: Annotated[
         brand_ref.BrandReference | None,
         Field(
-            description='Update brand reference. Resolved to full brand identity at execution time.'
+            description="Update brand reference. Resolved to full brand identity at execution time."
         ),
     ] = None
     context: context_1.ContextObject | None = None
-    description: Annotated[str | None, Field(description='New description')] = None
+    description: Annotated[str | None, Field(description="New description")] = None
     ext: ext_1.ExtensionObject | None = None
     filters: Annotated[
         property_list_filters.PropertyListFilters | None,
-        Field(description='Complete replacement for the filters (not a patch)'),
+        Field(description="Complete replacement for the filters (not a patch)"),
     ] = None
-    list_id: Annotated[str, Field(description='ID of the property list to update')]
-    name: Annotated[str | None, Field(description='New name for the list')] = None
+    list_id: Annotated[str, Field(description="ID of the property list to update")]
+    name: Annotated[str | None, Field(description="New name for the list")] = None
     webhook_url: Annotated[
         AnyUrl | None,
         Field(
-            description='Update the webhook URL for list change notifications (set to empty string to remove)'
+            description="Update the webhook URL for list change notifications (set to empty string to remove)"
         ),
     ] = None

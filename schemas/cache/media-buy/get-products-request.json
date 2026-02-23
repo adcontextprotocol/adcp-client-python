@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/media-buy/get-products-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "dependencies": {
@@ -13,35 +14,35 @@
       "type": "string"
     },
     "brand": {
-      "$ref": "../core/brand-ref.json",
+      "$ref": "/schemas/latest/core/brand-ref.json",
       "description": "Brand reference for product discovery context. Resolved to full brand identity at execution time."
     },
     "brief": {
       "description": "Natural language description of campaign requirements.",
       "type": "string"
     },
-    "campaign_ref": {
+    "buyer_campaign_ref": {
       "description": "Buyer's campaign reference label. Groups related discovery and buy operations under a single campaign for CRM and ad server correlation (e.g., 'NovaDrink_Meals_Q2').",
       "type": "string"
     },
     "catalog": {
-      "$ref": "../core/catalog.json",
+      "$ref": "/schemas/latest/core/catalog.json",
       "description": "Catalog of items the buyer wants to promote. The seller matches catalog items against its inventory and returns products where matches exist. Supports all catalog types: a job catalog finds job ad products, a product catalog finds sponsored product slots. Reference a synced catalog by catalog_id, or provide inline items."
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/latest/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/latest/core/ext.json"
     },
     "filters": {
-      "$ref": "../core/product-filters.json"
+      "$ref": "/schemas/latest/core/product-filters.json"
     },
     "pagination": {
-      "$ref": "../core/pagination-request.json"
+      "$ref": "/schemas/latest/core/pagination-request.json"
     },
     "property_list": {
-      "$ref": "../core/property-list-ref.json",
+      "$ref": "/schemas/latest/core/property-list-ref.json",
       "description": "[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list."
     }
   },

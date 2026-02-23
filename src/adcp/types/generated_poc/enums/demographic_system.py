@@ -8,9 +8,9 @@ from enum import Enum
 
 
 class DemographicSystem(Enum):
-    nielsen = 'nielsen'
-    barb = 'barb'
-    agf = 'agf'
-    oztam = 'oztam'
-    mediametrie = 'mediametrie'
-    custom = 'custom'
+    nielsen = "nielsen"
+    barb = "barb"
+    agf = "agf"
+    oztam = "oztam"
+    mediametrie = "mediametrie"
+    custom = "custom"

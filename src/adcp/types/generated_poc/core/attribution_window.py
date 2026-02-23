@@ -14,25 +14,25 @@ from ..enums import attribution_model
 
 class AttributionWindow(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     click_window_days: Annotated[
         int | None,
         Field(
-            description='Click-through attribution window in days. Conversions occurring within this many days after a click are attributed to the ad.',
+            description="Click-through attribution window in days. Conversions occurring within this many days after a click are attributed to the ad.",
             ge=0,
         ),
     ] = None
     model: Annotated[
         attribution_model.AttributionModel,
         Field(
-            description='Attribution model used to assign credit when multiple touchpoints exist'
+            description="Attribution model used to assign credit when multiple touchpoints exist"
         ),
     ]
     view_window_days: Annotated[
         int | None,
         Field(
-            description='View-through attribution window in days. Conversions occurring within this many days after an ad impression (without click) are attributed to the ad.',
+            description="View-through attribution window in days. Conversions occurring within this many days after an ad impression (without click) are attributed to the ad.",
             ge=0,
         ),
     ] = None

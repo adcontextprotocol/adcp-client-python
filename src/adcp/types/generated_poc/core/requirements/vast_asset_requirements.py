@@ -12,15 +12,15 @@ from pydantic import ConfigDict, Field
 
 
 class VastVersion(Enum):
-    field_2_0 = '2.0'
-    field_3_0 = '3.0'
-    field_4_0 = '4.0'
-    field_4_1 = '4.1'
-    field_4_2 = '4.2'
+    field_2_0 = "2.0"
+    field_3_0 = "3.0"
+    field_4_0 = "4.0"
+    field_4_1 = "4.1"
+    field_4_2 = "4.2"
 
 
 class VastAssetRequirements(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    vast_version: Annotated[VastVersion | None, Field(description='Required VAST version')] = None
+    vast_version: Annotated[VastVersion | None, Field(description="Required VAST version")] = None

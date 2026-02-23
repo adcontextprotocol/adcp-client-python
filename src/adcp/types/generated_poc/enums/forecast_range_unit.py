@@ -8,9 +8,9 @@ from enum import Enum
 
 
 class ForecastRangeUnit(Enum):
-    spend = 'spend'
-    reach_freq = 'reach_freq'
-    weekly = 'weekly'
-    daily = 'daily'
-    clicks = 'clicks'
-    conversions = 'conversions'
+    spend = "spend"
+    reach_freq = "reach_freq"
+    weekly = "weekly"
+    daily = "daily"
+    clicks = "clicks"
+    conversions = "conversions"

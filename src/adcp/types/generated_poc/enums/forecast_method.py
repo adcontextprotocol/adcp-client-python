@@ -8,6 +8,6 @@ from enum import Enum
 
 
 class ForecastMethod(Enum):
-    estimate = 'estimate'
-    modeled = 'modeled'
-    guaranteed = 'guaranteed'
+    estimate = "estimate"
+    modeled = "modeled"
+    guaranteed = "guaranteed"

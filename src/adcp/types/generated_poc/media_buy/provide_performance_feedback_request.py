@@ -17,19 +17,19 @@ from ..enums import metric_type as metric_type_1
 
 class MeasurementPeriod(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     end: Annotated[
-        AwareDatetime, Field(description='ISO 8601 end timestamp for measurement period')
+        AwareDatetime, Field(description="ISO 8601 end timestamp for measurement period")
     ]
     start: Annotated[
-        AwareDatetime, Field(description='ISO 8601 start timestamp for measurement period')
+        AwareDatetime, Field(description="ISO 8601 start timestamp for measurement period")
     ]
 
 
 class ProvidePerformanceFeedbackRequest1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     buyer_ref: Annotated[
         str | None, Field(description="Buyer's reference for the media buy", min_length=1)
@@ -38,33 +38,33 @@ class ProvidePerformanceFeedbackRequest1(AdCPBaseModel):
     creative_id: Annotated[
         str | None,
         Field(
-            description='Specific creative asset (if feedback is creative-specific)', min_length=1
+            description="Specific creative asset (if feedback is creative-specific)", min_length=1
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     feedback_source: Annotated[
-        feedback_source_1.FeedbackSource | None, Field(description='Source of the performance data')
+        feedback_source_1.FeedbackSource | None, Field(description="Source of the performance data")
     ] = feedback_source_1.FeedbackSource.buyer_attribution
     measurement_period: Annotated[
-        MeasurementPeriod, Field(description='Time period for performance measurement')
+        MeasurementPeriod, Field(description="Time period for performance measurement")
     ]
     media_buy_id: Annotated[
         str, Field(description="Publisher's media buy identifier", min_length=1)
     ]
     metric_type: Annotated[
-        metric_type_1.MetricType | None, Field(description='The business metric being measured')
+        metric_type_1.MetricType | None, Field(description="The business metric being measured")
     ] = metric_type_1.MetricType.overall_performance
     package_id: Annotated[
         str | None,
         Field(
-            description='Specific package within the media buy (if feedback is package-specific)',
+            description="Specific package within the media buy (if feedback is package-specific)",
             min_length=1,
         ),
     ] = None
     performance_index: Annotated[
         float,
         Field(
-            description='Normalized performance score (0.0 = no value, 1.0 = expected, >1.0 = above expected)',
+            description="Normalized performance score (0.0 = no value, 1.0 = expected, >1.0 = above expected)",
             ge=0.0,
         ),
     ]
@@ -72,7 +72,7 @@ class ProvidePerformanceFeedbackRequest1(AdCPBaseModel):
 
 class ProvidePerformanceFeedbackRequest2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     buyer_ref: Annotated[
         str, Field(description="Buyer's reference for the media buy", min_length=1)
@@ -81,33 +81,33 @@ class ProvidePerformanceFeedbackRequest2(AdCPBaseModel):
     creative_id: Annotated[
         str | None,
         Field(
-            description='Specific creative asset (if feedback is creative-specific)', min_length=1
+            description="Specific creative asset (if feedback is creative-specific)", min_length=1
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     feedback_source: Annotated[
-        feedback_source_1.FeedbackSource | None, Field(description='Source of the performance data')
+        feedback_source_1.FeedbackSource | None, Field(description="Source of the performance data")
     ] = feedback_source_1.FeedbackSource.buyer_attribution
     measurement_period: Annotated[
-        MeasurementPeriod, Field(description='Time period for performance measurement')
+        MeasurementPeriod, Field(description="Time period for performance measurement")
     ]
     media_buy_id: Annotated[
         str | None, Field(description="Publisher's media buy identifier", min_length=1)
     ] = None
     metric_type: Annotated[
-        metric_type_1.MetricType | None, Field(description='The business metric being measured')
+        metric_type_1.MetricType | None, Field(description="The business metric being measured")
     ] = metric_type_1.MetricType.overall_performance
     package_id: Annotated[
         str | None,
         Field(
-            description='Specific package within the media buy (if feedback is package-specific)',
+            description="Specific package within the media buy (if feedback is package-specific)",
             min_length=1,
         ),
     ] = None
     performance_index: Annotated[
         float,
         Field(
-            description='Normalized performance score (0.0 = no value, 1.0 = expected, >1.0 = above expected)',
+            description="Normalized performance score (0.0 = no value, 1.0 = expected, >1.0 = above expected)",
             ge=0.0,
         ),
     ]
@@ -119,7 +119,7 @@ class ProvidePerformanceFeedbackRequest(
     root: Annotated[
         ProvidePerformanceFeedbackRequest1 | ProvidePerformanceFeedbackRequest2,
         Field(
-            description='Request payload for provide_performance_feedback task',
-            title='Provide Performance Feedback Request',
+            description="Request payload for provide_performance_feedback task",
+            title="Provide Performance Feedback Request",
         ),
     ]

@@ -74,6 +74,7 @@ def test_catalog_type_enum_values():
         "real_estate",
         "education",
         "destination",
+        "app",
     }
     assert {e.value for e in CatalogType} == expected
 

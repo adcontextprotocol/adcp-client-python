@@ -8,5 +8,5 @@ from enum import Enum
 
 
 class FormatIdParameter(Enum):
-    dimensions = 'dimensions'
-    duration = 'duration'
+    dimensions = "dimensions"
+    duration = "duration"

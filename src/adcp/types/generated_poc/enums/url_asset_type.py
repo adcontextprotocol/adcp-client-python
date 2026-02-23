@@ -8,6 +8,6 @@ from enum import Enum
 
 
 class UrlAssetType(Enum):
-    clickthrough = 'clickthrough'
-    tracker_pixel = 'tracker_pixel'
-    tracker_script = 'tracker_script'
+    clickthrough = "clickthrough"
+    tracker_pixel = "tracker_pixel"
+    tracker_script = "tracker_script"

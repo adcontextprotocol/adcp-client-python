@@ -1,0 +1,64 @@
+{
+  "$id": "/schemas/latest/creative/creative-feature-result.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "A single feature evaluation result for a creative. Uses the same value structure as property-feature-value (value, confidence, expires_at, etc.).",
+  "properties": {
+    "confidence": {
+      "description": "Confidence score for this value (0-1)",
+      "maximum": 1,
+      "minimum": 0,
+      "type": "number"
+    },
+    "details": {
+      "additionalProperties": true,
+      "description": "Additional vendor-specific details about this evaluation",
+      "type": "object"
+    },
+    "expires_at": {
+      "description": "When this evaluation expires and should be refreshed",
+      "format": "date-time",
+      "type": "string"
+    },
+    "ext": {
+      "$ref": "/schemas/latest/core/ext.json"
+    },
+    "feature_id": {
+      "description": "The feature that was evaluated (e.g., 'auto_redirect', 'brand_consistency', 'iab_casinos_gambling')",
+      "type": "string"
+    },
+    "measured_at": {
+      "description": "When this feature was evaluated",
+      "format": "date-time",
+      "type": "string"
+    },
+    "methodology_version": {
+      "description": "Version of the methodology used to evaluate this feature",
+      "type": "string"
+    },
+    "unit": {
+      "description": "Unit of measurement for quantitative values (e.g., 'percentage', 'score')",
+      "type": "string"
+    },
+    "value": {
+      "description": "The feature value. Type depends on feature definition: boolean for binary, number for quantitative, string for categorical.",
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "required": [
+    "feature_id",
+    "value"
+  ],
+  "title": "Creative Feature Result",
+  "type": "object"
+}

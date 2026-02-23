@@ -17,22 +17,22 @@ from .delivery_metrics import DeliveryMetrics
 
 class Artifact(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    artifact_id: Annotated[str, Field(description='Artifact identifier within the property')]
+    artifact_id: Annotated[str, Field(description="Artifact identifier within the property")]
     property_id: Annotated[
-        identifier.Identifier, Field(description='Property where the artifact appears')
+        identifier.Identifier, Field(description="Property where the artifact appears")
     ]
 
 
 class GenerationContext(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     artifact: Annotated[
         Artifact | None,
         Field(
-            description='Reference to the content-standards artifact that provided the generation context. Links this variant to the specific piece of content (article, video, podcast segment, etc.) where the ad was placed.'
+            description="Reference to the content-standards artifact that provided the generation context. Links this variant to the specific piece of content (article, video, podcast segment, etc.) where the ad was placed."
         ),
     ] = None
     context_type: Annotated[
@@ -48,13 +48,13 @@ class CreativeVariant(DeliveryMetrics):
     generation_context: Annotated[
         GenerationContext | None,
         Field(
-            description='Input signals that triggered generation of this variant (Tier 3). Describes why the platform created this specific variant. Platforms should provide summarized or anonymized signals rather than raw user input. For web contexts, may include page topic or URL. For conversational contexts, an anonymized content signal. For search, query category or intent. When the content context is managed through AdCP content standards, reference the artifact directly via the artifact field.'
+            description="Input signals that triggered generation of this variant (Tier 3). Describes why the platform created this specific variant. Platforms should provide summarized or anonymized signals rather than raw user input. For web contexts, may include page topic or URL. For conversational contexts, an anonymized content signal. For search, query category or intent. When the content context is managed through AdCP content standards, reference the artifact directly via the artifact field."
         ),
     ] = None
     manifest: Annotated[
         creative_manifest.CreativeManifest | None,
         Field(
-            description='The rendered creative manifest for this variant — the actual output that was served, not the input assets. Contains format_id and the resolved assets (specific headline, image, video, etc. the platform selected or generated). For Tier 2, shows which asset combination was picked. For Tier 3, contains the generated assets which may differ entirely from the input brand identity. Pass to preview_creative to re-render.'
+            description="The rendered creative manifest for this variant — the actual output that was served, not the input assets. Contains format_id and the resolved assets (specific headline, image, video, etc. the platform selected or generated). For Tier 2, shows which asset combination was picked. For Tier 3, contains the generated assets which may differ entirely from the input brand identity. Pass to preview_creative to re-render."
         ),
     ] = None
-    variant_id: Annotated[str, Field(description='Platform-assigned identifier for this variant')]
+    variant_id: Annotated[str, Field(description="Platform-assigned identifier for this variant")]

@@ -8,15 +8,15 @@ from enum import Enum
 
 
 class DevicePlatform(Enum):
-    ios = 'ios'
-    android = 'android'
-    windows = 'windows'
-    macos = 'macos'
-    linux = 'linux'
-    chromeos = 'chromeos'
-    tvos = 'tvos'
-    tizen = 'tizen'
-    webos = 'webos'
-    fire_os = 'fire_os'
-    roku_os = 'roku_os'
-    unknown = 'unknown'
+    ios = "ios"
+    android = "android"
+    windows = "windows"
+    macos = "macos"
+    linux = "linux"
+    chromeos = "chromeos"
+    tvos = "tvos"
+    tizen = "tizen"
+    webos = "webos"
+    fire_os = "fire_os"
+    roku_os = "roku_os"
+    unknown = "unknown"

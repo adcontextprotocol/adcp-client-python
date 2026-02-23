@@ -14,18 +14,18 @@ from . import brand_id as brand_id_1
 
 class BrandReference(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     brand_id: Annotated[
         brand_id_1.BrandId | None,
         Field(
-            description='Brand identifier within the house portfolio. Optional for single-brand domains.'
+            description="Brand identifier within the house portfolio. Optional for single-brand domains."
         ),
     ] = None
     domain: Annotated[
         str,
         Field(
             description="Domain where /.well-known/brand.json is hosted, or the brand's operating domain",
-            pattern='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$',
+            pattern="^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
         ),
     ]

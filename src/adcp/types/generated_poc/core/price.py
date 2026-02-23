@@ -12,23 +12,23 @@ from pydantic import ConfigDict, Field
 
 
 class Period(Enum):
-    night = 'night'
-    month = 'month'
-    year = 'year'
-    one_time = 'one_time'
+    night = "night"
+    month = "month"
+    year = "year"
+    one_time = "one_time"
 
 
 class Price(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     amount: Annotated[
-        float, Field(description='Monetary amount in the specified currency.', ge=0.0)
+        float, Field(description="Monetary amount in the specified currency.", ge=0.0)
     ]
     currency: Annotated[
         str,
         Field(
-            description="ISO 4217 currency code (e.g., 'USD', 'EUR', 'GBP').", pattern='^[A-Z]{3}$'
+            description="ISO 4217 currency code (e.g., 'USD', 'EUR', 'GBP').", pattern="^[A-Z]{3}$"
         ),
     ]
     period: Annotated[

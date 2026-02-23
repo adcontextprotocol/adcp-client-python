@@ -12,30 +12,30 @@ from pydantic import AnyUrl, ConfigDict, Field
 
 
 class Role(Enum):
-    style_reference = 'style_reference'
-    product_shot = 'product_shot'
-    mood_board = 'mood_board'
-    example_creative = 'example_creative'
-    logo = 'logo'
-    strategy_doc = 'strategy_doc'
+    style_reference = "style_reference"
+    product_shot = "product_shot"
+    mood_board = "mood_board"
+    example_creative = "example_creative"
+    logo = "logo"
+    strategy_doc = "strategy_doc"
 
 
 class ReferenceAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     description: Annotated[
         str | None,
         Field(
-            description='Human-readable description of the asset and how it should inform creative generation'
+            description="Human-readable description of the asset and how it should inform creative generation"
         ),
     ] = None
     role: Annotated[
         Role,
         Field(
-            description='How the creative agent should use this asset. style_reference: match the visual style; product_shot: include this product; mood_board: overall look and feel; example_creative: example of a similar execution; logo: logo to use; strategy_doc: strategy or planning document for context'
+            description="How the creative agent should use this asset. style_reference: match the visual style; product_shot: include this product; mood_board: overall look and feel; example_creative: example of a similar execution; logo: logo to use; strategy_doc: strategy or planning document for context"
         ),
     ]
     url: Annotated[
-        AnyUrl, Field(description='URL to the reference asset (image, video, or document)')
+        AnyUrl, Field(description="URL to the reference asset (image, video, or document)")
     ]

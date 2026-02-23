@@ -14,45 +14,45 @@ from ..core import ext as ext_1
 
 class ActionResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    action: Annotated[str | None, Field(description='The action that was triggered')] = None
+    action: Annotated[str | None, Field(description="The action that was triggered")] = None
     payload: Annotated[
-        dict[str, Any] | None, Field(description='Action-specific response data')
+        dict[str, Any] | None, Field(description="Action-specific response data")
     ] = None
 
 
 class SiSendMessageRequest1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     action_response: Annotated[
         ActionResponse | None,
-        Field(description='Response to a previous action_button (e.g., user clicked checkout)'),
+        Field(description="Response to a previous action_button (e.g., user clicked checkout)"),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     message: Annotated[str, Field(description="User's message to the brand agent")]
-    session_id: Annotated[str, Field(description='Active session identifier')]
+    session_id: Annotated[str, Field(description="Active session identifier")]
 
 
 class SiSendMessageRequest2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     action_response: Annotated[
         ActionResponse,
-        Field(description='Response to a previous action_button (e.g., user clicked checkout)'),
+        Field(description="Response to a previous action_button (e.g., user clicked checkout)"),
     ]
     ext: ext_1.ExtensionObject | None = None
     message: Annotated[str | None, Field(description="User's message to the brand agent")] = None
-    session_id: Annotated[str, Field(description='Active session identifier')]
+    session_id: Annotated[str, Field(description="Active session identifier")]
 
 
 class SiSendMessageRequest(RootModel[SiSendMessageRequest1 | SiSendMessageRequest2]):
     root: Annotated[
         SiSendMessageRequest1 | SiSendMessageRequest2,
         Field(
-            description='Send a message to the brand agent within an active session',
-            title='SI Send Message Request',
+            description="Send a message to the brand agent within an active session",
+            title="SI Send Message Request",
         ),
     ]

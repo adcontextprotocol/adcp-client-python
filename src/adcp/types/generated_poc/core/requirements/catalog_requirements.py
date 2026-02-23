@@ -16,23 +16,23 @@ from . import offering_asset_constraint
 
 class CatalogRequirements(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     catalog_type: Annotated[
         catalog_type_1.CatalogType,
-        Field(description='The catalog type this requirement applies to'),
+        Field(description="The catalog type this requirement applies to"),
     ]
     feed_formats: Annotated[
         list[feed_format.FeedFormat] | None,
         Field(
-            description='Accepted feed formats for this catalog type. When specified, the synced catalog must use one of these formats. When omitted, any format is accepted.',
+            description="Accepted feed formats for this catalog type. When specified, the synced catalog must use one of these formats. When omitted, any format is accepted.",
             min_length=1,
         ),
     ] = None
     min_items: Annotated[
         int | None,
         Field(
-            description='Minimum number of items the catalog must contain for this format to render properly (e.g., a carousel might require at least 3 products)',
+            description="Minimum number of items the catalog must contain for this format to render properly (e.g., a carousel might require at least 3 products)",
             ge=1,
         ),
     ] = None
@@ -46,7 +46,7 @@ class CatalogRequirements(AdCPBaseModel):
     required: Annotated[
         bool | None,
         Field(
-            description='Whether this catalog type must be present. When true, creatives using this format must reference a synced catalog of this type.'
+            description="Whether this catalog type must be present. When true, creatives using this format must reference a synced catalog of this type."
         ),
     ] = True
     required_fields: Annotated[

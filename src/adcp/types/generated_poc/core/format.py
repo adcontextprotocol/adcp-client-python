@@ -31,8 +31,8 @@ from .requirements import (
 
 
 class SelectionMode(Enum):
-    sequential = 'sequential'
-    optimize = 'optimize'
+    sequential = "sequential"
+    optimize = "optimize"
 
 
 class Responsive(AdCPBaseModel):
@@ -45,36 +45,36 @@ class Dimensions(AdCPBaseModel):
         str | None,
         Field(
             description="Fixed aspect ratio constraint (e.g., '16:9', '4:3', '1:1')",
-            pattern='^\\d+:\\d+$',
+            pattern="^\\d+:\\d+$",
         ),
     ] = None
-    height: Annotated[int | None, Field(description='Fixed height in pixels', ge=1)] = None
+    height: Annotated[int | None, Field(description="Fixed height in pixels", ge=1)] = None
     max_height: Annotated[
-        int | None, Field(description='Maximum height in pixels for responsive renders', ge=1)
+        int | None, Field(description="Maximum height in pixels for responsive renders", ge=1)
     ] = None
     max_width: Annotated[
-        int | None, Field(description='Maximum width in pixels for responsive renders', ge=1)
+        int | None, Field(description="Maximum width in pixels for responsive renders", ge=1)
     ] = None
     min_height: Annotated[
-        int | None, Field(description='Minimum height in pixels for responsive renders', ge=1)
+        int | None, Field(description="Minimum height in pixels for responsive renders", ge=1)
     ] = None
     min_width: Annotated[
-        int | None, Field(description='Minimum width in pixels for responsive renders', ge=1)
+        int | None, Field(description="Minimum width in pixels for responsive renders", ge=1)
     ] = None
     responsive: Annotated[
-        Responsive | None, Field(description='Indicates which dimensions are responsive/fluid')
+        Responsive | None, Field(description="Indicates which dimensions are responsive/fluid")
     ] = None
-    width: Annotated[int | None, Field(description='Fixed width in pixels', ge=1)] = None
+    width: Annotated[int | None, Field(description="Fixed width in pixels", ge=1)] = None
 
 
 class Renders(AdCPBaseModel):
     dimensions: Annotated[
-        Dimensions, Field(description='Dimensions for this rendered piece (in pixels)')
+        Dimensions, Field(description="Dimensions for this rendered piece (in pixels)")
     ]
     parameters_from_format_id: Annotated[
         bool | None,
         Field(
-            description='When true, parameters for this render (dimensions and/or duration) are specified in the format_id. Used for template formats that accept parameters. Mutually exclusive with specifying dimensions object explicitly.'
+            description="When true, parameters for this render (dimensions and/or duration) are specified in the format_id. Used for template formats that accept parameters. Mutually exclusive with specifying dimensions object explicitly."
         ),
     ] = None
     role: Annotated[
@@ -91,12 +91,12 @@ class Dimensions1(Dimensions):
 
 class Renders1(AdCPBaseModel):
     dimensions: Annotated[
-        Dimensions1 | None, Field(description='Dimensions for this rendered piece (in pixels)')
+        Dimensions1 | None, Field(description="Dimensions for this rendered piece (in pixels)")
     ] = None
     parameters_from_format_id: Annotated[
         Literal[True],
         Field(
-            description='When true, parameters for this render (dimensions and/or duration) are specified in the format_id. Used for template formats that accept parameters. Mutually exclusive with specifying dimensions object explicitly.'
+            description="When true, parameters for this render (dimensions and/or duration) are specified in the format_id. Used for template formats that accept parameters. Mutually exclusive with specifying dimensions object explicitly."
         ),
     ]
     role: Annotated[
@@ -108,7 +108,7 @@ class Renders1(AdCPBaseModel):
 
 
 class BaseGroupAsset(AdCPBaseModel):
-    asset_id: Annotated[str, Field(description='Identifier for this asset within the group')]
+    asset_id: Annotated[str, Field(description="Identifier for this asset within the group")]
     asset_role: Annotated[
         str | None,
         Field(
@@ -117,7 +117,7 @@ class BaseGroupAsset(AdCPBaseModel):
     ] = None
     required: Annotated[
         bool,
-        Field(description='Whether this asset is required within each repetition of the group'),
+        Field(description="Whether this asset is required within each repetition of the group"),
     ]
 
 
@@ -125,7 +125,7 @@ class BaseIndividualAsset(AdCPBaseModel):
     asset_id: Annotated[
         str,
         Field(
-            description='Unique identifier for this asset. Creative manifests MUST use this exact value as the key in the assets object.'
+            description="Unique identifier for this asset. Creative manifests MUST use this exact value as the key in the assets object."
         ),
     ]
     asset_role: Annotated[
@@ -135,13 +135,13 @@ class BaseIndividualAsset(AdCPBaseModel):
         ),
     ] = None
     item_type: Annotated[
-        Literal['individual'],
-        Field(description='Discriminator indicating this is an individual asset'),
+        Literal["individual"],
+        Field(description="Discriminator indicating this is an individual asset"),
     ]
     required: Annotated[
         bool,
         Field(
-            description='Whether this asset is required (true) or optional (false). Required assets must be provided for a valid creative. Optional assets enhance the creative but are not mandatory.'
+            description="Whether this asset is required (true) or optional (false). Required assets must be provided for a valid creative. Optional assets enhance the creative but are not mandatory."
         ),
     ]
 
@@ -150,146 +150,146 @@ class Accessibility(AdCPBaseModel):
     requires_accessible_assets: Annotated[
         bool | None,
         Field(
-            description='When true, all assets with x-accessibility fields must include those fields. For inspectable assets (image, video, audio), this means providing accessibility metadata like alt_text or captions. For opaque assets (HTML, JavaScript), this means providing self-declared accessibility properties.'
+            description="When true, all assets with x-accessibility fields must include those fields. For inspectable assets (image, video, audio), this means providing accessibility metadata like alt_text or captions. For opaque assets (HTML, JavaScript), this means providing self-declared accessibility properties."
         ),
     ] = None
     wcag_level: Annotated[
         wcag_level_1.WcagLevel,
         Field(
-            description='WCAG conformance level that this format achieves. For format-rendered creatives, the format guarantees this level. For opaque creatives, the format requires assets that self-certify to this level.'
+            description="WCAG conformance level that this format achieves. For format-rendered creatives, the format guarantees this level. For opaque creatives, the format requires assets that self-certify to this level."
         ),
     ]
 
 
 class Assets(BaseIndividualAsset):
-    asset_type: Literal['image'] = 'image'
-    item_type: Literal['individual'] = 'individual'
+    asset_type: Literal["image"] = "image"
+    item_type: Literal["individual"] = "individual"
     requirements: image_asset_requirements.ImageAssetRequirements | None = None
 
 
 class Assets5(BaseIndividualAsset):
-    asset_type: Literal['video'] = 'video'
-    item_type: Literal['individual'] = 'individual'
+    asset_type: Literal["video"] = "video"
+    item_type: Literal["individual"] = "individual"
     requirements: video_asset_requirements.VideoAssetRequirements | None = None
 
 
 class Assets6(BaseIndividualAsset):
-    asset_type: Literal['audio'] = 'audio'
-    item_type: Literal['individual'] = 'individual'
+    asset_type: Literal["audio"] = "audio"
+    item_type: Literal["individual"] = "individual"
     requirements: audio_asset_requirements.AudioAssetRequirements | None = None
 
 
 class Assets7(BaseIndividualAsset):
-    asset_type: Literal['text'] = 'text'
-    item_type: Literal['individual'] = 'individual'
+    asset_type: Literal["text"] = "text"
+    item_type: Literal["individual"] = "individual"
     requirements: text_asset_requirements.TextAssetRequirements | None = None
 
 
 class Assets8(BaseIndividualAsset):
-    asset_type: Literal['markdown'] = 'markdown'
-    item_type: Literal['individual'] = 'individual'
+    asset_type: Literal["markdown"] = "markdown"
+    item_type: Literal["individual"] = "individual"
     requirements: markdown_asset_requirements.MarkdownAssetRequirements | None = None
 
 
 class Assets9(BaseIndividualAsset):
-    asset_type: Literal['html'] = 'html'
-    item_type: Literal['individual'] = 'individual'
+    asset_type: Literal["html"] = "html"
+    item_type: Literal["individual"] = "individual"
     requirements: html_asset_requirements.HtmlAssetRequirements | None = None
 
 
 class Assets10(BaseIndividualAsset):
-    asset_type: Literal['css'] = 'css'
-    item_type: Literal['individual'] = 'individual'
+    asset_type: Literal["css"] = "css"
+    item_type: Literal["individual"] = "individual"
     requirements: css_asset_requirements.CssAssetRequirements | None = None
 
 
 class Assets11(BaseIndividualAsset):
-    asset_type: Literal['javascript'] = 'javascript'
-    item_type: Literal['individual'] = 'individual'
+    asset_type: Literal["javascript"] = "javascript"
+    item_type: Literal["individual"] = "individual"
     requirements: javascript_asset_requirements.JavascriptAssetRequirements | None = None
 
 
 class Assets12(BaseIndividualAsset):
-    asset_type: Literal['vast'] = 'vast'
-    item_type: Literal['individual'] = 'individual'
+    asset_type: Literal["vast"] = "vast"
+    item_type: Literal["individual"] = "individual"
     requirements: vast_asset_requirements.VastAssetRequirements | None = None
 
 
 class Assets13(BaseIndividualAsset):
-    asset_type: Literal['daast'] = 'daast'
-    item_type: Literal['individual'] = 'individual'
+    asset_type: Literal["daast"] = "daast"
+    item_type: Literal["individual"] = "individual"
     requirements: daast_asset_requirements.DaastAssetRequirements | None = None
 
 
 class Assets14(BaseIndividualAsset):
-    asset_type: Literal['url'] = 'url'
-    item_type: Literal['individual'] = 'individual'
+    asset_type: Literal["url"] = "url"
+    item_type: Literal["individual"] = "individual"
     requirements: url_asset_requirements.UrlAssetRequirements | None = None
 
 
 class Assets15(BaseIndividualAsset):
-    asset_type: Literal['webhook'] = 'webhook'
-    item_type: Literal['individual'] = 'individual'
+    asset_type: Literal["webhook"] = "webhook"
+    item_type: Literal["individual"] = "individual"
     requirements: webhook_asset_requirements.WebhookAssetRequirements | None = None
 
 
 class Assets17(BaseGroupAsset):
-    asset_type: Literal['image'] = 'image'
+    asset_type: Literal["image"] = "image"
     requirements: image_asset_requirements.ImageAssetRequirements | None = None
 
 
 class Assets18(BaseGroupAsset):
-    asset_type: Literal['video'] = 'video'
+    asset_type: Literal["video"] = "video"
     requirements: video_asset_requirements.VideoAssetRequirements | None = None
 
 
 class Assets19(BaseGroupAsset):
-    asset_type: Literal['audio'] = 'audio'
+    asset_type: Literal["audio"] = "audio"
     requirements: audio_asset_requirements.AudioAssetRequirements | None = None
 
 
 class Assets20(BaseGroupAsset):
-    asset_type: Literal['text'] = 'text'
+    asset_type: Literal["text"] = "text"
     requirements: text_asset_requirements.TextAssetRequirements | None = None
 
 
 class Assets21(BaseGroupAsset):
-    asset_type: Literal['markdown'] = 'markdown'
+    asset_type: Literal["markdown"] = "markdown"
     requirements: markdown_asset_requirements.MarkdownAssetRequirements | None = None
 
 
 class Assets22(BaseGroupAsset):
-    asset_type: Literal['html'] = 'html'
+    asset_type: Literal["html"] = "html"
     requirements: html_asset_requirements.HtmlAssetRequirements | None = None
 
 
 class Assets23(BaseGroupAsset):
-    asset_type: Literal['css'] = 'css'
+    asset_type: Literal["css"] = "css"
     requirements: css_asset_requirements.CssAssetRequirements | None = None
 
 
 class Assets24(BaseGroupAsset):
-    asset_type: Literal['javascript'] = 'javascript'
+    asset_type: Literal["javascript"] = "javascript"
     requirements: javascript_asset_requirements.JavascriptAssetRequirements | None = None
 
 
 class Assets25(BaseGroupAsset):
-    asset_type: Literal['vast'] = 'vast'
+    asset_type: Literal["vast"] = "vast"
     requirements: vast_asset_requirements.VastAssetRequirements | None = None
 
 
 class Assets26(BaseGroupAsset):
-    asset_type: Literal['daast'] = 'daast'
+    asset_type: Literal["daast"] = "daast"
     requirements: daast_asset_requirements.DaastAssetRequirements | None = None
 
 
 class Assets27(BaseGroupAsset):
-    asset_type: Literal['url'] = 'url'
+    asset_type: Literal["url"] = "url"
     requirements: url_asset_requirements.UrlAssetRequirements | None = None
 
 
 class Assets28(BaseGroupAsset):
-    asset_type: Literal['webhook'] = 'webhook'
+    asset_type: Literal["webhook"] = "webhook"
     requirements: webhook_asset_requirements.WebhookAssetRequirements | None = None
 
 
@@ -312,24 +312,24 @@ class Assets16(AdCPBaseModel):
             | Assets27
             | Assets28
         ],
-        Field(description='Assets within each repetition of this group'),
+        Field(description="Assets within each repetition of this group"),
     ]
     item_type: Annotated[
-        Literal['repeatable_group'],
-        Field(description='Discriminator indicating this is a repeatable asset group'),
+        Literal["repeatable_group"],
+        Field(description="Discriminator indicating this is a repeatable asset group"),
     ]
-    max_count: Annotated[int, Field(description='Maximum number of repetitions allowed', ge=1)]
+    max_count: Annotated[int, Field(description="Maximum number of repetitions allowed", ge=1)]
     min_count: Annotated[
         int,
         Field(
-            description='Minimum number of repetitions required (if group is required) or allowed (if optional)',
+            description="Minimum number of repetitions required (if group is required) or allowed (if optional)",
             ge=0,
         ),
     ]
     required: Annotated[
         bool,
         Field(
-            description='Whether this asset group is required. If true, at least min_count repetitions must be provided.'
+            description="Whether this asset group is required. If true, at least min_count repetitions must be provided."
         ),
     ]
     selection_mode: Annotated[
@@ -342,52 +342,52 @@ class Assets16(AdCPBaseModel):
 
 class FormatCard(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     format_id: Annotated[
         format_id_1.FormatId,
         Field(
-            description='Creative format defining the card layout (typically format_card_standard)'
+            description="Creative format defining the card layout (typically format_card_standard)"
         ),
     ]
     manifest: Annotated[
         dict[str, Any],
-        Field(description='Asset manifest for rendering the card, structure defined by the format'),
+        Field(description="Asset manifest for rendering the card, structure defined by the format"),
     ]
 
 
 class FormatCardDetailed(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     format_id: Annotated[
         format_id_1.FormatId,
         Field(
-            description='Creative format defining the detailed card layout (typically format_card_detailed)'
+            description="Creative format defining the detailed card layout (typically format_card_detailed)"
         ),
     ]
     manifest: Annotated[
         dict[str, Any],
         Field(
-            description='Asset manifest for rendering the detailed card, structure defined by the format'
+            description="Asset manifest for rendering the detailed card, structure defined by the format"
         ),
     ]
 
 
 class Format(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     accepts_parameters: Annotated[
         list[format_id_parameter.FormatIdParameter] | None,
         Field(
-            description='List of parameters this format accepts in format_id. Template formats define which parameters (dimensions, duration, etc.) can be specified when instantiating the format. Empty or omitted means this is a concrete format with fixed parameters.'
+            description="List of parameters this format accepts in format_id. Template formats define which parameters (dimensions, duration, etc.) can be specified when instantiating the format. Empty or omitted means this is a concrete format with fixed parameters."
         ),
     ] = None
     accessibility: Annotated[
         Accessibility | None,
         Field(
-            description='Accessibility posture of this format. Declares the WCAG conformance level that creatives produced by this format will meet.'
+            description="Accessibility posture of this format. Declares the WCAG conformance level that creatives produced by this format will meet."
         ),
     ] = None
     assets: Annotated[
@@ -414,78 +414,78 @@ class Format(AdCPBaseModel):
     catalog_requirements: Annotated[
         list[catalog_requirements_1.CatalogRequirements] | None,
         Field(
-            description='Catalog feeds this format requires for rendering. Formats that display product listings, store locators, inventory availability, or promotional pricing declare what catalog types must be synced to the account. Buyers ensure the required catalogs are synced via sync_catalogs before submitting creatives in this format.',
+            description="Catalog feeds this format requires for rendering. Formats that display product listings, store locators, inventory availability, or promotional pricing declare what catalog types must be synced to the account. Buyers ensure the required catalogs are synced via sync_catalogs before submitting creatives in this format.",
             min_length=1,
         ),
     ] = None
     delivery: Annotated[
         dict[str, Any] | None,
-        Field(description='Delivery method specifications (e.g., hosted, VAST, third-party tags)'),
+        Field(description="Delivery method specifications (e.g., hosted, VAST, third-party tags)"),
     ] = None
     description: Annotated[
         str | None,
         Field(
-            description='Plain text explanation of what this format does and what assets it requires'
+            description="Plain text explanation of what this format does and what assets it requires"
         ),
     ] = None
     example_url: Annotated[
         AnyUrl | None,
         Field(
-            description='Optional URL to showcase page with examples and interactive demos of this format'
+            description="Optional URL to showcase page with examples and interactive demos of this format"
         ),
     ] = None
     format_card: Annotated[
         FormatCard | None,
         Field(
-            description='Optional standard visual card (300x400px) for displaying this format in user interfaces. Can be rendered via preview_creative or pre-generated.'
+            description="Optional standard visual card (300x400px) for displaying this format in user interfaces. Can be rendered via preview_creative or pre-generated."
         ),
     ] = None
     format_card_detailed: Annotated[
         FormatCardDetailed | None,
         Field(
-            description='Optional detailed card with carousel and full specifications. Provides rich format documentation similar to ad spec pages.'
+            description="Optional detailed card with carousel and full specifications. Provides rich format documentation similar to ad spec pages."
         ),
     ] = None
     format_id: Annotated[
         format_id_1.FormatId,
-        Field(description='Structured format identifier with agent URL and format name'),
+        Field(description="Structured format identifier with agent URL and format name"),
     ]
     input_format_ids: Annotated[
         list[format_id_1.FormatId] | None,
         Field(
-            description='Array of format IDs this format accepts as input creative manifests. When present, indicates this format can take existing creatives in these formats as input. Omit for formats that work from raw assets (images, text, etc.) rather than existing creatives.'
+            description="Array of format IDs this format accepts as input creative manifests. When present, indicates this format can take existing creatives in these formats as input. Omit for formats that work from raw assets (images, text, etc.) rather than existing creatives."
         ),
     ] = None
-    name: Annotated[str, Field(description='Human-readable format name')]
+    name: Annotated[str, Field(description="Human-readable format name")]
     output_format_ids: Annotated[
         list[format_id_1.FormatId] | None,
         Field(
-            description='Array of format IDs that this format can produce as output. When present, indicates this format can build creatives in these output formats (e.g., a multi-publisher template format might produce standard display formats across many publishers). Omit for formats that produce a single fixed output (the format itself).'
+            description="Array of format IDs that this format can produce as output. When present, indicates this format can build creatives in these output formats (e.g., a multi-publisher template format might produce standard display formats across many publishers). Omit for formats that produce a single fixed output (the format itself)."
         ),
     ] = None
     renders: Annotated[
         list[Renders | Renders1] | None,
         Field(
-            description='Specification of rendered pieces for this format. Most formats produce a single render. Companion ad formats (video + banner), adaptive formats, and multi-placement formats produce multiple renders. Each render specifies its role and dimensions.',
+            description="Specification of rendered pieces for this format. Most formats produce a single render. Companion ad formats (video + banner), adaptive formats, and multi-placement formats produce multiple renders. Each render specifies its role and dimensions.",
             min_length=1,
         ),
     ] = None
     reported_metrics: Annotated[
         list[available_metric.AvailableMetric] | None,
         Field(
-            description='Metrics this format can produce in delivery reporting. Buyers receive the intersection of format reported_metrics and product available_metrics. If omitted, the format defers entirely to product-level metric declarations.',
+            description="Metrics this format can produce in delivery reporting. Buyers receive the intersection of format reported_metrics and product available_metrics. If omitted, the format defers entirely to product-level metric declarations.",
             min_length=1,
         ),
     ] = None
     supported_macros: Annotated[
         list[universal_macro.UniversalMacro | str] | None,
         Field(
-            description='List of universal macros supported by this format (e.g., MEDIA_BUY_ID, CACHEBUSTER, DEVICE_ID). Used for validation and developer tooling. See docs/creative/universal-macros.mdx for full documentation.'
+            description="List of universal macros supported by this format (e.g., MEDIA_BUY_ID, CACHEBUSTER, DEVICE_ID). Used for validation and developer tooling. See docs/creative/universal-macros.mdx for full documentation."
         ),
     ] = None
     type: Annotated[
         format_category.FormatCategory | None,
         Field(
-            description='DEPRECATED: High-level category for this format. Use the assets array to understand creative requirements instead - it provides precise information about what asset types are needed.'
+            description="DEPRECATED: High-level category for this format. Use the assets array to understand creative requirements instead - it provides precise information about what asset types are needed."
         ),
     ] = None

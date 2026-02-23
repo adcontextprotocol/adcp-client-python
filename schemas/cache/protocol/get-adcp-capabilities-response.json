@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/protocol/get-adcp-capabilities-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Response payload for get_adcp_capabilities task. Protocol-level capability discovery across all AdCP protocols. Each domain protocol has its own capability section.",
@@ -68,7 +69,7 @@
       "type": "object"
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/latest/core/context.json"
     },
     "creative": {
       "additionalProperties": true,
@@ -84,12 +85,12 @@
     "errors": {
       "description": "Task-specific errors and warnings",
       "items": {
-        "$ref": "../core/error.json"
+        "$ref": "/schemas/latest/core/error.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/latest/core/ext.json"
     },
     "extensions_supported": {
       "description": "Extension namespaces this agent supports. Buyers can expect meaningful data in ext.{namespace} fields on responses from this agent. Extension schemas are published in the AdCP extension registry.",
@@ -102,8 +103,68 @@
       "uniqueItems": true
     },
     "governance": {
-      "description": "Governance protocol capabilities. Only present if governance is in supported_protocols. Governance agents provide property data like compliance scores, brand safety ratings, and sustainability metrics.",
+      "description": "Governance protocol capabilities. Only present if governance is in supported_protocols. Governance agents provide property and creative data like compliance scores, brand safety ratings, sustainability metrics, and creative quality assessments.",
       "properties": {
+        "creative_features": {
+          "description": "Creative features this governance agent can evaluate. Each feature describes a score, rating, or assessment the agent can provide for creatives (e.g., security scanning, creative quality, content categorization).",
+          "items": {
+            "properties": {
+              "categories": {
+                "description": "For categorical features, the valid values",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "description": {
+                "description": "Human-readable description of what this feature measures",
+                "type": "string"
+              },
+              "feature_id": {
+                "description": "Unique identifier for this feature (e.g., 'auto_redirect', 'brand_consistency', 'iab_casinos_gambling')",
+                "type": "string"
+              },
+              "methodology_url": {
+                "description": "URL to documentation explaining how this feature is calculated or measured.",
+                "format": "uri",
+                "type": "string"
+              },
+              "range": {
+                "description": "For quantitative features, the valid range",
+                "properties": {
+                  "max": {
+                    "description": "Maximum value",
+                    "type": "number"
+                  },
+                  "min": {
+                    "description": "Minimum value",
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "min",
+                  "max"
+                ],
+                "type": "object"
+              },
+              "type": {
+                "description": "Data type: 'binary' for yes/no, 'quantitative' for numeric scores, 'categorical' for enum values",
+                "enum": [
+                  "binary",
+                  "quantitative",
+                  "categorical"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "feature_id",
+              "type"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
         "property_features": {
           "description": "Property features this governance agent can evaluate. Each feature describes a score, rating, or certification the agent can provide for properties.",
           "items": {
@@ -214,7 +275,7 @@
             "supported_uid_types": {
               "description": "Universal ID types accepted for audience matching (MAIDs, RampID, UID2, etc.). MAID support varies significantly by platform \u2014 check this field before sending uids with type: maid.",
               "items": {
-                "$ref": "../enums/uid-type.json"
+                "$ref": "/schemas/latest/enums/uid-type.json"
               },
               "minItems": 1,
               "type": "array"
@@ -244,7 +305,7 @@
                     "type": "array"
                   },
                   "event_type": {
-                    "$ref": "../enums/event-type.json",
+                    "$ref": "/schemas/latest/enums/event-type.json",
                     "description": "Event type this window applies to, or omit for default window"
                   },
                   "view_through": {
@@ -266,7 +327,7 @@
             "supported_action_sources": {
               "description": "Action sources this seller accepts events from",
               "items": {
-                "$ref": "../enums/action-source.json"
+                "$ref": "/schemas/latest/enums/action-source.json"
               },
               "minItems": 1,
               "type": "array"
@@ -274,7 +335,7 @@
             "supported_event_types": {
               "description": "Event types this seller can track and attribute. If omitted, all standard event types are supported.",
               "items": {
-                "$ref": "../enums/event-type.json"
+                "$ref": "/schemas/latest/enums/event-type.json"
               },
               "minItems": 1,
               "type": "array"
@@ -294,7 +355,7 @@
             "supported_uid_types": {
               "description": "Universal ID types accepted for user matching",
               "items": {
-                "$ref": "../enums/uid-type.json"
+                "$ref": "/schemas/latest/enums/uid-type.json"
               },
               "minItems": 1,
               "type": "array"
@@ -356,7 +417,7 @@
                     "verification_methods": {
                       "description": "Age verification methods this seller supports",
                       "items": {
-                        "$ref": "../enums/age-verification-method.json"
+                        "$ref": "/schemas/latest/enums/age-verification-method.json"
                       },
                       "type": "array"
                     }
@@ -458,7 +519,7 @@
           "type": "object"
         },
         "features": {
-          "$ref": "../core/media-buy-features.json"
+          "$ref": "/schemas/latest/core/media-buy-features.json"
         },
         "portfolio": {
           "description": "Information about the seller's media inventory portfolio",
@@ -476,7 +537,7 @@
             "primary_channels": {
               "description": "Primary advertising channels in this portfolio",
               "items": {
-                "$ref": "../enums/channels.json"
+                "$ref": "/schemas/latest/enums/channels.json"
               },
               "type": "array"
             },
@@ -543,7 +604,7 @@
           "type": "string"
         },
         "capabilities": {
-          "$ref": "../sponsored-intelligence/si-capabilities.json",
+          "$ref": "/schemas/latest/sponsored-intelligence/si-capabilities.json",
           "description": "Modalities, components, and commerce capabilities"
         },
         "endpoint": {

@@ -18,7 +18,7 @@ from ..enums import preview_output_format
 
 class Input(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context_description: Annotated[
         str | None,
@@ -42,24 +42,24 @@ class Input(AdCPBaseModel):
 
 class Input2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context_description: Annotated[
         str | None,
-        Field(description='Natural language description of the context for AI-generated content'),
+        Field(description="Natural language description of the context for AI-generated content"),
     ] = None
     macros: Annotated[
-        dict[str, str] | None, Field(description='Macro values to use for this preview')
+        dict[str, str] | None, Field(description="Macro values to use for this preview")
     ] = None
-    name: Annotated[str, Field(description='Human-readable name for this input set')]
+    name: Annotated[str, Field(description="Human-readable name for this input set")]
 
 
 class PreviewCreativeRequest3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
-    creative_id: Annotated[str | None, Field(description='Creative identifier for context')] = None
+    creative_id: Annotated[str | None, Field(description="Creative identifier for context")] = None
     ext: ext_1.ExtensionObject | None = None
     output_format: Annotated[
         preview_output_format.PreviewOutputFormat | None,
@@ -68,37 +68,37 @@ class PreviewCreativeRequest3(AdCPBaseModel):
         ),
     ] = preview_output_format.PreviewOutputFormat.url
     request_type: Annotated[
-        Literal['variant'],
-        Field(description='Discriminator indicating this is a variant preview request'),
+        Literal["variant"],
+        Field(description="Discriminator indicating this is a variant preview request"),
     ]
     variant_id: Annotated[
         str,
         Field(
-            description='Platform-assigned variant identifier from get_creative_delivery response'
+            description="Platform-assigned variant identifier from get_creative_delivery response"
         ),
     ]
 
 
 class PreviewCreativeRequest1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest,
-        Field(description='Complete creative manifest with all required assets for the format'),
+        Field(description="Complete creative manifest with all required assets for the format"),
     ]
     ext: ext_1.ExtensionObject | None = None
     format_id: Annotated[
         format_id_1.FormatId | None,
         Field(
-            description='Format identifier for rendering the preview. Optional — defaults to creative_manifest_1.format_id if omitted.'
+            description="Format identifier for rendering the preview. Optional — defaults to creative_manifest_1.format_id if omitted."
         ),
     ] = None
     inputs: Annotated[
         list[Input] | None,
         Field(
-            description='Array of input sets for generating multiple preview variants. Each input set defines macros and context values for one preview rendering. If not provided, creative agent will generate default previews.',
+            description="Array of input sets for generating multiple preview variants. Each input set defines macros and context values for one preview rendering. If not provided, creative agent will generate default previews.",
             min_length=1,
         ),
     ] = None
@@ -109,32 +109,32 @@ class PreviewCreativeRequest1(AdCPBaseModel):
         ),
     ] = preview_output_format.PreviewOutputFormat.url
     request_type: Annotated[
-        Literal['single'],
-        Field(description='Discriminator indicating this is a single preview request'),
+        Literal["single"],
+        Field(description="Discriminator indicating this is a single preview request"),
     ]
     template_id: Annotated[
-        str | None, Field(description='Specific template ID for custom format rendering')
+        str | None, Field(description="Specific template ID for custom format rendering")
     ] = None
 
 
 class Request(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest,
-        Field(description='Complete creative manifest with all required assets'),
+        Field(description="Complete creative manifest with all required assets"),
     ]
     format_id: Annotated[
         format_id_1.FormatId | None,
         Field(
-            description='Format identifier for rendering the preview. Optional — defaults to creative_manifest_1.format_id if omitted.'
+            description="Format identifier for rendering the preview. Optional — defaults to creative_manifest_1.format_id if omitted."
         ),
     ] = None
     inputs: Annotated[
         list[Input2] | None,
         Field(
-            description='Array of input sets for generating multiple preview variants', min_length=1
+            description="Array of input sets for generating multiple preview variants", min_length=1
         ),
     ] = None
     output_format: Annotated[
@@ -144,13 +144,13 @@ class Request(AdCPBaseModel):
         ),
     ] = preview_output_format.PreviewOutputFormat.url
     template_id: Annotated[
-        str | None, Field(description='Specific template ID for custom format rendering')
+        str | None, Field(description="Specific template ID for custom format rendering")
     ] = None
 
 
 class PreviewCreativeRequest2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
@@ -161,13 +161,13 @@ class PreviewCreativeRequest2(AdCPBaseModel):
         ),
     ] = preview_output_format.PreviewOutputFormat.url
     request_type: Annotated[
-        Literal['batch'],
-        Field(description='Discriminator indicating this is a batch preview request'),
+        Literal["batch"],
+        Field(description="Discriminator indicating this is a batch preview request"),
     ]
     requests: Annotated[
         list[Request],
         Field(
-            description='Array of preview requests (1-50 items). Each follows the single request structure.',
+            description="Array of preview requests (1-50 items). Each follows the single request structure.",
             max_length=50,
             min_length=1,
         ),
@@ -180,8 +180,8 @@ class PreviewCreativeRequest(
     root: Annotated[
         PreviewCreativeRequest1 | PreviewCreativeRequest2 | PreviewCreativeRequest3,
         Field(
-            discriminator='request_type',
-            description='Request to generate previews of one or more creative manifests. Accepts either a single creative request or an array of requests for batch processing.',
-            title='Preview Creative Request',
+            discriminator="request_type",
+            description="Request to generate previews of one or more creative manifests. Accepts either a single creative request or an array of requests for batch processing.",
+            title="Preview Creative Request",
         ),
     ]

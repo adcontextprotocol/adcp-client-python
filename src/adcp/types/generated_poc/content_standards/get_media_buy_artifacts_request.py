@@ -16,31 +16,31 @@ from ..core import ext as ext_1
 
 class Pagination(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     cursor: Annotated[
         str | None,
-        Field(description='Opaque cursor from a previous response to fetch the next page'),
+        Field(description="Opaque cursor from a previous response to fetch the next page"),
     ] = None
     max_results: Annotated[
         int | None,
-        Field(description='Maximum number of artifacts to return per page', ge=1, le=10000),
+        Field(description="Maximum number of artifacts to return per page", ge=1, le=10000),
     ] = 1000
 
 
 class Method(Enum):
-    random = 'random'
-    stratified = 'stratified'
-    recent = 'recent'
-    failures_only = 'failures_only'
+    random = "random"
+    stratified = "stratified"
+    recent = "recent"
+    failures_only = "failures_only"
 
 
 class Sampling(AdCPBaseModel):
-    method: Annotated[Method | None, Field(description='How to select the sample')] = None
+    method: Annotated[Method | None, Field(description="How to select the sample")] = None
     rate: Annotated[
         float | None,
         Field(
-            description='Sampling rate (0-1). 1.0 = all deliveries, 0.25 = 25% sample.',
+            description="Sampling rate (0-1). 1.0 = all deliveries, 0.25 = 25% sample.",
             ge=0.0,
             le=1.0,
         ),
@@ -48,8 +48,8 @@ class Sampling(AdCPBaseModel):
 
 
 class TimeRange(AdCPBaseModel):
-    end: Annotated[AwareDatetime | None, Field(description='End of time range (exclusive)')] = None
-    start: Annotated[AwareDatetime | None, Field(description='Start of time range (inclusive)')] = (
+    end: Annotated[AwareDatetime | None, Field(description="End of time range (exclusive)")] = None
+    start: Annotated[AwareDatetime | None, Field(description="Start of time range (inclusive)")] = (
         None
     )
 
@@ -58,28 +58,28 @@ class GetMediaBuyArtifactsRequest(AdCPBaseModel):
     account_id: Annotated[
         str | None,
         Field(
-            description='Filter artifacts to a specific account. When provided, only returns artifacts for media buys belonging to this account. When omitted, returns artifacts across all accessible accounts. Optional if the agent has a single account.'
+            description="Filter artifacts to a specific account. When provided, only returns artifacts for media buys belonging to this account. When omitted, returns artifacts across all accessible accounts. Optional if the agent has a single account."
         ),
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
-    media_buy_id: Annotated[str, Field(description='Media buy to get artifacts from')]
+    media_buy_id: Annotated[str, Field(description="Media buy to get artifacts from")]
     package_ids: Annotated[
         list[str] | None,
-        Field(description='Filter to specific packages within the media buy', min_length=1),
+        Field(description="Filter to specific packages within the media buy", min_length=1),
     ] = None
     pagination: Annotated[
         Pagination | None,
         Field(
-            description='Pagination parameters. Uses higher limits than standard pagination because artifact result sets can be very large.'
+            description="Pagination parameters. Uses higher limits than standard pagination because artifact result sets can be very large."
         ),
     ] = None
     sampling: Annotated[
         Sampling | None,
         Field(
-            description='Sampling parameters. Defaults to the sampling rate agreed in the media buy.'
+            description="Sampling parameters. Defaults to the sampling rate agreed in the media buy."
         ),
     ] = None
-    time_range: Annotated[TimeRange | None, Field(description='Filter to specific time period')] = (
+    time_range: Annotated[TimeRange | None, Field(description="Filter to specific time period")] = (
         None
     )

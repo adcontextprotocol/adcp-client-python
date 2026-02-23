@@ -18,52 +18,52 @@ from ..enums import creative_sort_field, sort_direction
 
 
 class FieldModel(Enum):
-    creative_id = 'creative_id'
-    name = 'name'
-    format = 'format'
-    status = 'status'
-    created_date = 'created_date'
-    updated_date = 'updated_date'
-    tags = 'tags'
-    assignments = 'assignments'
-    performance = 'performance'
-    sub_assets = 'sub_assets'
+    creative_id = "creative_id"
+    name = "name"
+    format = "format"
+    status = "status"
+    created_date = "created_date"
+    updated_date = "updated_date"
+    tags = "tags"
+    assignments = "assignments"
+    performance = "performance"
+    sub_assets = "sub_assets"
 
 
 class Sort(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     direction: Annotated[
-        sort_direction.SortDirection | None, Field(description='Sort direction')
+        sort_direction.SortDirection | None, Field(description="Sort direction")
     ] = sort_direction.SortDirection.desc
     field: Annotated[
-        creative_sort_field.CreativeSortField | None, Field(description='Field to sort by')
+        creative_sort_field.CreativeSortField | None, Field(description="Field to sort by")
     ] = creative_sort_field.CreativeSortField.created_date
 
 
 class ListCreativesRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     fields: Annotated[
         list[FieldModel] | None,
         Field(
-            description='Specific fields to include in response (omit for all fields)', min_length=1
+            description="Specific fields to include in response (omit for all fields)", min_length=1
         ),
     ] = None
     filters: creative_filters.CreativeFilters | None = None
     include_assignments: Annotated[
-        bool | None, Field(description='Include package assignment information in response')
+        bool | None, Field(description="Include package assignment information in response")
     ] = True
     include_performance: Annotated[
-        bool | None, Field(description='Include aggregated performance metrics in response')
+        bool | None, Field(description="Include aggregated performance metrics in response")
     ] = False
     include_sub_assets: Annotated[
         bool | None,
-        Field(description='Include sub-assets (for carousel/native formats) in response'),
+        Field(description="Include sub-assets (for carousel/native formats) in response"),
     ] = False
     pagination: pagination_request.PaginationRequest | None = None
-    sort: Annotated[Sort | None, Field(description='Sorting parameters')] = None
+    sort: Annotated[Sort | None, Field(description="Sorting parameters")] = None

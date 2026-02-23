@@ -15,50 +15,50 @@ from . import reference_asset
 
 class Messaging(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    cta: Annotated[str | None, Field(description='Call-to-action text')] = None
-    headline: Annotated[str | None, Field(description='Primary headline')] = None
+    cta: Annotated[str | None, Field(description="Call-to-action text")] = None
+    headline: Annotated[str | None, Field(description="Primary headline")] = None
     key_messages: Annotated[
-        list[str] | None, Field(description='Key messages to communicate in priority order')
+        list[str] | None, Field(description="Key messages to communicate in priority order")
     ] = None
-    tagline: Annotated[str | None, Field(description='Supporting tagline or sub-headline')] = None
+    tagline: Annotated[str | None, Field(description="Supporting tagline or sub-headline")] = None
 
 
 class Objective(Enum):
-    awareness = 'awareness'
-    consideration = 'consideration'
-    conversion = 'conversion'
-    retention = 'retention'
-    engagement = 'engagement'
+    awareness = "awareness"
+    consideration = "consideration"
+    conversion = "conversion"
+    retention = "retention"
+    engagement = "engagement"
 
 
 class CreativeBrief(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     audience: Annotated[
-        str | None, Field(description='Target audience description for this campaign')
+        str | None, Field(description="Target audience description for this campaign")
     ] = None
     messaging: Annotated[
-        Messaging | None, Field(description='Messaging framework for the campaign')
+        Messaging | None, Field(description="Messaging framework for the campaign")
     ] = None
-    name: Annotated[str, Field(description='Campaign or flight name for identification')]
+    name: Annotated[str, Field(description="Campaign or flight name for identification")]
     objective: Annotated[
         Objective | None,
         Field(
-            description='Campaign objective that guides creative tone and call-to-action strategy'
+            description="Campaign objective that guides creative tone and call-to-action strategy"
         ),
     ] = None
     reference_assets: Annotated[
         list[reference_asset.ReferenceAsset] | None,
         Field(
-            description='Visual and strategic reference materials such as mood boards, product shots, example creatives, and strategy documents'
+            description="Visual and strategic reference materials such as mood boards, product shots, example creatives, and strategy documents"
         ),
     ] = None
     territory: Annotated[
         str | None,
-        Field(description='Creative territory or positioning the campaign should occupy'),
+        Field(description="Creative territory or positioning the campaign should occupy"),
     ] = None
     tone: Annotated[
         str | None,

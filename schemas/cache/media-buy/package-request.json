@@ -1,10 +1,11 @@
 {
+  "$id": "/schemas/latest/media-buy/package-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Package configuration for media buy creation",
   "properties": {
     "bid_price": {
-      "description": "Bid price for auction-based CPM pricing (required if using cpm-auction-option)",
+      "description": "Bid price for auction-based pricing options. This is the exact bid/price to honor unless selected pricing_option has max_bid=true, in which case bid_price is the buyer's maximum willingness to pay (ceiling).",
       "minimum": 0,
       "type": "number"
     },
@@ -18,13 +19,13 @@
       "type": "string"
     },
     "catalog": {
-      "$ref": "../core/catalog.json",
+      "$ref": "/schemas/latest/core/catalog.json",
       "description": "Catalog this package promotes. Makes the package catalog-driven: one budget envelope, platform optimizes across items. Reference a synced catalog by catalog_id with optional selectors to narrow scope."
     },
     "creative_assignments": {
       "description": "Assign existing library creatives to this package with optional weights and placement targeting",
       "items": {
-        "$ref": "../core/creative-assignment.json"
+        "$ref": "/schemas/latest/core/creative-assignment.json"
       },
       "minItems": 1,
       "type": "array"
@@ -32,19 +33,19 @@
     "creatives": {
       "description": "Upload new creative assets and assign to this package (creatives will be added to library). Use creative_assignments instead for existing library creatives.",
       "items": {
-        "$ref": "../core/creative-asset.json"
+        "$ref": "/schemas/latest/core/creative-asset.json"
       },
       "maxItems": 100,
       "minItems": 1,
       "type": "array"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/latest/core/ext.json"
     },
     "format_ids": {
       "description": "Array of format IDs that will be used for this package - must be supported by the product. If omitted, defaults to all formats supported by the product.",
       "items": {
-        "$ref": "../core/format-id.json"
+        "$ref": "/schemas/latest/core/format-id.json"
       },
       "minItems": 1,
       "type": "array"
@@ -55,10 +56,10 @@
       "type": "number"
     },
     "optimization_goal": {
-      "$ref": "../core/optimization-goal.json"
+      "$ref": "/schemas/latest/core/optimization-goal.json"
     },
     "pacing": {
-      "$ref": "../enums/pacing.json"
+      "$ref": "/schemas/latest/enums/pacing.json"
     },
     "paused": {
       "default": false,
@@ -74,7 +75,7 @@
       "type": "string"
     },
     "targeting_overlay": {
-      "$ref": "../core/targeting.json"
+      "$ref": "/schemas/latest/core/targeting.json"
     }
   },
   "required": [

@@ -294,9 +294,9 @@ def test_stable_package_export_is_full_package():
 
     # Stable Package should be the full package
     stable_fields = set(StablePackage.__annotations__.keys())
-    assert len(stable_fields) >= 13, (
-        f"Stable Package should have at least 13 fields, got {len(stable_fields)}"
-    )
+    assert (
+        len(stable_fields) >= 13
+    ), f"Stable Package should have at least 13 fields, got {len(stable_fields)}"
     assert "budget" in stable_fields
     assert "pricing_option_id" in stable_fields
     assert "product_id" in stable_fields

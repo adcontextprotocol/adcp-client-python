@@ -18,15 +18,15 @@ from ..core import pagination_response
 
 class ListAccountsResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     accounts: Annotated[
         list[account.Account],
-        Field(description='Array of accounts accessible to the authenticated agent'),
+        Field(description="Array of accounts accessible to the authenticated agent"),
     ]
     context: context_1.ContextObject | None = None
     errors: Annotated[
-        list[error.Error] | None, Field(description='Task-specific errors and warnings')
+        list[error.Error] | None, Field(description="Task-specific errors and warnings")
     ] = None
     ext: ext_1.ExtensionObject | None = None
     pagination: pagination_response.PaginationResponse | None = None

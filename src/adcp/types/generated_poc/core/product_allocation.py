@@ -15,12 +15,12 @@ from . import ext as ext_1
 
 class ProductAllocation(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     allocation_percentage: Annotated[
         float,
         Field(
-            description='Percentage of total budget allocated to this product (0-100)',
+            description="Percentage of total budget allocated to this product (0-100)",
             ge=0.0,
             le=100.0,
         ),
@@ -28,29 +28,29 @@ class ProductAllocation(AdCPBaseModel):
     daypart_targets: Annotated[
         list[daypart_target.DaypartTarget] | None,
         Field(
-            description='Recommended time windows for this allocation in spot-plan proposals.',
+            description="Recommended time windows for this allocation in spot-plan proposals.",
             min_length=1,
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     forecast: Annotated[
         delivery_forecast.DeliveryForecast | None,
-        Field(description='Forecasted delivery metrics for this allocation'),
+        Field(description="Forecasted delivery metrics for this allocation"),
     ] = None
     pricing_option_id: Annotated[
         str | None,
         Field(description="Recommended pricing option ID from the product's pricing_options array"),
     ] = None
     product_id: Annotated[
-        str, Field(description='ID of the product (must reference a product in the products array)')
+        str, Field(description="ID of the product (must reference a product in the products array)")
     ]
     rationale: Annotated[
         str | None,
-        Field(description='Explanation of why this product and allocation are recommended'),
+        Field(description="Explanation of why this product and allocation are recommended"),
     ] = None
     sequence: Annotated[
         int | None,
-        Field(description='Optional ordering hint for multi-line-item plans (1-based)', ge=1),
+        Field(description="Optional ordering hint for multi-line-item plans (1-based)", ge=1),
     ] = None
     tags: Annotated[
         list[str] | None,

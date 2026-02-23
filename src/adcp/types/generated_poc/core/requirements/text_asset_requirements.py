@@ -12,7 +12,7 @@ from pydantic import ConfigDict, Field
 
 class TextAssetRequirements(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     character_pattern: Annotated[
         str | None,
@@ -20,10 +20,10 @@ class TextAssetRequirements(AdCPBaseModel):
             description="Regex pattern defining allowed characters (e.g., '^[a-zA-Z0-9 .,!?-]+$')"
         ),
     ] = None
-    max_length: Annotated[int | None, Field(description='Maximum character length', ge=1)] = None
-    max_lines: Annotated[int | None, Field(description='Maximum number of lines', ge=1)] = None
-    min_length: Annotated[int | None, Field(description='Minimum character length', ge=0)] = None
-    min_lines: Annotated[int | None, Field(description='Minimum number of lines', ge=1)] = None
+    max_length: Annotated[int | None, Field(description="Maximum character length", ge=1)] = None
+    max_lines: Annotated[int | None, Field(description="Maximum number of lines", ge=1)] = None
+    min_length: Annotated[int | None, Field(description="Minimum character length", ge=0)] = None
+    min_lines: Annotated[int | None, Field(description="Minimum number of lines", ge=1)] = None
     prohibited_terms: Annotated[
-        list[str] | None, Field(description='List of prohibited words or phrases')
+        list[str] | None, Field(description="List of prohibited words or phrases")
     ] = None

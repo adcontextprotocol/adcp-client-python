@@ -30,6 +30,8 @@ from adcp.types import (
     GetCreativeDeliveryResponse,
     GetMediaBuyDeliveryRequest,
     GetMediaBuyDeliveryResponse,
+    GetMediaBuysRequest,
+    GetMediaBuysResponse,
     GetProductsRequest,
     GetProductsResponse,
     GetSignalsRequest,
@@ -532,6 +534,47 @@ class ADCPClient:
         )
 
         return self.adapter._parse_response(raw_result, GetMediaBuyDeliveryResponse)
+
+    async def get_media_buys(
+        self,
+        request: GetMediaBuysRequest,
+    ) -> TaskResult[GetMediaBuysResponse]:
+        """
+        Get Media Buys.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing GetMediaBuysResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="get_media_buys",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.get_media_buys(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="get_media_buys",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, GetMediaBuysResponse)
 
     async def get_signals(
         self,
@@ -1936,6 +1979,7 @@ class ADCPClient:
             "create_media_buy": CreateMediaBuyResponse,
             "update_media_buy": UpdateMediaBuyResponse,
             "get_media_buy_delivery": GetMediaBuyDeliveryResponse,
+            "get_media_buys": GetMediaBuysResponse,
             "get_signals": GetSignalsResponse,
             "activate_signal": ActivateSignalResponse,
             "provide_performance_feedback": ProvidePerformanceFeedbackResponse,

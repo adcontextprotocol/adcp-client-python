@@ -14,60 +14,60 @@ from . import ext as ext_1
 
 
 class Billing(Enum):
-    brand = 'brand'
-    operator = 'operator'
-    agent = 'agent'
+    brand = "brand"
+    operator = "operator"
+    agent = "agent"
 
 
 class CreditLimit(AdCPBaseModel):
     amount: Annotated[float, Field(ge=0.0)]
-    currency: Annotated[str, Field(pattern='^[A-Z]{3}$')]
+    currency: Annotated[str, Field(pattern="^[A-Z]{3}$")]
 
 
 class Status(Enum):
-    active = 'active'
-    pending_approval = 'pending_approval'
-    payment_required = 'payment_required'
-    suspended = 'suspended'
-    closed = 'closed'
+    active = "active"
+    pending_approval = "pending_approval"
+    payment_required = "payment_required"
+    suspended = "suspended"
+    closed = "closed"
 
 
 class Account(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    account_id: Annotated[str, Field(description='Unique identifier for this account')]
+    account_id: Annotated[str, Field(description="Unique identifier for this account")]
     advertiser: Annotated[
-        str | None, Field(description='The advertiser whose rates apply to this account')
+        str | None, Field(description="The advertiser whose rates apply to this account")
     ] = None
     billing: Annotated[
         Billing | None,
         Field(
-            description='Who is invoiced on this account. brand: seller invoices the brand directly. operator: seller invoices the operator (agency). agent: agent consolidates billing.'
+            description="Who is invoiced on this account. brand: seller invoices the brand directly. operator: seller invoices the operator (agency). agent: agent consolidates billing."
         ),
     ] = None
     billing_proxy: Annotated[
         str | None,
         Field(
-            description='Optional intermediary who receives invoices on behalf of the advertiser (e.g., agency)'
+            description="Optional intermediary who receives invoices on behalf of the advertiser (e.g., agency)"
         ),
     ] = None
     brand_id: Annotated[
         str | None,
         Field(
-            description='Brand ID within the house portfolio (from brand.json)',
-            pattern='^[a-z0-9_]+$',
+            description="Brand ID within the house portfolio (from brand.json)",
+            pattern="^[a-z0-9_]+$",
         ),
     ] = None
     credit_limit: Annotated[
-        CreditLimit | None, Field(description='Maximum outstanding balance allowed')
+        CreditLimit | None, Field(description="Maximum outstanding balance allowed")
     ] = None
     ext: ext_1.ExtensionObject | None = None
     house: Annotated[
         str | None,
         Field(
-            description='House domain where brand.json is hosted. Canonical identity anchor for the brand.',
-            pattern='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$',
+            description="House domain where brand.json is hosted. Canonical identity anchor for the brand.",
+            pattern="^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
         ),
     ] = None
     name: Annotated[
@@ -76,25 +76,25 @@ class Account(AdCPBaseModel):
     operator: Annotated[
         str | None,
         Field(
-            description='Domain of the entity operating this account',
-            pattern='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$',
+            description="Domain of the entity operating this account",
+            pattern="^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
         ),
     ] = None
     payment_terms: Annotated[
         str | None, Field(description="Payment terms (e.g., 'net_30', 'prepay')")
     ] = None
     rate_card: Annotated[
-        str | None, Field(description='Identifier for the rate card applied to this account')
+        str | None, Field(description="Identifier for the rate card applied to this account")
     ] = None
     sandbox: Annotated[
         bool | None,
         Field(
-            description='When true, this is a sandbox account. All requests using this account_id are treated as sandbox — no real platform calls, no real spend.'
+            description="When true, this is a sandbox account. All requests using this account_id are treated as sandbox — no real platform calls, no real spend."
         ),
     ] = None
     status: Annotated[
         Status,
         Field(
-            description='Account status. pending_approval: seller reviewing (credit, contracts). payment_required: credit limit reached or funds depleted. suspended: was active, now paused. closed: terminated.'
+            description="Account status. pending_approval: seller reviewing (credit, contracts). payment_required: credit limit reached or funds depleted. suspended: was active, now paused. closed: terminated."
         ),
     ]

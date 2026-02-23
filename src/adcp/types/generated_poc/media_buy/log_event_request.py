@@ -16,14 +16,14 @@ from ..core import ext as ext_1
 
 class LogEventRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     event_source_id: Annotated[
-        str, Field(description='Event source configured on the account via sync_event_sources')
+        str, Field(description="Event source configured on the account via sync_event_sources")
     ]
     events: Annotated[
-        list[event.Event], Field(description='Events to log', max_length=10000, min_length=1)
+        list[event.Event], Field(description="Events to log", max_length=10000, min_length=1)
     ]
     ext: ext_1.ExtensionObject | None = None
     test_event_code: Annotated[

@@ -29,11 +29,11 @@ from .assets import (
 
 class CreativeManifest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     assets: Annotated[
         dict[
-            Annotated[str, StringConstraints(pattern=r'^[a-z0-9_]+$')],
+            Annotated[str, StringConstraints(pattern=r"^[a-z0-9_]+$")],
             image_asset.ImageAsset
             | video_asset.VideoAsset
             | audio_asset.AudioAsset

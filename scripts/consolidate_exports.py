@@ -47,6 +47,7 @@ def extract_exports_from_module(module_path: Path) -> set[str]:
 
 def generate_consolidated_exports() -> str:
     """Generate the consolidated exports file content."""
+
     # Discover all modules recursively (including subdirectories)
     # Process enums/ first so canonical enum definitions take priority over inline duplicates
     def _module_sort_key(p: Path) -> tuple[int, str]:

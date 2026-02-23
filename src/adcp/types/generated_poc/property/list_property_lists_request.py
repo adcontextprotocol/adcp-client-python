@@ -16,14 +16,14 @@ from ..core import pagination_request
 
 class ListPropertyListsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     name_contains: Annotated[
-        str | None, Field(description='Filter to lists whose name contains this string')
+        str | None, Field(description="Filter to lists whose name contains this string")
     ] = None
     pagination: pagination_request.PaginationRequest | None = None
     principal: Annotated[
-        str | None, Field(description='Filter to lists owned by this principal')
+        str | None, Field(description="Filter to lists owned by this principal")
     ] = None

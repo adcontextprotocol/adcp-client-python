@@ -229,9 +229,7 @@ class ADCPHandler(ABC):
     # Event Operations
     # ========================================================================
 
-    async def log_event(
-        self, params: dict[str, Any], context: ToolContext | None = None
-    ) -> Any:
+    async def log_event(self, params: dict[str, Any], context: ToolContext | None = None) -> Any:
         """Log event.
 
         Override this to provide functionality.

@@ -8,5 +8,5 @@ from enum import Enum
 
 
 class SignalSource(Enum):
-    catalog = 'catalog'
-    agent = 'agent'
+    catalog = "catalog"
+    agent = "agent"

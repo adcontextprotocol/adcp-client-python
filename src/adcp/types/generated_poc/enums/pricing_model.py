@@ -8,12 +8,12 @@ from enum import Enum
 
 
 class PricingModel(Enum):
-    cpm = 'cpm'
-    vcpm = 'vcpm'
-    cpc = 'cpc'
-    cpcv = 'cpcv'
-    cpv = 'cpv'
-    cpp = 'cpp'
-    cpa = 'cpa'
-    flat_rate = 'flat_rate'
-    time = 'time'
+    cpm = "cpm"
+    vcpm = "vcpm"
+    cpc = "cpc"
+    cpcv = "cpcv"
+    cpv = "cpv"
+    cpp = "cpp"
+    cpa = "cpa"
+    flat_rate = "flat_rate"
+    time = "time"

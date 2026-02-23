@@ -14,12 +14,12 @@ from . import forecast_range
 
 class ForecastPoint(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     budget: Annotated[
         float,
         Field(
-            description='Budget amount for this forecast point. For allocation-level forecasts, this is the absolute budget for that allocation (not the percentage). For proposal-level forecasts, this is the total proposal budget.',
+            description="Budget amount for this forecast point. For allocation-level forecasts, this is the absolute budget for that allocation (not the percentage). For proposal-level forecasts, this is the total proposal budget.",
             ge=0.0,
         ),
     ]

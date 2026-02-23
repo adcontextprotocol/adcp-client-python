@@ -137,6 +137,7 @@ async def test_all_client_methods():
     assert hasattr(client, "sync_creatives")
     assert hasattr(client, "list_creatives")
     assert hasattr(client, "get_media_buy_delivery")
+    assert hasattr(client, "get_media_buys")
     assert hasattr(client, "get_signals")
     assert hasattr(client, "activate_signal")
     assert hasattr(client, "provide_performance_feedback")
@@ -202,6 +203,7 @@ async def test_all_client_methods():
         ),
         ("list_creatives", "ListCreativesRequest", {}),
         ("get_media_buy_delivery", "GetMediaBuyDeliveryRequest", {}),
+        ("get_media_buys", "GetMediaBuysRequest", {}),
         (
             "get_signals",
             "GetSignalsRequest",
@@ -562,6 +564,60 @@ async def test_client_context_manager_with_exception():
 
         # Verify close was called even after exception
         mock_close.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_get_media_buys_parses_response():
+    """Test that get_media_buys parses A2A response into typed GetMediaBuysResponse."""
+    from unittest.mock import patch
+
+    from adcp.types._generated import GetMediaBuysRequest, GetMediaBuysResponse
+    from adcp.types.core import TaskResult, TaskStatus
+
+    config = AgentConfig(
+        id="test_agent",
+        agent_uri="https://test.example.com",
+        protocol=Protocol.A2A,
+    )
+
+    client = ADCPClient(config)
+
+    media_buys_data = {
+        "media_buys": [
+            {
+                "media_buy_id": "mb-1",
+                "status": "active",
+                "currency": "USD",
+                "total_budget": 5000.0,
+                "packages": [
+                    {
+                        "package_id": "pkg-1",
+                        "creative_approvals": [
+                            {"creative_id": "cr-1", "approval_status": "approved"}
+                        ],
+                    }
+                ],
+            }
+        ]
+    }
+
+    mock_result = TaskResult(
+        status=TaskStatus.COMPLETED,
+        data=media_buys_data,
+        success=True,
+    )
+
+    with patch.object(client.adapter, "get_media_buys", return_value=mock_result):
+        result = await client.get_media_buys(GetMediaBuysRequest())
+        assert result.success is True
+        assert isinstance(result.data, GetMediaBuysResponse)
+        assert len(result.data.media_buys) == 1
+        assert result.data.media_buys[0].media_buy_id == "mb-1"
+        assert result.data.media_buys[0].currency == "USD"
+        assert result.data.media_buys[0].total_budget == 5000.0
+        packages = result.data.media_buys[0].packages
+        assert len(packages) == 1
+        assert packages[0].package_id == "pkg-1"
 
 
 @pytest.mark.asyncio

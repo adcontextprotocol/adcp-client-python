@@ -19,26 +19,26 @@ from ..enums import signal_catalog_type, signal_value_type
 
 class Pricing(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    cpm: Annotated[float, Field(description='Cost per thousand impressions', ge=0.0)]
-    currency: Annotated[str, Field(description='Currency code', pattern='^[A-Z]{3}$')]
+    cpm: Annotated[float, Field(description="Cost per thousand impressions", ge=0.0)]
+    currency: Annotated[str, Field(description="Currency code", pattern="^[A-Z]{3}$")]
 
 
 class Signal(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     coverage_percentage: Annotated[
-        float, Field(description='Percentage of audience coverage', ge=0.0, le=100.0)
+        float, Field(description="Percentage of audience coverage", ge=0.0, le=100.0)
     ]
-    data_provider: Annotated[str, Field(description='Human-readable name of the data provider')]
+    data_provider: Annotated[str, Field(description="Human-readable name of the data provider")]
     deployments: Annotated[
-        list[deployment.Deployment], Field(description='Array of deployment targets')
+        list[deployment.Deployment], Field(description="Array of deployment targets")
     ]
-    description: Annotated[str, Field(description='Detailed signal description')]
-    name: Annotated[str, Field(description='Human-readable signal name')]
-    pricing: Annotated[Pricing, Field(description='Pricing information')]
+    description: Annotated[str, Field(description="Detailed signal description")]
+    name: Annotated[str, Field(description="Human-readable signal name")]
+    pricing: Annotated[Pricing, Field(description="Pricing information")]
     signal_agent_segment_id: Annotated[
         str,
         Field(
@@ -53,7 +53,7 @@ class Signal(AdCPBaseModel):
     ] = None
     signal_type: Annotated[
         signal_catalog_type.SignalCatalogType,
-        Field(description='Catalog type of signal (marketplace, custom, owned)'),
+        Field(description="Catalog type of signal (marketplace, custom, owned)"),
     ]
     value_type: Annotated[
         signal_value_type.SignalValueType | None,
@@ -63,19 +63,19 @@ class Signal(AdCPBaseModel):
 
 class GetSignalsResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error] | None,
         Field(
-            description='Task-specific errors and warnings (e.g., signal discovery or pricing issues)'
+            description="Task-specific errors and warnings (e.g., signal discovery or pricing issues)"
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     pagination: pagination_response.PaginationResponse | None = None
     sandbox: Annotated[
         bool | None,
-        Field(description='When true, this response contains simulated data from sandbox mode.'),
+        Field(description="When true, this response contains simulated data from sandbox mode."),
     ] = None
-    signals: Annotated[list[Signal], Field(description='Array of matching signals')]
+    signals: Annotated[list[Signal], Field(description="Array of matching signals")]

@@ -12,12 +12,12 @@ from pydantic import ConfigDict, Field
 
 
 class Method(Enum):
-    GET = 'GET'
-    POST = 'POST'
+    GET = "GET"
+    POST = "POST"
 
 
 class WebhookAssetRequirements(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    methods: Annotated[list[Method] | None, Field(description='Allowed HTTP methods')] = None
+    methods: Annotated[list[Method] | None, Field(description="Allowed HTTP methods")] = None

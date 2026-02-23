@@ -16,22 +16,22 @@ from ..core import ext as ext_1
 
 
 class Reason(Enum):
-    APPROVAL_REQUIRED = 'APPROVAL_REQUIRED'
-    BUDGET_EXCEEDS_LIMIT = 'BUDGET_EXCEEDS_LIMIT'
+    APPROVAL_REQUIRED = "APPROVAL_REQUIRED"
+    BUDGET_EXCEEDS_LIMIT = "BUDGET_EXCEEDS_LIMIT"
 
 
 class CreateMediaBuyInputRequired(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error] | None,
         Field(
-            description='Optional validation errors or warnings for debugging purposes. Helps explain why input is required.'
+            description="Optional validation errors or warnings for debugging purposes. Helps explain why input is required."
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     reason: Annotated[
-        Reason | None, Field(description='Reason code indicating why input is needed')
+        Reason | None, Field(description="Reason code indicating why input is needed")
     ] = None

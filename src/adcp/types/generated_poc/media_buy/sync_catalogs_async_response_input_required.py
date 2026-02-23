@@ -15,21 +15,21 @@ from ..core import ext as ext_1
 
 
 class Reason(Enum):
-    APPROVAL_REQUIRED = 'APPROVAL_REQUIRED'
-    FEED_VALIDATION = 'FEED_VALIDATION'
-    ITEM_REVIEW = 'ITEM_REVIEW'
-    FEED_ACCESS = 'FEED_ACCESS'
+    APPROVAL_REQUIRED = "APPROVAL_REQUIRED"
+    FEED_VALIDATION = "FEED_VALIDATION"
+    ITEM_REVIEW = "ITEM_REVIEW"
+    FEED_ACCESS = "FEED_ACCESS"
 
 
 class SyncCatalogsInputRequired(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     reason: Annotated[
         Reason | None,
         Field(
-            description='Reason code indicating why buyer input is needed. APPROVAL_REQUIRED: platform requires explicit approval before activating the catalog. FEED_VALIDATION: feed URL returned unexpected format or schema errors. ITEM_REVIEW: platform flagged items for manual review. FEED_ACCESS: platform cannot access the feed URL (authentication, CORS, etc.).'
+            description="Reason code indicating why buyer input is needed. APPROVAL_REQUIRED: platform requires explicit approval before activating the catalog. FEED_VALIDATION: feed URL returned unexpected format or schema errors. ITEM_REVIEW: platform flagged items for manual review. FEED_ACCESS: platform cannot access the feed URL (authentication, CORS, etc.)."
         ),
     ] = None

@@ -8,8 +8,8 @@ from enum import Enum
 
 
 class CreativeAgentCapability(Enum):
-    validation = 'validation'
-    assembly = 'assembly'
-    generation = 'generation'
-    preview = 'preview'
-    delivery = 'delivery'
+    validation = "validation"
+    assembly = "assembly"
+    generation = "generation"
+    preview = "preview"
+    delivery = "delivery"

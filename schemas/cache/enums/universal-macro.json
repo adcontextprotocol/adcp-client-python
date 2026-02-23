@@ -69,13 +69,15 @@
     "STORE_ID",
     "PROGRAM_ID",
     "DESTINATION_ID",
-    "CREATIVE_VARIANT_ID"
+    "CREATIVE_VARIANT_ID",
+    "APP_ITEM_ID"
   ],
   "enumDescriptions": {
     "AD_BREAK_ID": "Unique ad break identifier",
     "AD_HEIGHT": "Ad slot height in pixels",
     "AD_WIDTH": "Ad slot width in pixels",
     "APP_BUNDLE": "App bundle ID (domain or numeric)",
+    "APP_ITEM_ID": "Mobile app identifier for the catalog item being rendered",
     "APP_NAME": "Human-readable app name",
     "AUDIO_DURATION": "Audio content duration in seconds",
     "AXEM": "AXE contextual metadata (encoded blob)",

@@ -12,8 +12,8 @@ from pydantic import ConfigDict, Field
 
 class CssAssetRequirements(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     max_file_size_kb: Annotated[
-        int | None, Field(description='Maximum file size in kilobytes', ge=1)
+        int | None, Field(description="Maximum file size in kilobytes", ge=1)
     ] = None

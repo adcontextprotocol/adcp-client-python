@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/media-buy/create-media-buy-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Response payload for create_media_buy task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - the media buy is either fully created or not created at all.",
   "oneOf": [
@@ -12,19 +13,19 @@
       },
       "properties": {
         "account": {
-          "$ref": "../core/account.json",
+          "$ref": "/schemas/latest/core/account.json",
           "description": "Account billed for this media buy. Includes advertiser, billing proxy (if any), and rate card applied."
+        },
+        "buyer_campaign_ref": {
+          "description": "Buyer's campaign reference label, echoed from the request",
+          "type": "string"
         },
         "buyer_ref": {
           "description": "Buyer's reference identifier for this media buy",
           "type": "string"
         },
-        "campaign_ref": {
-          "description": "Buyer's campaign reference label, echoed from the request",
-          "type": "string"
-        },
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/latest/core/context.json"
         },
         "creative_deadline": {
           "description": "ISO 8601 timestamp for creative upload deadline",
@@ -32,7 +33,7 @@
           "type": "string"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/latest/core/ext.json"
         },
         "media_buy_id": {
           "description": "Publisher's unique identifier for the created media buy",
@@ -41,7 +42,7 @@
         "packages": {
           "description": "Array of created packages with complete state information",
           "items": {
-            "$ref": "../core/package.json"
+            "$ref": "/schemas/latest/core/package.json"
           },
           "type": "array"
         },
@@ -87,18 +88,18 @@
       },
       "properties": {
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/latest/core/context.json"
         },
         "errors": {
           "description": "Array of errors explaining why the operation failed",
           "items": {
-            "$ref": "../core/error.json"
+            "$ref": "/schemas/latest/core/error.json"
           },
           "minItems": 1,
           "type": "array"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/latest/core/ext.json"
         }
       },
       "required": [

@@ -14,30 +14,30 @@ from . import signal_id as signal_id_1
 
 class SignalTargeting1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    signal_id: Annotated[signal_id_1.SignalId, Field(description='The signal to target')]
+    signal_id: Annotated[signal_id_1.SignalId, Field(description="The signal to target")]
     value: Annotated[
         bool,
         Field(
-            description='Whether to include (true) or exclude (false) users matching this signal'
+            description="Whether to include (true) or exclude (false) users matching this signal"
         ),
     ]
-    value_type: Annotated[Literal['binary'], Field(description='Discriminator for binary signals')]
+    value_type: Annotated[Literal["binary"], Field(description="Discriminator for binary signals")]
 
 
 class SignalTargeting2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    signal_id: Annotated[signal_id_1.SignalId, Field(description='The signal to target')]
+    signal_id: Annotated[signal_id_1.SignalId, Field(description="The signal to target")]
     value_type: Annotated[
-        Literal['categorical'], Field(description='Discriminator for categorical signals')
+        Literal["categorical"], Field(description="Discriminator for categorical signals")
     ]
     values: Annotated[
         list[str],
         Field(
-            description='Values to target. Users with any of these values will be included.',
+            description="Values to target. Users with any of these values will be included.",
             min_length=1,
         ),
     ]
@@ -45,7 +45,7 @@ class SignalTargeting2(AdCPBaseModel):
 
 class SignalTargeting3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     max_value: Annotated[
         float | None,
@@ -59,9 +59,9 @@ class SignalTargeting3(AdCPBaseModel):
             description="Minimum value (inclusive). Omit for no minimum. Must be <= max_value when both are provided. Should be >= signal's range.min if defined."
         ),
     ] = None
-    signal_id: Annotated[signal_id_1.SignalId, Field(description='The signal to target')]
+    signal_id: Annotated[signal_id_1.SignalId, Field(description="The signal to target")]
     value_type: Annotated[
-        Literal['numeric'], Field(description='Discriminator for numeric signals')
+        Literal["numeric"], Field(description="Discriminator for numeric signals")
     ]
 
 
@@ -69,8 +69,8 @@ class SignalTargeting(RootModel[SignalTargeting1 | SignalTargeting2 | SignalTarg
     root: Annotated[
         SignalTargeting1 | SignalTargeting2 | SignalTargeting3,
         Field(
-            description='Targeting constraint for a specific signal. Uses value_type as discriminator to determine the targeting expression format.',
-            discriminator='value_type',
-            title='Signal Targeting',
+            description="Targeting constraint for a specific signal. Uses value_type as discriminator to determine the targeting expression format.",
+            discriminator="value_type",
+            title="Signal Targeting",
         ),
     ]

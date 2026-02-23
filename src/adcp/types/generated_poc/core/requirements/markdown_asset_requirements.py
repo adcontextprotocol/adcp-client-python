@@ -12,6 +12,6 @@ from pydantic import ConfigDict, Field
 
 class MarkdownAssetRequirements(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    max_length: Annotated[int | None, Field(description='Maximum character length', ge=1)] = None
+    max_length: Annotated[int | None, Field(description="Maximum character length", ge=1)] = None

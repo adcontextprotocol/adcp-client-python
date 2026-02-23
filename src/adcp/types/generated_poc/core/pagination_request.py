@@ -12,12 +12,12 @@ from pydantic import ConfigDict, Field
 
 class PaginationRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     cursor: Annotated[
         str | None,
-        Field(description='Opaque cursor from a previous response to fetch the next page'),
+        Field(description="Opaque cursor from a previous response to fetch the next page"),
     ] = None
     max_results: Annotated[
-        int | None, Field(description='Maximum number of items to return per page', ge=1, le=100)
+        int | None, Field(description="Maximum number of items to return per page", ge=1, le=100)
     ] = 50

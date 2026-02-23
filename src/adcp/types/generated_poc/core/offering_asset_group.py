@@ -29,7 +29,7 @@ from .assets import (
 
 class OfferingAssetGroup(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     asset_group_id: Annotated[
         str,
@@ -39,7 +39,7 @@ class OfferingAssetGroup(AdCPBaseModel):
     ]
     asset_type: Annotated[
         asset_content_type.AssetContentType,
-        Field(description='The content type of all items in this group.'),
+        Field(description="The content type of all items in this group."),
     ]
     ext: ext_1.ExtensionObject | None = None
     items: Annotated[
@@ -58,7 +58,7 @@ class OfferingAssetGroup(AdCPBaseModel):
             | webhook_asset.WebhookAsset
         ],
         Field(
-            description='The assets in this group. Each item should match the structure for the declared asset_type. Note: JSON Schema validation accepts any valid asset structure here; enforcement that items match asset_type is the responsibility of the consuming agent.',
+            description="The assets in this group. Each item should match the structure for the declared asset_type. Note: JSON Schema validation accepts any valid asset structure here; enforcement that items match asset_type is the responsibility of the consuming agent.",
             min_length=1,
         ),
     ]

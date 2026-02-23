@@ -8,22 +8,22 @@ from enum import Enum
 
 
 class MediaChannel(Enum):
-    display = 'display'
-    olv = 'olv'
-    social = 'social'
-    search = 'search'
-    ctv = 'ctv'
-    linear_tv = 'linear_tv'
-    radio = 'radio'
-    streaming_audio = 'streaming_audio'
-    podcast = 'podcast'
-    dooh = 'dooh'
-    ooh = 'ooh'
-    print = 'print'
-    cinema = 'cinema'
-    email = 'email'
-    gaming = 'gaming'
-    retail_media = 'retail_media'
-    influencer = 'influencer'
-    affiliate = 'affiliate'
-    product_placement = 'product_placement'
+    display = "display"
+    olv = "olv"
+    social = "social"
+    search = "search"
+    ctv = "ctv"
+    linear_tv = "linear_tv"
+    radio = "radio"
+    streaming_audio = "streaming_audio"
+    podcast = "podcast"
+    dooh = "dooh"
+    ooh = "ooh"
+    print = "print"
+    cinema = "cinema"
+    email = "email"
+    gaming = "gaming"
+    retail_media = "retail_media"
+    influencer = "influencer"
+    affiliate = "affiliate"
+    product_placement = "product_placement"

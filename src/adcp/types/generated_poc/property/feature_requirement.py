@@ -12,23 +12,23 @@ from pydantic import ConfigDict, Field
 
 
 class IfNotCovered(Enum):
-    exclude = 'exclude'
-    include = 'include'
+    exclude = "exclude"
+    include = "include"
 
 
 class FeatureRequirement(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     allowed_values: Annotated[
         list[Any] | None,
         Field(
-            description='Values that pass the requirement (for binary/categorical features)',
+            description="Values that pass the requirement (for binary/categorical features)",
             min_length=1,
         ),
     ] = None
     feature_id: Annotated[
-        str, Field(description='Feature to evaluate (discovered via get_adcp_capabilities)')
+        str, Field(description="Feature to evaluate (discovered via get_adcp_capabilities)")
     ]
     if_not_covered: Annotated[
         IfNotCovered | None,
@@ -37,9 +37,9 @@ class FeatureRequirement(AdCPBaseModel):
         ),
     ] = IfNotCovered.exclude
     max_value: Annotated[
-        float | None, Field(description='Maximum numeric value allowed (for quantitative features)')
+        float | None, Field(description="Maximum numeric value allowed (for quantitative features)")
     ] = None
     min_value: Annotated[
         float | None,
-        Field(description='Minimum numeric value required (for quantitative features)'),
+        Field(description="Minimum numeric value required (for quantitative features)"),
     ] = None

@@ -12,40 +12,40 @@ from pydantic import ConfigDict, Field
 
 
 class Protocol(Enum):
-    https = 'https'
-    http = 'http'
+    https = "https"
+    http = "http"
 
 
 class Role(Enum):
-    clickthrough = 'clickthrough'
-    landing_page = 'landing_page'
-    impression_tracker = 'impression_tracker'
-    click_tracker = 'click_tracker'
-    viewability_tracker = 'viewability_tracker'
-    third_party_tracker = 'third_party_tracker'
+    clickthrough = "clickthrough"
+    landing_page = "landing_page"
+    impression_tracker = "impression_tracker"
+    click_tracker = "click_tracker"
+    viewability_tracker = "viewability_tracker"
+    third_party_tracker = "third_party_tracker"
 
 
 class UrlAssetRequirements(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     allowed_domains: Annotated[
-        list[str] | None, Field(description='List of allowed domains for the URL')
+        list[str] | None, Field(description="List of allowed domains for the URL")
     ] = None
     macro_support: Annotated[
         bool | None,
-        Field(description='Whether the URL supports macro substitution (e.g., ${CACHEBUSTER})'),
+        Field(description="Whether the URL supports macro substitution (e.g., ${CACHEBUSTER})"),
     ] = None
     max_length: Annotated[
-        int | None, Field(description='Maximum URL length in characters', ge=1)
+        int | None, Field(description="Maximum URL length in characters", ge=1)
     ] = None
     protocols: Annotated[
         list[Protocol] | None,
-        Field(description='Allowed URL protocols. HTTPS is recommended for all ad URLs.'),
+        Field(description="Allowed URL protocols. HTTPS is recommended for all ad URLs."),
     ] = None
     role: Annotated[
         Role | None,
         Field(
-            description='Standard role for this URL asset. Use this to constrain which purposes are valid for this URL slot. Complements asset_role (which is a human-readable label) by providing a machine-readable enum.'
+            description="Standard role for this URL asset. Use this to constrain which purposes are valid for this URL slot. Complements asset_role (which is a human-readable label) by providing a machine-readable enum."
         ),
     ] = None

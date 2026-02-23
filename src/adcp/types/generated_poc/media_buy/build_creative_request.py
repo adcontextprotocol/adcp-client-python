@@ -19,37 +19,37 @@ from ..core import format_id
 
 class BuildCreativeRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     brand: Annotated[
         brand_ref.BrandReference | None,
         Field(
-            description='Brand reference for creative generation. Resolved to full brand identity (colors, logos, tone) at execution time.'
+            description="Brand reference for creative generation. Resolved to full brand identity (colors, logos, tone) at execution time."
         ),
     ] = None
     context: context_1.ContextObject | None = None
     creative_brief: Annotated[
         creative_brief_ref.CreativeBriefReference | None,
         Field(
-            description='Campaign-level creative brief with objective, audience, messaging, and reference assets. Can be an inline brief object or a URL to a hosted brief. Supplements the natural language message with structured creative direction.'
+            description="Campaign-level creative brief with objective, audience, messaging, and reference assets. Can be an inline brief object or a URL to a hosted brief. Supplements the natural language message with structured creative direction."
         ),
     ] = None
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest | None,
         Field(
-            description='Creative manifest to transform or generate from. For pure generation, this should include the target format_id and any required input assets. For transformation (e.g., resizing, reformatting), this is the complete creative to adapt.'
+            description="Creative manifest to transform or generate from. For pure generation, this should include the target format_id and any required input assets. For transformation (e.g., resizing, reformatting), this is the complete creative to adapt."
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     message: Annotated[
         str | None,
         Field(
-            description='Natural language instructions for the transformation or generation. For pure generation, this is the creative brief. For transformation, this provides guidance on how to adapt the creative.'
+            description="Natural language instructions for the transformation or generation. For pure generation, this is the creative brief. For transformation, this provides guidance on how to adapt the creative."
         ),
     ] = None
     target_format_id: Annotated[
         format_id.FormatId,
         Field(
-            description='Format ID to generate. The format definition specifies required input assets and output structure.'
+            description="Format ID to generate. The format definition specifies required input assets and output structure."
         ),
     ]

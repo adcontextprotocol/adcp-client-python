@@ -14,10 +14,10 @@ from ..enums import identifier_types
 
 class Identifier(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     type: Annotated[
-        identifier_types.PropertyIdentifierTypes, Field(description='Type of identifier')
+        identifier_types.PropertyIdentifierTypes, Field(description="Type of identifier")
     ]
     value: Annotated[
         str,

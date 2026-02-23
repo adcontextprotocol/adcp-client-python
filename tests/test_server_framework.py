@@ -328,7 +328,6 @@ class TestGovernanceHandler:
         assert "Sponsored Intelligence" in result.reason
 
 
-
 class TestProposalBuilder:
     """Tests for ProposalBuilder."""
 

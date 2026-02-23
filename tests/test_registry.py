@@ -129,9 +129,7 @@ class TestLookupBrand:
     @pytest.mark.asyncio
     async def test_returns_none_for_404(self):
         mock_client = MagicMock()
-        mock_client.get = AsyncMock(
-            return_value=_mock_response(404, {"error": "Brand not found"})
-        )
+        mock_client.get = AsyncMock(return_value=_mock_response(404, {"error": "Brand not found"}))
 
         rc = RegistryClient(client=mock_client)
         result = await rc.lookup_brand("unknown.com")
@@ -159,9 +157,7 @@ class TestLookupBrand:
     @pytest.mark.asyncio
     async def test_raises_on_connection_error(self):
         mock_client = MagicMock()
-        mock_client.get = AsyncMock(
-            side_effect=httpx.ConnectError("Connection refused")
-        )
+        mock_client.get = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
         rc = RegistryClient(client=mock_client)
         with pytest.raises(RegistryError, match="failed"):
@@ -222,9 +218,7 @@ class TestLookupBrand:
     @pytest.mark.asyncio
     async def test_raises_on_invalid_response_data(self):
         mock_client = MagicMock()
-        mock_client.get = AsyncMock(
-            return_value=_mock_response(200, {"unexpected": "data"})
-        )
+        mock_client.get = AsyncMock(return_value=_mock_response(200, {"unexpected": "data"}))
 
         rc = RegistryClient(client=mock_client)
         with pytest.raises(RegistryError, match="invalid response"):
@@ -390,9 +384,7 @@ class TestLookupProperty:
     @pytest.mark.asyncio
     async def test_raises_on_invalid_response_data(self):
         mock_client = MagicMock()
-        mock_client.get = AsyncMock(
-            return_value=_mock_response(200, {"unexpected": "data"})
-        )
+        mock_client.get = AsyncMock(return_value=_mock_response(200, {"unexpected": "data"}))
 
         rc = RegistryClient(client=mock_client)
         with pytest.raises(RegistryError, match="invalid response"):
@@ -469,9 +461,7 @@ class TestListMembers:
     @pytest.mark.asyncio
     async def test_lists_members(self):
         mock_client = MagicMock()
-        mock_client.get = AsyncMock(
-            return_value=_mock_response(200, {"members": [MEMBER_DATA]})
-        )
+        mock_client.get = AsyncMock(return_value=_mock_response(200, {"members": [MEMBER_DATA]}))
 
         rc = RegistryClient(client=mock_client)
         members = await rc.list_members()
@@ -484,9 +474,7 @@ class TestListMembers:
     @pytest.mark.asyncio
     async def test_empty_member_list(self):
         mock_client = MagicMock()
-        mock_client.get = AsyncMock(
-            return_value=_mock_response(200, {"members": []})
-        )
+        mock_client.get = AsyncMock(return_value=_mock_response(200, {"members": []}))
 
         rc = RegistryClient(client=mock_client)
         members = await rc.list_members()
@@ -495,9 +483,7 @@ class TestListMembers:
     @pytest.mark.asyncio
     async def test_sends_limit_param(self):
         mock_client = MagicMock()
-        mock_client.get = AsyncMock(
-            return_value=_mock_response(200, {"members": []})
-        )
+        mock_client.get = AsyncMock(return_value=_mock_response(200, {"members": []}))
 
         rc = RegistryClient(
             base_url="https://test.example.com",
@@ -616,9 +602,7 @@ class TestGetMember:
     @pytest.mark.asyncio
     async def test_raises_on_invalid_response_data(self):
         mock_client = MagicMock()
-        mock_client.get = AsyncMock(
-            return_value=_mock_response(200, {"unexpected": "data"})
-        )
+        mock_client.get = AsyncMock(return_value=_mock_response(200, {"unexpected": "data"}))
 
         rc = RegistryClient(client=mock_client)
         with pytest.raises(RegistryError, match="invalid response"):

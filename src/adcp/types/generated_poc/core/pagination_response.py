@@ -12,21 +12,21 @@ from pydantic import ConfigDict, Field
 
 class PaginationResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     cursor: Annotated[
         str | None,
         Field(
-            description='Opaque cursor to pass in the next request to fetch the next page. Only present when has_more is true.'
+            description="Opaque cursor to pass in the next request to fetch the next page. Only present when has_more is true."
         ),
     ] = None
     has_more: Annotated[
-        bool, Field(description='Whether more results are available beyond this page')
+        bool, Field(description="Whether more results are available beyond this page")
     ]
     total_count: Annotated[
         int | None,
         Field(
-            description='Total number of items matching the query across all pages. Optional because not all backends can efficiently compute this.',
+            description="Total number of items matching the query across all pages. Optional because not all backends can efficiently compute this.",
             ge=0,
         ),
     ] = None

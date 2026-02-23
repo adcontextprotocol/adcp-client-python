@@ -8,5 +8,5 @@ from enum import Enum
 
 
 class AuthenticationScheme(Enum):
-    Bearer = 'Bearer'
-    HMAC_SHA256 = 'HMAC-SHA256'
+    Bearer = "Bearer"
+    HMAC_SHA256 = "HMAC-SHA256"

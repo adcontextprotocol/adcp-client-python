@@ -16,7 +16,7 @@ from . import asset_requirements as asset_requirements_1
 
 class OfferingAssetConstraint(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     asset_group_id: Annotated[
         str,
@@ -27,23 +27,23 @@ class OfferingAssetConstraint(AdCPBaseModel):
     asset_requirements: Annotated[
         asset_requirements_1.AssetRequirements | None,
         Field(
-            description='Technical requirements for each item in this group (e.g., max_length for text, min_width/aspect_ratio for images). Applies uniformly to all items in the group.'
+            description="Technical requirements for each item in this group (e.g., max_length for text, min_width/aspect_ratio for images). Applies uniformly to all items in the group."
         ),
     ] = None
     asset_type: Annotated[
         asset_content_type.AssetContentType,
-        Field(description='The expected content type for this group.'),
+        Field(description="The expected content type for this group."),
     ]
     ext: ext_1.ExtensionObject | None = None
     max_count: Annotated[
-        int | None, Field(description='Maximum number of items allowed in this group.', ge=1)
+        int | None, Field(description="Maximum number of items allowed in this group.", ge=1)
     ] = None
     min_count: Annotated[
-        int | None, Field(description='Minimum number of items required in this group.', ge=1)
+        int | None, Field(description="Minimum number of items required in this group.", ge=1)
     ] = None
     required: Annotated[
         bool | None,
         Field(
-            description='Whether this asset group must be present in each offering. Defaults to true.'
+            description="Whether this asset group must be present in each offering. Defaults to true."
         ),
     ] = True

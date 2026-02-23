@@ -8,12 +8,12 @@ from enum import Enum
 
 
 class ActionSource(Enum):
-    website = 'website'
-    app = 'app'
-    offline = 'offline'
-    phone_call = 'phone_call'
-    chat = 'chat'
-    email = 'email'
-    in_store = 'in_store'
-    system_generated = 'system_generated'
-    other = 'other'
+    website = "website"
+    app = "app"
+    offline = "offline"
+    phone_call = "phone_call"
+    chat = "chat"
+    email = "email"
+    in_store = "in_store"
+    system_generated = "system_generated"
+    other = "other"

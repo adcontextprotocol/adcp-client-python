@@ -8,7 +8,7 @@ from enum import Enum
 
 
 class NotificationType(Enum):
-    scheduled = 'scheduled'
-    final = 'final'
-    delayed = 'delayed'
-    adjusted = 'adjusted'
+    scheduled = "scheduled"
+    final = "final"
+    delayed = "delayed"
+    adjusted = "adjusted"

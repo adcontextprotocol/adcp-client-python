@@ -112,9 +112,7 @@ class RegistryClient:
         except (ValidationError, ValueError) as e:
             raise RegistryError(f"Brand lookup failed: invalid response: {e}") from e
 
-    async def lookup_brands(
-        self, domains: list[str]
-    ) -> dict[str, ResolvedBrand | None]:
+    async def lookup_brands(self, domains: list[str]) -> dict[str, ResolvedBrand | None]:
         """Bulk resolve domains to brand identities.
 
         Automatically chunks requests exceeding 100 domains.
@@ -132,8 +130,7 @@ class RegistryClient:
             return {}
 
         chunks = [
-            domains[i : i + MAX_BULK_DOMAINS]
-            for i in range(0, len(domains), MAX_BULK_DOMAINS)
+            domains[i : i + MAX_BULK_DOMAINS] for i in range(0, len(domains), MAX_BULK_DOMAINS)
         ]
 
         chunk_results = await asyncio.gather(
@@ -145,9 +142,7 @@ class RegistryClient:
             merged.update(result)
         return merged
 
-    async def _lookup_brands_chunk(
-        self, domains: list[str]
-    ) -> dict[str, ResolvedBrand | None]:
+    async def _lookup_brands_chunk(self, domains: list[str]) -> dict[str, ResolvedBrand | None]:
         """Resolve a single chunk of brand domains (max 100)."""
         client = await self._get_client()
         try:
@@ -172,9 +167,7 @@ class RegistryClient:
         except RegistryError:
             raise
         except httpx.TimeoutException as e:
-            raise RegistryError(
-                f"Bulk brand lookup timed out after {self._timeout}s"
-            ) from e
+            raise RegistryError(f"Bulk brand lookup timed out after {self._timeout}s") from e
         except httpx.HTTPError as e:
             raise RegistryError(f"Bulk brand lookup failed: {e}") from e
         except (ValidationError, ValueError) as e:
@@ -214,17 +207,13 @@ class RegistryClient:
         except RegistryError:
             raise
         except httpx.TimeoutException as e:
-            raise RegistryError(
-                f"Property lookup timed out after {self._timeout}s"
-            ) from e
+            raise RegistryError(f"Property lookup timed out after {self._timeout}s") from e
         except httpx.HTTPError as e:
             raise RegistryError(f"Property lookup failed: {e}") from e
         except (ValidationError, ValueError) as e:
             raise RegistryError(f"Property lookup failed: invalid response: {e}") from e
 
-    async def lookup_properties(
-        self, domains: list[str]
-    ) -> dict[str, ResolvedProperty | None]:
+    async def lookup_properties(self, domains: list[str]) -> dict[str, ResolvedProperty | None]:
         """Bulk resolve publisher domains to property info.
 
         Automatically chunks requests exceeding 100 domains.
@@ -242,8 +231,7 @@ class RegistryClient:
             return {}
 
         chunks = [
-            domains[i : i + MAX_BULK_DOMAINS]
-            for i in range(0, len(domains), MAX_BULK_DOMAINS)
+            domains[i : i + MAX_BULK_DOMAINS] for i in range(0, len(domains), MAX_BULK_DOMAINS)
         ]
 
         chunk_results = await asyncio.gather(
@@ -282,9 +270,7 @@ class RegistryClient:
         except RegistryError:
             raise
         except httpx.TimeoutException as e:
-            raise RegistryError(
-                f"Bulk property lookup timed out after {self._timeout}s"
-            ) from e
+            raise RegistryError(f"Bulk property lookup timed out after {self._timeout}s") from e
         except httpx.HTTPError as e:
             raise RegistryError(f"Bulk property lookup failed: {e}") from e
         except (ValidationError, ValueError) as e:

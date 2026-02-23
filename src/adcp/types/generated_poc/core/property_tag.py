@@ -13,9 +13,9 @@ class PropertyTag(RootModel[str]):
     root: Annotated[
         str,
         Field(
-            description='Tag for categorizing publisher properties. Must be lowercase alphanumeric with underscores only.',
-            examples=['ctv', 'premium', 'news', 'sports', 'meta_network', 'social_media'],
-            pattern='^[a-z0-9_]+$',
-            title='Property Tag',
+            description="Tag for categorizing publisher properties. Must be lowercase alphanumeric with underscores only.",
+            examples=["ctv", "premium", "news", "sports", "meta_network", "social_media"],
+            pattern="^[a-z0-9_]+$",
+            title="Property Tag",
         ),
     ]

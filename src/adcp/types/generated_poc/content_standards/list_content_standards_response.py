@@ -21,20 +21,20 @@ class ListContentStandardsResponse2(AdCPBaseModel):
     errors: list[error.Error]
     ext: ext_1.ExtensionObject | None = None
     standards: Annotated[
-        Any | None, Field(description='Field must not be present in error response')
+        Any | None, Field(description="Field must not be present in error response")
     ] = None
 
 
 class ListContentStandardsResponse1(AdCPBaseModel):
     context: context_1.ContextObject | None = None
     errors: Annotated[
-        Any | None, Field(description='Field must not be present in success response')
+        Any | None, Field(description="Field must not be present in success response")
     ] = None
     ext: ext_1.ExtensionObject | None = None
     pagination: pagination_response.PaginationResponse | None = None
     standards: Annotated[
         list[content_standards.ContentStandards],
-        Field(description='Array of content standards configurations matching the filter criteria'),
+        Field(description="Array of content standards configurations matching the filter criteria"),
     ]
 
 
@@ -44,7 +44,7 @@ class ListContentStandardsResponse(
     root: Annotated[
         ListContentStandardsResponse1 | ListContentStandardsResponse2,
         Field(
-            description='Response payload with list of content standards configurations',
-            title='List Content Standards Response',
+            description="Response payload with list of content standards configurations",
+            title="List Content Standards Response",
         ),
     ]

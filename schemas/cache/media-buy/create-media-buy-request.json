@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/media-buy/create-media-buy-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "dependencies": {
@@ -29,7 +30,7 @@
             "schemes": {
               "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for signature verification (recommended for production)",
               "items": {
-                "$ref": "../enums/auth-scheme.json"
+                "$ref": "/schemas/latest/enums/auth-scheme.json"
               },
               "maxItems": 1,
               "minItems": 1,
@@ -83,19 +84,19 @@
       "type": "object"
     },
     "brand": {
-      "$ref": "../core/brand-ref.json",
+      "$ref": "/schemas/latest/core/brand-ref.json",
       "description": "Brand reference for this media buy. Resolved to full brand identity at execution time from brand.json or the registry."
+    },
+    "buyer_campaign_ref": {
+      "description": "Buyer's campaign reference label. Groups related discovery and buy operations under a single campaign for CRM and ad server correlation (e.g., 'NovaDrink_Meals_Q2').",
+      "type": "string"
     },
     "buyer_ref": {
       "description": "Buyer's reference identifier for this media buy",
       "type": "string"
     },
-    "campaign_ref": {
-      "description": "Buyer's campaign reference label. Groups related discovery and buy operations under a single campaign for CRM and ad server correlation (e.g., 'NovaDrink_Meals_Q2').",
-      "type": "string"
-    },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/latest/core/context.json"
     },
     "end_time": {
       "description": "Campaign end date/time in ISO 8601 format",
@@ -103,12 +104,12 @@
       "type": "string"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/latest/core/ext.json"
     },
     "packages": {
       "description": "Array of package configurations. Required when not using proposal_id. When executing a proposal, this can be omitted and packages will be derived from the proposal's allocations.",
       "items": {
-        "$ref": "package-request.json"
+        "$ref": "/schemas/latest/media-buy/package-request.json"
       },
       "minItems": 1,
       "type": "array"
@@ -122,11 +123,11 @@
       "type": "string"
     },
     "reporting_webhook": {
-      "$ref": "../core/reporting-webhook.json",
+      "$ref": "/schemas/latest/core/reporting-webhook.json",
       "description": "Optional webhook configuration for automated reporting delivery"
     },
     "start_time": {
-      "$ref": "../core/start-timing.json"
+      "$ref": "/schemas/latest/core/start-timing.json"
     },
     "total_budget": {
       "additionalProperties": false,

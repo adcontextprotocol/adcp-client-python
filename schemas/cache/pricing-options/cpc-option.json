@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/pricing-options/cpc-option.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Cost Per Click pricing. If fixed_price is present, it's fixed pricing. If absent, it's auction-based.",
@@ -24,13 +25,18 @@
       "minimum": 0,
       "type": "number"
     },
+    "max_bid": {
+      "default": false,
+      "description": "When true, bid_price is interpreted as the buyer's maximum willingness to pay (ceiling) rather than an exact price. Sellers may optimize actual clearing prices between floor_price and bid_price based on delivery pacing. When false or absent, bid_price (if provided) is the exact bid/price to honor.",
+      "type": "boolean"
+    },
     "min_spend_per_package": {
       "description": "Minimum spend requirement per package using this pricing option, in the specified currency",
       "minimum": 0,
       "type": "number"
     },
     "price_guidance": {
-      "$ref": "price-guidance.json",
+      "$ref": "/schemas/latest/pricing-options/price-guidance.json",
       "description": "Optional pricing guidance for auction-based bidding"
     },
     "pricing_model": {

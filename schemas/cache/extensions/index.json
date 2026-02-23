@@ -2,7 +2,7 @@
   "$id": "/schemas/3.0.0-beta.3/extensions/index.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "_generated": true,
-  "_generatedAt": "2026-02-22T01:16:45.943Z",
+  "_generatedAt": "2026-02-22T23:54:26.139Z",
   "description": "Auto-generated registry of formal AdCP extensions. Extensions provide typed schemas for vendor-specific or domain-specific data within the ext field. Agents declare which extensions they support in their agent card.",
   "extensions": {},
   "title": "AdCP Extension Registry"

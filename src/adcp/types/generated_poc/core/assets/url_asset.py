@@ -14,12 +14,12 @@ from ...enums import url_asset_type
 
 class UrlAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     description: Annotated[
-        str | None, Field(description='Description of what this URL points to')
+        str | None, Field(description="Description of what this URL points to")
     ] = None
-    url: Annotated[AnyUrl, Field(description='URL reference')]
+    url: Annotated[AnyUrl, Field(description="URL reference")]
     url_type: Annotated[
         url_asset_type.UrlAssetType | None,
         Field(

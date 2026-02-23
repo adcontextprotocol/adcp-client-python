@@ -14,76 +14,76 @@ from . import price_guidance as price_guidance_1
 
 
 class TimeUnit(Enum):
-    hour = 'hour'
-    day = 'day'
-    week = 'week'
-    month = 'month'
+    hour = "hour"
+    day = "day"
+    week = "week"
+    month = "month"
 
 
 class Parameters(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     max_duration: Annotated[
         int | None,
         Field(
-            description='Maximum booking duration in time_units. Must be >= min_duration when both are present.',
+            description="Maximum booking duration in time_units. Must be >= min_duration when both are present.",
             ge=1,
         ),
     ] = None
     min_duration: Annotated[
-        int | None, Field(description='Minimum booking duration in time_units', ge=1)
+        int | None, Field(description="Minimum booking duration in time_units", ge=1)
     ] = None
     time_unit: Annotated[
         TimeUnit,
         Field(
-            description='The time unit for pricing. Total cost = fixed_price × number of time_units in the campaign flight.'
+            description="The time unit for pricing. Total cost = fixed_price × number of time_units in the campaign flight."
         ),
     ]
 
 
 class TimeBasedPricingOption(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     currency: Annotated[
         str,
         Field(
-            description='ISO 4217 currency code',
-            examples=['USD', 'EUR', 'GBP', 'JPY'],
-            pattern='^[A-Z]{3}$',
+            description="ISO 4217 currency code",
+            examples=["USD", "EUR", "GBP", "JPY"],
+            pattern="^[A-Z]{3}$",
         ),
     ]
     fixed_price: Annotated[
         float | None,
         Field(
-            description='Cost per time unit. If present, this is fixed pricing. If absent, auction-based.',
+            description="Cost per time unit. If present, this is fixed pricing. If absent, auction-based.",
             ge=0.0,
         ),
     ] = None
     floor_price: Annotated[
         float | None,
         Field(
-            description='Minimum acceptable bid per time unit for auction pricing (mutually exclusive with fixed_price). Bids below this value will be rejected.',
+            description="Minimum acceptable bid per time unit for auction pricing (mutually exclusive with fixed_price). Bids below this value will be rejected.",
             ge=0.0,
         ),
     ] = None
     min_spend_per_package: Annotated[
         float | None,
         Field(
-            description='Minimum spend requirement per package using this pricing option, in the specified currency',
+            description="Minimum spend requirement per package using this pricing option, in the specified currency",
             ge=0.0,
         ),
     ] = None
-    parameters: Annotated[Parameters, Field(description='Time-based pricing parameters')]
+    parameters: Annotated[Parameters, Field(description="Time-based pricing parameters")]
     price_guidance: Annotated[
         price_guidance_1.PriceGuidance | None,
-        Field(description='Optional pricing guidance for auction-based bidding'),
+        Field(description="Optional pricing guidance for auction-based bidding"),
     ] = None
     pricing_model: Annotated[
-        Literal['time'],
-        Field(description='Cost per time unit - rate scales with campaign duration'),
+        Literal["time"],
+        Field(description="Cost per time unit - rate scales with campaign duration"),
     ]
     pricing_option_id: Annotated[
-        str, Field(description='Unique identifier for this pricing option within the product')
+        str, Field(description="Unique identifier for this pricing option within the product")
     ]

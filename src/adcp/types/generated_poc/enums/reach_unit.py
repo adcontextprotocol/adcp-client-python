@@ -8,9 +8,9 @@ from enum import Enum
 
 
 class ReachUnit(Enum):
-    individuals = 'individuals'
-    households = 'households'
-    devices = 'devices'
-    accounts = 'accounts'
-    cookies = 'cookies'
-    custom = 'custom'
+    individuals = "individuals"
+    households = "households"
+    devices = "devices"
+    accounts = "accounts"
+    cookies = "cookies"
+    custom = "custom"

@@ -17,25 +17,25 @@ from ..enums import catalog_action, catalog_item_status
 
 class ItemIssue(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    item_id: Annotated[str, Field(description='ID of the catalog item with an issue')]
-    reasons: Annotated[list[str] | None, Field(description='Reasons for rejection or warning')] = (
+    item_id: Annotated[str, Field(description="ID of the catalog item with an issue")]
+    reasons: Annotated[list[str] | None, Field(description="Reasons for rejection or warning")] = (
         None
     )
     status: Annotated[
-        catalog_item_status.CatalogItemStatus, Field(description='Item review status')
+        catalog_item_status.CatalogItemStatus, Field(description="Item review status")
     ]
 
 
 class Catalog(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     action: Annotated[
-        catalog_action.CatalogAction, Field(description='Action taken for this catalog')
+        catalog_action.CatalogAction, Field(description="Action taken for this catalog")
     ]
-    catalog_id: Annotated[str, Field(description='Catalog ID from the request')]
+    catalog_id: Annotated[str, Field(description="Catalog ID from the request")]
     changes: Annotated[
         list[str] | None,
         Field(description="Field names that were modified (only present when action='updated')"),
@@ -45,58 +45,58 @@ class Catalog(AdCPBaseModel):
         Field(description="Validation or processing errors (only present when action='failed')"),
     ] = None
     item_count: Annotated[
-        int | None, Field(description='Total number of items in the catalog after sync', ge=0)
+        int | None, Field(description="Total number of items in the catalog after sync", ge=0)
     ] = None
     item_issues: Annotated[
         list[ItemIssue] | None,
         Field(
-            description='Per-item issues reported by the platform (rejections, warnings). Only present when the platform performs item-level review.'
+            description="Per-item issues reported by the platform (rejections, warnings). Only present when the platform performs item-level review."
         ),
     ] = None
     items_approved: Annotated[
         int | None,
         Field(
-            description='Number of items approved by the platform. Populated when the platform performs item-level review.',
+            description="Number of items approved by the platform. Populated when the platform performs item-level review.",
             ge=0,
         ),
     ] = None
     items_pending: Annotated[
         int | None,
         Field(
-            description='Number of items pending platform review. Common for product catalogs where items must pass content policy checks.',
+            description="Number of items pending platform review. Common for product catalogs where items must pass content policy checks.",
             ge=0,
         ),
     ] = None
     items_rejected: Annotated[
         int | None,
         Field(
-            description='Number of items rejected by the platform. Check item_issues for rejection reasons.',
+            description="Number of items rejected by the platform. Check item_issues for rejection reasons.",
             ge=0,
         ),
     ] = None
     last_synced_at: Annotated[
         AwareDatetime | None,
         Field(
-            description='ISO 8601 timestamp of when the most recent sync was accepted by the platform'
+            description="ISO 8601 timestamp of when the most recent sync was accepted by the platform"
         ),
     ] = None
     next_fetch_at: Annotated[
         AwareDatetime | None,
         Field(
-            description='ISO 8601 timestamp of when the platform will next fetch the feed URL. Only present for URL-based catalogs with update_frequency.'
+            description="ISO 8601 timestamp of when the platform will next fetch the feed URL. Only present for URL-based catalogs with update_frequency."
         ),
     ] = None
     platform_id: Annotated[
-        str | None, Field(description='Platform-specific ID assigned to the catalog')
+        str | None, Field(description="Platform-specific ID assigned to the catalog")
     ] = None
     warnings: Annotated[
-        list[str] | None, Field(description='Non-fatal warnings about this catalog')
+        list[str] | None, Field(description="Non-fatal warnings about this catalog")
     ] = None
 
 
 class SyncCatalogsResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     catalogs: Annotated[
         list[Catalog],
@@ -106,24 +106,24 @@ class SyncCatalogsResponse1(AdCPBaseModel):
     ]
     context: context_1.ContextObject | None = None
     dry_run: Annotated[
-        bool | None, Field(description='Whether this was a dry run (no actual changes made)')
+        bool | None, Field(description="Whether this was a dry run (no actual changes made)")
     ] = None
     ext: ext_1.ExtensionObject | None = None
     sandbox: Annotated[
         bool | None,
-        Field(description='When true, this response contains simulated data from sandbox mode.'),
+        Field(description="When true, this response contains simulated data from sandbox mode."),
     ] = None
 
 
 class SyncCatalogsResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
-            description='Operation-level errors that prevented processing any catalogs (e.g., authentication failure, service unavailable, invalid request format)',
+            description="Operation-level errors that prevented processing any catalogs (e.g., authentication failure, service unavailable, invalid request format)",
             min_length=1,
         ),
     ]
@@ -134,7 +134,7 @@ class SyncCatalogsResponse(RootModel[SyncCatalogsResponse1 | SyncCatalogsRespons
     root: Annotated[
         SyncCatalogsResponse1 | SyncCatalogsResponse2,
         Field(
-            description='Response from catalog sync operation. Returns either per-catalog results (best-effort processing) OR operation-level errors (complete failure). Platforms may approve, reject, or flag individual items within each catalog (similar to Google Merchant Center product review).',
-            title='Sync Catalogs Response',
+            description="Response from catalog sync operation. Returns either per-catalog results (best-effort processing) OR operation-level errors (complete failure). Platforms may approve, reject, or flag individual items within each catalog (similar to Google Merchant Center product review).",
+            title="Sync Catalogs Response",
         ),
     ]

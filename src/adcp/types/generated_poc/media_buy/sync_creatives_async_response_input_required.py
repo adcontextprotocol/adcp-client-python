@@ -15,17 +15,17 @@ from ..core import ext as ext_1
 
 
 class Reason(Enum):
-    APPROVAL_REQUIRED = 'APPROVAL_REQUIRED'
-    ASSET_CONFIRMATION = 'ASSET_CONFIRMATION'
-    FORMAT_CLARIFICATION = 'FORMAT_CLARIFICATION'
+    APPROVAL_REQUIRED = "APPROVAL_REQUIRED"
+    ASSET_CONFIRMATION = "ASSET_CONFIRMATION"
+    FORMAT_CLARIFICATION = "FORMAT_CLARIFICATION"
 
 
 class SyncCreativesInputRequired(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     reason: Annotated[
-        Reason | None, Field(description='Reason code indicating why buyer input is needed')
+        Reason | None, Field(description="Reason code indicating why buyer input is needed")
     ] = None

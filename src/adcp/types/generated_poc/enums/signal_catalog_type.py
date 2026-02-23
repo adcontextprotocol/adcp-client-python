@@ -8,6 +8,6 @@ from enum import Enum
 
 
 class SignalCatalogType(Enum):
-    marketplace = 'marketplace'
-    custom = 'custom'
-    owned = 'owned'
+    marketplace = "marketplace"
+    custom = "custom"
+    owned = "owned"

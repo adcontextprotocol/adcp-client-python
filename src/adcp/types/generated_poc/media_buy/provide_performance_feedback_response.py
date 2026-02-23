@@ -16,29 +16,29 @@ from ..core import ext as ext_1
 
 class ProvidePerformanceFeedbackResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     sandbox: Annotated[
         bool | None,
-        Field(description='When true, this response contains simulated data from sandbox mode.'),
+        Field(description="When true, this response contains simulated data from sandbox mode."),
     ] = None
     success: Annotated[
         Literal[True],
-        Field(description='Whether the performance feedback was successfully received'),
+        Field(description="Whether the performance feedback was successfully received"),
     ]
 
 
 class ProvidePerformanceFeedbackResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
-            description='Array of errors explaining why feedback was rejected (e.g., invalid measurement period, missing campaign data)',
+            description="Array of errors explaining why feedback was rejected (e.g., invalid measurement period, missing campaign data)",
             min_length=1,
         ),
     ]
@@ -51,7 +51,7 @@ class ProvidePerformanceFeedbackResponse(
     root: Annotated[
         ProvidePerformanceFeedbackResponse1 | ProvidePerformanceFeedbackResponse2,
         Field(
-            description='Response payload for provide_performance_feedback task. Returns either success confirmation OR error information, never both.',
-            title='Provide Performance Feedback Response',
+            description="Response payload for provide_performance_feedback task. Returns either success confirmation OR error information, never both.",
+            title="Provide Performance Feedback Response",
         ),
     ]

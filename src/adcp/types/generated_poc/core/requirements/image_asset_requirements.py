@@ -12,71 +12,71 @@ from pydantic import ConfigDict, Field
 
 
 class Format(Enum):
-    jpg = 'jpg'
-    jpeg = 'jpeg'
-    png = 'png'
-    gif = 'gif'
-    webp = 'webp'
-    svg = 'svg'
-    avif = 'avif'
+    jpg = "jpg"
+    jpeg = "jpeg"
+    png = "png"
+    gif = "gif"
+    webp = "webp"
+    svg = "svg"
+    avif = "avif"
 
 
 class ImageAssetRequirements(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     animation_allowed: Annotated[
-        bool | None, Field(description='Whether animated images (GIF, animated WebP) are accepted')
+        bool | None, Field(description="Whether animated images (GIF, animated WebP) are accepted")
     ] = None
     aspect_ratio: Annotated[
         str | None,
         Field(
             description="Required aspect ratio (e.g., '16:9', '1:1', '1.91:1')",
-            pattern='^\\d+(\\.\\d+)?:\\d+(\\.\\d+)?$',
+            pattern="^\\d+(\\.\\d+)?:\\d+(\\.\\d+)?$",
         ),
     ] = None
-    formats: Annotated[list[Format] | None, Field(description='Accepted image file formats')] = None
+    formats: Annotated[list[Format] | None, Field(description="Accepted image file formats")] = None
     max_animation_duration_ms: Annotated[
         int | None,
         Field(
-            description='Maximum animation duration in milliseconds (if animation_allowed is true)',
+            description="Maximum animation duration in milliseconds (if animation_allowed is true)",
             ge=0,
         ),
     ] = None
     max_file_size_kb: Annotated[
-        int | None, Field(description='Maximum file size in kilobytes', ge=1)
+        int | None, Field(description="Maximum file size in kilobytes", ge=1)
     ] = None
     max_height: Annotated[
         int | None,
         Field(
-            description='Maximum height in pixels. For exact dimensions, set min_height = max_height.',
+            description="Maximum height in pixels. For exact dimensions, set min_height = max_height.",
             ge=1,
         ),
     ] = None
     max_width: Annotated[
         int | None,
         Field(
-            description='Maximum width in pixels. For exact dimensions, set min_width = max_width.',
+            description="Maximum width in pixels. For exact dimensions, set min_width = max_width.",
             ge=1,
         ),
     ] = None
     min_height: Annotated[
         int | None,
         Field(
-            description='Minimum height in pixels. For exact dimensions, set min_height = max_height.',
+            description="Minimum height in pixels. For exact dimensions, set min_height = max_height.",
             ge=1,
         ),
     ] = None
     min_width: Annotated[
         int | None,
         Field(
-            description='Minimum width in pixels. For exact dimensions, set min_width = max_width.',
+            description="Minimum width in pixels. For exact dimensions, set min_width = max_width.",
             ge=1,
         ),
     ] = None
     transparency_required: Annotated[
         bool | None,
         Field(
-            description='Whether the image must support transparency (requires PNG, WebP, or GIF)'
+            description="Whether the image must support transparency (requires PNG, WebP, or GIF)"
         ),
     ] = None

@@ -12,9 +12,9 @@ from pydantic import ConfigDict, Field
 
 class DaastAssetRequirements(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     daast_version: Annotated[
-        Literal['1.0'] | None,
-        Field(description='Required DAAST version. DAAST 1.0 is the current IAB standard.'),
+        Literal["1.0"] | None,
+        Field(description="Required DAAST version. DAAST 1.0 is the current IAB standard."),
     ] = None

@@ -335,17 +335,13 @@ class SponsoredIntelligenceHandler(ADCPHandler):
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Sponsored Intelligence agents."""
-        return not_supported(
-            "list_accounts is not supported by Sponsored Intelligence agents."
-        )
+        return not_supported("list_accounts is not supported by Sponsored Intelligence agents.")
 
     async def sync_accounts(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -> NotImplementedResponse:
         """Not supported by Sponsored Intelligence agents."""
-        return not_supported(
-            "sync_accounts is not supported by Sponsored Intelligence agents."
-        )
+        return not_supported("sync_accounts is not supported by Sponsored Intelligence agents.")
 
     async def log_event(
         self, params: dict[str, Any], context: ToolContext | None = None

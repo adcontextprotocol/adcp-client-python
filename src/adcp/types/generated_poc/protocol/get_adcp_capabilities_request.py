@@ -15,23 +15,23 @@ from ..core import ext as ext_1
 
 
 class Protocol(Enum):
-    media_buy = 'media_buy'
-    signals = 'signals'
-    governance = 'governance'
-    sponsored_intelligence = 'sponsored_intelligence'
-    creative = 'creative'
+    media_buy = "media_buy"
+    signals = "signals"
+    governance = "governance"
+    sponsored_intelligence = "sponsored_intelligence"
+    creative = "creative"
 
 
 class GetAdcpCapabilitiesRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     protocols: Annotated[
         list[Protocol] | None,
         Field(
-            description='Specific protocols to query capabilities for. If omitted, returns capabilities for all supported protocols.',
+            description="Specific protocols to query capabilities for. If omitted, returns capabilities for all supported protocols.",
             min_length=1,
         ),
     ] = None

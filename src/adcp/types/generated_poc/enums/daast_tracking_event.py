@@ -8,14 +8,14 @@ from enum import Enum
 
 
 class DaastTrackingEvent(Enum):
-    start = 'start'
-    firstQuartile = 'firstQuartile'
-    midpoint = 'midpoint'
-    thirdQuartile = 'thirdQuartile'
-    complete = 'complete'
-    impression = 'impression'
-    pause = 'pause'
-    resume = 'resume'
-    skip = 'skip'
-    mute = 'mute'
-    unmute = 'unmute'
+    start = "start"
+    firstQuartile = "firstQuartile"
+    midpoint = "midpoint"
+    thirdQuartile = "thirdQuartile"
+    complete = "complete"
+    impression = "impression"
+    pause = "pause"
+    resume = "resume"
+    skip = "skip"
+    mute = "mute"
+    unmute = "unmute"

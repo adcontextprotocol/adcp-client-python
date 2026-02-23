@@ -18,7 +18,7 @@ class StatusFilter(RootModel[list[media_buy_status.MediaBuyStatus]]):
     root: Annotated[
         list[media_buy_status.MediaBuyStatus],
         Field(
-            description='Filter by status. Can be a single status or array of statuses',
+            description="Filter by status. Can be a single status or array of statuses",
             min_length=1,
         ),
     ]
@@ -26,41 +26,41 @@ class StatusFilter(RootModel[list[media_buy_status.MediaBuyStatus]]):
 
 class GetMediaBuyDeliveryRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     account_id: Annotated[
         str | None,
         Field(
-            description='Filter delivery data to a specific account. When provided, only returns media buys belonging to this account. When omitted, returns data across all accessible accounts. Optional if the agent has a single account.'
+            description="Filter delivery data to a specific account. When provided, only returns media buys belonging to this account. When omitted, returns data across all accessible accounts. Optional if the agent has a single account."
         ),
     ] = None
     buyer_refs: Annotated[
         list[str] | None,
-        Field(description='Array of buyer reference IDs to get delivery data for', min_length=1),
+        Field(description="Array of buyer reference IDs to get delivery data for", min_length=1),
     ] = None
     context: context_1.ContextObject | None = None
     end_date: Annotated[
         str | None,
         Field(
             description="End date for reporting period (YYYY-MM-DD). When omitted along with start_date, returns campaign lifetime data. Only accepted when the product's reporting_capabilities.date_range_support is 'date_range'.",
-            pattern='^\\d{4}-\\d{2}-\\d{2}$',
+            pattern="^\\d{4}-\\d{2}-\\d{2}$",
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
     media_buy_ids: Annotated[
         list[str] | None,
         Field(
-            description='Array of publisher media buy IDs to get delivery data for', min_length=1
+            description="Array of publisher media buy IDs to get delivery data for", min_length=1
         ),
     ] = None
     start_date: Annotated[
         str | None,
         Field(
             description="Start date for reporting period (YYYY-MM-DD). When omitted along with end_date, returns campaign lifetime data. Only accepted when the product's reporting_capabilities.date_range_support is 'date_range'.",
-            pattern='^\\d{4}-\\d{2}-\\d{2}$',
+            pattern="^\\d{4}-\\d{2}-\\d{2}$",
         ),
     ] = None
     status_filter: Annotated[
         media_buy_status.MediaBuyStatus | StatusFilter | None,
-        Field(description='Filter by status. Can be a single status or array of statuses'),
+        Field(description="Filter by status. Can be a single status or array of statuses"),
     ] = None

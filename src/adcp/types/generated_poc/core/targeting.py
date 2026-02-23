@@ -19,24 +19,24 @@ from . import property_list_ref
 
 class AgeRestriction(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     accepted_methods: Annotated[
         list[age_verification_method.AgeVerificationMethod] | None,
         Field(
-            description='Accepted verification methods. If omitted, any method the platform supports is acceptable.',
+            description="Accepted verification methods. If omitted, any method the platform supports is acceptable.",
             min_length=1,
         ),
     ] = None
-    min: Annotated[int, Field(description='Minimum age required', ge=13, le=99)]
+    min: Annotated[int, Field(description="Minimum age required", ge=13, le=99)]
     verification_required: Annotated[
         bool | None,
-        Field(description='Whether verified age (not inferred) is required for compliance'),
+        Field(description="Whether verified age (not inferred) is required for compliance"),
     ] = False
 
 
 class GeoCountry(RootModel[str]):
-    root: Annotated[str, Field(pattern='^[A-Z]{2}$')]
+    root: Annotated[str, Field(pattern="^[A-Z]{2}$")]
 
 
 class GeoCountriesExcludeItem(GeoCountry):
@@ -45,7 +45,7 @@ class GeoCountriesExcludeItem(GeoCountry):
 
 class GeoMetro(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     system: Annotated[
         metro_system.MetroAreaSystem,
@@ -62,7 +62,7 @@ class GeoMetro(AdCPBaseModel):
 
 class GeoMetrosExcludeItem(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     system: Annotated[
         metro_system.MetroAreaSystem,
@@ -79,7 +79,7 @@ class GeoMetrosExcludeItem(AdCPBaseModel):
 
 class GeoPostalArea(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     system: Annotated[
         postal_system.PostalCodeSystem,
@@ -98,7 +98,7 @@ class GeoPostalArea(AdCPBaseModel):
 
 class GeoPostalAreasExcludeItem(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     system: Annotated[
         postal_system.PostalCodeSystem,
@@ -116,7 +116,7 @@ class GeoPostalAreasExcludeItem(AdCPBaseModel):
 
 
 class GeoRegion(RootModel[str]):
-    root: Annotated[str, Field(pattern='^[A-Z]{2}-[A-Z0-9]{1,3}$')]
+    root: Annotated[str, Field(pattern="^[A-Z]{2}-[A-Z0-9]{1,3}$")]
 
 
 class GeoRegionsExcludeItem(GeoRegion):
@@ -124,15 +124,15 @@ class GeoRegionsExcludeItem(GeoRegion):
 
 
 class LanguageItem(RootModel[str]):
-    root: Annotated[str, Field(pattern='^[a-z]{2}$')]
+    root: Annotated[str, Field(pattern="^[a-z]{2}$")]
 
 
 class StoreCatchment(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     catalog_id: Annotated[
-        str, Field(description='Synced store-type catalog ID from sync_catalogs.')
+        str, Field(description="Synced store-type catalog ID from sync_catalogs.")
     ]
     catchment_ids: Annotated[
         list[str] | None,
@@ -144,7 +144,7 @@ class StoreCatchment(AdCPBaseModel):
     store_ids: Annotated[
         list[str] | None,
         Field(
-            description='Filter to specific stores within the catalog. Omit to target all stores.',
+            description="Filter to specific stores within the catalog. Omit to target all stores.",
             min_length=1,
         ),
     ] = None
@@ -152,45 +152,45 @@ class StoreCatchment(AdCPBaseModel):
 
 class TargetingOverlay(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     age_restriction: Annotated[
         AgeRestriction | None,
         Field(
-            description='Age restriction for compliance. Use for legal requirements (alcohol, gambling), not audience targeting.'
+            description="Age restriction for compliance. Use for legal requirements (alcohol, gambling), not audience targeting."
         ),
     ] = None
     audience_exclude: Annotated[
         list[str] | None,
         Field(
-            description='Suppress delivery to members of these first-party CRM audiences. Matched users are excluded regardless of other targeting. References audience_id values from sync_audiences on the same seller account — audience IDs are not portable across sellers. Seller must declare support in get_adcp_capabilities.',
+            description="Suppress delivery to members of these first-party CRM audiences. Matched users are excluded regardless of other targeting. References audience_id values from sync_audiences on the same seller account — audience IDs are not portable across sellers. Seller must declare support in get_adcp_capabilities.",
             min_length=1,
         ),
     ] = None
     audience_include: Annotated[
         list[str] | None,
         Field(
-            description='Restrict delivery to members of these first-party CRM audiences. Only users present in the uploaded lists are eligible. References audience_id values from sync_audiences on the same seller account — audience IDs are not portable across sellers. Not for lookalike expansion — express that intent in the campaign brief. Seller must declare support in get_adcp_capabilities.',
+            description="Restrict delivery to members of these first-party CRM audiences. Only users present in the uploaded lists are eligible. References audience_id values from sync_audiences on the same seller account — audience IDs are not portable across sellers. Not for lookalike expansion — express that intent in the campaign brief. Seller must declare support in get_adcp_capabilities.",
             min_length=1,
         ),
     ] = None
     axe_exclude_segment: Annotated[
-        str | None, Field(description='AXE segment ID to exclude from targeting')
+        str | None, Field(description="AXE segment ID to exclude from targeting")
     ] = None
     axe_include_segment: Annotated[
-        str | None, Field(description='AXE segment ID to include for targeting')
+        str | None, Field(description="AXE segment ID to include for targeting")
     ] = None
     daypart_targets: Annotated[
         list[daypart_target.DaypartTarget] | None,
         Field(
-            description='Restrict delivery to specific time windows. Each entry specifies days of week and an hour range.',
+            description="Restrict delivery to specific time windows. Each entry specifies days of week and an hour range.",
             min_length=1,
         ),
     ] = None
     device_platform: Annotated[
         list[device_platform_1.DevicePlatform] | None,
         Field(
-            description='Restrict to specific platforms. Use for technical compatibility (app only works on iOS). Values from Sec-CH-UA-Platform standard, extended for CTV.',
+            description="Restrict to specific platforms. Use for technical compatibility (app only works on iOS). Values from Sec-CH-UA-Platform standard, extended for CTV.",
             min_length=1,
         ),
     ] = None
@@ -212,28 +212,28 @@ class TargetingOverlay(AdCPBaseModel):
     geo_metros: Annotated[
         list[GeoMetro] | None,
         Field(
-            description='Restrict delivery to specific metro areas. Each entry specifies the classification system and target values. Seller must declare supported systems in get_adcp_capabilities.',
+            description="Restrict delivery to specific metro areas. Each entry specifies the classification system and target values. Seller must declare supported systems in get_adcp_capabilities.",
             min_length=1,
         ),
     ] = None
     geo_metros_exclude: Annotated[
         list[GeoMetrosExcludeItem] | None,
         Field(
-            description='Exclude specific metro areas from delivery. Each entry specifies the classification system and excluded values. Seller must declare supported systems in get_adcp_capabilities.',
+            description="Exclude specific metro areas from delivery. Each entry specifies the classification system and excluded values. Seller must declare supported systems in get_adcp_capabilities.",
             min_length=1,
         ),
     ] = None
     geo_postal_areas: Annotated[
         list[GeoPostalArea] | None,
         Field(
-            description='Restrict delivery to specific postal areas. Each entry specifies the postal system and target values. Seller must declare supported systems in get_adcp_capabilities.',
+            description="Restrict delivery to specific postal areas. Each entry specifies the postal system and target values. Seller must declare supported systems in get_adcp_capabilities.",
             min_length=1,
         ),
     ] = None
     geo_postal_areas_exclude: Annotated[
         list[GeoPostalAreasExcludeItem] | None,
         Field(
-            description='Exclude specific postal areas from delivery. Each entry specifies the postal system and excluded values. Seller must declare supported systems in get_adcp_capabilities.',
+            description="Exclude specific postal areas from delivery. Each entry specifies the postal system and excluded values. Seller must declare supported systems in get_adcp_capabilities.",
             min_length=1,
         ),
     ] = None
@@ -267,7 +267,7 @@ class TargetingOverlay(AdCPBaseModel):
     store_catchments: Annotated[
         list[StoreCatchment] | None,
         Field(
-            description='Target users within store catchment areas from a synced store catalog. Each entry references a store-type catalog and optionally narrows to specific stores or catchment zones.',
+            description="Target users within store catchment areas from a synced store catalog. Each entry references a store-type catalog and optionally narrows to specific stores or catchment zones.",
             min_length=1,
         ),
     ] = None

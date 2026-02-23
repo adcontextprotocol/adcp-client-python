@@ -12,41 +12,41 @@ from pydantic import ConfigDict, Field, RootModel
 
 class DataProviderSignalSelector1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     data_provider_domain: Annotated[
         str,
         Field(
             description="Domain where data provider's adagents.json is hosted (e.g., 'polk.com')",
-            pattern='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$',
+            pattern="^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
         ),
     ]
     selection_type: Annotated[
-        Literal['all'],
+        Literal["all"],
         Field(
-            description='Discriminator indicating all signals from this data provider are included'
+            description="Discriminator indicating all signals from this data provider are included"
         ),
     ]
 
 
 class SignalId(RootModel[str]):
-    root: Annotated[str, Field(pattern='^[a-zA-Z0-9_-]+$')]
+    root: Annotated[str, Field(pattern="^[a-zA-Z0-9_-]+$")]
 
 
 class DataProviderSignalSelector2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     data_provider_domain: Annotated[
         str,
         Field(
             description="Domain where data provider's adagents.json is hosted (e.g., 'polk.com')",
-            pattern='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$',
+            pattern="^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
         ),
     ]
     selection_type: Annotated[
-        Literal['by_id'],
-        Field(description='Discriminator indicating selection by specific signal IDs'),
+        Literal["by_id"],
+        Field(description="Discriminator indicating selection by specific signal IDs"),
     ]
     signal_ids: Annotated[
         list[SignalId],
@@ -55,22 +55,22 @@ class DataProviderSignalSelector2(AdCPBaseModel):
 
 
 class SignalTag(RootModel[str]):
-    root: Annotated[str, Field(pattern='^[a-z0-9_-]+$')]
+    root: Annotated[str, Field(pattern="^[a-z0-9_-]+$")]
 
 
 class DataProviderSignalSelector3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     data_provider_domain: Annotated[
         str,
         Field(
             description="Domain where data provider's adagents.json is hosted (e.g., 'polk.com')",
-            pattern='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$',
+            pattern="^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
         ),
     ]
     selection_type: Annotated[
-        Literal['by_tag'], Field(description='Discriminator indicating selection by signal tags')
+        Literal["by_tag"], Field(description="Discriminator indicating selection by signal tags")
     ]
     signal_tags: Annotated[
         list[SignalTag],
@@ -90,7 +90,7 @@ class DataProviderSignalSelector(
         DataProviderSignalSelector1 | DataProviderSignalSelector2 | DataProviderSignalSelector3,
         Field(
             description="Selects signals from a data provider's adagents.json catalog. Used for product definitions and agent authorization. Supports three selection patterns: all signals, specific IDs, or by tags.",
-            discriminator='selection_type',
-            title='Data Provider Signal Selector',
+            discriminator="selection_type",
+            title="Data Provider Signal Selector",
         ),
     ]

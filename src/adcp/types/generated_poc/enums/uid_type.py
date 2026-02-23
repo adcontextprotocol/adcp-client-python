@@ -8,11 +8,11 @@ from enum import Enum
 
 
 class UidType(Enum):
-    rampid = 'rampid'
-    id5 = 'id5'
-    uid2 = 'uid2'
-    euid = 'euid'
-    pairid = 'pairid'
-    external_id = 'external_id'
-    maid = 'maid'
-    other = 'other'
+    rampid = "rampid"
+    id5 = "id5"
+    uid2 = "uid2"
+    euid = "euid"
+    pairid = "pairid"
+    external_id = "external_id"
+    maid = "maid"
+    other = "other"

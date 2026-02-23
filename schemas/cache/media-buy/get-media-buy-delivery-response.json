@@ -1,4 +1,5 @@
 {
+  "$id": "/schemas/latest/media-buy/get-media-buy-delivery-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Response payload for get_media_buy_delivery task",
@@ -67,11 +68,11 @@
       "type": "object"
     },
     "attribution_window": {
-      "$ref": "../core/attribution-window.json",
+      "$ref": "/schemas/latest/core/attribution-window.json",
       "description": "Attribution methodology and lookback windows used for conversion metrics in this response. All media buys from a single seller share the same attribution methodology. Enables cross-platform comparison (e.g., Amazon 14-day click vs. Criteo 30-day click)."
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/latest/core/context.json"
     },
     "currency": {
       "description": "ISO 4217 currency code",
@@ -81,18 +82,22 @@
     "errors": {
       "description": "Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)",
       "items": {
-        "$ref": "../core/error.json"
+        "$ref": "/schemas/latest/core/error.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/latest/core/ext.json"
     },
     "media_buy_deliveries": {
       "description": "Array of delivery data for media buys. When used in webhook notifications, may contain multiple media buys aggregated by publisher. When used in get_media_buy_delivery API responses, typically contains requested media buys.",
       "items": {
         "additionalProperties": true,
         "properties": {
+          "buyer_campaign_ref": {
+            "description": "Buyer's campaign reference label from create_media_buy.buyer_campaign_ref. Groups related operations under a single campaign for CRM and ad server correlation; may be absent when not provided at creation time.",
+            "type": "string"
+          },
           "buyer_ref": {
             "description": "Buyer's reference identifier for this media buy",
             "type": "string"
@@ -102,7 +107,7 @@
             "items": {
               "allOf": [
                 {
-                  "$ref": "../core/delivery-metrics.json"
+                  "$ref": "/schemas/latest/core/delivery-metrics.json"
                 },
                 {
                   "properties": {
@@ -115,7 +120,7 @@
                       "items": {
                         "allOf": [
                           {
-                            "$ref": "../core/delivery-metrics.json"
+                            "$ref": "/schemas/latest/core/delivery-metrics.json"
                           },
                           {
                             "properties": {
@@ -124,7 +129,7 @@
                                 "type": "string"
                               },
                               "content_id_type": {
-                                "$ref": "../enums/content-id-type.json",
+                                "$ref": "/schemas/latest/enums/content-id-type.json",
                                 "description": "Identifier type for this content_id"
                               }
                             },
@@ -144,7 +149,7 @@
                       "items": {
                         "allOf": [
                           {
-                            "$ref": "../core/delivery-metrics.json"
+                            "$ref": "/schemas/latest/core/delivery-metrics.json"
                           },
                           {
                             "properties": {
@@ -200,7 +205,7 @@
                       "type": "boolean"
                     },
                     "pricing_model": {
-                      "$ref": "../enums/pricing-model.json",
+                      "$ref": "/schemas/latest/enums/pricing-model.json",
                       "description": "The pricing model used for this package (e.g., cpm, cpcv, cpp). Indicates how the package is billed and which metrics are most relevant for optimization."
                     },
                     "rate": {
@@ -221,10 +226,6 @@
               ]
             },
             "type": "array"
-          },
-          "campaign_ref": {
-            "description": "Buyer's campaign reference label. Groups related operations under a single campaign for CRM and ad server correlation.",
-            "type": "string"
           },
           "daily_breakdown": {
             "description": "Day-by-day delivery",
@@ -291,12 +292,13 @@
             "type": "string"
           },
           "pricing_model": {
-            "$ref": "../enums/pricing-model.json",
+            "$ref": "/schemas/latest/enums/pricing-model.json",
             "description": "Pricing model used for this media buy"
           },
           "status": {
-            "description": "Current media buy status. In webhook context, reporting_delayed indicates data temporarily unavailable.",
+            "description": "Current media buy status. Lifecycle states use the same taxonomy as media-buy-status (`pending_activation`, `active`, `paused`, `completed`). In webhook context, reporting_delayed indicates data temporarily unavailable. `pending` is accepted as a legacy alias for pending_activation.",
             "enum": [
+              "pending_activation",
               "pending",
               "active",
               "paused",
@@ -309,7 +311,7 @@
           "totals": {
             "allOf": [
               {
-                "$ref": "../core/delivery-metrics.json"
+                "$ref": "/schemas/latest/core/delivery-metrics.json"
               },
               {
                 "description": "Aggregate metrics for this media buy across all packages",

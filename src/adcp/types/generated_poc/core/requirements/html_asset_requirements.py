@@ -12,30 +12,30 @@ from pydantic import ConfigDict, Field
 
 
 class Sandbox(Enum):
-    none = 'none'
-    iframe = 'iframe'
-    safeframe = 'safeframe'
-    fencedframe = 'fencedframe'
+    none = "none"
+    iframe = "iframe"
+    safeframe = "safeframe"
+    fencedframe = "fencedframe"
 
 
 class HtmlAssetRequirements(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     allowed_external_domains: Annotated[
         list[str] | None,
         Field(
-            description='List of domains the HTML creative may reference for external resources. Only applicable when external_resources_allowed is true.'
+            description="List of domains the HTML creative may reference for external resources. Only applicable when external_resources_allowed is true."
         ),
     ] = None
     external_resources_allowed: Annotated[
         bool | None,
         Field(
-            description='Whether the HTML creative can load external resources (scripts, images, fonts, etc.). When false, all resources must be inlined or bundled.'
+            description="Whether the HTML creative can load external resources (scripts, images, fonts, etc.). When false, all resources must be inlined or bundled."
         ),
     ] = None
     max_file_size_kb: Annotated[
-        int | None, Field(description='Maximum file size in kilobytes for the HTML asset', ge=1)
+        int | None, Field(description="Maximum file size in kilobytes for the HTML asset", ge=1)
     ] = None
     sandbox: Annotated[
         Sandbox | None,

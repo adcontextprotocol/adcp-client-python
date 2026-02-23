@@ -13,7 +13,7 @@ from ..core import ext as ext_1
 
 class CreateMediaBuySubmitted(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None

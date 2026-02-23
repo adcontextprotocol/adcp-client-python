@@ -12,28 +12,28 @@ from pydantic import ConfigDict, Field
 
 
 class ModuleType(Enum):
-    script = 'script'
-    module = 'module'
-    iife = 'iife'
+    script = "script"
+    module = "module"
+    iife = "iife"
 
 
 class JavascriptAssetRequirements(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     allowed_external_domains: Annotated[
         list[str] | None,
         Field(
-            description='List of domains the JavaScript may reference for external resources. Only applicable when external_resources_allowed is true.'
+            description="List of domains the JavaScript may reference for external resources. Only applicable when external_resources_allowed is true."
         ),
     ] = None
     external_resources_allowed: Annotated[
         bool | None,
-        Field(description='Whether the JavaScript can load external resources dynamically'),
+        Field(description="Whether the JavaScript can load external resources dynamically"),
     ] = None
     max_file_size_kb: Annotated[
         int | None,
-        Field(description='Maximum file size in kilobytes for the JavaScript asset', ge=1),
+        Field(description="Maximum file size in kilobytes for the JavaScript asset", ge=1),
     ] = None
     module_type: Annotated[
         ModuleType | None,
@@ -42,5 +42,5 @@ class JavascriptAssetRequirements(AdCPBaseModel):
         ),
     ] = None
     strict_mode_required: Annotated[
-        bool | None, Field(description='Whether the JavaScript must use strict mode')
+        bool | None, Field(description="Whether the JavaScript must use strict mode")
     ] = None

@@ -14,19 +14,19 @@ from ..enums import day_of_week
 
 class DaypartTarget(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
     days: Annotated[
         list[day_of_week.DayOfWeek],
         Field(
-            description='Days of week this window applies to. Use multiple days for compact targeting (e.g., monday-friday in one object).',
+            description="Days of week this window applies to. Use multiple days for compact targeting (e.g., monday-friday in one object).",
             min_length=1,
         ),
     ]
     end_hour: Annotated[
         int,
         Field(
-            description='End hour (exclusive), 1-24 in 24-hour format. 10 = 10:00am, 24 = midnight. Must be greater than start_hour.',
+            description="End hour (exclusive), 1-24 in 24-hour format. 10 = 10:00am, 24 = midnight. Must be greater than start_hour.",
             ge=1,
             le=24,
         ),
@@ -40,7 +40,7 @@ class DaypartTarget(AdCPBaseModel):
     start_hour: Annotated[
         int,
         Field(
-            description='Start hour (inclusive), 0-23 in 24-hour format. 0 = midnight, 6 = 6:00am, 18 = 6:00pm.',
+            description="Start hour (inclusive), 0-23 in 24-hour format. 0 = midnight, 6 = 6:00am, 18 = 6:00pm.",
             ge=0,
             le=23,
         ),

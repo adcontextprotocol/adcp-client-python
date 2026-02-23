@@ -8,7 +8,7 @@ from enum import Enum
 
 
 class MediaBuyStatus(Enum):
-    pending_activation = 'pending_activation'
-    active = 'active'
-    paused = 'paused'
-    completed = 'completed'
+    pending_activation = "pending_activation"
+    active = "active"
+    paused = "paused"
+    completed = "completed"

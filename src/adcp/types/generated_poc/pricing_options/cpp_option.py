@@ -15,66 +15,66 @@ from . import price_guidance as price_guidance_1
 
 class Parameters(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     demographic: Annotated[
         str,
         Field(
-            description='Target demographic code within the specified demographic_system (e.g., P18-49 for Nielsen, ABC1 Adults for BARB)'
+            description="Target demographic code within the specified demographic_system (e.g., P18-49 for Nielsen, ABC1 Adults for BARB)"
         ),
     ]
     demographic_system: Annotated[
         demographic_system_1.DemographicSystem | None,
         Field(
-            description='Measurement system for the demographic field. Defaults to nielsen when omitted.'
+            description="Measurement system for the demographic field. Defaults to nielsen when omitted."
         ),
     ] = None
-    min_points: Annotated[float | None, Field(description='Minimum GRPs/TRPs required', ge=0.0)] = (
+    min_points: Annotated[float | None, Field(description="Minimum GRPs/TRPs required", ge=0.0)] = (
         None
     )
 
 
 class CppPricingOption(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     currency: Annotated[
         str,
         Field(
-            description='ISO 4217 currency code',
-            examples=['USD', 'EUR', 'GBP', 'JPY'],
-            pattern='^[A-Z]{3}$',
+            description="ISO 4217 currency code",
+            examples=["USD", "EUR", "GBP", "JPY"],
+            pattern="^[A-Z]{3}$",
         ),
     ]
     fixed_price: Annotated[
         float | None,
         Field(
-            description='Fixed price per rating point. If present, this is fixed pricing. If absent, auction-based.',
+            description="Fixed price per rating point. If present, this is fixed pricing. If absent, auction-based.",
             ge=0.0,
         ),
     ] = None
     floor_price: Annotated[
         float | None,
         Field(
-            description='Minimum acceptable bid for auction pricing (mutually exclusive with fixed_price). Bids below this value will be rejected.',
+            description="Minimum acceptable bid for auction pricing (mutually exclusive with fixed_price). Bids below this value will be rejected.",
             ge=0.0,
         ),
     ] = None
     min_spend_per_package: Annotated[
         float | None,
         Field(
-            description='Minimum spend requirement per package using this pricing option, in the specified currency',
+            description="Minimum spend requirement per package using this pricing option, in the specified currency",
             ge=0.0,
         ),
     ] = None
     parameters: Annotated[
-        Parameters, Field(description='CPP-specific parameters for demographic targeting')
+        Parameters, Field(description="CPP-specific parameters for demographic targeting")
     ]
     price_guidance: Annotated[
         price_guidance_1.PriceGuidance | None,
-        Field(description='Optional pricing guidance for auction-based bidding'),
+        Field(description="Optional pricing guidance for auction-based bidding"),
     ] = None
-    pricing_model: Annotated[Literal['cpp'], Field(description='Cost per Gross Rating Point')]
+    pricing_model: Annotated[Literal["cpp"], Field(description="Cost per Gross Rating Point")]
     pricing_option_id: Annotated[
-        str, Field(description='Unique identifier for this pricing option within the product')
+        str, Field(description="Unique identifier for this pricing option within the product")
     ]

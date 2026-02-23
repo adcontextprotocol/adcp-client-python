@@ -8,6 +8,6 @@ from enum import Enum
 
 
 class WcagLevel(Enum):
-    A = 'A'
-    AA = 'AA'
-    AAA = 'AAA'
+    A = "A"
+    AA = "AA"
+    AAA = "AAA"

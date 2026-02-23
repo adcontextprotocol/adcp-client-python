@@ -14,40 +14,40 @@ class MediaBuyFeatures(AdCPBaseModel):
     audience_targeting: Annotated[
         bool | None,
         Field(
-            description='Supports sync_audiences task and audience_include/audience_exclude in targeting overlays for first-party CRM audience management'
+            description="Supports sync_audiences task and audience_include/audience_exclude in targeting overlays for first-party CRM audience management"
         ),
     ] = None
     catalog_management: Annotated[
         bool | None,
         Field(
-            description='Supports sync_catalogs task for catalog feed management with platform review and approval'
+            description="Supports sync_catalogs task for catalog feed management with platform review and approval"
         ),
     ] = None
     content_standards: Annotated[
         bool | None,
         Field(
-            description='Full support for content_standards configuration including sampling rates and category filtering'
+            description="Full support for content_standards configuration including sampling rates and category filtering"
         ),
     ] = None
     conversion_tracking: Annotated[
         bool | None,
         Field(
-            description='Supports sync_event_sources and log_event tasks for conversion event tracking'
+            description="Supports sync_event_sources and log_event tasks for conversion event tracking"
         ),
     ] = None
     inline_creative_management: Annotated[
         bool | None,
-        Field(description='Supports creatives provided inline in create_media_buy requests'),
+        Field(description="Supports creatives provided inline in create_media_buy requests"),
     ] = None
     property_list_filtering: Annotated[
         bool | None,
         Field(
-            description='Honors property_list parameter in get_products to filter results to buyer-approved properties'
+            description="Honors property_list parameter in get_products to filter results to buyer-approved properties"
         ),
     ] = None
     sandbox: Annotated[
         bool | None,
         Field(
-            description='Supports sandbox mode for operations without real platform calls or spend'
+            description="Supports sandbox mode for operations without real platform calls or spend"
         ),
     ] = None

@@ -8,7 +8,7 @@ from enum import Enum
 
 
 class TransportMode(Enum):
-    walking = 'walking'
-    cycling = 'cycling'
-    driving = 'driving'
-    public_transport = 'public_transport'
+    walking = "walking"
+    cycling = "cycling"
+    driving = "driving"
+    public_transport = "public_transport"

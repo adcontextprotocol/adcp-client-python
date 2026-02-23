@@ -8,8 +8,8 @@ from enum import Enum
 
 
 class AgeVerificationMethod(Enum):
-    facial_age_estimation = 'facial_age_estimation'
-    id_document = 'id_document'
-    digital_id = 'digital_id'
-    credit_card = 'credit_card'
-    world_id = 'world_id'
+    facial_age_estimation = "facial_age_estimation"
+    id_document = "id_document"
+    digital_id = "digital_id"
+    credit_card = "credit_card"
+    world_id = "world_id"

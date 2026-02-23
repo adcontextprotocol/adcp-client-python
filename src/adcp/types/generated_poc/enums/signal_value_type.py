@@ -8,6 +8,6 @@ from enum import Enum
 
 
 class SignalValueType(Enum):
-    binary = 'binary'
-    categorical = 'categorical'
-    numeric = 'numeric'
+    binary = "binary"
+    categorical = "categorical"
+    numeric = "numeric"

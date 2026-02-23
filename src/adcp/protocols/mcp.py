@@ -433,6 +433,10 @@ class MCPAdapter(ProtocolAdapter):
         """Get media buy delivery."""
         return await self._call_mcp_tool("get_media_buy_delivery", params)
 
+    async def get_media_buys(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Get media buys with status, creative approval state, and optional delivery snapshots."""
+        return await self._call_mcp_tool("get_media_buys", params)
+
     async def get_signals(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Get signals."""
         return await self._call_mcp_tool("get_signals", params)

@@ -120,6 +120,11 @@ class ProtocolAdapter(ABC):
         pass
 
     @abstractmethod
+    async def get_media_buys(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Get media buys with status, creative approval state, and optional delivery snapshots."""
+        pass
+
+    @abstractmethod
     async def get_signals(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Get signals."""
         pass

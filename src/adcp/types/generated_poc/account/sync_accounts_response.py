@@ -16,50 +16,50 @@ from ..core import ext as ext_1
 
 
 class Action(Enum):
-    created = 'created'
-    updated = 'updated'
-    unchanged = 'unchanged'
-    failed = 'failed'
+    created = "created"
+    updated = "updated"
+    unchanged = "unchanged"
+    failed = "failed"
 
 
 class Billing(Enum):
-    brand = 'brand'
-    operator = 'operator'
-    agent = 'agent'
+    brand = "brand"
+    operator = "operator"
+    agent = "agent"
 
 
 class CreditLimit(AdCPBaseModel):
     amount: Annotated[float, Field(ge=0.0)]
-    currency: Annotated[str, Field(pattern='^[A-Z]{3}$')]
+    currency: Annotated[str, Field(pattern="^[A-Z]{3}$")]
 
 
 class Setup(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     expires_at: Annotated[
-        AwareDatetime | None, Field(description='When this setup link expires')
+        AwareDatetime | None, Field(description="When this setup link expires")
     ] = None
     message: Annotated[str, Field(description="Human-readable description of what's needed")]
     url: Annotated[
         AnyUrl | None,
         Field(
-            description='URL where the human can complete the required action (credit application, legal agreement, add funds)'
+            description="URL where the human can complete the required action (credit application, legal agreement, add funds)"
         ),
     ] = None
 
 
 class Status(Enum):
-    active = 'active'
-    pending_approval = 'pending_approval'
-    payment_required = 'payment_required'
-    suspended = 'suspended'
-    closed = 'closed'
+    active = "active"
+    pending_approval = "pending_approval"
+    payment_required = "payment_required"
+    suspended = "suspended"
+    closed = "closed"
 
 
 class Account(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     account_id: Annotated[
         str | None,
@@ -70,7 +70,7 @@ class Account(AdCPBaseModel):
     action: Annotated[
         Action,
         Field(
-            description='Action taken for this account. created: new account provisioned. updated: existing account modified. unchanged: no changes needed. failed: could not process (see errors).'
+            description="Action taken for this account. created: new account provisioned. updated: existing account modified. unchanged: no changes needed. failed: could not process (see errors)."
         ),
     ]
     billing: Annotated[
@@ -82,8 +82,8 @@ class Account(AdCPBaseModel):
     brand_id: Annotated[
         str | None,
         Field(
-            description='Brand ID within the house portfolio, echoed from request',
-            pattern='^[a-z0-9_]+$',
+            description="Brand ID within the house portfolio, echoed from request",
+            pattern="^[a-z0-9_]+$",
         ),
     ] = None
     credit_limit: CreditLimit | None = None
@@ -94,68 +94,68 @@ class Account(AdCPBaseModel):
     house: Annotated[
         str,
         Field(
-            description='House domain, echoed from the request',
-            pattern='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$',
+            description="House domain, echoed from the request",
+            pattern="^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
         ),
     ]
     name: Annotated[
-        str | None, Field(description='Human-readable account name assigned by the seller')
+        str | None, Field(description="Human-readable account name assigned by the seller")
     ] = None
-    operator: Annotated[str | None, Field(description='Operator domain, echoed from request')] = (
+    operator: Annotated[str | None, Field(description="Operator domain, echoed from request")] = (
         None
     )
     parent_account_id: Annotated[
         str | None,
         Field(
-            description='Parent account ID when this account is a sub-account under a shared billing account'
+            description="Parent account ID when this account is a sub-account under a shared billing account"
         ),
     ] = None
     payment_terms: Annotated[
         str | None, Field(description="Payment terms (e.g., 'net_30', 'prepay')")
     ] = None
-    rate_card: Annotated[str | None, Field(description='Rate card applied to this account')] = None
+    rate_card: Annotated[str | None, Field(description="Rate card applied to this account")] = None
     sandbox: Annotated[
         bool | None,
-        Field(description='Whether this is a sandbox account, echoed from the request.'),
+        Field(description="Whether this is a sandbox account, echoed from the request."),
     ] = None
     setup: Annotated[
         Setup | None,
         Field(
-            description='Setup information for pending accounts. Provides the agent (or human) with next steps to complete account activation.'
+            description="Setup information for pending accounts. Provides the agent (or human) with next steps to complete account activation."
         ),
     ] = None
     status: Annotated[
         Status,
         Field(
-            description='Account status. active: ready for use. pending_approval: seller reviewing (credit, legal). payment_required: credit limit reached or funds depleted. suspended: was active, now paused. closed: terminated.'
+            description="Account status. active: ready for use. pending_approval: seller reviewing (credit, legal). payment_required: credit limit reached or funds depleted. suspended: was active, now paused. closed: terminated."
         ),
     ]
     warnings: Annotated[
-        list[str] | None, Field(description='Non-fatal warnings about this account')
+        list[str] | None, Field(description="Non-fatal warnings about this account")
     ] = None
 
 
 class SyncAccountsResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    accounts: Annotated[list[Account], Field(description='Results for each account processed')]
+    accounts: Annotated[list[Account], Field(description="Results for each account processed")]
     context: context_1.ContextObject | None = None
     dry_run: Annotated[
-        bool | None, Field(description='Whether this was a dry run (no actual changes made)')
+        bool | None, Field(description="Whether this was a dry run (no actual changes made)")
     ] = None
     ext: ext_1.ExtensionObject | None = None
 
 
 class SyncAccountsResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
-            description='Operation-level errors (e.g., authentication failure, service unavailable)',
+            description="Operation-level errors (e.g., authentication failure, service unavailable)",
             min_length=1,
         ),
     ]
@@ -166,60 +166,60 @@ class SyncAccountsResponse(RootModel[SyncAccountsResponse1 | SyncAccountsRespons
     root: Annotated[
         SyncAccountsResponse1 | SyncAccountsResponse2,
         Field(
-            description='Response from account sync operation. Returns per-account results with status and billing, or operation-level errors on complete failure.',
+            description="Response from account sync operation. Returns per-account results with status and billing, or operation-level errors on complete failure.",
             examples=[
                 {
-                    'data': {
-                        'accounts': [
+                    "data": {
+                        "accounts": [
                             {
-                                'account_id': 'sub_tide_001',
-                                'action': 'created',
-                                'billing': 'agent',
-                                'brand_id': 'tide',
-                                'house': 'pg.com',
-                                'name': 'Tide (via GroupM)',
-                                'operator': 'groupm.com',
-                                'parent_account_id': 'acc_agent_house',
-                                'status': 'active',
+                                "account_id": "sub_tide_001",
+                                "action": "created",
+                                "billing": "agent",
+                                "brand_id": "tide",
+                                "house": "pg.com",
+                                "name": "Tide (via GroupM)",
+                                "operator": "groupm.com",
+                                "parent_account_id": "acc_agent_house",
+                                "status": "active",
                             },
                             {
-                                'account_id': 'acc_dove_pending',
-                                'action': 'created',
-                                'billing': 'brand',
-                                'brand_id': 'dove',
-                                'house': 'unilever.com',
-                                'name': 'Dove',
-                                'operator': 'mindshare.com',
-                                'setup': {
-                                    'expires_at': '2026-03-10T00:00:00Z',
-                                    'message': 'Credit application required for direct billing',
-                                    'url': 'https://seller.com/onboard/dove',
+                                "account_id": "acc_dove_pending",
+                                "action": "created",
+                                "billing": "brand",
+                                "brand_id": "dove",
+                                "house": "unilever.com",
+                                "name": "Dove",
+                                "operator": "mindshare.com",
+                                "setup": {
+                                    "expires_at": "2026-03-10T00:00:00Z",
+                                    "message": "Credit application required for direct billing",
+                                    "url": "https://seller.com/onboard/dove",
                                 },
-                                'status': 'pending_approval',
+                                "status": "pending_approval",
                             },
                         ]
                     },
-                    'description': 'Mixed results - one active, one pending approval',
+                    "description": "Mixed results - one active, one pending approval",
                 },
                 {
-                    'data': {
-                        'accounts': [
+                    "data": {
+                        "accounts": [
                             {
-                                'account_id': 'acc_agent_house',
-                                'action': 'created',
-                                'billing': 'agent',
-                                'house': 'acme-corp.com',
-                                'name': 'Acme Corp (via agent)',
-                                'status': 'active',
-                                'warnings': [
-                                    'Direct billing (brand) not supported. Mapped to agent billing.'
+                                "account_id": "acc_agent_house",
+                                "action": "created",
+                                "billing": "agent",
+                                "house": "acme-corp.com",
+                                "name": "Acme Corp (via agent)",
+                                "status": "active",
+                                "warnings": [
+                                    "Direct billing (brand) not supported. Mapped to agent billing."
                                 ],
                             }
                         ]
                     },
-                    'description': "Seller doesn't support direct billing, maps to agent billing",
+                    "description": "Seller doesn't support direct billing, maps to agent billing",
                 },
             ],
-            title='Sync Accounts Response',
+            title="Sync Accounts Response",
         ),
     ]

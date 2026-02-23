@@ -1,0 +1,17 @@
+{
+  "$id": "/schemas/latest/enums/creative-approval-status.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Approval state of a creative on a specific package",
+  "enum": [
+    "pending_review",
+    "approved",
+    "rejected"
+  ],
+  "enumDescriptions": {
+    "approved": "Creative has been approved and is eligible for delivery",
+    "pending_review": "Creative has been submitted and is awaiting platform review",
+    "rejected": "Creative was rejected by the platform, including change requests; see rejection_reason for required fixes and re-upload via sync_creatives"
+  },
+  "title": "Creative Approval Status",
+  "type": "string"
+}

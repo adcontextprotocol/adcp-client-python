@@ -54,7 +54,7 @@ class AssetRequirements(
         | url_asset_requirements.UrlAssetRequirements
         | webhook_asset_requirements.WebhookAssetRequirements,
         Field(
-            description='Technical requirements for creative assets. The applicable schema is determined by the sibling asset_type field.',
-            title='Asset Requirements',
+            description="Technical requirements for creative assets. The applicable schema is determined by the sibling asset_type field.",
+            title="Asset Requirements",
         ),
     ]

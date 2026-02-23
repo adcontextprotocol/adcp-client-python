@@ -37,6 +37,8 @@ def test_request_response_types_are_exported():
         "ListCreativeFormatsResponse",
         "BuildCreativeRequest",
         "BuildCreativeResponse",
+        "GetMediaBuysRequest",
+        "GetMediaBuysResponse",
     ]
 
     for type_name in api_types:

@@ -14,18 +14,18 @@ from ...enums import markdown_flavor as markdown_flavor_1
 
 class MarkdownAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     allow_raw_html: Annotated[
         bool | None,
         Field(
-            description='Whether raw HTML blocks are allowed in the markdown. False recommended for security.'
+            description="Whether raw HTML blocks are allowed in the markdown. False recommended for security."
         ),
     ] = False
     content: Annotated[
         str,
         Field(
-            description='Markdown content following CommonMark spec with optional GitHub Flavored Markdown extensions'
+            description="Markdown content following CommonMark spec with optional GitHub Flavored Markdown extensions"
         ),
     ]
     language: Annotated[str | None, Field(description="Language code (e.g., 'en', 'es', 'fr')")] = (
@@ -34,6 +34,6 @@ class MarkdownAsset(AdCPBaseModel):
     markdown_flavor: Annotated[
         markdown_flavor_1.MarkdownFlavor | None,
         Field(
-            description='Markdown flavor used. CommonMark for strict compatibility, GFM for tables/task lists/strikethrough.'
+            description="Markdown flavor used. CommonMark for strict compatibility, GFM for tables/task lists/strikethrough."
         ),
     ] = markdown_flavor_1.MarkdownFlavor.commonmark

@@ -8,6 +8,6 @@ from enum import Enum
 
 
 class DistanceUnit(Enum):
-    km = 'km'
-    mi = 'mi'
-    m = 'm'
+    km = "km"
+    mi = "mi"
+    m = "m"

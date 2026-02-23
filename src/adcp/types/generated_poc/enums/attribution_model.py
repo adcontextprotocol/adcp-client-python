@@ -8,8 +8,8 @@ from enum import Enum
 
 
 class AttributionModel(Enum):
-    last_touch = 'last_touch'
-    first_touch = 'first_touch'
-    linear = 'linear'
-    time_decay = 'time_decay'
-    data_driven = 'data_driven'
+    last_touch = "last_touch"
+    first_touch = "first_touch"
+    linear = "linear"
+    time_decay = "time_decay"
+    data_driven = "data_driven"

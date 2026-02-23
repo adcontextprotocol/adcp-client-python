@@ -18,35 +18,35 @@ from ..enums import event_type
 
 
 class Action(Enum):
-    created = 'created'
-    updated = 'updated'
-    unchanged = 'unchanged'
-    deleted = 'deleted'
-    failed = 'failed'
+    created = "created"
+    updated = "updated"
+    unchanged = "unchanged"
+    deleted = "deleted"
+    failed = "failed"
 
 
 class ManagedBy(Enum):
-    buyer = 'buyer'
-    seller = 'seller'
+    buyer = "buyer"
+    seller = "seller"
 
 
 class SnippetType(Enum):
-    javascript = 'javascript'
-    html = 'html'
-    pixel_url = 'pixel_url'
-    server_only = 'server_only'
+    javascript = "javascript"
+    html = "html"
+    pixel_url = "pixel_url"
+    server_only = "server_only"
 
 
 class Setup(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     instructions: Annotated[
-        str | None, Field(description='Human/agent-readable setup instructions')
+        str | None, Field(description="Human/agent-readable setup instructions")
     ] = None
     snippet: Annotated[
         str | None,
-        Field(description='Code snippet to place on the site (JavaScript, HTML pixel, etc.)'),
+        Field(description="Code snippet to place on the site (JavaScript, HTML pixel, etc.)"),
     ] = None
     snippet_type: Annotated[
         SnippetType | None,
@@ -58,20 +58,20 @@ class Setup(AdCPBaseModel):
 
 class EventSource(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    action: Annotated[Action, Field(description='Action taken for this event source')]
+    action: Annotated[Action, Field(description="Action taken for this event source")]
     action_source: Annotated[
         action_source_1.ActionSource | None,
-        Field(description='Type of event source (website pixel, app SDK, in-store, etc.)'),
+        Field(description="Type of event source (website pixel, app SDK, in-store, etc.)"),
     ] = None
     errors: Annotated[
         list[str] | None,
         Field(description="Errors for this event source (only present when action='failed')"),
     ] = None
-    event_source_id: Annotated[str, Field(description='Event source ID from the request')]
+    event_source_id: Annotated[str, Field(description="Event source ID from the request")]
     event_types: Annotated[
-        list[event_type.EventType] | None, Field(description='Event types this source handles')
+        list[event_type.EventType] | None, Field(description="Event types this source handles")
     ] = None
     managed_by: Annotated[
         ManagedBy | None,
@@ -79,7 +79,7 @@ class EventSource(AdCPBaseModel):
             description="Who manages this event source. 'buyer' = configured via this sync. 'seller' = always-on, managed by the seller (e.g. Amazon sales attribution for Amazon advertisers)."
         ),
     ] = None
-    name: Annotated[str | None, Field(description='Name of the event source')] = None
+    name: Annotated[str | None, Field(description="Name of the event source")] = None
     seller_id: Annotated[
         str | None,
         Field(
@@ -89,37 +89,37 @@ class EventSource(AdCPBaseModel):
     setup: Annotated[
         Setup | None,
         Field(
-            description='Implementation details for activating this event source (e.g. JavaScript tag, pixel URL)'
+            description="Implementation details for activating this event source (e.g. JavaScript tag, pixel URL)"
         ),
     ] = None
 
 
 class SyncEventSourcesResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     event_sources: Annotated[
         list[EventSource],
         Field(
-            description='Results for each event source, including both synced and seller-managed sources on the account'
+            description="Results for each event source, including both synced and seller-managed sources on the account"
         ),
     ]
     ext: ext_1.ExtensionObject | None = None
     sandbox: Annotated[
         bool | None,
-        Field(description='When true, this response contains simulated data from sandbox mode.'),
+        Field(description="When true, this response contains simulated data from sandbox mode."),
     ] = None
 
 
 class SyncEventSourcesResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
-        Field(description='Operation-level errors that prevented processing', min_length=1),
+        Field(description="Operation-level errors that prevented processing", min_length=1),
     ]
     ext: ext_1.ExtensionObject | None = None
 
@@ -128,7 +128,7 @@ class SyncEventSourcesResponse(RootModel[SyncEventSourcesResponse1 | SyncEventSo
     root: Annotated[
         SyncEventSourcesResponse1 | SyncEventSourcesResponse2,
         Field(
-            description='Response from event source sync operation. Returns either per-source results OR operation-level errors.',
-            title='Sync Event Sources Response',
+            description="Response from event source sync operation. Returns either per-source results OR operation-level errors.",
+            title="Sync Event Sources Response",
         ),
     ]

@@ -15,56 +15,56 @@ from . import ext as ext_1
 
 
 class EmploymentType(Enum):
-    full_time = 'full_time'
-    part_time = 'part_time'
-    contract = 'contract'
-    temporary = 'temporary'
-    internship = 'internship'
-    freelance = 'freelance'
+    full_time = "full_time"
+    part_time = "part_time"
+    contract = "contract"
+    temporary = "temporary"
+    internship = "internship"
+    freelance = "freelance"
 
 
 class ExperienceLevel(Enum):
-    entry_level = 'entry_level'
-    mid_level = 'mid_level'
-    senior = 'senior'
-    director = 'director'
-    executive = 'executive'
+    entry_level = "entry_level"
+    mid_level = "mid_level"
+    senior = "senior"
+    director = "director"
+    executive = "executive"
 
 
 class Period(Enum):
-    hour = 'hour'
-    month = 'month'
-    year = 'year'
+    hour = "hour"
+    month = "month"
+    year = "year"
 
 
 class Salary(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='forbid',
+        extra="forbid",
     )
-    currency: Annotated[str, Field(description='ISO 4217 currency code.', pattern='^[A-Z]{3}$')]
-    max: Annotated[float | None, Field(description='Maximum salary.', ge=0.0)] = None
-    min: Annotated[float | None, Field(description='Minimum salary.', ge=0.0)] = None
-    period: Annotated[Period, Field(description='Pay period.')]
+    currency: Annotated[str, Field(description="ISO 4217 currency code.", pattern="^[A-Z]{3}$")]
+    max: Annotated[float | None, Field(description="Maximum salary.", ge=0.0)] = None
+    min: Annotated[float | None, Field(description="Minimum salary.", ge=0.0)] = None
+    period: Annotated[Period, Field(description="Pay period.")]
 
 
 class JobItem(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    apply_url: Annotated[AnyUrl | None, Field(description='Direct application URL.')] = None
-    company_name: Annotated[str, Field(description='Hiring company or organization name.')]
+    apply_url: Annotated[AnyUrl | None, Field(description="Direct application URL.")] = None
+    company_name: Annotated[str, Field(description="Hiring company or organization name.")]
     date_posted: Annotated[
-        date | None, Field(description='Date the job was posted (ISO 8601 date).')
+        date | None, Field(description="Date the job was posted (ISO 8601 date).")
     ] = None
     description: Annotated[
         str,
-        Field(description='Full job description including responsibilities and qualifications.'),
+        Field(description="Full job description including responsibilities and qualifications."),
     ]
-    employment_type: Annotated[EmploymentType | None, Field(description='Type of employment.')] = (
+    employment_type: Annotated[EmploymentType | None, Field(description="Type of employment.")] = (
         None
     )
     experience_level: Annotated[
-        ExperienceLevel | None, Field(description='Required experience level.')
+        ExperienceLevel | None, Field(description="Required experience level.")
     ] = None
     ext: ext_1.ExtensionObject | None = None
     industries: Annotated[
@@ -81,7 +81,7 @@ class JobItem(AdCPBaseModel):
             min_length=1,
         ),
     ] = None
-    job_id: Annotated[str, Field(description='Unique identifier for this job posting.')]
+    job_id: Annotated[str, Field(description="Unique identifier for this job posting.")]
     location: Annotated[
         str | None,
         Field(
@@ -90,7 +90,7 @@ class JobItem(AdCPBaseModel):
     ] = None
     salary: Annotated[
         Salary | None,
-        Field(description='Salary range. Specify min and/or max with currency and period.'),
+        Field(description="Salary range. Specify min and/or max with currency and period."),
     ] = None
     tags: Annotated[
         list[str] | None,
@@ -103,5 +103,5 @@ class JobItem(AdCPBaseModel):
         str, Field(description="Job title (e.g., 'Senior Software Engineer', 'Marketing Manager').")
     ]
     valid_through: Annotated[
-        date | None, Field(description='Application deadline (ISO 8601 date).')
+        date | None, Field(description="Application deadline (ISO 8601 date).")
     ] = None

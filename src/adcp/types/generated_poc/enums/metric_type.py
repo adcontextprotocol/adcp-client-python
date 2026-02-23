@@ -8,11 +8,11 @@ from enum import Enum
 
 
 class MetricType(Enum):
-    overall_performance = 'overall_performance'
-    conversion_rate = 'conversion_rate'
-    brand_lift = 'brand_lift'
-    click_through_rate = 'click_through_rate'
-    completion_rate = 'completion_rate'
-    viewability = 'viewability'
-    brand_safety = 'brand_safety'
-    cost_efficiency = 'cost_efficiency'
+    overall_performance = "overall_performance"
+    conversion_rate = "conversion_rate"
+    brand_lift = "brand_lift"
+    click_through_rate = "click_through_rate"
+    completion_rate = "completion_rate"
+    viewability = "viewability"
+    brand_safety = "brand_safety"
+    cost_efficiency = "cost_efficiency"

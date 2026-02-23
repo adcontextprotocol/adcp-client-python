@@ -16,14 +16,14 @@ from ..core import push_notification_config as push_notification_config_1
 
 
 class Billing(Enum):
-    brand = 'brand'
-    operator = 'operator'
-    agent = 'agent'
+    brand = "brand"
+    operator = "operator"
+    agent = "agent"
 
 
 class Account(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     billing: Annotated[
         Billing | None,
@@ -35,55 +35,55 @@ class Account(AdCPBaseModel):
         str | None,
         Field(
             description="Brand ID within the house portfolio (from brand.json). Required when the house has multiple brands (e.g., 'dove' under unilever.com, 'tide' under pg.com). Omit for single-brand houses.",
-            pattern='^[a-z0-9_]+$',
+            pattern="^[a-z0-9_]+$",
         ),
     ] = None
     house: Annotated[
         str,
         Field(
             description="House domain where brand.json is hosted (e.g., 'unilever.com', 'acme-corp.com'). This is the canonical identity anchor for the brand, resolved via /.well-known/brand.json. For single-brand houses, this alone identifies the brand.",
-            pattern='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$',
+            pattern="^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
         ),
     ]
     operator: Annotated[
         str | None,
         Field(
             description="Domain of the entity operating the seat (e.g., 'groupm.com', 'mindshare.com'). Verified against the brand's authorized_operators in brand.json. Omit if the brand operates its own seat.",
-            pattern='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$',
+            pattern="^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
         ),
     ] = None
     sandbox: Annotated[
         bool | None,
         Field(
-            description='When true, provision this as a sandbox account. No real platform calls or billing. Sandbox accounts are identified by account_id in subsequent requests.'
+            description="When true, provision this as a sandbox account. No real platform calls or billing. Sandbox accounts are identified by account_id in subsequent requests."
         ),
     ] = None
 
 
 class SyncAccountsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     accounts: Annotated[
-        list[Account], Field(description='Advertiser accounts to sync', max_length=1000)
+        list[Account], Field(description="Advertiser accounts to sync", max_length=1000)
     ]
     context: context_1.ContextObject | None = None
     delete_missing: Annotated[
         bool | None,
         Field(
-            description='When true, accounts previously synced by this agent but not included in this request will be deactivated. Scoped to the authenticated agent — does not affect accounts managed by other agents. Use with caution.'
+            description="When true, accounts previously synced by this agent but not included in this request will be deactivated. Scoped to the authenticated agent — does not affect accounts managed by other agents. Use with caution."
         ),
     ] = False
     dry_run: Annotated[
         bool | None,
         Field(
-            description='When true, preview what would change without applying. Returns what would be created/updated/deactivated.'
+            description="When true, preview what would change without applying. Returns what would be created/updated/deactivated."
         ),
     ] = False
     ext: ext_1.ExtensionObject | None = None
     push_notification_config: Annotated[
         push_notification_config_1.PushNotificationConfig | None,
         Field(
-            description='Optional webhook for async notifications when account status changes (e.g., pending_approval transitions to active).'
+            description="Optional webhook for async notifications when account status changes (e.g., pending_approval transitions to active)."
         ),
     ] = None

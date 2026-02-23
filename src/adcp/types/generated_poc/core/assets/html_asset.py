@@ -12,29 +12,29 @@ from pydantic import ConfigDict, Field
 
 class Accessibility(AdCPBaseModel):
     alt_text: Annotated[
-        str | None, Field(description='Text alternative describing the creative content')
+        str | None, Field(description="Text alternative describing the creative content")
     ] = None
     keyboard_navigable: Annotated[
-        bool | None, Field(description='Whether the creative can be fully operated via keyboard')
+        bool | None, Field(description="Whether the creative can be fully operated via keyboard")
     ] = None
     motion_control: Annotated[
         bool | None,
         Field(
-            description='Whether the creative respects prefers-reduced-motion or provides pause/stop controls'
+            description="Whether the creative respects prefers-reduced-motion or provides pause/stop controls"
         ),
     ] = None
     screen_reader_tested: Annotated[
-        bool | None, Field(description='Whether the creative has been tested with screen readers')
+        bool | None, Field(description="Whether the creative has been tested with screen readers")
     ] = None
 
 
 class HtmlAsset(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     accessibility: Annotated[
         Accessibility | None,
-        Field(description='Self-declared accessibility properties for this opaque creative'),
+        Field(description="Self-declared accessibility properties for this opaque creative"),
     ] = None
-    content: Annotated[str, Field(description='HTML content')]
+    content: Annotated[str, Field(description="HTML content")]
     version: Annotated[str | None, Field(description="HTML version (e.g., 'HTML5')")] = None

@@ -1,10 +1,11 @@
 {
+  "$id": "/schemas/latest/core/package.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "A specific product within a media buy (line item)",
   "properties": {
     "bid_price": {
-      "description": "Bid price for auction-based CPM pricing (present if using cpm-auction-option)",
+      "description": "Bid price for auction-based pricing. This is the exact bid/price to honor unless the selected pricing option has max_bid=true, in which case bid_price is the buyer's maximum willingness to pay (ceiling).",
       "minimum": 0,
       "type": "number"
     },
@@ -20,17 +21,17 @@
     "creative_assignments": {
       "description": "Creative assets assigned to this package",
       "items": {
-        "$ref": "creative-assignment.json"
+        "$ref": "/schemas/latest/core/creative-assignment.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "ext.json"
+      "$ref": "/schemas/latest/core/ext.json"
     },
     "format_ids_to_provide": {
       "description": "Format IDs that creative assets will be provided for this package",
       "items": {
-        "$ref": "format-id.json"
+        "$ref": "/schemas/latest/core/format-id.json"
       },
       "type": "array"
     },
@@ -40,10 +41,10 @@
       "type": "number"
     },
     "optimization_goal": {
-      "$ref": "optimization-goal.json"
+      "$ref": "/schemas/latest/core/optimization-goal.json"
     },
     "pacing": {
-      "$ref": "../enums/pacing.json"
+      "$ref": "/schemas/latest/enums/pacing.json"
     },
     "package_id": {
       "description": "Publisher's unique identifier for the package",
@@ -63,7 +64,7 @@
       "type": "string"
     },
     "targeting_overlay": {
-      "$ref": "targeting.json"
+      "$ref": "/schemas/latest/core/targeting.json"
     }
   },
   "required": [

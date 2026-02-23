@@ -17,25 +17,25 @@ from ..core import format_id as format_id_1
 
 class Pagination(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     has_more: Annotated[
-        bool, Field(description='Whether more creatives are available beyond this page')
+        bool, Field(description="Whether more creatives are available beyond this page")
     ]
-    limit: Annotated[int, Field(description='Maximum number of creatives requested', ge=1)]
-    offset: Annotated[int, Field(description='Number of creatives skipped', ge=0)]
+    limit: Annotated[int, Field(description="Maximum number of creatives requested", ge=1)]
+    offset: Annotated[int, Field(description="Number of creatives skipped", ge=0)]
     total: Annotated[
         int | None,
-        Field(description='Total number of creatives matching the request filters', ge=0),
+        Field(description="Total number of creatives matching the request filters", ge=0),
     ] = None
 
 
 class ReportingPeriod(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    end: Annotated[AwareDatetime, Field(description='ISO 8601 end timestamp')]
-    start: Annotated[AwareDatetime, Field(description='ISO 8601 start timestamp')]
+    end: Annotated[AwareDatetime, Field(description="ISO 8601 end timestamp")]
+    start: Annotated[AwareDatetime, Field(description="ISO 8601 start timestamp")]
     timezone: Annotated[
         str | None,
         Field(
@@ -46,11 +46,11 @@ class ReportingPeriod(AdCPBaseModel):
 
 class Creative(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
-    creative_id: Annotated[str, Field(description='Creative identifier')]
+    creative_id: Annotated[str, Field(description="Creative identifier")]
     format_id: Annotated[
-        format_id_1.FormatId | None, Field(description='Format of this creative')
+        format_id_1.FormatId | None, Field(description="Format of this creative")
     ] = None
     media_buy_id: Annotated[
         str | None,
@@ -60,46 +60,46 @@ class Creative(AdCPBaseModel):
     ] = None
     totals: Annotated[
         delivery_metrics.DeliveryMetrics | None,
-        Field(description='Aggregate delivery metrics across all variants of this creative'),
+        Field(description="Aggregate delivery metrics across all variants of this creative"),
     ] = None
     variant_count: Annotated[
         int | None,
         Field(
-            description='Total number of variants for this creative. When max_variants was specified in the request, this may exceed the number of items in the variants array.',
+            description="Total number of variants for this creative. When max_variants was specified in the request, this may exceed the number of items in the variants array.",
             ge=0,
         ),
     ] = None
     variants: Annotated[
         list[creative_variant.CreativeVariant],
         Field(
-            description='Variant-level delivery breakdown. Each variant includes the rendered manifest and delivery metrics. For standard creatives, contains a single variant. For asset group optimization, one per combination. For generative creative, one per generated execution. Empty when a creative has no variants yet.'
+            description="Variant-level delivery breakdown. Each variant includes the rendered manifest and delivery metrics. For standard creatives, contains a single variant. For asset group optimization, one per combination. For generative creative, one per generated execution. Empty when a creative has no variants yet."
         ),
     ]
 
 
 class GetCreativeDeliveryResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra='allow',
+        extra="allow",
     )
     account_id: Annotated[
         str | None,
         Field(
-            description='Account identifier. Present when the response spans or is scoped to a specific account.'
+            description="Account identifier. Present when the response spans or is scoped to a specific account."
         ),
     ] = None
     context: context_1.ContextObject | None = None
     creatives: Annotated[
-        list[Creative], Field(description='Creative delivery data with variant breakdowns')
+        list[Creative], Field(description="Creative delivery data with variant breakdowns")
     ]
     currency: Annotated[
         str,
         Field(
             description="ISO 4217 currency code for monetary values in this response (e.g., 'USD', 'EUR')",
-            pattern='^[A-Z]{3}$',
+            pattern="^[A-Z]{3}$",
         ),
     ]
     errors: Annotated[
-        list[error.Error] | None, Field(description='Task-specific errors and warnings')
+        list[error.Error] | None, Field(description="Task-specific errors and warnings")
     ] = None
     ext: ext_1.ExtensionObject | None = None
     media_buy_buyer_ref: Annotated[
@@ -117,7 +117,7 @@ class GetCreativeDeliveryResponse(AdCPBaseModel):
     pagination: Annotated[
         Pagination | None,
         Field(
-            description='Pagination information. Present when the request included pagination parameters.'
+            description="Pagination information. Present when the request included pagination parameters."
         ),
     ] = None
-    reporting_period: Annotated[ReportingPeriod, Field(description='Date range for the report.')]
+    reporting_period: Annotated[ReportingPeriod, Field(description="Date range for the report.")]

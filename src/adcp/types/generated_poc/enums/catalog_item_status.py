@@ -8,7 +8,7 @@ from enum import Enum
 
 
 class CatalogItemStatus(Enum):
-    approved = 'approved'
-    pending = 'pending'
-    rejected = 'rejected'
-    warning = 'warning'
+    approved = "approved"
+    pending = "pending"
+    rejected = "rejected"
+    warning = "warning"
