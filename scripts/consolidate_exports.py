@@ -70,7 +70,11 @@ def generate_consolidated_exports() -> str:
     # Special handling for known collisions
     # We need BOTH versions of these types available, so import them with qualified names
     known_collisions = {
-        "Package": {"package", "create_media_buy_response"},
+        "Package": {"package", "create_media_buy_response", "get_media_buys_response"},
+        # DeliveryStatus appears in get_media_buy_delivery_response (5 values) and
+        # get_media_buys_response (6 values, adds not_delivering). Export both with
+        # qualified names so aliases.py can re-export the superset as the canonical one.
+        "DeliveryStatus": {"get_media_buy_delivery_response", "get_media_buys_response"},
         # Note: "Catalog" also collides between core.catalog and media_buy.sync_catalogs_response.
         # We intentionally let core.catalog win (first-seen, since core/ sorts before media_buy/).
         # The response-level Catalog is imported directly in aliases.py as SyncCatalogResult.
@@ -187,6 +191,14 @@ def generate_consolidated_exports() -> str:
     aliases = {}
     if "AdvertisingChannels" in all_exports:
         aliases["Channels"] = "AdvertisingChannels"
+    # Package from get_media_buys_response is a distinct enriched view with creative approvals
+    # and delivery snapshots. Export as MediaBuyPackage to avoid collision with core Package.
+    if "_PackageFromGetMediaBuysResponse" in all_exports:
+        aliases["MediaBuyPackage"] = "_PackageFromGetMediaBuysResponse"
+    # DeliveryStatus from get_media_buys_response is a superset (adds not_delivering).
+    # Export as the canonical DeliveryStatus so users can compare against all values.
+    if "_DeliveryStatusFromGetMediaBuysResponse" in all_exports:
+        aliases["DeliveryStatus"] = "_DeliveryStatusFromGetMediaBuysResponse"
 
     all_exports_with_aliases = all_exports | set(aliases.keys())
 
