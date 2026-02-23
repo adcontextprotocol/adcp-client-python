@@ -269,7 +269,8 @@ def generate_consolidated_exports() -> str:
     }
 
     # Format __all__ list with proper line breaks (max 100 chars per line)
-    exports_list = sorted(list(all_exports_with_aliases))
+    # Exclude private names (qualified collision aliases like _PackageFromPackage)
+    exports_list = sorted(name for name in all_exports_with_aliases if not name.startswith("_"))
     all_lines = ["", "# Explicit exports", "__all__ = ["]
 
     current_line = "    "

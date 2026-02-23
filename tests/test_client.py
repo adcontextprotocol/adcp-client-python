@@ -607,8 +607,11 @@ async def test_get_media_buys_parses_response():
         success=True,
     )
 
-    with patch.object(client.adapter, "get_media_buys", return_value=mock_result):
-        result = await client.get_media_buys(GetMediaBuysRequest())
+    with patch.object(
+        client.adapter, "get_media_buys", return_value=mock_result
+    ) as mock_adapter:
+        result = await client.get_media_buys(GetMediaBuysRequest(account_id="acct-1"))
+        mock_adapter.assert_called_once_with({"account_id": "acct-1", "include_snapshot": False})
         assert result.success is True
         assert isinstance(result.data, GetMediaBuysResponse)
         assert len(result.data.media_buys) == 1
@@ -685,8 +688,11 @@ async def test_get_media_buys_parses_snapshot_response():
         success=True,
     )
 
-    with patch.object(client.adapter, "get_media_buys", return_value=mock_result):
+    with patch.object(
+        client.adapter, "get_media_buys", return_value=mock_result
+    ) as mock_adapter:
         result = await client.get_media_buys(GetMediaBuysRequest(include_snapshot=True))
+        mock_adapter.assert_called_once_with({"include_snapshot": True})
         assert result.success is True
         assert isinstance(result.data, GetMediaBuysResponse)
 
