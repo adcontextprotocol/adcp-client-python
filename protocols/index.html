@@ -472,6 +472,10 @@ el.replaceWith(d);
         &#34;&#34;&#34;Get media buy delivery.&#34;&#34;&#34;
         return await self._call_a2a_tool(&#34;get_media_buy_delivery&#34;, params)
 
+    async def get_media_buys(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get media buys with status, creative approval state, and optional delivery snapshots.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;get_media_buys&#34;, params)
+
     async def get_signals(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
         &#34;&#34;&#34;Get signals.&#34;&#34;&#34;
         return await self._call_a2a_tool(&#34;get_signals&#34;, params)
@@ -939,6 +943,7 @@ el.replaceWith(d);
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_creative_delivery" href="base.html#adcp.protocols.base.ProtocolAdapter.get_creative_delivery">get_creative_delivery</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_media_buy_artifacts" href="base.html#adcp.protocols.base.ProtocolAdapter.get_media_buy_artifacts">get_media_buy_artifacts</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery" href="base.html#adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_media_buys" href="base.html#adcp.protocols.base.ProtocolAdapter.get_media_buys">get_media_buys</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_products" href="base.html#adcp.protocols.base.ProtocolAdapter.get_products">get_products</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_property_list" href="base.html#adcp.protocols.base.ProtocolAdapter.get_property_list">get_property_list</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_signals" href="base.html#adcp.protocols.base.ProtocolAdapter.get_signals">get_signals</a></code></li>
@@ -1360,6 +1365,10 @@ el.replaceWith(d);
         &#34;&#34;&#34;Get media buy delivery.&#34;&#34;&#34;
         return await self._call_mcp_tool(&#34;get_media_buy_delivery&#34;, params)
 
+    async def get_media_buys(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get media buys with status, creative approval state, and optional delivery snapshots.&#34;&#34;&#34;
+        return await self._call_mcp_tool(&#34;get_media_buys&#34;, params)
+
     async def get_signals(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
         &#34;&#34;&#34;Get signals.&#34;&#34;&#34;
         return await self._call_mcp_tool(&#34;get_signals&#34;, params)
@@ -1676,6 +1685,7 @@ el.replaceWith(d);
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_creative_delivery" href="base.html#adcp.protocols.base.ProtocolAdapter.get_creative_delivery">get_creative_delivery</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_media_buy_artifacts" href="base.html#adcp.protocols.base.ProtocolAdapter.get_media_buy_artifacts">get_media_buy_artifacts</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery" href="base.html#adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_media_buys" href="base.html#adcp.protocols.base.ProtocolAdapter.get_media_buys">get_media_buys</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_products" href="base.html#adcp.protocols.base.ProtocolAdapter.get_products">get_products</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_property_list" href="base.html#adcp.protocols.base.ProtocolAdapter.get_property_list">get_property_list</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_signals" href="base.html#adcp.protocols.base.ProtocolAdapter.get_signals">get_signals</a></code></li>
@@ -1814,6 +1824,11 @@ el.replaceWith(d);
     @abstractmethod
     async def get_media_buy_delivery(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
         &#34;&#34;&#34;Get media buy delivery.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def get_media_buys(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get media buys with status, creative approval state, and optional delivery snapshots.&#34;&#34;&#34;
         pass
 
     @abstractmethod
@@ -2261,6 +2276,21 @@ async def get_media_buy_delivery(self, params: dict[str, Any]) -&gt; TaskResult[
 </details>
 <div class="desc"><p>Get media buy delivery.</p></div>
 </dd>
+<dt id="adcp.protocols.ProtocolAdapter.get_media_buys"><code class="name flex">
+<span>async def <span class="ident">get_media_buys</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def get_media_buys(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Get media buys with status, creative approval state, and optional delivery snapshots.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Get media buys with status, creative approval state, and optional delivery snapshots.</p></div>
+</dd>
 <dt id="adcp.protocols.ProtocolAdapter.get_products"><code class="name flex">
 <span>async def <span class="ident">get_products</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
 </code></dt>
@@ -2672,6 +2702,7 @@ async def validate_content_delivery(self, params: dict[str, Any]) -&gt; TaskResu
 <li><code><a title="adcp.protocols.ProtocolAdapter.get_creative_delivery" href="#adcp.protocols.ProtocolAdapter.get_creative_delivery">get_creative_delivery</a></code></li>
 <li><code><a title="adcp.protocols.ProtocolAdapter.get_media_buy_artifacts" href="#adcp.protocols.ProtocolAdapter.get_media_buy_artifacts">get_media_buy_artifacts</a></code></li>
 <li><code><a title="adcp.protocols.ProtocolAdapter.get_media_buy_delivery" href="#adcp.protocols.ProtocolAdapter.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
+<li><code><a title="adcp.protocols.ProtocolAdapter.get_media_buys" href="#adcp.protocols.ProtocolAdapter.get_media_buys">get_media_buys</a></code></li>
 <li><code><a title="adcp.protocols.ProtocolAdapter.get_products" href="#adcp.protocols.ProtocolAdapter.get_products">get_products</a></code></li>
 <li><code><a title="adcp.protocols.ProtocolAdapter.get_property_list" href="#adcp.protocols.ProtocolAdapter.get_property_list">get_property_list</a></code></li>
 <li><code><a title="adcp.protocols.ProtocolAdapter.get_signals" href="#adcp.protocols.ProtocolAdapter.get_signals">get_signals</a></code></li>

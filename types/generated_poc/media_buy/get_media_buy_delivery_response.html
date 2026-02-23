@@ -805,16 +805,16 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    buyer_campaign_ref: Annotated[
+        str | None,
+        Field(
+            description=&#34;Buyer&#39;s campaign reference label from create_media_buy.buyer_campaign_ref. Groups related operations under a single campaign for CRM and ad server correlation; may be absent when not provided at creation time.&#34;
+        ),
+    ] = None
     buyer_ref: Annotated[
         str | None, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)
     ] = None
     by_package: Annotated[list[ByPackageItem], Field(description=&#39;Metrics broken down by package&#39;)]
-    campaign_ref: Annotated[
-        str | None,
-        Field(
-            description=&#34;Buyer&#39;s campaign reference label. Groups related operations under a single campaign for CRM and ad server correlation.&#34;
-        ),
-    ] = None
     daily_breakdown: Annotated[
         list[DailyBreakdownItem] | None, Field(description=&#39;Day-by-day delivery&#39;)
     ] = None
@@ -838,7 +838,7 @@ validated to form a valid model.</p>
     status: Annotated[
         Status,
         Field(
-            description=&#39;Current media buy status. In webhook context, reporting_delayed indicates data temporarily unavailable.&#39;
+            description=&#39;Current media buy status. Lifecycle states use the same taxonomy as media-buy-status (`pending_activation`, `active`, `paused`, `completed`). In webhook context, reporting_delayed indicates data temporarily unavailable. `pending` is accepted as a legacy alias for pending_activation.&#39;
         ),
     ]
     totals: Totals</code></pre>
@@ -858,15 +858,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.buyer_campaign_ref"><code class="name">var <span class="ident">buyer_campaign_ref</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.by_package"><code class="name">var <span class="ident">by_package</span> : list[<a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem">ByPackageItem</a>]</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.campaign_ref"><code class="name">var <span class="ident">campaign_ref</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1059,6 +1059,7 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Status(Enum):
+    pending_activation = &#39;pending_activation&#39;
     pending = &#39;pending&#39;
     active = &#39;active&#39;
     paused = &#39;paused&#39;
@@ -1124,6 +1125,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.pending"><code class="name">var <span class="ident">pending</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.pending_activation"><code class="name">var <span class="ident">pending_activation</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1306,9 +1311,9 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery">MediaBuyDelivery</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.buyer_campaign_ref" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.buyer_campaign_ref">buyer_campaign_ref</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.buyer_ref" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.buyer_ref">buyer_ref</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.by_package" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.by_package">by_package</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.campaign_ref" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.campaign_ref">campaign_ref</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.daily_breakdown" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.daily_breakdown">daily_breakdown</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.expected_availability" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.expected_availability">expected_availability</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.is_adjusted" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.MediaBuyDelivery.is_adjusted">is_adjusted</a></code></li>
@@ -1344,6 +1349,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.failed" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.failed">failed</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.paused" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.paused">paused</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.pending" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.pending">pending</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.pending_activation" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.pending_activation">pending_activation</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.reporting_delayed" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.reporting_delayed">reporting_delayed</a></code></li>
 </ul>
 </li>

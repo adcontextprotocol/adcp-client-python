@@ -560,6 +560,99 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature"><code class="flex name class">
+<span>class <span class="ident">CreativeFeature</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class CreativeFeature(AdCPBaseModel):
+    categories: Annotated[
+        list[str] | None, Field(description=&#39;For categorical features, the valid values&#39;)
+    ] = None
+    description: Annotated[
+        str | None, Field(description=&#39;Human-readable description of what this feature measures&#39;)
+    ] = None
+    feature_id: Annotated[
+        str,
+        Field(
+            description=&#34;Unique identifier for this feature (e.g., &#39;auto_redirect&#39;, &#39;brand_consistency&#39;, &#39;iab_casinos_gambling&#39;)&#34;
+        ),
+    ]
+    methodology_url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#39;URL to documentation explaining how this feature is calculated or measured.&#39;
+        ),
+    ] = None
+    range: Annotated[
+        Range | None, Field(description=&#39;For quantitative features, the valid range&#39;)
+    ] = None
+    type: Annotated[
+        Type,
+        Field(
+            description=&#34;Data type: &#39;binary&#39; for yes/no, &#39;quantitative&#39; for numeric scores, &#39;categorical&#39; for enum values&#34;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature.categories"><code class="name">var <span class="ident">categories</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature.description"><code class="name">var <span class="ident">description</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature.feature_id"><code class="name">var <span class="ident">feature_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature.methodology_url"><code class="name">var <span class="ident">methodology_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature.range"><code class="name">var <span class="ident">range</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Range" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Range">Range</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Type" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Type">Type</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeSpecs"><code class="flex name class">
 <span>class <span class="ident">CreativeSpecs</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -1194,7 +1287,7 @@ validated to form a valid model.</p>
     governance: Annotated[
         Governance | None,
         Field(
-            description=&#39;Governance protocol capabilities. Only present if governance is in supported_protocols. Governance agents provide property data like compliance scores, brand safety ratings, and sustainability metrics.&#39;
+            description=&#39;Governance protocol capabilities. Only present if governance is in supported_protocols. Governance agents provide property and creative data like compliance scores, brand safety ratings, sustainability metrics, and creative quality assessments.&#39;
         ),
     ] = None
     last_updated: Annotated[
@@ -1319,6 +1412,12 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Governance(AdCPBaseModel):
+    creative_features: Annotated[
+        list[CreativeFeature] | None,
+        Field(
+            description=&#39;Creative features this governance agent can evaluate. Each feature describes a score, rating, or assessment the agent can provide for creatives (e.g., security scanning, creative quality, content categorization).&#39;
+        ),
+    ] = None
     property_features: Annotated[
         list[PropertyFeature] | None,
         Field(
@@ -1341,6 +1440,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Governance.creative_features"><code class="name">var <span class="ident">creative_features</span> : list[<a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature">CreativeFeature</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Governance.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -2655,6 +2758,18 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature">CreativeFeature</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature.categories" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature.categories">categories</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature.description" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature.description">description</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature.feature_id" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature.feature_id">feature_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature.methodology_url" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature.methodology_url">methodology_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature.range" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature.range">range</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature.type" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeFeature.type">type</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeSpecs" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeSpecs">CreativeSpecs</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeSpecs.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CreativeSpecs.model_config">model_config</a></code></li>
@@ -2756,6 +2871,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Governance" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Governance">Governance</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Governance.creative_features" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Governance.creative_features">creative_features</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Governance.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Governance.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Governance.property_features" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Governance.property_features">property_features</a></code></li>
 </ul>

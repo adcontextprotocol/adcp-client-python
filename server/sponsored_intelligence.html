@@ -367,17 +367,13 @@ Non-SI operations return 'not supported' by default.</p>
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;list_accounts is not supported by Sponsored Intelligence agents.&#34;
-        )
+        return not_supported(&#34;list_accounts is not supported by Sponsored Intelligence agents.&#34;)
 
     async def sync_accounts(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; NotImplementedResponse:
         &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-        return not_supported(
-            &#34;sync_accounts is not supported by Sponsored Intelligence agents.&#34;
-        )
+        return not_supported(&#34;sync_accounts is not supported by Sponsored Intelligence agents.&#34;)
 
     async def log_event(
         self, params: dict[str, Any], context: ToolContext | None = None
@@ -932,9 +928,7 @@ async def handle_si_terminate_session(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;list_accounts is not supported by Sponsored Intelligence agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;list_accounts is not supported by Sponsored Intelligence agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Sponsored Intelligence agents.</p></div>
 </dd>
@@ -1254,9 +1248,7 @@ async def handle_si_terminate_session(
     self, params: dict[str, Any], context: ToolContext | None = None
 ) -&gt; NotImplementedResponse:
     &#34;&#34;&#34;Not supported by Sponsored Intelligence agents.&#34;&#34;&#34;
-    return not_supported(
-        &#34;sync_accounts is not supported by Sponsored Intelligence agents.&#34;
-    )</code></pre>
+    return not_supported(&#34;sync_accounts is not supported by Sponsored Intelligence agents.&#34;)</code></pre>
 </details>
 <div class="desc"><p>Not supported by Sponsored Intelligence agents.</p></div>
 </dd>

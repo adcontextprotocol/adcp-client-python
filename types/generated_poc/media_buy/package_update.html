@@ -119,7 +119,7 @@ validated to form a valid model.</p>
     bid_price: Annotated[
         float | None,
         Field(
-            description=&#39;Updated bid price for auction-based pricing options (only applies when pricing_option is auction-based)&#39;,
+            description=&#34;Updated bid price for auction-based pricing options. This is the exact bid/price to honor unless selected pricing_option has max_bid=true, in which case bid_price is the buyer&#39;s maximum willingness to pay (ceiling).&#34;,
             ge=0.0,
         ),
     ] = None
@@ -265,7 +265,7 @@ validated to form a valid model.</p>
     bid_price: Annotated[
         float | None,
         Field(
-            description=&#39;Updated bid price for auction-based pricing options (only applies when pricing_option is auction-based)&#39;,
+            description=&#34;Updated bid price for auction-based pricing options. This is the exact bid/price to honor unless selected pricing_option has max_bid=true, in which case bid_price is the buyer&#39;s maximum willingness to pay (ceiling).&#34;,
             ge=0.0,
         ),
     ] = None

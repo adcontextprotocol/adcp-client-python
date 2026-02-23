@@ -81,6 +81,12 @@ el.replaceWith(d);
             ge=0.0,
         ),
     ] = None
+    max_bid: Annotated[
+        bool | None,
+        Field(
+            description=&#34;When true, bid_price is interpreted as the buyer&#39;s maximum willingness to pay (ceiling) rather than an exact price. Sellers may optimize actual clearing prices between floor_price and bid_price based on delivery pacing. When false or absent, bid_price (if provided) is the exact bid/price to honor.&#34;
+        ),
+    ] = False
     min_spend_per_package: Annotated[
         float | None,
         Field(
@@ -123,6 +129,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.floor_price"><code class="name">var <span class="ident">floor_price</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.max_bid"><code class="name">var <span class="ident">max_bid</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -179,6 +189,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.currency" href="#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.currency">currency</a></code></li>
 <li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.fixed_price" href="#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.fixed_price">fixed_price</a></code></li>
 <li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.floor_price" href="#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.floor_price">floor_price</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.max_bid" href="#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.max_bid">max_bid</a></code></li>
 <li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.min_spend_per_package" href="#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.min_spend_per_package">min_spend_per_package</a></code></li>
 <li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.model_config" href="#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.price_guidance" href="#adcp.types.generated_poc.pricing_options.cpcv_option.CpcvPricingOption.price_guidance">price_guidance</a></code></li>

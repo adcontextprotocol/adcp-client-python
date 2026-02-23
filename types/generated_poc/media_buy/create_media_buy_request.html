@@ -310,13 +310,13 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;Brand reference for this media buy. Resolved to full brand identity at execution time from brand.json or the registry.&#39;
         ),
     ]
-    buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
-    campaign_ref: Annotated[
+    buyer_campaign_ref: Annotated[
         str | None,
         Field(
             description=&#34;Buyer&#39;s campaign reference label. Groups related discovery and buy operations under a single campaign for CRM and ad server correlation (e.g., &#39;NovaDrink_Meals_Q2&#39;).&#34;
         ),
     ] = None
+    buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
     context: context_1.ContextObject | None = None
     end_time: Annotated[
         AwareDatetime, Field(description=&#39;Campaign end date/time in ISO 8601 format&#39;)
@@ -375,11 +375,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.buyer_campaign_ref"><code class="name">var <span class="ident">buyer_campaign_ref</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.campaign_ref"><code class="name">var <span class="ident">campaign_ref</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -602,8 +602,8 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.account_id" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.account_id">account_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.artifact_webhook" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.artifact_webhook">artifact_webhook</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.brand" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.brand">brand</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.buyer_campaign_ref" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.buyer_campaign_ref">buyer_campaign_ref</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.buyer_ref" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.buyer_ref">buyer_ref</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.campaign_ref" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.campaign_ref">campaign_ref</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.context" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.end_time" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.end_time">end_time</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.ext" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.ext">ext</a></code></li>

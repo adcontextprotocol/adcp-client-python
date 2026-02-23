@@ -62,7 +62,7 @@ el.replaceWith(d);
     bid_price: Annotated[
         float | None,
         Field(
-            description=&#39;Bid price for auction-based CPM pricing (present if using cpm-auction-option)&#39;,
+            description=&#34;Bid price for auction-based pricing. This is the exact bid/price to honor unless the selected pricing option has max_bid=true, in which case bid_price is the buyer&#39;s maximum willingness to pay (ceiling).&#34;,
             ge=0.0,
         ),
     ] = None

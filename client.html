@@ -409,6 +409,47 @@ el.replaceWith(d);
 
         return self.adapter._parse_response(raw_result, GetMediaBuyDeliveryResponse)
 
+    async def get_media_buys(
+        self,
+        request: GetMediaBuysRequest,
+    ) -&gt; TaskResult[GetMediaBuysResponse]:
+        &#34;&#34;&#34;
+        Get Media Buys.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing GetMediaBuysResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_media_buys&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.get_media_buys(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_media_buys&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, GetMediaBuysResponse)
+
     async def get_signals(
         self,
         request: GetSignalsRequest,
@@ -1812,6 +1853,7 @@ el.replaceWith(d);
             &#34;create_media_buy&#34;: CreateMediaBuyResponse,
             &#34;update_media_buy&#34;: UpdateMediaBuyResponse,
             &#34;get_media_buy_delivery&#34;: GetMediaBuyDeliveryResponse,
+            &#34;get_media_buys&#34;: GetMediaBuysResponse,
             &#34;get_signals&#34;: GetSignalsResponse,
             &#34;activate_signal&#34;: ActivateSignalResponse,
             &#34;provide_performance_feedback&#34;: ProvidePerformanceFeedbackResponse,
@@ -3096,6 +3138,64 @@ domain-specific capabilities (media_buy, signals, sponsored_intelligence).</p>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing GetMediaBuyDeliveryResponse</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.get_media_buys"><code class="name flex">
+<span>async def <span class="ident">get_media_buys</span></span>(<span>self, request: GetMediaBuysRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[GetMediaBuysResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_media_buys(
+    self,
+    request: GetMediaBuysRequest,
+) -&gt; TaskResult[GetMediaBuysResponse]:
+    &#34;&#34;&#34;
+    Get Media Buys.
+
+    Args:
+        request: Request parameters
+
+    Returns:
+        TaskResult containing GetMediaBuysResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_media_buys&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.get_media_buys(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_media_buys&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, GetMediaBuysResponse)</code></pre>
+</details>
+<div class="desc"><p>Get Media Buys.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing GetMediaBuysResponse</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.get_products"><code class="name flex">
 <span>async def <span class="ident">get_products</span></span>(<span>self,<br>request: GetProductsRequest,<br>fetch_previews: bool = False,<br>preview_output_format: str = 'url',<br>creative_agent_client: <a title="adcp.client.ADCPClient" href="#adcp.client.ADCPClient">ADCPClient</a> | None = None) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[GetProductsResponse]</span>
@@ -4999,6 +5099,7 @@ def agent_ids(self) -&gt; list[str]:
 <li><code><a title="adcp.client.ADCPClient.get_info" href="#adcp.client.ADCPClient.get_info">get_info</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_media_buy_artifacts" href="#adcp.client.ADCPClient.get_media_buy_artifacts">get_media_buy_artifacts</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_media_buy_delivery" href="#adcp.client.ADCPClient.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.get_media_buys" href="#adcp.client.ADCPClient.get_media_buys">get_media_buys</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_products" href="#adcp.client.ADCPClient.get_products">get_products</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_property_list" href="#adcp.client.ADCPClient.get_property_list">get_property_list</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_signals" href="#adcp.client.ADCPClient.get_signals">get_signals</a></code></li>

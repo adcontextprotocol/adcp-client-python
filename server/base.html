@@ -270,9 +270,7 @@ el.replaceWith(d);
     # Event Operations
     # ========================================================================
 
-    async def log_event(
-        self, params: dict[str, Any], context: ToolContext | None = None
-    ) -&gt; Any:
+    async def log_event(self, params: dict[str, Any], context: ToolContext | None = None) -&gt; Any:
         &#34;&#34;&#34;Log event.
 
         Override this to provide functionality.
@@ -880,9 +878,7 @@ only the operations your agent supports.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def log_event(
-    self, params: dict[str, Any], context: ToolContext | None = None
-) -&gt; Any:
+<pre><code class="python">async def log_event(self, params: dict[str, Any], context: ToolContext | None = None) -&gt; Any:
     &#34;&#34;&#34;Log event.
 
     Override this to provide functionality.

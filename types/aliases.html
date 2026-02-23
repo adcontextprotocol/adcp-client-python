@@ -1210,10 +1210,10 @@ validated to form a valid model.</p>
             description=&#39;Account billed for this media buy. Includes advertiser, billing proxy (if any), and rate card applied.&#39;
         ),
     ] = None
-    buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
-    campaign_ref: Annotated[
+    buyer_campaign_ref: Annotated[
         str | None, Field(description=&#34;Buyer&#39;s campaign reference label, echoed from the request&#34;)
     ] = None
+    buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
     context: context_1.ContextObject | None = None
     creative_deadline: Annotated[
         AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
@@ -1250,11 +1250,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.CreateMediaBuyResponse1.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str</code></dt>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse1.buyer_campaign_ref"><code class="name">var <span class="ident">buyer_campaign_ref</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.aliases.CreateMediaBuyResponse1.campaign_ref"><code class="name">var <span class="ident">campaign_ref</span> : str | None</code></dt>
+<dt id="adcp.types.aliases.CreateMediaBuyResponse1.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3021,7 +3021,7 @@ validated to form a valid model.</p>
     bid_price: Annotated[
         float | None,
         Field(
-            description=&#39;Bid price for auction-based CPM pricing (present if using cpm-auction-option)&#39;,
+            description=&#34;Bid price for auction-based pricing. This is the exact bid/price to honor unless the selected pricing option has max_bid=true, in which case bid_price is the buyer&#39;s maximum willingness to pay (ceiling).&#34;,
             ge=0.0,
         ),
     ] = None
@@ -5876,8 +5876,8 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.aliases.CreateMediaBuyResponse1" href="#adcp.types.aliases.CreateMediaBuyResponse1">CreateMediaBuyResponse1</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.account" href="#adcp.types.aliases.CreateMediaBuyResponse1.account">account</a></code></li>
+<li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.buyer_campaign_ref" href="#adcp.types.aliases.CreateMediaBuyResponse1.buyer_campaign_ref">buyer_campaign_ref</a></code></li>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.buyer_ref" href="#adcp.types.aliases.CreateMediaBuyResponse1.buyer_ref">buyer_ref</a></code></li>
-<li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.campaign_ref" href="#adcp.types.aliases.CreateMediaBuyResponse1.campaign_ref">campaign_ref</a></code></li>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.context" href="#adcp.types.aliases.CreateMediaBuyResponse1.context">context</a></code></li>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.creative_deadline" href="#adcp.types.aliases.CreateMediaBuyResponse1.creative_deadline">creative_deadline</a></code></li>
 <li><code><a title="adcp.types.aliases.CreateMediaBuyResponse1.ext" href="#adcp.types.aliases.CreateMediaBuyResponse1.ext">ext</a></code></li>

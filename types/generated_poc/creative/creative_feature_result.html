@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.media_buy.get_products_request API documentation</title>
+<title>adcp.types.generated_poc.creative.creative_feature_result API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.media_buy.get_products_request</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.creative.creative_feature_result</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,8 +46,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest"><code class="flex name class">
-<span>class <span class="ident">GetProductsRequest</span></span>
+<dt id="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult"><code class="flex name class">
+<span>class <span class="ident">CreativeFeatureResult</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -55,47 +55,46 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class GetProductsRequest(AdCPBaseModel):
+<pre><code class="python">class CreativeFeatureResult(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#39;forbid&#39;,
     )
-    account_id: Annotated[
-        str | None,
-        Field(
-            description=&#34;Account ID for product lookup. Required when the seller declares account.required_for_products = true in capabilities. Returns products with pricing specific to this account&#39;s rate card.&#34;
-        ),
+    confidence: Annotated[
+        float | None, Field(description=&#39;Confidence score for this value (0-1)&#39;, ge=0.0, le=1.0)
     ] = None
-    brand: Annotated[
-        brand_ref.BrandReference | None,
-        Field(
-            description=&#39;Brand reference for product discovery context. Resolved to full brand identity at execution time.&#39;
-        ),
+    details: Annotated[
+        dict[str, Any] | None,
+        Field(description=&#39;Additional vendor-specific details about this evaluation&#39;),
     ] = None
-    brief: Annotated[
-        str | None, Field(description=&#39;Natural language description of campaign requirements.&#39;)
+    expires_at: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;When this evaluation expires and should be refreshed&#39;),
     ] = None
-    buyer_campaign_ref: Annotated[
-        str | None,
-        Field(
-            description=&#34;Buyer&#39;s campaign reference label. Groups related discovery and buy operations under a single campaign for CRM and ad server correlation (e.g., &#39;NovaDrink_Meals_Q2&#39;).&#34;
-        ),
-    ] = None
-    catalog: Annotated[
-        catalog_1.Catalog | None,
-        Field(
-            description=&#39;Catalog of items the buyer wants to promote. The seller matches catalog items against its inventory and returns products where matches exist. Supports all catalog types: a job catalog finds job ad products, a product catalog finds sponsored product slots. Reference a synced catalog by catalog_id, or provide inline items.&#39;
-        ),
-    ] = None
-    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
-    filters: product_filters.ProductFilters | None = None
-    pagination: pagination_request.PaginationRequest | None = None
-    property_list: Annotated[
-        property_list_ref.PropertyListReference | None,
+    feature_id: Annotated[
+        str,
         Field(
-            description=&#39;[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list.&#39;
+            description=&#34;The feature that was evaluated (e.g., &#39;auto_redirect&#39;, &#39;brand_consistency&#39;, &#39;iab_casinos_gambling&#39;)&#34;
         ),
-    ] = None</code></pre>
+    ]
+    measured_at: Annotated[
+        AwareDatetime | None, Field(description=&#39;When this feature was evaluated&#39;)
+    ] = None
+    methodology_version: Annotated[
+        str | None, Field(description=&#39;Version of the methodology used to evaluate this feature&#39;)
+    ] = None
+    unit: Annotated[
+        str | None,
+        Field(
+            description=&#34;Unit of measurement for quantitative values (e.g., &#39;percentage&#39;, &#39;score&#39;)&#34;
+        ),
+    ] = None
+    value: Annotated[
+        bool | float | str,
+        Field(
+            description=&#39;The feature value. Type depends on feature definition: boolean for binary, number for quantitative, string for categorical.&#39;
+        ),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -112,47 +111,43 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.account_id"><code class="name">var <span class="ident">account_id</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.confidence"><code class="name">var <span class="ident">confidence</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="../core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.details"><code class="name">var <span class="ident">details</span> : dict[str, typing.Any] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brief"><code class="name">var <span class="ident">brief</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.expires_at"><code class="name">var <span class="ident">expires_at</span> : pydantic.types.AwareDatetime | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.buyer_campaign_ref"><code class="name">var <span class="ident">buyer_campaign_ref</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.catalog"><code class="name">var <span class="ident">catalog</span> : <a title="adcp.types.generated_poc.core.catalog.Catalog" href="../core/catalog.html#adcp.types.generated_poc.core.catalog.Catalog">Catalog</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.feature_id"><code class="name">var <span class="ident">feature_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.measured_at"><code class="name">var <span class="ident">measured_at</span> : pydantic.types.AwareDatetime | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.methodology_version"><code class="name">var <span class="ident">methodology_version</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.filters"><code class="name">var <span class="ident">filters</span> : <a title="adcp.types.generated_poc.core.product_filters.ProductFilters" href="../core/product_filters.html#adcp.types.generated_poc.core.product_filters.ProductFilters">ProductFilters</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.unit"><code class="name">var <span class="ident">unit</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="../core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.property_list"><code class="name">var <span class="ident">property_list</span> : <a title="adcp.types.generated_poc.core.property_list_ref.PropertyListReference" href="../core/property_list_ref.html#adcp.types.generated_poc.core.property_list_ref.PropertyListReference">PropertyListReference</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.value"><code class="name">var <span class="ident">value</span> : bool | float | str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -178,25 +173,24 @@ validated to form a valid model.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.media_buy" href="index.html">adcp.types.generated_poc.media_buy</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative" href="index.html">adcp.types.generated_poc.creative</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest">GetProductsRequest</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult" href="#adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult">CreativeFeatureResult</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.account_id" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.account_id">account_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brand" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brand">brand</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brief" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brief">brief</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.buyer_campaign_ref" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.buyer_campaign_ref">buyer_campaign_ref</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.catalog" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.catalog">catalog</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.context" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.ext" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.filters" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.filters">filters</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.model_config" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.pagination" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.pagination">pagination</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.property_list" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.property_list">property_list</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.confidence" href="#adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.confidence">confidence</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.details" href="#adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.details">details</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.expires_at" href="#adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.expires_at">expires_at</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.ext" href="#adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.feature_id" href="#adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.feature_id">feature_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.measured_at" href="#adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.measured_at">measured_at</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.methodology_version" href="#adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.methodology_version">methodology_version</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.model_config" href="#adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.unit" href="#adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.unit">unit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.value" href="#adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.value">value</a></code></li>
 </ul>
 </li>
 </ul>
