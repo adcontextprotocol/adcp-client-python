@@ -621,6 +621,100 @@ async def test_get_media_buys_parses_response():
 
 
 @pytest.mark.asyncio
+async def test_get_media_buys_parses_snapshot_response():
+    """Test that get_media_buys parses snapshot data including DeliveryStatus."""
+    from unittest.mock import patch
+
+    from adcp.types._generated import (
+        DeliveryStatus,
+        GetMediaBuysRequest,
+        GetMediaBuysResponse,
+        SnapshotUnavailableReason,
+    )
+    from adcp.types.core import TaskResult, TaskStatus
+
+    config = AgentConfig(
+        id="test_agent",
+        agent_uri="https://test.example.com",
+        protocol=Protocol.A2A,
+    )
+
+    client = ADCPClient(config)
+
+    media_buys_data = {
+        "media_buys": [
+            {
+                "media_buy_id": "mb-2",
+                "status": "active",
+                "currency": "USD",
+                "total_budget": 10000.0,
+                "packages": [
+                    {
+                        "package_id": "pkg-delivering",
+                        "snapshot": {
+                            "impressions": 4500.0,
+                            "spend": 225.50,
+                            "as_of": "2026-02-22T12:00:00Z",
+                            "staleness_seconds": 900,
+                            "delivery_status": "delivering",
+                            "pacing_index": 0.95,
+                        },
+                    },
+                    {
+                        "package_id": "pkg-not-delivering",
+                        "snapshot": {
+                            "impressions": 0.0,
+                            "spend": 0.0,
+                            "as_of": "2026-02-22T12:00:00Z",
+                            "staleness_seconds": 900,
+                            "delivery_status": "not_delivering",
+                        },
+                    },
+                    {
+                        "package_id": "pkg-no-snapshot",
+                        "snapshot_unavailable_reason": "SNAPSHOT_UNSUPPORTED",
+                    },
+                ],
+            }
+        ]
+    }
+
+    mock_result = TaskResult(
+        status=TaskStatus.COMPLETED,
+        data=media_buys_data,
+        success=True,
+    )
+
+    with patch.object(client.adapter, "get_media_buys", return_value=mock_result):
+        result = await client.get_media_buys(GetMediaBuysRequest(include_snapshot=True))
+        assert result.success is True
+        assert isinstance(result.data, GetMediaBuysResponse)
+
+        packages = result.data.media_buys[0].packages
+        assert len(packages) == 3
+
+        delivering = packages[0]
+        assert delivering.snapshot is not None
+        assert delivering.snapshot.delivery_status == DeliveryStatus.delivering
+        assert delivering.snapshot.impressions == 4500.0
+        assert delivering.snapshot.spend == 225.50
+        assert delivering.snapshot.staleness_seconds == 900
+        assert delivering.snapshot.pacing_index == 0.95
+
+        not_delivering = packages[1]
+        assert not_delivering.snapshot is not None
+        assert not_delivering.snapshot.delivery_status == DeliveryStatus.not_delivering
+        assert not_delivering.snapshot.impressions == 0.0
+
+        no_snapshot = packages[2]
+        assert no_snapshot.snapshot is None
+        assert (
+            no_snapshot.snapshot_unavailable_reason
+            == SnapshotUnavailableReason.SNAPSHOT_UNSUPPORTED
+        )
+
+
+@pytest.mark.asyncio
 async def test_multi_agent_close_handles_adapter_failures():
     """Test that multi-agent close handles individual adapter failures gracefully."""
     from unittest.mock import AsyncMock, patch

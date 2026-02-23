@@ -15,10 +15,15 @@ def test_core_domain_types_are_exported():
         "Product",
         "Format",
         "MediaBuy",
+        "MediaBuyPackage",
         "Property",
         "BrandManifest",
         "Creative",
+        "CreativeApproval",
+        "DeliveryStatus",
         "Package",
+        "Snapshot",
+        "SnapshotUnavailableReason",
     ]
 
     for type_name in core_types:
