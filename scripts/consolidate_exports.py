@@ -269,8 +269,15 @@ def generate_consolidated_exports() -> str:
     }
 
     # Format __all__ list with proper line breaks (max 100 chars per line)
-    # Exclude private names (qualified collision aliases like _PackageFromPackage)
-    exports_list = sorted(name for name in all_exports_with_aliases if not name.startswith("_"))
+    # Exclude private names that are alias targets (internal intermediates only).
+    # Private names that external modules import (e.g., _PackageFromPackage used by aliases.py)
+    # must remain in __all__ so mypy allows the import.
+    internal_alias_targets = {v for v in aliases.values() if v.startswith("_")}
+    exports_list = sorted(
+        name
+        for name in all_exports_with_aliases
+        if not name.startswith("_") or name not in internal_alias_targets
+    )
     all_lines = ["", "# Explicit exports", "__all__ = ["]
 
     current_line = "    "
