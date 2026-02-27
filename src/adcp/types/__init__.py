@@ -43,6 +43,7 @@ from adcp.types._generated import (
     A2UiComponent,
     A2UiSurface,
     Account,
+    AccountReference,
     ActivateSignalRequest,
     ActivateSignalResponse,
     AggregatedTotals,
@@ -67,6 +68,9 @@ from adcp.types._generated import (
     CalibrateContentResponse,
     Catalog,
     CatalogAction,
+    CatalogFieldBinding,
+    CatalogFieldBinding1,
+    CatalogFieldMapping,
     CatalogItemStatus,
     CatalogRequirements,
     CatalogType,
@@ -199,6 +203,7 @@ from adcp.types._generated import (
     OfferingAssetConstraint,
     OfferingAssetGroup,
     OptimizationGoal,
+    Overlay,
     Pacing,
     PackageRequest,
     PackageUpdate,
@@ -296,6 +301,7 @@ from adcp.types._generated import (
     TimeBasedPricingOption,
     TimeUnit,
     Totals,
+    Transform,
     UpdateContentStandardsRequest,
     UpdateContentStandardsResponse,
     UpdateFrequency,
@@ -322,6 +328,8 @@ from adcp.types._generated import _PackageFromPackage as Package
 
 # Import semantic aliases for discriminated unions
 from adcp.types.aliases import (
+    AccountReferenceById,
+    AccountReferenceByNaturalKey,
     ActivateSignalErrorResponse,
     ActivateSignalSuccessResponse,
     AgentDeployment,
@@ -442,6 +450,9 @@ __all__ = [
     "A2UiSurface",
     # Account types
     "Account",
+    "AccountReference",
+    "AccountReferenceById",
+    "AccountReferenceByNaturalKey",
     "GetAccountFinancialsRequest",
     "GetAccountFinancialsResponse",
     "ListAccountsRequest",
@@ -569,6 +580,9 @@ __all__ = [
     # Catalog types
     "Catalog",
     "CatalogAction",
+    "CatalogFieldBinding",
+    "CatalogFieldBinding1",
+    "CatalogFieldMapping",
     "CatalogItemStatus",
     "CatalogRequirements",
     "CatalogType",
@@ -620,6 +634,7 @@ __all__ = [
     "Metadata",
     "Offering",
     "OptimizationGoal",
+    "Overlay",
     "Package",
     "PackageRequest",
     "PackageUpdate",
@@ -652,6 +667,7 @@ __all__ = [
     "SnapshotUnavailableReason",
     "Tags",
     "TargetingOverlay",
+    "Transform",
     "VenueBreakdownItem",
     # Pricing types
     "CpaPricingOption",

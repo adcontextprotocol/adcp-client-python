@@ -32,6 +32,9 @@ immediately rather than at runtime when users try to use the aliases.
 from __future__ import annotations
 
 from adcp.types._generated import (
+    # Account reference variants
+    AccountReference1,
+    AccountReference2,
     # Activation responses
     ActivateSignalResponse1,
     ActivateSignalResponse2,
@@ -160,6 +163,57 @@ from adcp.types.generated_poc.media_buy.sync_catalogs_response import (
 from adcp.types.generated_poc.media_buy.sync_creatives_response import (
     Creative as SyncCreativeResultInternal,
 )
+
+# ============================================================================
+# ACCOUNT REFERENCE ALIASES - Identification Method Discriminated Unions
+# ============================================================================
+# AccountReference is a discriminated union with two identification methods:
+#
+# 1. By seller-assigned ID (account_id):
+#    - Use when the buyer manages accounts via list_accounts or sync_accounts
+#    - Requires seller-assigned account_id string
+#
+# 2. By natural key (brand + operator):
+#    - Use when the seller resolves accounts internally from brand identity
+#    - Requires brand reference + operator domain
+
+AccountReferenceById = AccountReference1
+"""Account reference using a seller-assigned account ID.
+
+Use when the buyer manages accounts (e.g., picked from list_accounts or
+sync_accounts). The account_id must match one returned by the seller.
+
+Fields:
+- account_id: Seller-assigned account identifier
+
+Example:
+    ```python
+    from adcp import AccountReferenceById
+
+    account = AccountReferenceById(account_id="acc_acme_001")
+    ```
+"""
+
+AccountReferenceByNaturalKey = AccountReference2
+"""Account reference using brand + operator natural key.
+
+Use when the seller resolves accounts internally from brand identity.
+The seller looks up the account based on the brand/operator combination.
+
+Fields:
+- brand: BrandReference identifying the advertiser
+- operator: Domain of the entity operating on the brand's behalf
+
+Example:
+    ```python
+    from adcp import AccountReferenceByNaturalKey
+
+    account = AccountReferenceByNaturalKey(
+        brand={"domain": "acme-corp.com"},
+        operator="acme-corp.com"
+    )
+    ```
+"""
 
 # ============================================================================
 # RESPONSE TYPE ALIASES - Success/Error Discriminated Unions
@@ -910,6 +964,9 @@ Example:
 # ============================================================================
 
 __all__ = [
+    # Account reference variants
+    "AccountReferenceById",
+    "AccountReferenceByNaturalKey",
     # Activation responses
     "ActivateSignalSuccessResponse",
     "ActivateSignalErrorResponse",
