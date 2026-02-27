@@ -3,12 +3,15 @@
 All AdCP types exported from a single location.
 Users should import from here or directly from adcp.
 
-Examples:
     from adcp.types import Product, CreativeFilters
     from adcp import Product, CreativeFilters
 
+IMPORTANT: Never import directly from adcp.types.generated_poc or
+adcp.types._generated. These are internal modules regenerated from
+upstream schemas. Only import from adcp.types (this module) or adcp.
+
 Type Coercion:
-    For developer ergonomics, request types accept flexible input:
+    Request types accept flexible input for developer ergonomics:
 
     - Enum fields accept string values:
         ListCreativeFormatsRequest(type="video")  # Works!
@@ -20,7 +23,7 @@ Type Coercion:
     - FieldModel lists accept strings:
         ListCreativesRequest(fields=["creative_id", "name"])  # Works!
 
-    See adcp.types.coercion for implementation details.
+    See adcp.types._ergonomic for implementation details.
 """
 
 from __future__ import annotations
@@ -344,12 +347,15 @@ from adcp.types.aliases import (
     BuildCreativeSuccessResponse,
     CalibrateContentErrorResponse,
     CalibrateContentSuccessResponse,
+    ConsentBasis,
+    CpmSignalPricingOption,
     CreateContentStandardsErrorResponse,
     CreateContentStandardsSuccessResponse,
     CreateMediaBuyErrorResponse,
     CreateMediaBuySuccessResponse,
     Deployment,
     Destination,
+    FlatFeeSignalPricingOption,
     GetAccountFinancialsErrorResponse,
     GetAccountFinancialsSuccessResponse,
     GetContentStandardsErrorResponse,
@@ -369,6 +375,7 @@ from adcp.types.aliases import (
     LogEventErrorResponse,
     LogEventSuccessResponse,
     MediaSubAsset,
+    PercentOfMediaSignalPricingOption,
     PlatformDeployment,
     PlatformDestination,
     PreviewCreativeFormatRequest,
@@ -386,6 +393,7 @@ from adcp.types.aliases import (
     PublisherPropertiesByTag,
     SyncAccountsErrorResponse,
     SyncAccountsSuccessResponse,
+    SyncAudiencesAudience,
     SyncAudiencesErrorResponse,
     SyncAudiencesSuccessResponse,
     SyncCatalogResult,
@@ -500,8 +508,10 @@ __all__ = [
     "SyncCatalogsResponse",
     "SyncCatalogsSubmitted",
     "SyncCatalogsWorking",
+    "SyncAudiencesAudience",
     "SyncAudiencesRequest",
     "SyncAudiencesResponse",
+    "ConsentBasis",
     "SyncCreativesRequest",
     "SyncCreativesResponse",
     # Event & Source Operations
@@ -663,6 +673,9 @@ __all__ = [
     "SignalFilters",
     "SignalPricing",
     "SignalPricingOption",
+    "CpmSignalPricingOption",
+    "FlatFeeSignalPricingOption",
+    "PercentOfMediaSignalPricingOption",
     "Snapshot",
     "SnapshotUnavailableReason",
     "Tags",

@@ -606,6 +606,7 @@ def test_pricing_option_union_contains_all_variants():
     from typing import get_args
 
     from adcp import (
+        CpaPricingOption,
         CpcPricingOption,
         CpcvPricingOption,
         CpmPricingOption,
@@ -613,6 +614,7 @@ def test_pricing_option_union_contains_all_variants():
         CpvPricingOption,
         FlatRatePricingOption,
         PricingOption,
+        TimeBasedPricingOption,
         VcpmPricingOption,
     )
 
@@ -627,7 +629,9 @@ def test_pricing_option_union_contains_all_variants():
         CpcvPricingOption,
         CpvPricingOption,
         CppPricingOption,
+        CpaPricingOption,
         FlatRatePricingOption,
+        TimeBasedPricingOption,
     }
 
     assert union_args == expected_variants

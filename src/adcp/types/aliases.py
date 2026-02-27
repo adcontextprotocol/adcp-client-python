@@ -38,6 +38,8 @@ from adcp.types._generated import (
     # Activation responses
     ActivateSignalResponse1,
     ActivateSignalResponse2,
+    # Sync audiences input types
+    Audience,
     # Authorized agents
     AuthorizedAgents,
     AuthorizedAgents1,
@@ -49,6 +51,8 @@ from adcp.types._generated import (
     # Calibrate content responses
     CalibrateContentResponse1,
     CalibrateContentResponse2,
+    ConsentBasis,
+    CpaPricingOption,
     CpcPricingOption,
     CpcvPricingOption,
     CpmPricingOption,
@@ -108,6 +112,10 @@ from adcp.types._generated import (
     # Performance feedback responses
     ProvidePerformanceFeedbackResponse1,
     ProvidePerformanceFeedbackResponse2,
+    # Signal pricing option variants
+    SignalPricingOption5,
+    SignalPricingOption6,
+    SignalPricingOption7,
     # SubAssets
     SubAsset1,
     SubAsset2,
@@ -126,6 +134,7 @@ from adcp.types._generated import (
     # Sync event sources responses
     SyncEventSourcesResponse1,
     SyncEventSourcesResponse2,
+    TimeBasedPricingOption,
     # Update media buy requests
     UpdateMediaBuyRequest1,
     UpdateMediaBuyRequest2,
@@ -914,6 +923,50 @@ Example:
 """
 
 # ============================================================================
+# SIGNAL PRICING OPTION ALIASES - Pricing Model Discriminated Unions
+# ============================================================================
+# SignalPricingOption is a discriminated union with three pricing models.
+# Variants 5/6/7 combine the model-specific fields with pricing_option_id.
+
+CpmSignalPricingOption = SignalPricingOption5
+"""Signal pricing option with model='cpm' - fixed cost per thousand impressions."""
+
+PercentOfMediaSignalPricingOption = SignalPricingOption6
+"""Signal pricing option with model='percent_of_media' - percentage of media spend."""
+
+FlatFeeSignalPricingOption = SignalPricingOption7
+"""Signal pricing option with model='flat_fee' - fixed charge per reporting period."""
+
+# ============================================================================
+# SYNC AUDIENCES INPUT ALIASES
+# ============================================================================
+# The Audience input type for SyncAudiencesRequest is exported here following
+# the same pattern as SyncCreativeResult and SyncCatalogResult.
+
+SyncAudiencesAudience = Audience
+"""Audience segment payload for SyncAudiencesRequest.audiences[].
+
+Fields include external_id, name, description, size_estimate, consent_basis,
+and member list (AudienceMember items).
+
+Example:
+    ```python
+    from adcp import SyncAudiencesAudience, SyncAudiencesRequest
+
+    request = SyncAudiencesRequest(
+        account={"account_id": "acc_123"},
+        audiences=[
+            SyncAudiencesAudience(
+                external_id="seg_456",
+                name="High-value customers",
+                consent_basis="declared"
+            )
+        ]
+    )
+    ```
+"""
+
+# ============================================================================
 # PRICING OPTION UNION TYPE - For Type Hints Without RootModel Wrapper
 # ============================================================================
 # The generated PricingOption is a RootModel wrapper that mypy doesn't recognize
@@ -927,7 +980,9 @@ PricingOption = (
     | CpcvPricingOption
     | CpvPricingOption
     | CppPricingOption
+    | CpaPricingOption
     | FlatRatePricingOption
+    | TimeBasedPricingOption
 )
 """Union type for all pricing option variants.
 
@@ -1077,4 +1132,11 @@ __all__ = [
     "Destination",
     # Pricing option union
     "PricingOption",
+    # Signal pricing option variants
+    "CpmSignalPricingOption",
+    "FlatFeeSignalPricingOption",
+    "PercentOfMediaSignalPricingOption",
+    # Sync audiences input type
+    "SyncAudiencesAudience",
+    "ConsentBasis",
 ]
