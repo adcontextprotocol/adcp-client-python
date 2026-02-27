@@ -53,26 +53,13 @@
             "description": "Human-readable signal name",
             "type": "string"
           },
-          "pricing": {
-            "additionalProperties": true,
-            "description": "Pricing information",
-            "properties": {
-              "cpm": {
-                "description": "Cost per thousand impressions",
-                "minimum": 0,
-                "type": "number"
-              },
-              "currency": {
-                "description": "Currency code",
-                "pattern": "^[A-Z]{3}$",
-                "type": "string"
-              }
+          "pricing_options": {
+            "description": "Pricing options available for this signal. The buyer selects one and passes its pricing_option_id in report_usage for billing verification.",
+            "items": {
+              "$ref": "../core/signal-pricing-option.json"
             },
-            "required": [
-              "cpm",
-              "currency"
-            ],
-            "type": "object"
+            "minItems": 1,
+            "type": "array"
           },
           "signal_agent_segment_id": {
             "description": "Opaque identifier used for activation. This is the signals agent's internal segment ID.",
@@ -99,7 +86,7 @@
           "data_provider",
           "coverage_percentage",
           "deployments",
-          "pricing"
+          "pricing_options"
         ],
         "type": "object"
       },

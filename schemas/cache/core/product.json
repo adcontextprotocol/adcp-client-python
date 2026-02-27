@@ -60,7 +60,7 @@
     },
     "conversion_tracking": {
       "additionalProperties": true,
-      "description": "Conversion tracking for this product. Presence indicates the product supports conversion-optimized delivery. Seller-level capabilities (supported event types, UID types, attribution windows) are declared in get_adcp_capabilities.",
+      "description": "Conversion event tracking for this product. Presence indicates the product supports optimization_goals with kind: 'event'. Seller-level capabilities (supported event types, UID types, attribution windows) are declared in get_adcp_capabilities.",
       "properties": {
         "action_sources": {
           "description": "Action sources relevant to this product (e.g. a retail media product might have 'in_store' and 'website', while a display product might only have 'website')",
@@ -74,13 +74,13 @@
           "description": "Whether the seller provides its own always-on measurement (e.g. Amazon sales attribution for Amazon advertisers). When true, sync_event_sources response will include seller-managed event sources with managed_by='seller'.",
           "type": "boolean"
         },
-        "supported_optimization_strategies": {
-          "description": "Optimization strategies this product supports when an optimization_goal is set on a package",
+        "supported_targets": {
+          "description": "Target kinds available for event goals on this product. Values match target.kind on the optimization goal. cost_per: target cost per conversion event. per_ad_spend: target return on ad spend (requires value_field on event sources). maximize_value: maximize total conversion value without a specific ratio target (requires value_field). Only these target kinds are accepted \u2014 goals with unlisted target kinds will be rejected. A goal without a target implicitly maximizes conversion count within budget \u2014 no declaration needed for that mode. When omitted, buyers can still set target-less event goals.",
           "items": {
             "enum": [
-              "maximize_conversions",
-              "target_cpa",
-              "target_roas"
+              "cost_per",
+              "per_ad_spend",
+              "maximize_value"
             ],
             "type": "string"
           },
@@ -147,8 +147,71 @@
       "description": "Whether this is a custom product",
       "type": "boolean"
     },
+    "max_optimization_goals": {
+      "description": "Maximum number of optimization_goals this product accepts on a package. When absent, no limit is declared. Most social platforms accept only 1 goal \u2014 buyers sending arrays longer than this value should expect the seller to use only the highest-priority (lowest priority number) goal.",
+      "minimum": 1,
+      "type": "integer"
+    },
     "measurement": {
       "$ref": "measurement.json"
+    },
+    "metric_optimization": {
+      "additionalProperties": true,
+      "description": "Metric optimization capabilities for this product. Presence indicates the product supports optimization_goals with kind: 'metric'. No event source or conversion tracking setup required \u2014 the seller tracks these metrics natively.",
+      "properties": {
+        "supported_metrics": {
+          "description": "Metric kinds this product can optimize for. Buyers should only request metric goals for kinds listed here.",
+          "items": {
+            "enum": [
+              "clicks",
+              "views",
+              "completed_views",
+              "viewed_seconds",
+              "attention_seconds",
+              "attention_score",
+              "engagements",
+              "follows",
+              "saves",
+              "profile_visits",
+              "reach"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "supported_reach_units": {
+          "description": "Reach units this product can optimize for. Required when supported_metrics includes 'reach'. Buyers must set reach_unit to a value in this list on reach optimization goals \u2014 sellers reject unsupported values.",
+          "items": {
+            "$ref": "../enums/reach-unit.json"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "supported_targets": {
+          "description": "Target kinds available for metric goals on this product. Values match target.kind on the optimization goal. Only these target kinds are accepted \u2014 goals with unlisted target kinds will be rejected. When omitted, buyers can set target-less metric goals (maximize volume within budget) but cannot set specific targets.",
+          "items": {
+            "enum": [
+              "cost_per",
+              "threshold_rate"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "supported_view_durations": {
+          "description": "Video view duration thresholds (in seconds) this product supports for completed_views goals. Only relevant when supported_metrics includes 'completed_views'. When absent, the seller uses their platform default. Buyers must set view_duration_seconds to a value in this list \u2014 sellers reject unsupported values.",
+          "items": {
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "supported_metrics"
+      ],
+      "type": "object"
     },
     "name": {
       "description": "Human-readable product name",

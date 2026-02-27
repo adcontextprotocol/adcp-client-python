@@ -1,21 +1,20 @@
 {
-  "$id": "/schemas/latest/media-buy/get-media-buys-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Response payload for get_media_buys task. Returns media buy configuration, creative approval state, and optional delivery snapshots.",
   "properties": {
     "context": {
-      "$ref": "/schemas/latest/core/context.json"
+      "$ref": "../core/context.json"
     },
     "errors": {
       "description": "Task-specific errors (e.g., media buy not found)",
       "items": {
-        "$ref": "/schemas/latest/core/error.json"
+        "$ref": "../core/error.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/latest/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "media_buys": {
       "description": "Array of media buys with status, creative approval state, and optional delivery snapshots",
@@ -23,7 +22,7 @@
         "additionalProperties": true,
         "properties": {
           "account": {
-            "$ref": "/schemas/latest/core/account.json",
+            "$ref": "../core/account.json",
             "description": "Account billed for this media buy"
           },
           "buyer_campaign_ref": {
@@ -50,7 +49,7 @@
             "type": "string"
           },
           "ext": {
-            "$ref": "/schemas/latest/core/ext.json"
+            "$ref": "../core/ext.json"
           },
           "media_buy_id": {
             "description": "Publisher's unique identifier for the media buy",
@@ -81,7 +80,7 @@
                     "additionalProperties": true,
                     "properties": {
                       "approval_status": {
-                        "$ref": "/schemas/latest/enums/creative-approval-status.json"
+                        "$ref": "../enums/creative-approval-status.json"
                       },
                       "creative_id": {
                         "description": "Creative identifier",
@@ -111,12 +110,12 @@
                   "type": "string"
                 },
                 "ext": {
-                  "$ref": "/schemas/latest/core/ext.json"
+                  "$ref": "../core/ext.json"
                 },
                 "format_ids_pending": {
                   "description": "Format IDs from the original create_media_buy format_ids_to_provide that have not yet been uploaded via sync_creatives. When empty or absent, all required formats have been provided.",
                   "items": {
-                    "$ref": "/schemas/latest/core/format-id.json"
+                    "$ref": "../core/format-id.json"
                   },
                   "type": "array"
                 },
@@ -169,7 +168,7 @@
                       "type": "string"
                     },
                     "ext": {
-                      "$ref": "/schemas/latest/core/ext.json",
+                      "$ref": "../core/ext.json",
                       "description": "Optional extension object for seller-specific snapshot fields."
                     },
                     "impressions": {
@@ -224,7 +223,7 @@
             "type": "array"
           },
           "status": {
-            "$ref": "/schemas/latest/enums/media-buy-status.json"
+            "$ref": "../enums/media-buy-status.json"
           },
           "total_budget": {
             "description": "Total budget amount across all packages, denominated in media_buy.currency",
@@ -249,7 +248,7 @@
       "type": "array"
     },
     "pagination": {
-      "$ref": "/schemas/latest/core/pagination-response.json",
+      "$ref": "../core/pagination-response.json",
       "description": "Pagination metadata for the media_buys array."
     },
     "sandbox": {

@@ -120,9 +120,11 @@ class TestDictToModelCoercion:
 
     def test_get_products_request_context_accepts_dict(self):
         """GetProductsRequest.context accepts dict."""
-        req = GetProductsRequest(context={"key": "value"})
-        assert isinstance(req.context, ContextObject)
-        assert req.context.key == "value"
+        req = GetProductsRequest.model_validate(
+            {"buying_mode": "wholesale", "context": {"key": "value"}}
+        )
+        assert isinstance(req.root.context, ContextObject)
+        assert req.root.context.key == "value"
 
 
 class TestFieldModelStringCoercion:
@@ -319,7 +321,7 @@ class TestListVariance:
 
         # No cast() needed!
         request = CreateMediaBuyRequest(
-            account_id="acct-1",
+            account={"account_id": "acct-1"},
             brand={"domain": "example.com"},
             buyer_ref="buyer-ref",
             start_time=datetime.now(timezone.utc),

@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/latest/media-buy/get-media-buy-delivery-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Response payload for get_media_buy_delivery task",
@@ -68,11 +67,11 @@
       "type": "object"
     },
     "attribution_window": {
-      "$ref": "/schemas/latest/core/attribution-window.json",
+      "$ref": "../core/attribution-window.json",
       "description": "Attribution methodology and lookback windows used for conversion metrics in this response. All media buys from a single seller share the same attribution methodology. Enables cross-platform comparison (e.g., Amazon 14-day click vs. Criteo 30-day click)."
     },
     "context": {
-      "$ref": "/schemas/latest/core/context.json"
+      "$ref": "../core/context.json"
     },
     "currency": {
       "description": "ISO 4217 currency code",
@@ -82,12 +81,12 @@
     "errors": {
       "description": "Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)",
       "items": {
-        "$ref": "/schemas/latest/core/error.json"
+        "$ref": "../core/error.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/latest/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "media_buy_deliveries": {
       "description": "Array of delivery data for media buys. When used in webhook notifications, may contain multiple media buys aggregated by publisher. When used in get_media_buy_delivery API responses, typically contains requested media buys.",
@@ -107,7 +106,7 @@
             "items": {
               "allOf": [
                 {
-                  "$ref": "/schemas/latest/core/delivery-metrics.json"
+                  "$ref": "../core/delivery-metrics.json"
                 },
                 {
                   "properties": {
@@ -120,7 +119,7 @@
                       "items": {
                         "allOf": [
                           {
-                            "$ref": "/schemas/latest/core/delivery-metrics.json"
+                            "$ref": "../core/delivery-metrics.json"
                           },
                           {
                             "properties": {
@@ -129,7 +128,7 @@
                                 "type": "string"
                               },
                               "content_id_type": {
-                                "$ref": "/schemas/latest/enums/content-id-type.json",
+                                "$ref": "../enums/content-id-type.json",
                                 "description": "Identifier type for this content_id"
                               }
                             },
@@ -149,7 +148,7 @@
                       "items": {
                         "allOf": [
                           {
-                            "$ref": "/schemas/latest/core/delivery-metrics.json"
+                            "$ref": "../core/delivery-metrics.json"
                           },
                           {
                             "properties": {
@@ -166,6 +165,41 @@
                             },
                             "required": [
                               "creative_id",
+                              "impressions",
+                              "spend"
+                            ],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "type": "array"
+                    },
+                    "by_keyword": {
+                      "description": "Metrics broken down by keyword within this package. One row per (keyword, match_type) pair \u2014 the same keyword with different match types appears as separate rows. Keyword-grain only: rows reflect aggregate performance of each targeted keyword, not individual search queries. Rows may not sum to package totals when a single impression is attributed to the triggering keyword only. Available for search and retail media packages when the seller supports keyword-level reporting.",
+                      "items": {
+                        "allOf": [
+                          {
+                            "$ref": "../core/delivery-metrics.json"
+                          },
+                          {
+                            "properties": {
+                              "keyword": {
+                                "description": "The targeted keyword",
+                                "type": "string"
+                              },
+                              "match_type": {
+                                "description": "Match type for this keyword",
+                                "enum": [
+                                  "broad",
+                                  "phrase",
+                                  "exact"
+                                ],
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "keyword",
+                              "match_type",
                               "impressions",
                               "spend"
                             ],
@@ -205,7 +239,7 @@
                       "type": "boolean"
                     },
                     "pricing_model": {
-                      "$ref": "/schemas/latest/enums/pricing-model.json",
+                      "$ref": "../enums/pricing-model.json",
                       "description": "The pricing model used for this package (e.g., cpm, cpcv, cpp). Indicates how the package is billed and which metrics are most relevant for optimization."
                     },
                     "rate": {
@@ -292,7 +326,7 @@
             "type": "string"
           },
           "pricing_model": {
-            "$ref": "/schemas/latest/enums/pricing-model.json",
+            "$ref": "../enums/pricing-model.json",
             "description": "Pricing model used for this media buy"
           },
           "status": {
@@ -311,7 +345,7 @@
           "totals": {
             "allOf": [
               {
-                "$ref": "/schemas/latest/core/delivery-metrics.json"
+                "$ref": "../core/delivery-metrics.json"
               },
               {
                 "description": "Aggregate metrics for this media buy across all packages",

@@ -107,11 +107,13 @@ async def test_get_products():
             client.adapter, "_parse_response", return_value=mock_parsed_result
         ) as mock_parse,
     ):
-        request = GetProductsRequest(brief="test campaign")
+        request = GetProductsRequest.model_validate(
+            {"buying_mode": "brief", "brief": "test campaign"}
+        )
         result = await client.get_products(request)
 
         # Verify adapter method was called
-        mock_get.assert_called_once_with({"brief": "test campaign"})
+        mock_get.assert_called_once_with({"brief": "test campaign", "buying_mode": "brief"})
         # Verify parsing was called with correct type
         mock_parse.assert_called_once_with(mock_raw_result, GetProductsResponse)
         # Verify final result
@@ -176,12 +178,13 @@ async def test_all_client_methods():
 @pytest.mark.parametrize(
     "method_name,request_class,request_data",
     [
-        ("get_products", "GetProductsRequest", {}),
+        ("get_products", "GetProductsRequest", {"buying_mode": "wholesale"}),
         ("list_creative_formats", "ListCreativeFormatsRequest", {}),
         (
             "sync_creatives",
             "SyncCreativesRequest",
             {
+                "account": {"account_id": "acct-1"},
                 "creatives": [
                     {
                         "creative_id": "test",
@@ -198,12 +201,12 @@ async def test_all_client_methods():
                             }
                         },
                     }
-                ]
+                ],
             },
         ),
         ("list_creatives", "ListCreativesRequest", {}),
         ("get_media_buy_delivery", "GetMediaBuyDeliveryRequest", {}),
-        ("get_media_buys", "GetMediaBuysRequest", {}),
+        ("get_media_buys", "GetMediaBuysRequest", {"account": {"account_id": "acct-1"}}),
         (
             "get_signals",
             "GetSignalsRequest",
@@ -242,10 +245,9 @@ async def test_all_client_methods():
             {
                 "accounts": [
                     {
-                        "account_id": "acct-1",
-                        "brand_id": "test_brand",
-                        "house": "example.com",
-                        "name": "Test Account",
+                        "billing": "operator",
+                        "brand": {"domain": "example.com"},
+                        "operator": "test-operator",
                     }
                 ]
             },
@@ -267,7 +269,7 @@ async def test_all_client_methods():
         (
             "sync_event_sources",
             "SyncEventSourcesRequest",
-            {"account_id": "acct-1"},
+            {"account": {"account_id": "acct-1"}},
         ),
         (
             "get_creative_delivery",
@@ -355,12 +357,12 @@ async def test_multi_agent_parallel_execution():
             client.agents["agent2"].adapter, "get_products", return_value=mock_result
         ) as mock2,
     ):
-        request = GetProductsRequest(brief="test")
+        request = GetProductsRequest.model_validate({"buying_mode": "wholesale"})
         results = await client.get_products(request)
 
         # Verify both agents' get_products method was called
-        mock1.assert_called_once_with({"brief": "test"})
-        mock2.assert_called_once_with({"brief": "test"})
+        mock1.assert_called_once_with({"buying_mode": "wholesale"})
+        mock2.assert_called_once_with({"buying_mode": "wholesale"})
 
         # Verify results from both agents
         assert len(results) == 2
@@ -610,8 +612,12 @@ async def test_get_media_buys_parses_response():
     with patch.object(
         client.adapter, "get_media_buys", return_value=mock_result
     ) as mock_adapter:
-        result = await client.get_media_buys(GetMediaBuysRequest(account_id="acct-1"))
-        mock_adapter.assert_called_once_with({"account_id": "acct-1", "include_snapshot": False})
+        result = await client.get_media_buys(
+            GetMediaBuysRequest.model_validate({"account": {"account_id": "acct-1"}})
+        )
+        mock_adapter.assert_called_once_with(
+            {"account": {"account_id": "acct-1"}, "include_snapshot": False}
+        )
         assert result.success is True
         assert isinstance(result.data, GetMediaBuysResponse)
         assert len(result.data.media_buys) == 1
@@ -691,8 +697,14 @@ async def test_get_media_buys_parses_snapshot_response():
     with patch.object(
         client.adapter, "get_media_buys", return_value=mock_result
     ) as mock_adapter:
-        result = await client.get_media_buys(GetMediaBuysRequest(include_snapshot=True))
-        mock_adapter.assert_called_once_with({"include_snapshot": True})
+        result = await client.get_media_buys(
+            GetMediaBuysRequest.model_validate(
+                {"account": {"account_id": "acct-1"}, "include_snapshot": True}
+            )
+        )
+        mock_adapter.assert_called_once_with(
+            {"account": {"account_id": "acct-1"}, "include_snapshot": True}
+        )
         assert result.success is True
         assert isinstance(result.data, GetMediaBuysResponse)
 

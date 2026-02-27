@@ -18,10 +18,14 @@
       ]
     }
   ],
-  "description": "Hashed identifiers for a CRM audience member. All identifiers must be normalized before hashing: emails to lowercase+trim, phone numbers to E.164 format (e.g. +12065551234). At least one identifier is required. Providing multiple identifiers for the same person improves match rates. Composite identifiers (e.g. hashed first name + last name + zip for Google Customer Match) are not yet standardized \u2014 use the ext field for platform-specific extensions.",
+  "description": "A CRM audience member identified by a buyer-assigned external_id and at least one matchable identifier. All identifiers must be normalized before hashing: emails to lowercase+trim, phone numbers to E.164 format (e.g. +12065551234). Providing multiple identifiers for the same person improves match rates. Composite identifiers (e.g. hashed first name + last name + zip for Google Customer Match) are not yet standardized \u2014 use the ext field for platform-specific extensions.",
   "properties": {
     "ext": {
       "$ref": "ext.json"
+    },
+    "external_id": {
+      "description": "Buyer-assigned stable identifier for this audience member (e.g. CRM record ID, loyalty ID). Used for deduplication, removal, and cross-referencing with buyer systems. Adapters for CDPs that don't natively assign IDs can derive one (e.g. hash of the member's identifiers).",
+      "type": "string"
     },
     "hashed_email": {
       "description": "SHA-256 hash of lowercase, trimmed email address.",
@@ -57,6 +61,9 @@
       "type": "array"
     }
   },
+  "required": [
+    "external_id"
+  ],
   "title": "Audience Member",
   "type": "object"
 }

@@ -67,6 +67,9 @@ from adcp.types._generated import (
     Destination1,
     Destination2,
     FlatRatePricingOption,
+    # Get account financials responses
+    GetAccountFinancialsResponse1,
+    GetAccountFinancialsResponse2,
     # Content standards get responses
     GetContentStandardsResponse1,
     GetContentStandardsResponse2,
@@ -74,6 +77,9 @@ from adcp.types._generated import (
     GetCreativeDeliveryRequest1,
     GetCreativeDeliveryRequest2,
     GetCreativeDeliveryRequest3,
+    # Get creative features responses
+    GetCreativeFeaturesResponse1,
+    GetCreativeFeaturesResponse2,
     # Media buy artifacts responses
     GetMediaBuyArtifactsResponse1,
     GetMediaBuyArtifactsResponse2,
@@ -105,6 +111,9 @@ from adcp.types._generated import (
     # Sync accounts responses
     SyncAccountsResponse1,
     SyncAccountsResponse2,
+    # Sync audiences responses
+    SyncAudiencesResponse1,
+    SyncAudiencesResponse2,
     # Sync catalogs responses
     SyncCatalogsResponse1,
     SyncCatalogsResponse2,
@@ -304,6 +313,27 @@ UpdateMediaBuySuccessResponse = UpdateMediaBuyResponse1
 
 UpdateMediaBuyErrorResponse = UpdateMediaBuyResponse2
 """Error response - media buy update failed, no changes applied."""
+
+# Get Account Financials Response Variants
+GetAccountFinancialsSuccessResponse = GetAccountFinancialsResponse1
+"""Success response - account financials retrieved."""
+
+GetAccountFinancialsErrorResponse = GetAccountFinancialsResponse2
+"""Error response - account financials retrieval failed."""
+
+# Sync Audiences Response Variants
+SyncAudiencesSuccessResponse = SyncAudiencesResponse1
+"""Success response - audiences synced successfully."""
+
+SyncAudiencesErrorResponse = SyncAudiencesResponse2
+"""Error response - audiences sync failed."""
+
+# Get Creative Features Response Variants
+GetCreativeFeaturesSuccessResponse = GetCreativeFeaturesResponse1
+"""Success response - creative features retrieved."""
+
+GetCreativeFeaturesErrorResponse = GetCreativeFeaturesResponse2
+"""Error response - creative features retrieval failed."""
 
 # ============================================================================
 # REQUEST TYPE ALIASES - Operation Variants
@@ -958,6 +988,15 @@ __all__ = [
     # Validate content delivery responses
     "ValidateContentDeliverySuccessResponse",
     "ValidateContentDeliveryErrorResponse",
+    # Get account financials responses
+    "GetAccountFinancialsSuccessResponse",
+    "GetAccountFinancialsErrorResponse",
+    # Sync audiences responses
+    "SyncAudiencesSuccessResponse",
+    "SyncAudiencesErrorResponse",
+    # Get creative features responses
+    "GetCreativeFeaturesSuccessResponse",
+    "GetCreativeFeaturesErrorResponse",
     # Package type aliases
     "Package",
     # Publisher properties types

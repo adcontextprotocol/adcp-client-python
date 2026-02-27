@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/latest/media-buy/get-products-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "dependencies": {
@@ -8,45 +7,79 @@
     ]
   },
   "description": "Request parameters for discovering available advertising products",
+  "oneOf": [
+    {
+      "properties": {
+        "buying_mode": {
+          "const": "brief"
+        }
+      },
+      "required": [
+        "buying_mode",
+        "brief"
+      ]
+    },
+    {
+      "properties": {
+        "brief": false,
+        "buying_mode": {
+          "const": "wholesale"
+        }
+      },
+      "required": [
+        "buying_mode"
+      ]
+    }
+  ],
   "properties": {
-    "account_id": {
-      "description": "Account ID for product lookup. Required when the seller declares account.required_for_products = true in capabilities. Returns products with pricing specific to this account's rate card.",
-      "type": "string"
+    "account": {
+      "$ref": "../core/account-ref.json",
+      "description": "Account for product lookup. Returns products with pricing specific to this account's rate card."
     },
     "brand": {
-      "$ref": "/schemas/latest/core/brand-ref.json",
+      "$ref": "../core/brand-ref.json",
       "description": "Brand reference for product discovery context. Resolved to full brand identity at execution time."
     },
     "brief": {
-      "description": "Natural language description of campaign requirements.",
+      "description": "Natural language description of campaign requirements. Required when buying_mode is 'brief'. Must not be provided when buying_mode is 'wholesale'.",
       "type": "string"
     },
     "buyer_campaign_ref": {
       "description": "Buyer's campaign reference label. Groups related discovery and buy operations under a single campaign for CRM and ad server correlation (e.g., 'NovaDrink_Meals_Q2').",
       "type": "string"
     },
+    "buying_mode": {
+      "description": "Declares buyer intent for this request. 'brief': publisher curates product recommendations from the provided brief. 'wholesale': buyer requests raw inventory to apply their own audiences \u2014 brief must not be provided. When buying_mode is 'wholesale', publishers return only products that support buyer-directed targeting and omit proposals.",
+      "enum": [
+        "brief",
+        "wholesale"
+      ],
+      "type": "string"
+    },
     "catalog": {
-      "$ref": "/schemas/latest/core/catalog.json",
+      "$ref": "../core/catalog.json",
       "description": "Catalog of items the buyer wants to promote. The seller matches catalog items against its inventory and returns products where matches exist. Supports all catalog types: a job catalog finds job ad products, a product catalog finds sponsored product slots. Reference a synced catalog by catalog_id, or provide inline items."
     },
     "context": {
-      "$ref": "/schemas/latest/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/latest/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "filters": {
-      "$ref": "/schemas/latest/core/product-filters.json"
+      "$ref": "../core/product-filters.json"
     },
     "pagination": {
-      "$ref": "/schemas/latest/core/pagination-request.json"
+      "$ref": "../core/pagination-request.json"
     },
     "property_list": {
-      "$ref": "/schemas/latest/core/property-list-ref.json",
+      "$ref": "../core/property-list-ref.json",
       "description": "[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list."
     }
   },
-  "required": [],
+  "required": [
+    "buying_mode"
+  ],
   "title": "Get Products Request",
   "type": "object"
 }

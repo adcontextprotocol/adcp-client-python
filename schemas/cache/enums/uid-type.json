@@ -7,13 +7,11 @@
     "uid2",
     "euid",
     "pairid",
-    "external_id",
     "maid",
     "other"
   ],
   "enumDescriptions": {
     "euid": "European Unified ID",
-    "external_id": "Advertiser-assigned first-party user identifier",
     "id5": "ID5 universal ID",
     "maid": "Mobile Advertising ID (IDFA/GAID)",
     "other": "Other universal ID type (specify in ext)",

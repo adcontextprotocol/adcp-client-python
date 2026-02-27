@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/latest/protocol/get-adcp-capabilities-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "Response payload for get_adcp_capabilities task. Protocol-level capability discovery across all AdCP protocols. Each domain protocol has its own capability section.",
@@ -7,18 +6,23 @@
     "account": {
       "description": "Account management capabilities. Describes how accounts are established, what billing models are supported, and whether an account is required before browsing products.",
       "properties": {
+        "account_financials": {
+          "default": false,
+          "description": "Whether this seller supports the get_account_financials task for querying account-level financial status (spend, credit, invoices). Only applicable to operator-billed accounts.",
+          "type": "boolean"
+        },
+        "account_resolution": {
+          "default": "explicit_account_id",
+          "description": "How the seller resolves account references. explicit_account_id: accounts are managed out-of-band (advertiser portal, sales rep) and discovered via list_accounts. implicit_from_sync: buyer declares intent via sync_accounts and the seller provisions accounts.",
+          "enum": [
+            "explicit_account_id",
+            "implicit_from_sync"
+          ],
+          "type": "string"
+        },
         "authorization_endpoint": {
           "description": "OAuth authorization endpoint for obtaining operator-level credentials. Present when the seller supports OAuth for operator authentication. The agent directs the operator to this URL to authenticate and obtain a bearer token. If absent and require_operator_auth is true, operators obtain credentials out-of-band (e.g., seller portal, API key).",
           "format": "uri",
-          "type": "string"
-        },
-        "default_billing": {
-          "description": "The billing model applied when the agent omits billing from a sync_accounts request. Must be one of the values in supported_billing.",
-          "enum": [
-            "brand",
-            "operator",
-            "agent"
-          ],
           "type": "string"
         },
         "require_operator_auth": {
@@ -28,14 +32,13 @@
         },
         "required_for_products": {
           "default": false,
-          "description": "Whether an active account is required to call get_products. When true, the agent must establish an account via sync_accounts before browsing products. When false, get_products works without an account (account_id is optional for rate-card-specific pricing).",
+          "description": "Whether an account reference is required for get_products. When true, the buyer must establish an account before browsing products. When false (default), the buyer can browse products without an account \u2014 useful for price comparison and discovery before committing to a seller.",
           "type": "boolean"
         },
         "supported_billing": {
-          "description": "Billing models this seller supports. brand: seller invoices the brand directly. operator: seller invoices the operator (agency). agent: agent consolidates billing.",
+          "description": "Billing models this seller supports. operator: seller invoices the operator (agency or brand buying direct). agent: agent consolidates billing. The buyer must pass one of these values in sync_accounts.",
           "items": {
             "enum": [
-              "brand",
               "operator",
               "agent"
             ],
@@ -69,7 +72,7 @@
       "type": "object"
     },
     "context": {
-      "$ref": "/schemas/latest/core/context.json"
+      "$ref": "../core/context.json"
     },
     "creative": {
       "additionalProperties": true,
@@ -85,12 +88,12 @@
     "errors": {
       "description": "Task-specific errors and warnings",
       "items": {
-        "$ref": "/schemas/latest/core/error.json"
+        "$ref": "../core/error.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/latest/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "extensions_supported": {
       "description": "Extension namespaces this agent supports. Buyers can expect meaningful data in ext.{namespace} fields on responses from this agent. Extension schemas are published in the AdCP extension registry.",
@@ -261,11 +264,12 @@
               "type": "integer"
             },
             "supported_identifier_types": {
-              "description": "Hashed PII types accepted for audience matching. Buyers should only send identifiers the seller supports.",
+              "description": "Identifier types accepted for audience matching. Buyers should only send identifiers the seller supports.",
               "items": {
                 "enum": [
                   "hashed_email",
-                  "hashed_phone"
+                  "hashed_phone",
+                  "external_id"
                 ],
                 "type": "string"
               },
@@ -275,7 +279,7 @@
             "supported_uid_types": {
               "description": "Universal ID types accepted for audience matching (MAIDs, RampID, UID2, etc.). MAID support varies significantly by platform \u2014 check this field before sending uids with type: maid.",
               "items": {
-                "$ref": "/schemas/latest/enums/uid-type.json"
+                "$ref": "../enums/uid-type.json"
               },
               "minItems": 1,
               "type": "array"
@@ -292,7 +296,7 @@
           "description": "Seller-level conversion tracking capabilities. Only present when features.conversion_tracking is true.",
           "properties": {
             "attribution_windows": {
-              "description": "Attribution windows available from this seller. Single-element arrays indicate fixed windows; multi-element arrays indicate configurable options the buyer can choose from via optimization_goal.attribution_window on packages.",
+              "description": "Attribution windows available from this seller. Single-element arrays indicate fixed windows; multi-element arrays indicate configurable options the buyer can choose from via attribution_window on optimization goals.",
               "items": {
                 "additionalProperties": true,
                 "properties": {
@@ -305,7 +309,7 @@
                     "type": "array"
                   },
                   "event_type": {
-                    "$ref": "/schemas/latest/enums/event-type.json",
+                    "$ref": "../enums/event-type.json",
                     "description": "Event type this window applies to, or omit for default window"
                   },
                   "view_through": {
@@ -324,10 +328,14 @@
               },
               "type": "array"
             },
+            "multi_source_event_dedup": {
+              "description": "Whether this seller can deduplicate conversion events across multiple event sources within a single goal. When true, the seller honors the deduplication semantics in optimization_goals event_sources arrays \u2014 the same event_id from multiple sources counts once. When false or absent, buyers should use a single event source per goal; multi-source arrays will be treated as first-source-wins. Most social platforms cannot deduplicate across independently-managed pixel and CAPI sources.",
+              "type": "boolean"
+            },
             "supported_action_sources": {
               "description": "Action sources this seller accepts events from",
               "items": {
-                "$ref": "/schemas/latest/enums/action-source.json"
+                "$ref": "../enums/action-source.json"
               },
               "minItems": 1,
               "type": "array"
@@ -335,7 +343,7 @@
             "supported_event_types": {
               "description": "Event types this seller can track and attribute. If omitted, all standard event types are supported.",
               "items": {
-                "$ref": "/schemas/latest/enums/event-type.json"
+                "$ref": "../enums/event-type.json"
               },
               "minItems": 1,
               "type": "array"
@@ -355,7 +363,7 @@
             "supported_uid_types": {
               "description": "Universal ID types accepted for user matching",
               "items": {
-                "$ref": "/schemas/latest/enums/uid-type.json"
+                "$ref": "../enums/uid-type.json"
               },
               "minItems": 1,
               "type": "array"
@@ -417,7 +425,7 @@
                     "verification_methods": {
                       "description": "Age verification methods this seller supports",
                       "items": {
-                        "$ref": "/schemas/latest/enums/age-verification-method.json"
+                        "$ref": "../enums/age-verification-method.json"
                       },
                       "type": "array"
                     }
@@ -465,6 +473,10 @@
                 "geo_postal_areas": {
                   "description": "Postal area targeting support. Specifies which postal code systems are supported. System names encode country and precision.",
                   "properties": {
+                    "at_plz": {
+                      "description": "Austrian Postleitzahl, 4 digits (e.g., '1010')",
+                      "type": "boolean"
+                    },
                     "au_postcode": {
                       "description": "Australian postcode, 4 digits (e.g., '2000')",
                       "type": "boolean"
@@ -475,6 +487,10 @@
                     },
                     "ca_full": {
                       "description": "Canadian full postal code (e.g., 'K1A 0B1')",
+                      "type": "boolean"
+                    },
+                    "ch_plz": {
+                      "description": "Swiss Postleitzahl, 4 digits (e.g., '8000')",
                       "type": "boolean"
                     },
                     "de_plz": {
@@ -508,8 +524,16 @@
                   "description": "Supports region/state-level geo targeting using ISO 3166-2 subdivision codes (e.g., 'US-NY', 'GB-SCT', 'DE-BY')",
                   "type": "boolean"
                 },
+                "keyword_targets": {
+                  "description": "Whether seller supports keyword targeting via targeting_overlay.keyword_targets and keyword_targets_add/remove in update_media_buy",
+                  "type": "boolean"
+                },
                 "language": {
                   "description": "Whether seller supports language targeting (ISO 639-1 codes)",
+                  "type": "boolean"
+                },
+                "negative_keywords": {
+                  "description": "Whether seller supports negative keyword targeting via targeting_overlay.negative_keywords and negative_keywords_add/remove in update_media_buy",
                   "type": "boolean"
                 }
               },
@@ -519,7 +543,7 @@
           "type": "object"
         },
         "features": {
-          "$ref": "/schemas/latest/core/media-buy-features.json"
+          "$ref": "../core/media-buy-features.json"
         },
         "portfolio": {
           "description": "Information about the seller's media inventory portfolio",
@@ -537,7 +561,7 @@
             "primary_channels": {
               "description": "Primary advertising channels in this portfolio",
               "items": {
-                "$ref": "/schemas/latest/enums/channels.json"
+                "$ref": "../enums/channels.json"
               },
               "type": "array"
             },
@@ -604,7 +628,7 @@
           "type": "string"
         },
         "capabilities": {
-          "$ref": "/schemas/latest/sponsored-intelligence/si-capabilities.json",
+          "$ref": "../sponsored-intelligence/si-capabilities.json",
           "description": "Modalities, components, and commerce capabilities"
         },
         "endpoint": {

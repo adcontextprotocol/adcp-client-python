@@ -309,7 +309,9 @@ async def test_get_products_with_preview_urls():
                     "_parse_response",
                     return_value=mock_preview_parsed_result,
                 ):
-                    request = GetProductsRequest(brief="test campaign")
+                    request = GetProductsRequest.model_validate(
+                        {"buying_mode": "brief", "brief": "test campaign"}
+                    )
                     result = await client.get_products(
                         request, fetch_previews=True, creative_agent_client=creative_client
                     )
@@ -336,7 +338,9 @@ async def test_get_products_without_creative_client_raises_error():
     client = ADCPClient(config)
 
     with pytest.raises(ValueError, match="creative_agent_client is required"):
-        request = GetProductsRequest(brief="test campaign")
+        request = GetProductsRequest.model_validate(
+            {"buying_mode": "brief", "brief": "test campaign"}
+        )
         await client.get_products(request, fetch_previews=True)
 
 

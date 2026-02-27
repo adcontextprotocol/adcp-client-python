@@ -57,6 +57,14 @@
       "description": "Natural language policy describing acceptable and unacceptable content contexts. Used by LLMs and human reviewers to make judgments.",
       "type": "string"
     },
+    "pricing_options": {
+      "description": "Pricing options for this content standards service. The buyer passes the selected pricing_option_id in report_usage for billing verification.",
+      "items": {
+        "$ref": "../core/pricing-option.json"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
     "standards_id": {
       "description": "Unique identifier for this standards configuration",
       "type": "string"

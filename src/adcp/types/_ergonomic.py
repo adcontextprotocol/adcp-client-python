@@ -59,7 +59,6 @@ from adcp.types.generated_poc.enums.wcag_level import WcagLevel
 from adcp.types.generated_poc.media_buy.create_media_buy_request import (
     CreateMediaBuyRequest,
 )
-from adcp.types.generated_poc.media_buy.get_products_request import GetProductsRequest
 from adcp.types.generated_poc.media_buy.list_creative_formats_request import (
     ListCreativeFormatsRequest,
 )
@@ -172,21 +171,6 @@ def _apply_coercion() -> None:
         Annotated[CreativeSortField | None, BeforeValidator(coerce_to_enum(CreativeSortField))],
     )
     Sort.model_rebuild(force=True)
-
-    # Apply coercion to GetProductsRequest
-    # - context: ContextObject | dict | None
-    # - ext: ExtensionObject | dict | None
-    _patch_field_annotation(
-        GetProductsRequest,
-        "context",
-        Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],
-    )
-    _patch_field_annotation(
-        GetProductsRequest,
-        "ext",
-        Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
-    )
-    GetProductsRequest.model_rebuild(force=True)
 
     # Apply coercion to PackageRequest
     # - creative_assignments: list[CreativeAssignment] (accepts subclass instances)

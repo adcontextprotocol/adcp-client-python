@@ -20,9 +20,9 @@
   ],
   "description": "Request parameters for retrieving creative delivery data including variant-level metrics from a creative agent. At least one scoping filter (media_buy_ids, media_buy_buyer_refs, or creative_ids) is required.",
   "properties": {
-    "account_id": {
-      "description": "Account context for routing and scoping. Limits results to creatives within this account. Optional if the agent has a single account or can determine routing from the media buy identifiers.",
-      "type": "string"
+    "account": {
+      "$ref": "../core/account-ref.json",
+      "description": "Account for routing and scoping. Limits results to creatives within this account."
     },
     "context": {
       "$ref": "../core/context.json"

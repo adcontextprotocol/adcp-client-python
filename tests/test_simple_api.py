@@ -33,7 +33,9 @@ async def test_get_products_simple_api():
     # Mock the client's get_products method
     with patch.object(test_agent, "get_products", new=AsyncMock(return_value=mock_result)):
         # Call simplified API with kwargs
-        result = await test_agent.simple.get_products(brief="Coffee subscription service")
+        result = await test_agent.simple.get_products(
+            buying_mode="brief", brief="Coffee subscription service"
+        )
 
         # Verify it returns unwrapped data
         assert isinstance(result, GetProductsResponse)
@@ -43,7 +45,7 @@ async def test_get_products_simple_api():
         # Verify the underlying call was made correctly
         test_agent.get_products.assert_called_once()
         call_args = test_agent.get_products.call_args[0][0]
-        assert call_args.brief == "Coffee subscription service"
+        assert call_args.root.brief == "Coffee subscription service"
 
 
 @pytest.mark.asyncio
@@ -59,7 +61,7 @@ async def test_get_products_simple_api_failure():
     with patch.object(test_agent, "get_products", new=AsyncMock(return_value=mock_result)):
         # Should raise ADCPSimpleAPIError on failure
         with pytest.raises(ADCPSimpleAPIError, match="get_products failed"):
-            await test_agent.simple.get_products(brief="Test")
+            await test_agent.simple.get_products(buying_mode="brief", brief="Test")
 
 
 def test_simple_api_has_no_sync_methods():

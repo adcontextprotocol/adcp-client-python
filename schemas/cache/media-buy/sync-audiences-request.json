@@ -13,9 +13,9 @@
     ]
   },
   "properties": {
-    "account_id": {
-      "description": "Account to manage audiences for",
-      "type": "string"
+    "account": {
+      "$ref": "../core/account-ref.json",
+      "description": "Account to manage audiences for."
     },
     "audiences": {
       "description": "Audiences to sync (create or update). When omitted, the call is discovery-only and returns all existing audiences on the account without modification.",
@@ -82,7 +82,7 @@
     }
   },
   "required": [
-    "account_id"
+    "account"
   ],
   "then": {
     "errorMessage": "audiences is required when delete_missing is true \u2014 omitting it would delete all buyer-managed audiences on the account",

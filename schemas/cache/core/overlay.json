@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "A publisher-controlled element that renders on top of buyer creative content within the ad placement. Creative agents should avoid placing critical content (CTAs, logos, key copy) within overlay bounds.",
+  "properties": {
+    "bounds": {
+      "additionalProperties": false,
+      "description": "Position and size of the overlay relative to the asset's own top-left corner. See 'unit' for coordinate interpretation.",
+      "properties": {
+        "height": {
+          "description": "Height of the overlay",
+          "minimum": 0,
+          "type": "number"
+        },
+        "unit": {
+          "description": "'px' = absolute pixels from asset top-left. 'fraction' = proportional to asset dimensions (x/y: 0.0 = asset edge, 1.0 = opposite edge; width/height: 0.12 = 12% of asset dimension).",
+          "enum": [
+            "px",
+            "fraction"
+          ],
+          "type": "string"
+        },
+        "width": {
+          "description": "Width of the overlay",
+          "minimum": 0,
+          "type": "number"
+        },
+        "x": {
+          "description": "Horizontal offset from the asset's left edge",
+          "type": "number"
+        },
+        "y": {
+          "description": "Vertical offset from the asset's top edge",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height",
+        "unit"
+      ],
+      "type": "object"
+    },
+    "description": {
+      "description": "Human-readable explanation of what this overlay is and how buyers should account for it",
+      "type": "string"
+    },
+    "id": {
+      "description": "Identifier for this overlay (e.g., 'play_pause', 'volume', 'publisher_logo', 'carousel_prev', 'carousel_next')",
+      "type": "string"
+    },
+    "visual": {
+      "additionalProperties": false,
+      "description": "Optional visual reference for this overlay element. Useful for creative agents compositing previews and for buyers understanding what will appear over their content. Must include at least one of: url, light, or dark.",
+      "minProperties": 1,
+      "properties": {
+        "dark": {
+          "description": "URL to the overlay graphic for use on dark backgrounds (SVG or PNG)",
+          "format": "uri",
+          "type": "string"
+        },
+        "light": {
+          "description": "URL to the overlay graphic for use on light/bright backgrounds (SVG or PNG)",
+          "format": "uri",
+          "type": "string"
+        },
+        "url": {
+          "description": "URL to a theme-neutral overlay graphic (SVG or PNG). Use when a single file works for all backgrounds, e.g. an SVG using CSS custom properties or currentColor.",
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "id",
+    "bounds"
+  ],
+  "title": "Overlay",
+  "type": "object"
+}

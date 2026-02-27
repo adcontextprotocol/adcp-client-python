@@ -1,0 +1,171 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "AssetPoolBinding": {
+      "additionalProperties": true,
+      "description": "Maps an individual format asset to a typed asset pool on the catalog item (e.g., images_landscape, images_vertical, logo). The format slot receives the first item in the pool.",
+      "properties": {
+        "asset_group_id": {
+          "description": "The asset_group_id on the catalog item's assets array to pull from (e.g., 'images_landscape', 'images_vertical', 'logo').",
+          "type": "string"
+        },
+        "asset_id": {
+          "description": "The asset_id from the format's assets array. Identifies which individual template slot this binding applies to.",
+          "type": "string"
+        },
+        "ext": {
+          "$ref": "../../core/ext.json"
+        },
+        "kind": {
+          "const": "asset_pool",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "asset_id",
+        "asset_group_id"
+      ],
+      "type": "object"
+    },
+    "ScalarBinding": {
+      "additionalProperties": true,
+      "description": "Maps an individual format asset to a catalog item field via dot-notation path.",
+      "properties": {
+        "asset_id": {
+          "description": "The asset_id from the format's assets array. Identifies which individual template slot this binding applies to.",
+          "type": "string"
+        },
+        "catalog_field": {
+          "description": "Dot-notation path to the field on the catalog item (e.g., 'name', 'price.amount', 'location.city').",
+          "type": "string"
+        },
+        "ext": {
+          "$ref": "../../core/ext.json"
+        },
+        "kind": {
+          "const": "scalar",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "asset_id",
+        "catalog_field"
+      ],
+      "type": "object"
+    }
+  },
+  "description": "Maps a format template slot to a catalog item field or typed asset pool. The 'kind' field identifies the binding variant. All bindings are optional \u2014 agents can still infer mappings without them.",
+  "examples": [
+    {
+      "data": {
+        "asset_id": "headline",
+        "catalog_field": "name",
+        "kind": "scalar"
+      },
+      "description": "Scalar binding \u2014 hotel name to headline slot"
+    },
+    {
+      "data": {
+        "asset_id": "price_badge",
+        "catalog_field": "price.amount",
+        "kind": "scalar"
+      },
+      "description": "Scalar binding \u2014 nested field (nightly rate)"
+    },
+    {
+      "data": {
+        "asset_group_id": "images_landscape",
+        "asset_id": "hero_image",
+        "kind": "asset_pool"
+      },
+      "description": "Asset pool binding \u2014 hero image from landscape pool"
+    },
+    {
+      "data": {
+        "asset_group_id": "images_vertical",
+        "asset_id": "snap_background",
+        "kind": "asset_pool"
+      },
+      "description": "Asset pool binding \u2014 Snap vertical background from vertical pool"
+    },
+    {
+      "data": {
+        "catalog_item": true,
+        "format_group_id": "slide",
+        "kind": "catalog_group",
+        "per_item_bindings": [
+          {
+            "asset_id": "title",
+            "catalog_field": "name",
+            "kind": "scalar"
+          },
+          {
+            "asset_id": "price",
+            "catalog_field": "price.amount",
+            "kind": "scalar"
+          },
+          {
+            "asset_group_id": "images_landscape",
+            "asset_id": "image",
+            "kind": "asset_pool"
+          }
+        ]
+      },
+      "description": "Catalog group binding \u2014 carousel where each slide is one hotel"
+    }
+  ],
+  "oneOf": [
+    {
+      "$ref": "#/definitions/ScalarBinding"
+    },
+    {
+      "$ref": "#/definitions/AssetPoolBinding"
+    },
+    {
+      "additionalProperties": true,
+      "description": "A format repeatable_group where each repetition corresponds to one catalog item. Iterates the group over catalog items in catalog item order.",
+      "properties": {
+        "catalog_item": {
+          "const": true,
+          "description": "Each repetition of the format's repeatable_group maps to one item from the catalog.",
+          "type": "boolean"
+        },
+        "ext": {
+          "$ref": "../../core/ext.json"
+        },
+        "format_group_id": {
+          "description": "The asset_group_id of a repeatable_group in the format's assets array.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "catalog_group",
+          "type": "string"
+        },
+        "per_item_bindings": {
+          "description": "Scalar and asset pool bindings that apply within each repetition of the group. Nested catalog_group bindings are not permitted.",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/definitions/ScalarBinding"
+              },
+              {
+                "$ref": "#/definitions/AssetPoolBinding"
+              }
+            ]
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "format_group_id",
+        "catalog_item"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "Catalog Field Binding"
+}

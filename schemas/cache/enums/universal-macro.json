@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/latest/enums/universal-macro.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Standardized macro placeholders for dynamic value substitution in creative tracking URLs. Macros are replaced with actual values at impression time. See docs/creative/universal-macros.mdx for detailed documentation.",
   "enum": [

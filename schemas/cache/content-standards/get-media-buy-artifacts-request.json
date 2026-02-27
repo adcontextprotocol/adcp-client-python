@@ -2,9 +2,9 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Request parameters for retrieving content artifacts from a media buy for validation",
   "properties": {
-    "account_id": {
-      "description": "Filter artifacts to a specific account. When provided, only returns artifacts for media buys belonging to this account. When omitted, returns artifacts across all accessible accounts. Optional if the agent has a single account.",
-      "type": "string"
+    "account": {
+      "$ref": "../core/account-ref.json",
+      "description": "Filter artifacts to a specific account. When omitted, returns artifacts across all accessible accounts."
     },
     "context": {
       "$ref": "../core/context.json"

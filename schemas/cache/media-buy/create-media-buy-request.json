@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/latest/media-buy/create-media-buy-request.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "dependencies": {
@@ -9,9 +8,9 @@
   },
   "description": "Request parameters for creating a media buy. Supports two modes: (1) Manual mode - provide packages array with explicit line item configurations, or (2) Proposal mode - provide proposal_id and total_budget to execute a proposal from get_products. One of packages or proposal_id must be provided.",
   "properties": {
-    "account_id": {
-      "description": "Account to bill for this media buy. Required when the agent has access to multiple accounts; when omitted, the seller uses the agent's sole account. The seller maps the agent's brand + operator to an account during sync_accounts; the agent passes that account_id here.",
-      "type": "string"
+    "account": {
+      "$ref": "../core/account-ref.json",
+      "description": "Account to bill for this media buy. Pass an account_id from list_accounts (explicit model), or use a natural key (brand, operator) if the seller supports implicit_from_sync resolution."
     },
     "artifact_webhook": {
       "$comment": "Webhook configuration for content artifact delivery - enables governance validation. Same authentication structure as reporting_webhook.",
@@ -30,7 +29,7 @@
             "schemes": {
               "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for signature verification (recommended for production)",
               "items": {
-                "$ref": "/schemas/latest/enums/auth-scheme.json"
+                "$ref": "../enums/auth-scheme.json"
               },
               "maxItems": 1,
               "minItems": 1,
@@ -84,7 +83,7 @@
       "type": "object"
     },
     "brand": {
-      "$ref": "/schemas/latest/core/brand-ref.json",
+      "$ref": "../core/brand-ref.json",
       "description": "Brand reference for this media buy. Resolved to full brand identity at execution time from brand.json or the registry."
     },
     "buyer_campaign_ref": {
@@ -96,7 +95,7 @@
       "type": "string"
     },
     "context": {
-      "$ref": "/schemas/latest/core/context.json"
+      "$ref": "../core/context.json"
     },
     "end_time": {
       "description": "Campaign end date/time in ISO 8601 format",
@@ -104,12 +103,12 @@
       "type": "string"
     },
     "ext": {
-      "$ref": "/schemas/latest/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "packages": {
       "description": "Array of package configurations. Required when not using proposal_id. When executing a proposal, this can be omitted and packages will be derived from the proposal's allocations.",
       "items": {
-        "$ref": "/schemas/latest/media-buy/package-request.json"
+        "$ref": "package-request.json"
       },
       "minItems": 1,
       "type": "array"
@@ -122,12 +121,16 @@
       "description": "ID of a proposal from get_products to execute. When provided with total_budget, the publisher converts the proposal's allocation percentages into packages automatically. Alternative to providing packages array.",
       "type": "string"
     },
+    "push_notification_config": {
+      "$ref": "../core/push-notification-config.json",
+      "description": "Optional webhook configuration for async task status notifications. Publisher will send webhooks when status changes (working, input-required, completed, failed). The client generates an operation_id and embeds it in the URL before sending \u2014 the publisher echoes it back in webhook payloads for correlation."
+    },
     "reporting_webhook": {
-      "$ref": "/schemas/latest/core/reporting-webhook.json",
+      "$ref": "../core/reporting-webhook.json",
       "description": "Optional webhook configuration for automated reporting delivery"
     },
     "start_time": {
-      "$ref": "/schemas/latest/core/start-timing.json"
+      "$ref": "../core/start-timing.json"
     },
     "total_budget": {
       "additionalProperties": false,
@@ -152,6 +155,7 @@
   },
   "required": [
     "buyer_ref",
+    "account",
     "brand",
     "start_time",
     "end_time"

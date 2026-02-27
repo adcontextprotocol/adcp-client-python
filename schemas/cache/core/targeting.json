@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
-  "description": "Optional restriction overlays for media buys. Most targeting should be expressed in the brief and handled by the publisher. These fields are for functional restrictions: geographic (RCT testing, regulatory compliance), age verification (alcohol, gambling), device platform (app compatibility), and language (localization).",
+  "description": "Optional restriction overlays for media buys. Most targeting should be expressed in the brief and handled by the publisher. These fields are for functional restrictions: geographic (RCT testing, regulatory compliance), age verification (alcohol, gambling), device platform (app compatibility), language (localization), and keyword targeting (search/retail media).",
   "properties": {
     "age_restriction": {
       "additionalProperties": false,
@@ -219,11 +219,74 @@
       "minItems": 1,
       "type": "array"
     },
+    "keyword_targets": {
+      "description": "Keyword targeting for search and retail media platforms. Restricts delivery to queries matching the specified keywords. Each keyword is identified by the tuple (keyword, match_type) \u2014 the same keyword string with different match types are distinct targets. Sellers SHOULD reject duplicate (keyword, match_type) pairs within a single request. Seller must declare support in get_adcp_capabilities.",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "bid_price": {
+            "description": "Per-keyword bid price, denominated in the same currency as the package's pricing option. Overrides the package-level bid_price for this keyword. Inherits the max_bid interpretation from the pricing option: when max_bid is true, this is the keyword's bid ceiling; when false, this is the exact bid. If omitted, the package bid_price applies.",
+            "minimum": 0,
+            "type": "number"
+          },
+          "keyword": {
+            "description": "The keyword to target",
+            "minLength": 1,
+            "type": "string"
+          },
+          "match_type": {
+            "description": "Match type: broad matches related queries, phrase matches queries containing the keyword phrase, exact matches the query exactly",
+            "enum": [
+              "broad",
+              "phrase",
+              "exact"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "keyword",
+          "match_type"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
     "language": {
       "description": "Restrict to users with specific language preferences. ISO 639-1 codes (e.g., 'en', 'es', 'fr').",
       "items": {
         "pattern": "^[a-z]{2}$",
         "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "negative_keywords": {
+      "description": "Keywords to exclude from delivery. Queries matching these keywords will not trigger the ad. Each negative keyword is identified by the tuple (keyword, match_type). Seller must declare support in get_adcp_capabilities.",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "keyword": {
+            "description": "The keyword to exclude",
+            "minLength": 1,
+            "type": "string"
+          },
+          "match_type": {
+            "description": "Match type for exclusion",
+            "enum": [
+              "broad",
+              "phrase",
+              "exact"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "keyword",
+          "match_type"
+        ],
+        "type": "object"
       },
       "minItems": 1,
       "type": "array"

@@ -310,16 +310,16 @@ class TestNonResponseTypeMessage:
 
     def test_request_type_returns_generic_message(self):
         """Request types return generic message with class name."""
-        from adcp.types import GetProductsRequest
+        from adcp.types import ListCreativesRequest
 
-        request = GetProductsRequest(brief="Test brief")
-        assert request.model_summary() == "GetProductsRequest response"
+        request = ListCreativesRequest()
+        assert request.model_summary() == "ListCreativesRequest response"
 
     def test_str_returns_pydantic_default(self):
         """str() returns Pydantic's default representation for inspection."""
-        from adcp.types import GetProductsRequest
+        from adcp.types import ListCreativesRequest
 
-        request = GetProductsRequest(brief="Test brief")
+        request = ListCreativesRequest()
         result = str(request)
-        # Should be Pydantic's default format, not a custom message
-        assert "GetProductsRequest" in result or "brief=" in result
+        # Should be Pydantic's default field=value format, not a custom message
+        assert "=" in result

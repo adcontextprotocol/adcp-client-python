@@ -5,7 +5,9 @@
   "examples": [
     {
       "data": {
-        "account_id": "acct_acmecorp",
+        "account": {
+          "account_id": "acct_acmecorp"
+        },
         "catalogs": [
           {
             "catalog_id": "product-feed",
@@ -29,7 +31,9 @@
     },
     {
       "data": {
-        "account_id": "acct_restaurants",
+        "account": {
+          "account_id": "acct_restaurants"
+        },
         "catalogs": [
           {
             "catalog_id": "chef-vacancies",
@@ -58,7 +62,9 @@
     },
     {
       "data": {
-        "account_id": "acct_acmecorp"
+        "account": {
+          "account_id": "acct_acmecorp"
+        }
       },
       "description": "Discovery-only: list all catalogs on the account"
     }
@@ -74,9 +80,9 @@
     ]
   },
   "properties": {
-    "account_id": {
-      "description": "Account that owns these catalogs. Required if the agent has multiple accounts and the seller cannot route automatically.",
-      "type": "string"
+    "account": {
+      "$ref": "../core/account-ref.json",
+      "description": "Account that owns these catalogs."
     },
     "catalog_ids": {
       "description": "Optional filter to limit sync scope to specific catalog IDs. When provided, only these catalogs will be created/updated. Other catalogs on the account are unaffected.",
@@ -122,6 +128,9 @@
       "description": "Validation strictness. 'strict' fails entire sync on any validation error. 'lenient' processes valid catalogs and reports errors."
     }
   },
+  "required": [
+    "account"
+  ],
   "then": {
     "errorMessage": "catalogs is required when delete_missing is true \u2014 omitting it would delete all buyer-managed catalogs on the account",
     "required": [

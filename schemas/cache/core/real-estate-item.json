@@ -123,6 +123,14 @@
       ],
       "type": "object"
     },
+    "assets": {
+      "description": "Typed creative asset pools for this property listing. Uses the same OfferingAssetGroup structure as offering-type catalogs. Standard group IDs: 'images_landscape' (exterior/interior hero), 'images_vertical' (9:16 for Stories), 'images_square' (1:1). Enables formats to declare typed image requirements that map unambiguously to the right asset regardless of platform.",
+      "items": {
+        "$ref": "offering-asset-group.json"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
     "bathrooms": {
       "description": "Number of bathrooms (e.g., 2.5 for two full and one half bath).",
       "minimum": 0,

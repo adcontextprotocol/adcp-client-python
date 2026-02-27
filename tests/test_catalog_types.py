@@ -155,12 +155,12 @@ def test_catalog_offering_type_inline():
 
 
 def test_sync_catalogs_request_basic():
-    """SyncCatalogsRequest accepts account_id with catalogs array."""
+    """SyncCatalogsRequest accepts account with catalogs array."""
     from adcp import SyncCatalogsRequest
 
     req = SyncCatalogsRequest.model_validate(
         {
-            "account_id": "acct_123",
+            "account": {"account_id": "acct_123"},
             "catalogs": [
                 {
                     "type": "product",
@@ -172,7 +172,7 @@ def test_sync_catalogs_request_basic():
             ],
         }
     )
-    assert req.account_id == "acct_123"
+    assert req.account.root.account_id == "acct_123"
     assert req.catalogs is not None
     assert len(req.catalogs) == 1
 
@@ -181,8 +181,8 @@ def test_sync_catalogs_request_discovery_only():
     """SyncCatalogsRequest accepts discovery-only mode (no catalogs)."""
     from adcp import SyncCatalogsRequest
 
-    req = SyncCatalogsRequest.model_validate({"account_id": "acct_123"})
-    assert req.account_id == "acct_123"
+    req = SyncCatalogsRequest.model_validate({"account": {"account_id": "acct_123"}})
+    assert req.account.root.account_id == "acct_123"
     assert req.catalogs is None
 
 

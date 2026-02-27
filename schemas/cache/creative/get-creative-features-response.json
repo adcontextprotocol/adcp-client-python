@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/latest/creative/get-creative-features-response.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Response payload for get_creative_features task. Returns feature values for the evaluated creative.",
   "oneOf": [
@@ -7,7 +6,7 @@
       "description": "Success response",
       "properties": {
         "context": {
-          "$ref": "/schemas/latest/core/context.json"
+          "$ref": "../core/context.json"
         },
         "detail_url": {
           "description": "URL to the vendor's full assessment report. The vendor controls what information is disclosed and access control.",
@@ -19,12 +18,12 @@
           "not": {}
         },
         "ext": {
-          "$ref": "/schemas/latest/core/ext.json"
+          "$ref": "../core/ext.json"
         },
         "results": {
           "description": "Feature values for the evaluated creative",
           "items": {
-            "$ref": "/schemas/latest/creative/creative-feature-result.json"
+            "$ref": "creative-feature-result.json"
           },
           "type": "array"
         }
@@ -38,16 +37,16 @@
       "description": "Error response",
       "properties": {
         "context": {
-          "$ref": "/schemas/latest/core/context.json"
+          "$ref": "../core/context.json"
         },
         "errors": {
           "items": {
-            "$ref": "/schemas/latest/core/error.json"
+            "$ref": "../core/error.json"
           },
           "type": "array"
         },
         "ext": {
-          "$ref": "/schemas/latest/core/ext.json"
+          "$ref": "../core/ext.json"
         },
         "results": {
           "description": "Field must not be present in error response",

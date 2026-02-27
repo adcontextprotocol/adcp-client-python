@@ -3,6 +3,14 @@
   "additionalProperties": true,
   "description": "Request parameters for activating a signal on a specific deployment target",
   "properties": {
+    "account_id": {
+      "description": "The caller's account with the signals agent. Associates this activation with a commercial relationship established via sync_accounts.",
+      "type": "string"
+    },
+    "buyer_campaign_ref": {
+      "description": "The buyer's campaign reference for this activation. Enables the signals agent to correlate activations with subsequent report_usage calls.",
+      "type": "string"
+    },
     "context": {
       "$ref": "../core/context.json"
     },
@@ -16,6 +24,10 @@
     },
     "ext": {
       "$ref": "../core/ext.json"
+    },
+    "pricing_option_id": {
+      "description": "The pricing option selected from the signal's pricing_options in the get_signals response. Required when the signal has pricing options. Records the buyer's pricing commitment at activation time; pass this same value in report_usage for billing verification.",
+      "type": "string"
     },
     "signal_agent_segment_id": {
       "description": "The universal identifier for the signal to activate",

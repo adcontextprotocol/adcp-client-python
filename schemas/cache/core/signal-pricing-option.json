@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "allOf": [
+    {
+      "properties": {
+        "pricing_option_id": {
+          "description": "Opaque identifier for this pricing option, unique within the signals agent. Pass this in report_usage to identify which pricing option was applied.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pricing_option_id"
+      ],
+      "type": "object"
+    },
+    {
+      "$ref": "signal-pricing.json"
+    }
+  ],
+  "description": "A pricing option offered by a signals agent. Combines pricing_option_id with the signal pricing model fields at the same level \u2014 pass pricing_option_id in report_usage for billing verification.",
+  "title": "Signal Pricing Option"
+}

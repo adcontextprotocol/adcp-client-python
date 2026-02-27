@@ -56,6 +56,10 @@
       "description": "Whether this product supports creative-level metric breakdowns in delivery reporting (by_creative within by_package)",
       "type": "boolean"
     },
+    "supports_keyword_breakdown": {
+      "description": "Whether this product supports keyword-level metric breakdowns in delivery reporting (by_keyword within by_package)",
+      "type": "boolean"
+    },
     "supports_webhooks": {
       "description": "Whether this product supports webhook-based reporting notifications",
       "type": "boolean"

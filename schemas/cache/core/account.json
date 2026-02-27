@@ -6,8 +6,14 @@
     {
       "data": {
         "account_id": "acc_acme_direct",
+        "account_scope": "brand",
         "advertiser": "Acme Corp",
+        "billing": "operator",
+        "brand": {
+          "domain": "acme-corp.com"
+        },
         "name": "Acme",
+        "operator": "acme-corp.com",
         "payment_terms": "net_30",
         "rate_card": "acme_vip_2024",
         "status": "active"
@@ -17,9 +23,15 @@
     {
       "data": {
         "account_id": "acc_acme_pinnacle",
+        "account_scope": "operator_brand",
         "advertiser": "Acme Corp",
+        "billing": "operator",
         "billing_proxy": "Pinnacle Media",
+        "brand": {
+          "domain": "acme-corp.com"
+        },
         "name": "Acme c/o Pinnacle",
+        "operator": "pinnacle-media.com",
         "payment_terms": "net_60",
         "rate_card": "acme_vip_2024",
         "status": "active"
@@ -29,8 +41,14 @@
     {
       "data": {
         "account_id": "acc_pinnacle",
+        "account_scope": "operator",
         "advertiser": "Pinnacle Media",
+        "billing": "operator",
+        "brand": {
+          "domain": "pinnacle-media.com"
+        },
         "name": "Pinnacle",
+        "operator": "pinnacle-media.com",
         "payment_terms": "net_45",
         "rate_card": "agency_standard",
         "status": "active"
@@ -39,13 +57,16 @@
     },
     {
       "data": {
-        "account_id": "sub_dove_001",
-        "advertiser": "Unilever",
+        "account_id": "acc_spark_001",
+        "account_scope": "operator_brand",
+        "advertiser": "Nova Brands",
         "billing": "agent",
-        "brand_id": "dove",
-        "house": "unilever.com",
-        "name": "Dove (via GroupM)",
-        "operator": "groupm.com",
+        "brand": {
+          "brand_id": "spark",
+          "domain": "nova-brands.com"
+        },
+        "name": "Spark (via Pinnacle)",
+        "operator": "pinnacle-media.com",
         "payment_terms": "net_30",
         "status": "active"
       },
@@ -53,13 +74,16 @@
     },
     {
       "data": {
-        "account_id": "acc_axe_pending",
-        "advertiser": "Unilever",
-        "billing": "brand",
-        "brand_id": "axe",
-        "house": "unilever.com",
-        "name": "Axe",
-        "operator": "mindshare.com",
+        "account_id": "acc_glow_pending",
+        "account_scope": "brand",
+        "advertiser": "Nova Brands",
+        "billing": "operator",
+        "brand": {
+          "brand_id": "glow",
+          "domain": "nova-brands.com"
+        },
+        "name": "Glow",
+        "operator": "pinnacle-media.com",
         "status": "pending_approval"
       },
       "description": "Pending account awaiting seller approval"
@@ -70,14 +94,23 @@
       "description": "Unique identifier for this account",
       "type": "string"
     },
+    "account_scope": {
+      "description": "How the seller scoped this account. operator: shared across all brands for this operator. brand: shared across all operators for this brand. operator_brand: dedicated to a specific operator+brand combination. agent: the agent's default account with no brand or operator association.",
+      "enum": [
+        "operator",
+        "brand",
+        "operator_brand",
+        "agent"
+      ],
+      "type": "string"
+    },
     "advertiser": {
       "description": "The advertiser whose rates apply to this account",
       "type": "string"
     },
     "billing": {
-      "description": "Who is invoiced on this account. brand: seller invoices the brand directly. operator: seller invoices the operator (agency). agent: agent consolidates billing.",
+      "description": "Who is invoiced on this account. operator: seller invoices the operator (agency or brand buying direct). agent: agent consolidates billing.",
       "enum": [
-        "brand",
         "operator",
         "agent"
       ],
@@ -87,10 +120,9 @@
       "description": "Optional intermediary who receives invoices on behalf of the advertiser (e.g., agency)",
       "type": "string"
     },
-    "brand_id": {
-      "description": "Brand ID within the house portfolio (from brand.json)",
-      "pattern": "^[a-z0-9_]+$",
-      "type": "string"
+    "brand": {
+      "$ref": "brand-ref.json",
+      "description": "Brand reference identifying the advertiser"
     },
     "credit_limit": {
       "description": "Maximum outstanding balance allowed",
@@ -113,17 +145,12 @@
     "ext": {
       "$ref": "ext.json"
     },
-    "house": {
-      "description": "House domain where brand.json is hosted. Canonical identity anchor for the brand.",
-      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
-      "type": "string"
-    },
     "name": {
       "description": "Human-readable account name (e.g., 'Acme', 'Acme c/o Pinnacle')",
       "type": "string"
     },
     "operator": {
-      "description": "Domain of the entity operating this account",
+      "description": "Domain of the entity operating this account. When the brand operates directly, this is the brand's domain.",
       "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
       "type": "string"
     },
@@ -139,11 +166,36 @@
       "description": "When true, this is a sandbox account. All requests using this account_id are treated as sandbox \u2014 no real platform calls, no real spend.",
       "type": "boolean"
     },
+    "setup": {
+      "additionalProperties": true,
+      "description": "Present when status is 'pending_approval'. Contains next steps for completing account activation.",
+      "properties": {
+        "expires_at": {
+          "description": "When this setup link expires.",
+          "format": "date-time",
+          "type": "string"
+        },
+        "message": {
+          "description": "Human-readable description of what's needed.",
+          "type": "string"
+        },
+        "url": {
+          "description": "URL where the human can complete the required action (credit application, legal agreement, add funds).",
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "type": "object"
+    },
     "status": {
-      "description": "Account status. pending_approval: seller reviewing (credit, contracts). payment_required: credit limit reached or funds depleted. suspended: was active, now paused. closed: terminated.",
+      "description": "Account status. pending_approval: seller reviewing (credit, contracts). rejected: seller declined the account request. payment_required: credit limit reached or funds depleted. suspended: was active, now paused. closed: was active, now terminated.",
       "enum": [
         "active",
         "pending_approval",
+        "rejected",
         "payment_required",
         "suspended",
         "closed"

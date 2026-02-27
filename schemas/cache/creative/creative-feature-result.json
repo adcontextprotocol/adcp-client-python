@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/latest/creative/creative-feature-result.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "description": "A single feature evaluation result for a creative. Uses the same value structure as property-feature-value (value, confidence, expires_at, etc.).",
@@ -21,7 +20,7 @@
       "type": "string"
     },
     "ext": {
-      "$ref": "/schemas/latest/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "feature_id": {
       "description": "The feature that was evaluated (e.g., 'auto_redirect', 'brand_consistency', 'iab_casinos_gambling')",

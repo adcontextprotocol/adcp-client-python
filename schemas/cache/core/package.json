@@ -1,5 +1,4 @@
 {
-  "$id": "/schemas/latest/core/package.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
   "description": "A specific product within a media buy (line item)",
@@ -21,17 +20,17 @@
     "creative_assignments": {
       "description": "Creative assets assigned to this package",
       "items": {
-        "$ref": "/schemas/latest/core/creative-assignment.json"
+        "$ref": "creative-assignment.json"
       },
       "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/latest/core/ext.json"
+      "$ref": "ext.json"
     },
     "format_ids_to_provide": {
       "description": "Format IDs that creative assets will be provided for this package",
       "items": {
-        "$ref": "/schemas/latest/core/format-id.json"
+        "$ref": "format-id.json"
       },
       "type": "array"
     },
@@ -40,11 +39,16 @@
       "minimum": 0,
       "type": "number"
     },
-    "optimization_goal": {
-      "$ref": "/schemas/latest/core/optimization-goal.json"
+    "optimization_goals": {
+      "description": "Optimization targets for this package. The seller optimizes delivery toward these goals in priority order. Common pattern: event goals (purchase, install) as primary targets at priority 1; metric goals (clicks, views) as secondary proxy signals at priority 2+.",
+      "items": {
+        "$ref": "optimization-goal.json"
+      },
+      "minItems": 1,
+      "type": "array"
     },
     "pacing": {
-      "$ref": "/schemas/latest/enums/pacing.json"
+      "$ref": "../enums/pacing.json"
     },
     "package_id": {
       "description": "Publisher's unique identifier for the package",
@@ -64,7 +68,7 @@
       "type": "string"
     },
     "targeting_overlay": {
-      "$ref": "/schemas/latest/core/targeting.json"
+      "$ref": "targeting.json"
     }
   },
   "required": [
