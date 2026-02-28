@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.7.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v3.6.0...v3.7.0) (2026-02-28)
+
+
+### Features
+
+* sync upstream schemas from PR 1252 ([#139](https://github.com/adcontextprotocol/adcp-client-python/issues/139)) ([6cb2b6c](https://github.com/adcontextprotocol/adcp-client-python/commit/6cb2b6cb994f5c0ae2f440768f9b1b90009c4337))
+
 ## [3.6.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v3.5.0...v3.6.0) (2026-02-23)
 
 
