@@ -306,7 +306,6 @@ from adcp.types._generated import (
     Sort,
     SortApplied,
     SortDirection,
-    Status,
     StatusSummary,
     SyncAccountsRequest,
     SyncAccountsResponse,
@@ -460,10 +459,6 @@ from adcp.types.aliases import (
     ValidateContentDeliverySuccessResponse,
 )
 
-# Override Status from _generated (which picks invoice status due to alphabetical sort)
-# with the delivery status variant that was exported on main for backward compat.
-Status = MediaBuyDeliveryStatus  # noqa: F811
-
 # Re-export core types (not in generated, but part of public API)
 # Note: We don't import TaskStatus here to avoid shadowing GeneratedTaskStatus
 # Users should import TaskStatus from adcp.types.core directly if they need the core enum
@@ -475,6 +470,12 @@ from adcp.types.core import (
     ResolvedProperty,
     TaskResult,
     WebhookMetadata,
+)
+
+# Status: _generated picks invoice status (get_account_financials_response) due to
+# alphabetical module sort. Import the delivery status variant directly for backward compat.
+from adcp.types.generated_poc.media_buy.get_media_buy_delivery_response import (  # noqa: E501
+    Status,
 )
 
 # Semantic aliases for auto-generated field enum names
