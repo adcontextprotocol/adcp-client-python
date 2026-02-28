@@ -321,5 +321,7 @@ class TestNonResponseTypeMessage:
 
         request = ListCreativesRequest()
         result = str(request)
-        # Should be Pydantic's default field=value format, not a custom message
-        assert "=" in result
+        # Should be Pydantic's default field=value format with actual field names
+        assert "context=" in result
+        assert "fields=" in result
+        assert "filters=" in result

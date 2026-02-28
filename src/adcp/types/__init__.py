@@ -374,6 +374,7 @@ from adcp.types.aliases import (
     BuildCreativeSuccessResponse,
     CalibrateContentErrorResponse,
     CalibrateContentSuccessResponse,
+    CatalogGroupBinding,
     ConsentBasis,
     CpmSignalPricingOption,
     CreateContentStandardsErrorResponse,
@@ -407,6 +408,7 @@ from adcp.types.aliases import (
     ListContentStandardsSuccessResponse,
     LogEventErrorResponse,
     LogEventSuccessResponse,
+    MediaBuyDeliveryStatus,
     MediaSubAsset,
     PercentOfMediaSignalPricingOption,
     PlatformDeployment,
@@ -457,6 +459,10 @@ from adcp.types.aliases import (
     ValidateContentDeliveryErrorResponse,
     ValidateContentDeliverySuccessResponse,
 )
+
+# Override Status from _generated (which picks invoice status due to alphabetical sort)
+# with the delivery status variant that was exported on main for backward compat.
+Status = MediaBuyDeliveryStatus  # noqa: F811
 
 # Re-export core types (not in generated, but part of public API)
 # Note: We don't import TaskStatus here to avoid shadowing GeneratedTaskStatus
@@ -653,6 +659,7 @@ __all__ = [
     "CatalogAction",
     "CatalogFieldBinding",
     "CatalogFieldBinding1",
+    "CatalogGroupBinding",
     "CatalogFieldMapping",
     "CatalogItemStatus",
     "CatalogRequirements",
@@ -789,7 +796,6 @@ __all__ = [
     "GeoPostalArea",
     "GeoRegion",
     "MarkdownFlavor",
-    "Measurement",
     "MeasurementPeriod",
     "MediaBuyStatus",
     "HttpMethod",
@@ -943,6 +949,7 @@ __all__ = [
     "GetAccountFinancialsErrorResponse",
     "GetAccountFinancialsSuccessResponse",
     # Audiences responses
+    "MediaBuyDeliveryStatus",
     "SyncAudiencesErrorResponse",
     "SyncAudiencesSuccessResponse",
     # Creative features responses

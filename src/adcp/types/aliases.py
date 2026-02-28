@@ -170,6 +170,9 @@ from adcp.types._generated import (
     VastAsset2,
     VcpmPricingOption,
 )
+
+# CatalogFieldBinding1 = catalog_group binding; give it a semantic name.
+from adcp.types._generated import CatalogFieldBinding1 as CatalogGroupBinding
 from adcp.types._generated import (
     PublisherPropertySelector1 as PublisherPropertiesInternal,
 )
@@ -185,6 +188,12 @@ from adcp.types._generated import (
 # No more separate reference type needed
 # Import Package from _generated (still uses qualified name for internal reasons)
 from adcp.types._generated import _PackageFromPackage as Package
+
+# Status name collides across many modules. Preserve backward compat by importing
+# the specific variant that was exported on main (media buy delivery status).
+from adcp.types.generated_poc.media_buy.get_media_buy_delivery_response import (
+    Status as MediaBuyDeliveryStatus,
+)
 
 # Audience name collides in _generated (delivery breakdown wins over sync request)
 from adcp.types.generated_poc.media_buy.sync_audiences_request import (
@@ -1278,4 +1287,8 @@ __all__ = [
     # Sync audiences input type
     "SyncAudiencesAudience",
     "ConsentBasis",
+    # Status (backward compat - delivery status, not invoice status)
+    "MediaBuyDeliveryStatus",
+    # Catalog field binding semantic alias
+    "CatalogGroupBinding",
 ]

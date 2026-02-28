@@ -23,7 +23,8 @@ from adcp.types.generated_poc.core.context import ContextObject
 from adcp.types.generated_poc.core.ext import ExtensionObject
 from adcp.types.generated_poc.enums.creative_sort_field import CreativeSortField
 from adcp.types.generated_poc.enums.sort_direction import SortDirection
-from adcp.types.generated_poc.media_buy.list_creatives_request import Field1 as FieldModel, Sort
+from adcp.types.generated_poc.media_buy.list_creatives_request import Field1 as FieldModel
+from adcp.types.generated_poc.media_buy.list_creatives_request import Sort
 
 
 class TestEnumStringCoercion:
