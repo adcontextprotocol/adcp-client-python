@@ -149,10 +149,10 @@ validated to form a valid model.</p>
             description=&#34;Whether the seller provides its own always-on measurement (e.g. Amazon sales attribution for Amazon advertisers). When true, sync_event_sources response will include seller-managed event sources with managed_by=&#39;seller&#39;.&#34;
         ),
     ] = None
-    supported_optimization_strategies: Annotated[
-        list[SupportedOptimizationStrategy] | None,
+    supported_targets: Annotated[
+        list[SupportedTarget] | None,
         Field(
-            description=&#39;Optimization strategies this product supports when an optimization_goal is set on a package&#39;,
+            description=&#39;Target kinds available for event goals on this product. Values match target.kind on the optimization goal. cost_per: target cost per conversion event. per_ad_spend: target return on ad spend (requires value_field on event sources). maximize_value: maximize total conversion value without a specific ratio target (requires value_field). Only these target kinds are accepted — goals with unlisted target kinds will be rejected. A goal without a target implicitly maximizes conversion count within budget — no declaration needed for that mode. When omitted, buyers can still set target-less event goals.&#39;,
             min_length=1,
         ),
     ] = None</code></pre>
@@ -184,7 +184,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product.ConversionTracking.supported_optimization_strategies"><code class="name">var <span class="ident">supported_optimization_strategies</span> : list[<a title="adcp.types.generated_poc.core.product.SupportedOptimizationStrategy" href="#adcp.types.generated_poc.core.product.SupportedOptimizationStrategy">SupportedOptimizationStrategy</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product.ConversionTracking.supported_targets"><code class="name">var <span class="ident">supported_targets</span> : list[<a title="adcp.types.generated_poc.core.product.SupportedTarget" href="#adcp.types.generated_poc.core.product.SupportedTarget">SupportedTarget</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -313,6 +313,93 @@ validated to form a valid model.</p>
 </dd>
 </dl>
 </dd>
+<dt id="adcp.types.generated_poc.core.product.MetricOptimization"><code class="flex name class">
+<span>class <span class="ident">MetricOptimization</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MetricOptimization(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    supported_metrics: Annotated[
+        list[SupportedMetric],
+        Field(
+            description=&#39;Metric kinds this product can optimize for. Buyers should only request metric goals for kinds listed here.&#39;,
+            min_length=1,
+        ),
+    ]
+    supported_reach_units: Annotated[
+        list[reach_unit.ReachUnit] | None,
+        Field(
+            description=&#34;Reach units this product can optimize for. Required when supported_metrics includes &#39;reach&#39;. Buyers must set reach_unit to a value in this list on reach optimization goals — sellers reject unsupported values.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    supported_targets: Annotated[
+        list[SupportedTarget1] | None,
+        Field(
+            description=&#39;Target kinds available for metric goals on this product. Values match target.kind on the optimization goal. Only these target kinds are accepted — goals with unlisted target kinds will be rejected. When omitted, buyers can set target-less metric goals (maximize volume within budget) but cannot set specific targets.&#39;
+        ),
+    ] = None
+    supported_view_durations: Annotated[
+        list[SupportedViewDuration] | None,
+        Field(
+            description=&#34;Video view duration thresholds (in seconds) this product supports for completed_views goals. Only relevant when supported_metrics includes &#39;completed_views&#39;. When absent, the seller uses their platform default. Buyers must set view_duration_seconds to a value in this list — sellers reject unsupported values.&#34;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.product.MetricOptimization.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.MetricOptimization.supported_metrics"><code class="name">var <span class="ident">supported_metrics</span> : list[<a title="adcp.types.generated_poc.core.product.SupportedMetric" href="#adcp.types.generated_poc.core.product.SupportedMetric">SupportedMetric</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.MetricOptimization.supported_reach_units"><code class="name">var <span class="ident">supported_reach_units</span> : list[<a title="adcp.types.generated_poc.enums.reach_unit.ReachUnit" href="../enums/reach_unit.html#adcp.types.generated_poc.enums.reach_unit.ReachUnit">ReachUnit</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.MetricOptimization.supported_targets"><code class="name">var <span class="ident">supported_targets</span> : list[<a title="adcp.types.generated_poc.core.product.SupportedTarget1" href="#adcp.types.generated_poc.core.product.SupportedTarget1">SupportedTarget1</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.MetricOptimization.supported_view_durations"><code class="name">var <span class="ident">supported_view_durations</span> : list[<a title="adcp.types.generated_poc.core.product.SupportedViewDuration" href="#adcp.types.generated_poc.core.product.SupportedViewDuration">SupportedViewDuration</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.core.product.Product"><code class="flex name class">
 <span>class <span class="ident">Product</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -354,7 +441,7 @@ validated to form a valid model.</p>
     conversion_tracking: Annotated[
         ConversionTracking | None,
         Field(
-            description=&#39;Conversion tracking for this product. Presence indicates the product supports conversion-optimized delivery. Seller-level capabilities (supported event types, UID types, attribution windows) are declared in get_adcp_capabilities.&#39;
+            description=&#34;Conversion event tracking for this product. Presence indicates the product supports optimization_goals with kind: &#39;event&#39;. Seller-level capabilities (supported event types, UID types, attribution windows) are declared in get_adcp_capabilities.&#34;
         ),
     ] = None
     creative_policy: creative_policy_1.CreativePolicy | None = None
@@ -391,8 +478,21 @@ validated to form a valid model.</p>
         ),
     ]
     is_custom: Annotated[bool | None, Field(description=&#39;Whether this is a custom product&#39;)] = None
-    measurement: measurement_1.Measurement | None = None
+    max_optimization_goals: Annotated[
+        int | None,
+        Field(
+            description=&#39;Maximum number of optimization_goals this product accepts on a package. When absent, no limit is declared. Most social platforms accept only 1 goal — buyers sending arrays longer than this value should expect the seller to use only the highest-priority (lowest priority number) goal.&#39;,
+            ge=1,
+        ),
+    ] = None
+    metric_optimization: Annotated[
+        MetricOptimization | None,
+        Field(
+            description=&#34;Metric optimization capabilities for this product. Presence indicates the product supports optimization_goals with kind: &#39;metric&#39;. No event source or conversion tracking setup required — the seller tracks these metrics natively.&#34;
+        ),
+    ] = None
     name: Annotated[str, Field(description=&#39;Human-readable product name&#39;)]
+    outcome_measurement: outcome_measurement_1.OutcomeMeasurement | None = None
     placements: Annotated[
         list[placement.Placement] | None,
         Field(
@@ -513,7 +613,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product.Product.measurement"><code class="name">var <span class="ident">measurement</span> : <a title="adcp.types.generated_poc.core.measurement.Measurement" href="measurement.html#adcp.types.generated_poc.core.measurement.Measurement">Measurement</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product.Product.max_optimization_goals"><code class="name">var <span class="ident">max_optimization_goals</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.Product.metric_optimization"><code class="name">var <span class="ident">metric_optimization</span> : <a title="adcp.types.generated_poc.core.product.MetricOptimization" href="#adcp.types.generated_poc.core.product.MetricOptimization">MetricOptimization</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -522,6 +626,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.product.Product.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.Product.outcome_measurement"><code class="name">var <span class="ident">outcome_measurement</span> : <a title="adcp.types.generated_poc.core.outcome_measurement.OutcomeMeasurement" href="outcome_measurement.html#adcp.types.generated_poc.core.outcome_measurement.OutcomeMeasurement">OutcomeMeasurement</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -701,8 +809,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.product.SupportedOptimizationStrategy"><code class="flex name class">
-<span>class <span class="ident">SupportedOptimizationStrategy</span></span>
+<dt id="adcp.types.generated_poc.core.product.SupportedMetric"><code class="flex name class">
+<span>class <span class="ident">SupportedMetric</span></span>
 <span>(</span><span>*args, **kwds)</span>
 </code></dt>
 <dd>
@@ -710,10 +818,18 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class SupportedOptimizationStrategy(Enum):
-    maximize_conversions = &#39;maximize_conversions&#39;
-    target_cpa = &#39;target_cpa&#39;
-    target_roas = &#39;target_roas&#39;</code></pre>
+<pre><code class="python">class SupportedMetric(Enum):
+    clicks = &#39;clicks&#39;
+    views = &#39;views&#39;
+    completed_views = &#39;completed_views&#39;
+    viewed_seconds = &#39;viewed_seconds&#39;
+    attention_seconds = &#39;attention_seconds&#39;
+    attention_score = &#39;attention_score&#39;
+    engagements = &#39;engagements&#39;
+    follows = &#39;follows&#39;
+    saves = &#39;saves&#39;
+    profile_visits = &#39;profile_visits&#39;
+    reach = &#39;reach&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -756,15 +872,231 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.product.SupportedOptimizationStrategy.maximize_conversions"><code class="name">var <span class="ident">maximize_conversions</span></code></dt>
+<dt id="adcp.types.generated_poc.core.product.SupportedMetric.attention_score"><code class="name">var <span class="ident">attention_score</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product.SupportedOptimizationStrategy.target_cpa"><code class="name">var <span class="ident">target_cpa</span></code></dt>
+<dt id="adcp.types.generated_poc.core.product.SupportedMetric.attention_seconds"><code class="name">var <span class="ident">attention_seconds</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product.SupportedOptimizationStrategy.target_roas"><code class="name">var <span class="ident">target_roas</span></code></dt>
+<dt id="adcp.types.generated_poc.core.product.SupportedMetric.clicks"><code class="name">var <span class="ident">clicks</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.SupportedMetric.completed_views"><code class="name">var <span class="ident">completed_views</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.SupportedMetric.engagements"><code class="name">var <span class="ident">engagements</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.SupportedMetric.follows"><code class="name">var <span class="ident">follows</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.SupportedMetric.profile_visits"><code class="name">var <span class="ident">profile_visits</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.SupportedMetric.reach"><code class="name">var <span class="ident">reach</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.SupportedMetric.saves"><code class="name">var <span class="ident">saves</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.SupportedMetric.viewed_seconds"><code class="name">var <span class="ident">viewed_seconds</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.SupportedMetric.views"><code class="name">var <span class="ident">views</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.SupportedTarget"><code class="flex name class">
+<span>class <span class="ident">SupportedTarget</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SupportedTarget(Enum):
+    cost_per = &#39;cost_per&#39;
+    per_ad_spend = &#39;per_ad_spend&#39;
+    maximize_value = &#39;maximize_value&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.product.SupportedTarget.cost_per"><code class="name">var <span class="ident">cost_per</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.SupportedTarget.maximize_value"><code class="name">var <span class="ident">maximize_value</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.SupportedTarget.per_ad_spend"><code class="name">var <span class="ident">per_ad_spend</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.SupportedTarget1"><code class="flex name class">
+<span>class <span class="ident">SupportedTarget1</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SupportedTarget1(Enum):
+    cost_per = &#39;cost_per&#39;
+    threshold_rate = &#39;threshold_rate&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.product.SupportedTarget1.cost_per"><code class="name">var <span class="ident">cost_per</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.SupportedTarget1.threshold_rate"><code class="name">var <span class="ident">threshold_rate</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.SupportedViewDuration"><code class="flex name class">
+<span>class <span class="ident">SupportedViewDuration</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SupportedViewDuration(RootModel[float]):
+    root: Annotated[float, Field(gt=0.0)]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[float]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.product.SupportedViewDuration.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.SupportedViewDuration.root"><code class="name">var <span class="ident">root</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -801,7 +1133,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.core.product.ConversionTracking.action_sources" href="#adcp.types.generated_poc.core.product.ConversionTracking.action_sources">action_sources</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.ConversionTracking.model_config" href="#adcp.types.generated_poc.core.product.ConversionTracking.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.ConversionTracking.platform_managed" href="#adcp.types.generated_poc.core.product.ConversionTracking.platform_managed">platform_managed</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product.ConversionTracking.supported_optimization_strategies" href="#adcp.types.generated_poc.core.product.ConversionTracking.supported_optimization_strategies">supported_optimization_strategies</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.ConversionTracking.supported_targets" href="#adcp.types.generated_poc.core.product.ConversionTracking.supported_targets">supported_targets</a></code></li>
 </ul>
 </li>
 <li>
@@ -817,6 +1149,16 @@ attributes &ndash; see the documentation for details.</p></div>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.product.MatchedGtin.model_config" href="#adcp.types.generated_poc.core.product.MatchedGtin.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.MatchedGtin.root" href="#adcp.types.generated_poc.core.product.MatchedGtin.root">root</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.product.MetricOptimization" href="#adcp.types.generated_poc.core.product.MetricOptimization">MetricOptimization</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.product.MetricOptimization.model_config" href="#adcp.types.generated_poc.core.product.MetricOptimization.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.MetricOptimization.supported_metrics" href="#adcp.types.generated_poc.core.product.MetricOptimization.supported_metrics">supported_metrics</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.MetricOptimization.supported_reach_units" href="#adcp.types.generated_poc.core.product.MetricOptimization.supported_reach_units">supported_reach_units</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.MetricOptimization.supported_targets" href="#adcp.types.generated_poc.core.product.MetricOptimization.supported_targets">supported_targets</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.MetricOptimization.supported_view_durations" href="#adcp.types.generated_poc.core.product.MetricOptimization.supported_view_durations">supported_view_durations</a></code></li>
 </ul>
 </li>
 <li>
@@ -837,9 +1179,11 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.forecast" href="#adcp.types.generated_poc.core.product.Product.forecast">forecast</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.format_ids" href="#adcp.types.generated_poc.core.product.Product.format_ids">format_ids</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.is_custom" href="#adcp.types.generated_poc.core.product.Product.is_custom">is_custom</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product.Product.measurement" href="#adcp.types.generated_poc.core.product.Product.measurement">measurement</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.Product.max_optimization_goals" href="#adcp.types.generated_poc.core.product.Product.max_optimization_goals">max_optimization_goals</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.Product.metric_optimization" href="#adcp.types.generated_poc.core.product.Product.metric_optimization">metric_optimization</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.model_config" href="#adcp.types.generated_poc.core.product.Product.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.name" href="#adcp.types.generated_poc.core.product.Product.name">name</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.Product.outcome_measurement" href="#adcp.types.generated_poc.core.product.Product.outcome_measurement">outcome_measurement</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.placements" href="#adcp.types.generated_poc.core.product.Product.placements">placements</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.pricing_options" href="#adcp.types.generated_poc.core.product.Product.pricing_options">pricing_options</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.product_card" href="#adcp.types.generated_poc.core.product.Product.product_card">product_card</a></code></li>
@@ -868,11 +1212,41 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.product.SupportedOptimizationStrategy" href="#adcp.types.generated_poc.core.product.SupportedOptimizationStrategy">SupportedOptimizationStrategy</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.product.SupportedMetric" href="#adcp.types.generated_poc.core.product.SupportedMetric">SupportedMetric</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedMetric.attention_score" href="#adcp.types.generated_poc.core.product.SupportedMetric.attention_score">attention_score</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedMetric.attention_seconds" href="#adcp.types.generated_poc.core.product.SupportedMetric.attention_seconds">attention_seconds</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedMetric.clicks" href="#adcp.types.generated_poc.core.product.SupportedMetric.clicks">clicks</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedMetric.completed_views" href="#adcp.types.generated_poc.core.product.SupportedMetric.completed_views">completed_views</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedMetric.engagements" href="#adcp.types.generated_poc.core.product.SupportedMetric.engagements">engagements</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedMetric.follows" href="#adcp.types.generated_poc.core.product.SupportedMetric.follows">follows</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedMetric.profile_visits" href="#adcp.types.generated_poc.core.product.SupportedMetric.profile_visits">profile_visits</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedMetric.reach" href="#adcp.types.generated_poc.core.product.SupportedMetric.reach">reach</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedMetric.saves" href="#adcp.types.generated_poc.core.product.SupportedMetric.saves">saves</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedMetric.viewed_seconds" href="#adcp.types.generated_poc.core.product.SupportedMetric.viewed_seconds">viewed_seconds</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedMetric.views" href="#adcp.types.generated_poc.core.product.SupportedMetric.views">views</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.product.SupportedTarget" href="#adcp.types.generated_poc.core.product.SupportedTarget">SupportedTarget</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.product.SupportedOptimizationStrategy.maximize_conversions" href="#adcp.types.generated_poc.core.product.SupportedOptimizationStrategy.maximize_conversions">maximize_conversions</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product.SupportedOptimizationStrategy.target_cpa" href="#adcp.types.generated_poc.core.product.SupportedOptimizationStrategy.target_cpa">target_cpa</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product.SupportedOptimizationStrategy.target_roas" href="#adcp.types.generated_poc.core.product.SupportedOptimizationStrategy.target_roas">target_roas</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedTarget.cost_per" href="#adcp.types.generated_poc.core.product.SupportedTarget.cost_per">cost_per</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedTarget.maximize_value" href="#adcp.types.generated_poc.core.product.SupportedTarget.maximize_value">maximize_value</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedTarget.per_ad_spend" href="#adcp.types.generated_poc.core.product.SupportedTarget.per_ad_spend">per_ad_spend</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.product.SupportedTarget1" href="#adcp.types.generated_poc.core.product.SupportedTarget1">SupportedTarget1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedTarget1.cost_per" href="#adcp.types.generated_poc.core.product.SupportedTarget1.cost_per">cost_per</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedTarget1.threshold_rate" href="#adcp.types.generated_poc.core.product.SupportedTarget1.threshold_rate">threshold_rate</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.product.SupportedViewDuration" href="#adcp.types.generated_poc.core.product.SupportedViewDuration">SupportedViewDuration</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedViewDuration.model_config" href="#adcp.types.generated_poc.core.product.SupportedViewDuration.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedViewDuration.root" href="#adcp.types.generated_poc.core.product.SupportedViewDuration.root">root</a></code></li>
 </ul>
 </li>
 </ul>

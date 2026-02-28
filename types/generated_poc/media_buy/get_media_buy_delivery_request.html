@@ -46,6 +46,339 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.AttributionWindow"><code class="flex name class">
+<span>class <span class="ident">AttributionWindow</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AttributionWindow(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    model: Annotated[
+        attribution_model.AttributionModel | None,
+        Field(
+            description=&#39;Attribution model to use. When omitted, the seller applies their default model.&#39;
+        ),
+    ] = None
+    post_click: Annotated[
+        duration.Duration | None, Field(description=&#39;Post-click attribution window to apply.&#39;)
+    ] = None
+    post_view: Annotated[
+        duration.Duration | None, Field(description=&#39;Post-view attribution window to apply.&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.AttributionWindow.model"><code class="name">var <span class="ident">model</span> : <a title="adcp.types.generated_poc.enums.attribution_model.AttributionModel" href="../enums/attribution_model.html#adcp.types.generated_poc.enums.attribution_model.AttributionModel">AttributionModel</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.AttributionWindow.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.AttributionWindow.post_click"><code class="name">var <span class="ident">post_click</span> : <a title="adcp.types.generated_poc.core.duration.Duration" href="../core/duration.html#adcp.types.generated_poc.core.duration.Duration">Duration</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.AttributionWindow.post_view"><code class="name">var <span class="ident">post_view</span> : <a title="adcp.types.generated_poc.core.duration.Duration" href="../core/duration.html#adcp.types.generated_poc.core.duration.Duration">Duration</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Audience"><code class="flex name class">
+<span>class <span class="ident">Audience</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Audience(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    limit: Annotated[
+        int | None, Field(description=&#39;Maximum number of entries to return. Defaults to 25.&#39;, ge=1)
+    ] = 25
+    sort_by: Annotated[
+        sort_metric.SortMetric | None,
+        Field(
+            description=&#34;Metric to sort breakdown rows by (descending). Falls back to &#39;spend&#39; if the seller does not report the requested metric.&#34;
+        ),
+    ] = sort_metric.SortMetric.spend</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Placement" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Placement">Placement</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Audience.limit"><code class="name">var <span class="ident">limit</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Audience.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Audience.sort_by"><code class="name">var <span class="ident">sort_by</span> : <a title="adcp.types.generated_poc.enums.sort_metric.SortMetric" href="../enums/sort_metric.html#adcp.types.generated_poc.enums.sort_metric.SortMetric">SortMetric</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DevicePlatform"><code class="flex name class">
+<span>class <span class="ident">DevicePlatform</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DevicePlatform(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    limit: Annotated[
+        int | None,
+        Field(
+            description=&#39;Maximum number of entries to return. When omitted, all entries are returned (the enum is small and bounded).&#39;,
+            ge=1,
+        ),
+    ] = None
+    sort_by: Annotated[
+        sort_metric.SortMetric | None,
+        Field(
+            description=&#34;Metric to sort breakdown rows by (descending). Falls back to &#39;spend&#39; if the seller does not report the requested metric.&#34;
+        ),
+    ] = sort_metric.SortMetric.spend</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DeviceType" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DeviceType">DeviceType</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DevicePlatform.limit"><code class="name">var <span class="ident">limit</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DevicePlatform.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DevicePlatform.sort_by"><code class="name">var <span class="ident">sort_by</span> : <a title="adcp.types.generated_poc.enums.sort_metric.SortMetric" href="../enums/sort_metric.html#adcp.types.generated_poc.enums.sort_metric.SortMetric">SortMetric</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DeviceType"><code class="flex name class">
+<span>class <span class="ident">DeviceType</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DeviceType(DevicePlatform):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DevicePlatform" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DevicePlatform">DevicePlatform</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DeviceType.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DevicePlatform" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DevicePlatform">DevicePlatform</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DevicePlatform.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DevicePlatform.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DevicePlatform.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Geo"><code class="flex name class">
+<span>class <span class="ident">Geo</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Geo(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    geo_level: Annotated[
+        geo_level_1.GeographicTargetingLevel,
+        Field(description=&#39;Geographic granularity level for the breakdown&#39;),
+    ]
+    limit: Annotated[
+        int | None,
+        Field(
+            description=&#39;Maximum number of geo entries to return. Defaults to 25. When truncated, by_geo_truncated is true in the response.&#39;,
+            ge=1,
+        ),
+    ] = 25
+    sort_by: Annotated[
+        sort_metric.SortMetric | None,
+        Field(
+            description=&#34;Metric to sort breakdown rows by (descending). Falls back to &#39;spend&#39; if the seller does not report the requested metric.&#34;
+        ),
+    ] = sort_metric.SortMetric.spend
+    system: Annotated[
+        metro_system.MetroAreaSystem | postal_system.PostalCodeSystem | None,
+        Field(
+            description=&#34;Classification system for metro or postal_area levels (e.g., &#39;nielsen_dma&#39;, &#39;us_zip&#39;). Required when geo_level is &#39;metro&#39; or &#39;postal_area&#39;.&#34;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Geo.geo_level"><code class="name">var <span class="ident">geo_level</span> : <a title="adcp.types.generated_poc.enums.geo_level.GeographicTargetingLevel" href="../enums/geo_level.html#adcp.types.generated_poc.enums.geo_level.GeographicTargetingLevel">GeographicTargetingLevel</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Geo.limit"><code class="name">var <span class="ident">limit</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Geo.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Geo.sort_by"><code class="name">var <span class="ident">sort_by</span> : <a title="adcp.types.generated_poc.enums.sort_metric.SortMetric" href="../enums/sort_metric.html#adcp.types.generated_poc.enums.sort_metric.SortMetric">SortMetric</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Geo.system"><code class="name">var <span class="ident">system</span> : <a title="adcp.types.generated_poc.enums.metro_system.MetroAreaSystem" href="../enums/metro_system.html#adcp.types.generated_poc.enums.metro_system.MetroAreaSystem">MetroAreaSystem</a> | <a title="adcp.types.generated_poc.enums.postal_system.PostalCodeSystem" href="../enums/postal_system.html#adcp.types.generated_poc.enums.postal_system.PostalCodeSystem">PostalCodeSystem</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest"><code class="flex name class">
 <span>class <span class="ident">GetMediaBuyDeliveryRequest</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -59,10 +392,16 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    account_id: Annotated[
-        str | None,
+    account: Annotated[
+        account_ref.AccountReference | None,
         Field(
-            description=&#39;Filter delivery data to a specific account. When provided, only returns media buys belonging to this account. When omitted, returns data across all accessible accounts. Optional if the agent has a single account.&#39;
+            description=&#39;Filter delivery data to a specific account. When omitted, returns data across all accessible accounts.&#39;
+        ),
+    ] = None
+    attribution_window: Annotated[
+        AttributionWindow | None,
+        Field(
+            description=&#39;Attribution window to apply for conversion metrics. When provided, the seller returns conversion data using the requested lookback windows instead of their platform default. The seller echoes the applied window in the response. Sellers that do not support configurable windows ignore this field and return their default. Check get_adcp_capabilities conversion_tracking.attribution_windows for available options.&#39;
         ),
     ] = None
     buyer_refs: Annotated[
@@ -78,10 +417,22 @@ el.replaceWith(d);
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
+    include_package_daily_breakdown: Annotated[
+        bool | None,
+        Field(
+            description=&#39;When true, include daily_breakdown arrays within each package in by_package. Useful for per-package pacing analysis and line-item monitoring. Omit or set false to reduce response size — package daily data can be large for multi-package buys over long flights.&#39;
+        ),
+    ] = False
     media_buy_ids: Annotated[
         list[str] | None,
         Field(
             description=&#39;Array of publisher media buy IDs to get delivery data for&#39;, min_length=1
+        ),
+    ] = None
+    reporting_dimensions: Annotated[
+        ReportingDimensions | None,
+        Field(
+            description=&#39;Request dimensional breakdowns in delivery reporting. Each key enables a specific breakdown dimension within by_package — include as an empty object (e.g., &#34;device_type&#34;: {}) to activate with defaults. Omit entirely for no breakdowns (backward compatible). Unsupported dimensions are silently omitted from the response. Note: keyword, catalog_item, and creative breakdowns are returned automatically when the seller supports them and are not controlled by this object.&#39;
         ),
     ] = None
     start_date: Annotated[
@@ -111,7 +462,11 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.account_id"><code class="name">var <span class="ident">account_id</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.attribution_window"><code class="name">var <span class="ident">attribution_window</span> : <a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.AttributionWindow" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.AttributionWindow">AttributionWindow</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -131,6 +486,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.include_package_daily_breakdown"><code class="name">var <span class="ident">include_package_daily_breakdown</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.media_buy_ids"><code class="name">var <span class="ident">media_buy_ids</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -139,11 +498,140 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.reporting_dimensions"><code class="name">var <span class="ident">reporting_dimensions</span> : <a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions">ReportingDimensions</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.start_date"><code class="name">var <span class="ident">start_date</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.status_filter"><code class="name">var <span class="ident">status_filter</span> : <a title="adcp.types.generated_poc.enums.media_buy_status.MediaBuyStatus" href="../enums/media_buy_status.html#adcp.types.generated_poc.enums.media_buy_status.MediaBuyStatus">MediaBuyStatus</a> | <a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.StatusFilter" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.StatusFilter">StatusFilter</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Placement"><code class="flex name class">
+<span>class <span class="ident">Placement</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Placement(Audience):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Audience" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Audience">Audience</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Placement.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Audience" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Audience">Audience</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Audience.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Audience.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Audience.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions"><code class="flex name class">
+<span>class <span class="ident">ReportingDimensions</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ReportingDimensions(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    audience: Annotated[
+        Audience | None, Field(description=&#39;Request audience segment breakdown.&#39;)
+    ] = None
+    device_platform: Annotated[
+        DevicePlatform | None, Field(description=&#39;Request device platform breakdown.&#39;)
+    ] = None
+    device_type: Annotated[
+        DeviceType | None, Field(description=&#39;Request device type breakdown.&#39;)
+    ] = None
+    geo: Annotated[
+        Geo | None,
+        Field(
+            description=&#39;Request geographic breakdown. Check reporting_capabilities.supports_geo_breakdown for available levels and systems.&#39;
+        ),
+    ] = None
+    placement: Annotated[Placement | None, Field(description=&#39;Request placement breakdown.&#39;)] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions.audience"><code class="name">var <span class="ident">audience</span> : <a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Audience" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Audience">Audience</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions.device_platform"><code class="name">var <span class="ident">device_platform</span> : <a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DevicePlatform" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DevicePlatform">DevicePlatform</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions.device_type"><code class="name">var <span class="ident">device_type</span> : <a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DeviceType" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DeviceType">DeviceType</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions.geo"><code class="name">var <span class="ident">geo</span> : <a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Geo" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Geo">Geo</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions.placement"><code class="name">var <span class="ident">placement</span> : <a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Placement" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Placement">Placement</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -232,17 +720,78 @@ validated to form a valid model.</p>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.AttributionWindow" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.AttributionWindow">AttributionWindow</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.AttributionWindow.model" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.AttributionWindow.model">model</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.AttributionWindow.model_config" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.AttributionWindow.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.AttributionWindow.post_click" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.AttributionWindow.post_click">post_click</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.AttributionWindow.post_view" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.AttributionWindow.post_view">post_view</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Audience" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Audience">Audience</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Audience.limit" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Audience.limit">limit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Audience.model_config" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Audience.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Audience.sort_by" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Audience.sort_by">sort_by</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DevicePlatform" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DevicePlatform">DevicePlatform</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DevicePlatform.limit" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DevicePlatform.limit">limit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DevicePlatform.model_config" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DevicePlatform.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DevicePlatform.sort_by" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DevicePlatform.sort_by">sort_by</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DeviceType" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DeviceType">DeviceType</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DeviceType.model_config" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.DeviceType.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Geo" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Geo">Geo</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Geo.geo_level" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Geo.geo_level">geo_level</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Geo.limit" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Geo.limit">limit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Geo.model_config" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Geo.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Geo.sort_by" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Geo.sort_by">sort_by</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Geo.system" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Geo.system">system</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest">GetMediaBuyDeliveryRequest</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.account_id" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.account_id">account_id</a></code></li>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.account" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.account">account</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.attribution_window" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.attribution_window">attribution_window</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.buyer_refs" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.buyer_refs">buyer_refs</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.context" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.end_date" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.end_date">end_date</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.ext" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.include_package_daily_breakdown" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.include_package_daily_breakdown">include_package_daily_breakdown</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.media_buy_ids" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.media_buy_ids">media_buy_ids</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.model_config" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.reporting_dimensions" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.reporting_dimensions">reporting_dimensions</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.start_date" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.start_date">start_date</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.status_filter" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.GetMediaBuyDeliveryRequest.status_filter">status_filter</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Placement" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Placement">Placement</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Placement.model_config" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.Placement.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions">ReportingDimensions</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions.audience" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions.audience">audience</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions.device_platform" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions.device_platform">device_platform</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions.device_type" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions.device_type">device_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions.geo" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions.geo">geo</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions.model_config" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions.placement" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_request.ReportingDimensions.placement">placement</a></code></li>
 </ul>
 </li>
 <li>

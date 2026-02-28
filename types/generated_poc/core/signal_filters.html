@@ -66,7 +66,18 @@ el.replaceWith(d);
     data_providers: Annotated[
         list[str] | None, Field(description=&#39;Filter by specific data providers&#39;, min_length=1)
     ] = None
-    max_cpm: Annotated[float | None, Field(description=&#39;Maximum CPM price filter&#39;, ge=0.0)] = None
+    max_cpm: Annotated[
+        float | None,
+        Field(description=&#34;Maximum CPM filter. Applies only to signals with model=&#39;cpm&#39;.&#34;, ge=0.0),
+    ] = None
+    max_percent: Annotated[
+        float | None,
+        Field(
+            description=&#39;Maximum percent-of-media rate filter. Signals where all percent_of_media pricing options exceed this value are excluded. Does not account for max_cpm caps.&#39;,
+            ge=0.0,
+            le=100.0,
+        ),
+    ] = None
     min_coverage_percentage: Annotated[
         float | None, Field(description=&#39;Minimum coverage requirement&#39;, ge=0.0, le=100.0)
     ] = None</code></pre>
@@ -95,6 +106,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.signal_filters.SignalFilters.max_cpm"><code class="name">var <span class="ident">max_cpm</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.signal_filters.SignalFilters.max_percent"><code class="name">var <span class="ident">max_percent</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -139,6 +154,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.signal_filters.SignalFilters.catalog_types" href="#adcp.types.generated_poc.core.signal_filters.SignalFilters.catalog_types">catalog_types</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.signal_filters.SignalFilters.data_providers" href="#adcp.types.generated_poc.core.signal_filters.SignalFilters.data_providers">data_providers</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.signal_filters.SignalFilters.max_cpm" href="#adcp.types.generated_poc.core.signal_filters.SignalFilters.max_cpm">max_cpm</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_filters.SignalFilters.max_percent" href="#adcp.types.generated_poc.core.signal_filters.SignalFilters.max_percent">max_percent</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.signal_filters.SignalFilters.min_coverage_percentage" href="#adcp.types.generated_poc.core.signal_filters.SignalFilters.min_coverage_percentage">min_coverage_percentage</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.signal_filters.SignalFilters.model_config" href="#adcp.types.generated_poc.core.signal_filters.SignalFilters.model_config">model_config</a></code></li>
 </ul>

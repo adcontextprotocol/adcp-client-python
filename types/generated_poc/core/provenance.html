@@ -1,0 +1,936 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.core.provenance API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.core.provenance</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.core.provenance.AiTool"><code class="flex name class">
+<span>class <span class="ident">AiTool</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AiTool(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    name: Annotated[
+        str,
+        Field(
+            description=&#34;Name of the AI tool or model (e.g., &#39;DALL-E 3&#39;, &#39;Stable Diffusion XL&#39;, &#39;Gemini&#39;)&#34;
+        ),
+    ]
+    provider: Annotated[
+        str | None,
+        Field(
+            description=&#34;Organization that provides the AI tool (e.g., &#39;OpenAI&#39;, &#39;Stability AI&#39;, &#39;Google&#39;)&#34;
+        ),
+    ] = None
+    version: Annotated[str | None, Field(description=&#39;Version identifier for the AI tool&#39;)] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.provenance.AiTool.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.AiTool.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.AiTool.provider"><code class="name">var <span class="ident">provider</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.AiTool.version"><code class="name">var <span class="ident">version</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.C2pa"><code class="flex name class">
+<span>class <span class="ident">C2pa</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class C2pa(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    manifest_url: Annotated[
+        AnyUrl, Field(description=&#39;URL to the C2PA manifest store for this content&#39;)
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.provenance.C2pa.manifest_url"><code class="name">var <span class="ident">manifest_url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.C2pa.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.DeclaredBy"><code class="flex name class">
+<span>class <span class="ident">DeclaredBy</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DeclaredBy(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    agent_url: Annotated[
+        AnyUrl | None,
+        Field(description=&#39;URL of the agent or service that declared this provenance&#39;),
+    ] = None
+    role: Annotated[Role, Field(description=&#39;Role of the declaring party in the supply chain&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.provenance.DeclaredBy.agent_url"><code class="name">var <span class="ident">agent_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.DeclaredBy.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.DeclaredBy.role"><code class="name">var <span class="ident">role</span> : <a title="adcp.types.generated_poc.core.provenance.Role" href="#adcp.types.generated_poc.core.provenance.Role">Role</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Disclosure"><code class="flex name class">
+<span>class <span class="ident">Disclosure</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Disclosure(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    jurisdictions: Annotated[
+        list[Jurisdiction] | None,
+        Field(description=&#39;Jurisdictions where disclosure obligations apply&#39;, min_length=1),
+    ] = None
+    required: Annotated[
+        bool,
+        Field(
+            description=&#39;Whether AI disclosure is required for this content based on applicable regulations&#39;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.provenance.Disclosure.jurisdictions"><code class="name">var <span class="ident">jurisdictions</span> : list[<a title="adcp.types.generated_poc.core.provenance.Jurisdiction" href="#adcp.types.generated_poc.core.provenance.Jurisdiction">Jurisdiction</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Disclosure.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Disclosure.required"><code class="name">var <span class="ident">required</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.HumanOversight"><code class="flex name class">
+<span>class <span class="ident">HumanOversight</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class HumanOversight(Enum):
+    none = &#39;none&#39;
+    prompt_only = &#39;prompt_only&#39;
+    selected = &#39;selected&#39;
+    edited = &#39;edited&#39;
+    directed = &#39;directed&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.provenance.HumanOversight.directed"><code class="name">var <span class="ident">directed</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.HumanOversight.edited"><code class="name">var <span class="ident">edited</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.HumanOversight.none"><code class="name">var <span class="ident">none</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.HumanOversight.prompt_only"><code class="name">var <span class="ident">prompt_only</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.HumanOversight.selected"><code class="name">var <span class="ident">selected</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Jurisdiction"><code class="flex name class">
+<span>class <span class="ident">Jurisdiction</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Jurisdiction(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    country: Annotated[
+        str, Field(description=&#34;ISO 3166-1 alpha-2 country code (e.g., &#39;US&#39;, &#39;DE&#39;, &#39;CN&#39;)&#34;)
+    ]
+    label_text: Annotated[
+        str | None,
+        Field(
+            description=&#39;Required disclosure label text for this jurisdiction, in the local language&#39;
+        ),
+    ] = None
+    region: Annotated[
+        str | None,
+        Field(description=&#34;Sub-national region code (e.g., &#39;CA&#39; for California, &#39;BY&#39; for Bavaria)&#34;),
+    ] = None
+    regulation: Annotated[
+        str,
+        Field(
+            description=&#34;Regulation identifier (e.g., &#39;eu_ai_act_article_50&#39;, &#39;ca_sb_942&#39;, &#39;cn_deep_synthesis&#39;)&#34;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.provenance.Jurisdiction.country"><code class="name">var <span class="ident">country</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Jurisdiction.label_text"><code class="name">var <span class="ident">label_text</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Jurisdiction.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Jurisdiction.region"><code class="name">var <span class="ident">region</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Jurisdiction.regulation"><code class="name">var <span class="ident">regulation</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Provenance"><code class="flex name class">
+<span>class <span class="ident">Provenance</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Provenance(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    ai_tool: Annotated[
+        AiTool | None,
+        Field(
+            description=&#39;AI system used to generate or modify this content. Aligns with IPTC 2025.1 AI metadata fields and C2PA claim_generator.&#39;
+        ),
+    ] = None
+    c2pa: Annotated[
+        C2pa | None,
+        Field(
+            description=&#39;C2PA Content Credentials reference. Links to the cryptographic provenance manifest for this content. Because file-level C2PA bindings break during ad-tech transcoding, this URL reference preserves the chain of provenance through the supply chain.&#39;
+        ),
+    ] = None
+    created_time: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;When this content was created or generated (ISO 8601)&#39;),
+    ] = None
+    declared_by: Annotated[
+        DeclaredBy | None,
+        Field(
+            description=&#39;Party declaring this provenance. Identifies who attached the provenance claim, enabling receiving parties to assess trust.&#39;
+        ),
+    ] = None
+    digital_source_type: Annotated[
+        digital_source_type_1.DigitalSourceType | None,
+        Field(
+            description=&#39;IPTC-aligned classification of AI involvement in producing this content&#39;
+        ),
+    ] = None
+    disclosure: Annotated[
+        Disclosure | None,
+        Field(
+            description=&#39;Regulatory disclosure requirements for this content. Indicates whether AI disclosure is required and under which jurisdictions.&#39;
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    human_oversight: Annotated[
+        HumanOversight | None,
+        Field(description=&#39;Level of human involvement in the AI-assisted creation process&#39;),
+    ] = None
+    verification: Annotated[
+        list[VerificationItem] | None,
+        Field(
+            description=&#39;Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim — verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.&#39;,
+            min_length=1,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.provenance.Provenance.ai_tool"><code class="name">var <span class="ident">ai_tool</span> : <a title="adcp.types.generated_poc.core.provenance.AiTool" href="#adcp.types.generated_poc.core.provenance.AiTool">AiTool</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Provenance.c2pa"><code class="name">var <span class="ident">c2pa</span> : <a title="adcp.types.generated_poc.core.provenance.C2pa" href="#adcp.types.generated_poc.core.provenance.C2pa">C2pa</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Provenance.created_time"><code class="name">var <span class="ident">created_time</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Provenance.declared_by"><code class="name">var <span class="ident">declared_by</span> : <a title="adcp.types.generated_poc.core.provenance.DeclaredBy" href="#adcp.types.generated_poc.core.provenance.DeclaredBy">DeclaredBy</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Provenance.digital_source_type"><code class="name">var <span class="ident">digital_source_type</span> : <a title="adcp.types.generated_poc.enums.digital_source_type.DigitalSourceType" href="../enums/digital_source_type.html#adcp.types.generated_poc.enums.digital_source_type.DigitalSourceType">DigitalSourceType</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Provenance.disclosure"><code class="name">var <span class="ident">disclosure</span> : <a title="adcp.types.generated_poc.core.provenance.Disclosure" href="#adcp.types.generated_poc.core.provenance.Disclosure">Disclosure</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Provenance.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Provenance.human_oversight"><code class="name">var <span class="ident">human_oversight</span> : <a title="adcp.types.generated_poc.core.provenance.HumanOversight" href="#adcp.types.generated_poc.core.provenance.HumanOversight">HumanOversight</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Provenance.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Provenance.verification"><code class="name">var <span class="ident">verification</span> : list[<a title="adcp.types.generated_poc.core.provenance.VerificationItem" href="#adcp.types.generated_poc.core.provenance.VerificationItem">VerificationItem</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Result"><code class="flex name class">
+<span>class <span class="ident">Result</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Result(Enum):
+    authentic = &#39;authentic&#39;
+    ai_generated = &#39;ai_generated&#39;
+    ai_modified = &#39;ai_modified&#39;
+    inconclusive = &#39;inconclusive&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.provenance.Result.ai_generated"><code class="name">var <span class="ident">ai_generated</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Result.ai_modified"><code class="name">var <span class="ident">ai_modified</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Result.authentic"><code class="name">var <span class="ident">authentic</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Result.inconclusive"><code class="name">var <span class="ident">inconclusive</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Role"><code class="flex name class">
+<span>class <span class="ident">Role</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Role(Enum):
+    creator = &#39;creator&#39;
+    advertiser = &#39;advertiser&#39;
+    agency = &#39;agency&#39;
+    platform = &#39;platform&#39;
+    tool = &#39;tool&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.provenance.Role.advertiser"><code class="name">var <span class="ident">advertiser</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Role.agency"><code class="name">var <span class="ident">agency</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Role.creator"><code class="name">var <span class="ident">creator</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Role.platform"><code class="name">var <span class="ident">platform</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.Role.tool"><code class="name">var <span class="ident">tool</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.VerificationItem"><code class="flex name class">
+<span>class <span class="ident">VerificationItem</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class VerificationItem(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    confidence: Annotated[
+        float | None,
+        Field(
+            description=&#39;Confidence score of the verification result (0.0 to 1.0)&#39;, ge=0.0, le=1.0
+        ),
+    ] = None
+    details_url: Annotated[
+        AnyUrl | None, Field(description=&#39;URL to the full verification report&#39;)
+    ] = None
+    result: Annotated[Result, Field(description=&#39;Verification outcome&#39;)]
+    verified_by: Annotated[
+        str,
+        Field(
+            description=&#34;Name of the verification service (e.g., &#39;DoubleVerify&#39;, &#39;Hive Moderation&#39;, &#39;Reality Defender&#39;)&#34;
+        ),
+    ]
+    verified_time: Annotated[
+        AwareDatetime | None, Field(description=&#39;When the verification was performed (ISO 8601)&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.provenance.VerificationItem.confidence"><code class="name">var <span class="ident">confidence</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.VerificationItem.details_url"><code class="name">var <span class="ident">details_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.VerificationItem.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.VerificationItem.result"><code class="name">var <span class="ident">result</span> : <a title="adcp.types.generated_poc.core.provenance.Result" href="#adcp.types.generated_poc.core.provenance.Result">Result</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.VerificationItem.verified_by"><code class="name">var <span class="ident">verified_by</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.VerificationItem.verified_time"><code class="name">var <span class="ident">verified_time</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc.core" href="index.html">adcp.types.generated_poc.core</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.provenance.AiTool" href="#adcp.types.generated_poc.core.provenance.AiTool">AiTool</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.provenance.AiTool.model_config" href="#adcp.types.generated_poc.core.provenance.AiTool.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.AiTool.name" href="#adcp.types.generated_poc.core.provenance.AiTool.name">name</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.AiTool.provider" href="#adcp.types.generated_poc.core.provenance.AiTool.provider">provider</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.AiTool.version" href="#adcp.types.generated_poc.core.provenance.AiTool.version">version</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.provenance.C2pa" href="#adcp.types.generated_poc.core.provenance.C2pa">C2pa</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.provenance.C2pa.manifest_url" href="#adcp.types.generated_poc.core.provenance.C2pa.manifest_url">manifest_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.C2pa.model_config" href="#adcp.types.generated_poc.core.provenance.C2pa.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.provenance.DeclaredBy" href="#adcp.types.generated_poc.core.provenance.DeclaredBy">DeclaredBy</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.provenance.DeclaredBy.agent_url" href="#adcp.types.generated_poc.core.provenance.DeclaredBy.agent_url">agent_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.DeclaredBy.model_config" href="#adcp.types.generated_poc.core.provenance.DeclaredBy.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.DeclaredBy.role" href="#adcp.types.generated_poc.core.provenance.DeclaredBy.role">role</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.provenance.Disclosure" href="#adcp.types.generated_poc.core.provenance.Disclosure">Disclosure</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.provenance.Disclosure.jurisdictions" href="#adcp.types.generated_poc.core.provenance.Disclosure.jurisdictions">jurisdictions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Disclosure.model_config" href="#adcp.types.generated_poc.core.provenance.Disclosure.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Disclosure.required" href="#adcp.types.generated_poc.core.provenance.Disclosure.required">required</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.provenance.HumanOversight" href="#adcp.types.generated_poc.core.provenance.HumanOversight">HumanOversight</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.provenance.HumanOversight.directed" href="#adcp.types.generated_poc.core.provenance.HumanOversight.directed">directed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.HumanOversight.edited" href="#adcp.types.generated_poc.core.provenance.HumanOversight.edited">edited</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.HumanOversight.none" href="#adcp.types.generated_poc.core.provenance.HumanOversight.none">none</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.HumanOversight.prompt_only" href="#adcp.types.generated_poc.core.provenance.HumanOversight.prompt_only">prompt_only</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.HumanOversight.selected" href="#adcp.types.generated_poc.core.provenance.HumanOversight.selected">selected</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.provenance.Jurisdiction" href="#adcp.types.generated_poc.core.provenance.Jurisdiction">Jurisdiction</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.provenance.Jurisdiction.country" href="#adcp.types.generated_poc.core.provenance.Jurisdiction.country">country</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Jurisdiction.label_text" href="#adcp.types.generated_poc.core.provenance.Jurisdiction.label_text">label_text</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Jurisdiction.model_config" href="#adcp.types.generated_poc.core.provenance.Jurisdiction.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Jurisdiction.region" href="#adcp.types.generated_poc.core.provenance.Jurisdiction.region">region</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Jurisdiction.regulation" href="#adcp.types.generated_poc.core.provenance.Jurisdiction.regulation">regulation</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.provenance.Provenance" href="#adcp.types.generated_poc.core.provenance.Provenance">Provenance</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.provenance.Provenance.ai_tool" href="#adcp.types.generated_poc.core.provenance.Provenance.ai_tool">ai_tool</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Provenance.c2pa" href="#adcp.types.generated_poc.core.provenance.Provenance.c2pa">c2pa</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Provenance.created_time" href="#adcp.types.generated_poc.core.provenance.Provenance.created_time">created_time</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Provenance.declared_by" href="#adcp.types.generated_poc.core.provenance.Provenance.declared_by">declared_by</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Provenance.digital_source_type" href="#adcp.types.generated_poc.core.provenance.Provenance.digital_source_type">digital_source_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Provenance.disclosure" href="#adcp.types.generated_poc.core.provenance.Provenance.disclosure">disclosure</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Provenance.ext" href="#adcp.types.generated_poc.core.provenance.Provenance.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Provenance.human_oversight" href="#adcp.types.generated_poc.core.provenance.Provenance.human_oversight">human_oversight</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Provenance.model_config" href="#adcp.types.generated_poc.core.provenance.Provenance.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Provenance.verification" href="#adcp.types.generated_poc.core.provenance.Provenance.verification">verification</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.provenance.Result" href="#adcp.types.generated_poc.core.provenance.Result">Result</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.provenance.Result.ai_generated" href="#adcp.types.generated_poc.core.provenance.Result.ai_generated">ai_generated</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Result.ai_modified" href="#adcp.types.generated_poc.core.provenance.Result.ai_modified">ai_modified</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Result.authentic" href="#adcp.types.generated_poc.core.provenance.Result.authentic">authentic</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Result.inconclusive" href="#adcp.types.generated_poc.core.provenance.Result.inconclusive">inconclusive</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.provenance.Role" href="#adcp.types.generated_poc.core.provenance.Role">Role</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.provenance.Role.advertiser" href="#adcp.types.generated_poc.core.provenance.Role.advertiser">advertiser</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Role.agency" href="#adcp.types.generated_poc.core.provenance.Role.agency">agency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Role.creator" href="#adcp.types.generated_poc.core.provenance.Role.creator">creator</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Role.platform" href="#adcp.types.generated_poc.core.provenance.Role.platform">platform</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Role.tool" href="#adcp.types.generated_poc.core.provenance.Role.tool">tool</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.provenance.VerificationItem" href="#adcp.types.generated_poc.core.provenance.VerificationItem">VerificationItem</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.provenance.VerificationItem.confidence" href="#adcp.types.generated_poc.core.provenance.VerificationItem.confidence">confidence</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.VerificationItem.details_url" href="#adcp.types.generated_poc.core.provenance.VerificationItem.details_url">details_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.VerificationItem.model_config" href="#adcp.types.generated_poc.core.provenance.VerificationItem.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.VerificationItem.result" href="#adcp.types.generated_poc.core.provenance.VerificationItem.result">result</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.VerificationItem.verified_by" href="#adcp.types.generated_poc.core.provenance.VerificationItem.verified_by">verified_by</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.VerificationItem.verified_time" href="#adcp.types.generated_poc.core.provenance.VerificationItem.verified_time">verified_time</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

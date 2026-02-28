@@ -84,6 +84,13 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
+    feed_field_mappings: Annotated[
+        list[catalog_field_mapping.CatalogFieldMapping] | None,
+        Field(
+            description=&#39;Declarative normalization rules for external feeds. Maps non-standard feed field names, date formats, price encodings, and image URLs to the AdCP catalog item schema. Applied during sync_catalogs ingestion. Supports field renames, named transforms (date, divide, boolean, split), static literal injection, and assignment of image URLs to typed asset pools.&#39;,
+            min_length=1,
+        ),
+    ] = None
     feed_format: Annotated[
         feed_format_1.FeedFormat | None,
         Field(
@@ -162,6 +169,10 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.core.assets.catalog_asset.CatalogAsset" href="assets/catalog_asset.html#adcp.types.generated_poc.core.assets.catalog_asset.CatalogAsset">CatalogAsset</a></li>
+</ul>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.core.catalog.Catalog.catalog_id"><code class="name">var <span class="ident">catalog_id</span> : str | None</code></dt>
@@ -177,6 +188,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.catalog.Catalog.conversion_events"><code class="name">var <span class="ident">conversion_events</span> : list[<a title="adcp.types.generated_poc.enums.event_type.EventType" href="../enums/event_type.html#adcp.types.generated_poc.enums.event_type.EventType">EventType</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.catalog.Catalog.feed_field_mappings"><code class="name">var <span class="ident">feed_field_mappings</span> : list[<a title="adcp.types.generated_poc.core.catalog_field_mapping.CatalogFieldMapping" href="catalog_field_mapping.html#adcp.types.generated_poc.core.catalog_field_mapping.CatalogFieldMapping">CatalogFieldMapping</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -309,6 +324,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.catalog.Catalog.category" href="#adcp.types.generated_poc.core.catalog.Catalog.category">category</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.catalog.Catalog.content_id_type" href="#adcp.types.generated_poc.core.catalog.Catalog.content_id_type">content_id_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.catalog.Catalog.conversion_events" href="#adcp.types.generated_poc.core.catalog.Catalog.conversion_events">conversion_events</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.catalog.Catalog.feed_field_mappings" href="#adcp.types.generated_poc.core.catalog.Catalog.feed_field_mappings">feed_field_mappings</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.catalog.Catalog.feed_format" href="#adcp.types.generated_poc.core.catalog.Catalog.feed_format">feed_format</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.catalog.Catalog.gtins" href="#adcp.types.generated_poc.core.catalog.Catalog.gtins">gtins</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.catalog.Catalog.ids" href="#adcp.types.generated_poc.core.catalog.Catalog.ids">ids</a></code></li>

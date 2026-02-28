@@ -1,0 +1,937 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.account.get_account_financials_response API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.account.get_account_financials_response</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Balance"><code class="flex name class">
+<span>class <span class="ident">Balance</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Balance(AdCPBaseModel):
+    available: Annotated[float, Field(description=&#39;Remaining prepaid balance&#39;, ge=0.0)]
+    last_top_up: Annotated[LastTopUp | None, Field(description=&#39;Most recent balance top-up&#39;)] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Balance.available"><code class="name">var <span class="ident">available</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Balance.last_top_up"><code class="name">var <span class="ident">last_top_up</span> : <a title="adcp.types.generated_poc.account.get_account_financials_response.LastTopUp" href="#adcp.types.generated_poc.account.get_account_financials_response.LastTopUp">LastTopUp</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Balance.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Credit"><code class="flex name class">
+<span>class <span class="ident">Credit</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Credit(AdCPBaseModel):
+    available_credit: Annotated[
+        float,
+        Field(description=&#39;Remaining credit available (credit_limit minus outstanding balance)&#39;),
+    ]
+    credit_limit: Annotated[float, Field(description=&#39;Maximum outstanding balance allowed&#39;, ge=0.0)]
+    utilization_percent: Annotated[
+        float | None,
+        Field(description=&#39;Credit utilization as a percentage (0-100)&#39;, ge=0.0, le=100.0),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Credit.available_credit"><code class="name">var <span class="ident">available_credit</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Credit.credit_limit"><code class="name">var <span class="ident">credit_limit</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Credit.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Credit.utilization_percent"><code class="name">var <span class="ident">utilization_percent</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse"><code class="flex name class">
+<span>class <span class="ident">GetAccountFinancialsResponse</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetAccountFinancialsResponse(
+    RootModel[GetAccountFinancialsResponse1 | GetAccountFinancialsResponse2]
+):
+    root: Annotated[
+        GetAccountFinancialsResponse1 | GetAccountFinancialsResponse2,
+        Field(
+            description=&#39;Financial status for an operator-billed account. Returns spend summary, credit/balance status, payment status, and invoice history. The level of detail varies by seller — only account, currency, and period are guaranteed on success.&#39;,
+            examples=[
+                {
+                    &#39;data&#39;: {
+                        &#39;account&#39;: {&#39;account_id&#39;: &#39;acc_acme_001&#39;},
+                        &#39;credit&#39;: {
+                            &#39;available_credit&#39;: 54770.0,
+                            &#39;credit_limit&#39;: 100000.0,
+                            &#39;utilization_percent&#39;: 45.23,
+                        },
+                        &#39;currency&#39;: &#39;USD&#39;,
+                        &#39;invoices&#39;: [
+                            {
+                                &#39;amount&#39;: 38500.0,
+                                &#39;due_date&#39;: &#39;2026-02-28&#39;,
+                                &#39;invoice_id&#39;: &#39;inv_2026_01&#39;,
+                                &#39;paid_date&#39;: &#39;2026-02-15&#39;,
+                                &#39;period&#39;: {&#39;end&#39;: &#39;2026-01-31&#39;, &#39;start&#39;: &#39;2026-01-01&#39;},
+                                &#39;status&#39;: &#39;paid&#39;,
+                            }
+                        ],
+                        &#39;payment_status&#39;: &#39;current&#39;,
+                        &#39;payment_terms&#39;: &#39;net_30&#39;,
+                        &#39;period&#39;: {&#39;end&#39;: &#39;2026-02-28&#39;, &#39;start&#39;: &#39;2026-02-01&#39;},
+                        &#39;spend&#39;: {&#39;media_buy_count&#39;: 3, &#39;total_spend&#39;: 45230.0},
+                        &#39;timezone&#39;: &#39;America/New_York&#39;,
+                    },
+                    &#39;description&#39;: &#39;Credit account — current, with invoice history&#39;,
+                },
+                {
+                    &#39;data&#39;: {
+                        &#39;account&#39;: {
+                            &#39;brand&#39;: {&#39;domain&#39;: &#39;acme-corp.com&#39;},
+                            &#39;operator&#39;: &#39;acme-corp.com&#39;,
+                        },
+                        &#39;balance&#39;: {
+                            &#39;available&#39;: 1800.0,
+                            &#39;last_top_up&#39;: {&#39;amount&#39;: 10000.0, &#39;date&#39;: &#39;2026-02-01&#39;},
+                        },
+                        &#39;currency&#39;: &#39;USD&#39;,
+                        &#39;payment_status&#39;: &#39;current&#39;,
+                        &#39;payment_terms&#39;: &#39;prepay&#39;,
+                        &#39;period&#39;: {&#39;end&#39;: &#39;2026-02-28&#39;, &#39;start&#39;: &#39;2026-02-01&#39;},
+                        &#39;spend&#39;: {&#39;media_buy_count&#39;: 2, &#39;total_spend&#39;: 8200.0},
+                        &#39;timezone&#39;: &#39;America/Los_Angeles&#39;,
+                    },
+                    &#39;description&#39;: &#39;Prepay account with low balance&#39;,
+                },
+                {
+                    &#39;data&#39;: {
+                        &#39;errors&#39;: [
+                            {
+                                &#39;code&#39;: &#39;UNSUPPORTED_FEATURE&#39;,
+                                &#39;message&#39;: &#34;Financial data is not available for agent-billed accounts. The agent&#39;s own billing system is the source of truth.&#34;,
+                            }
+                        ]
+                    },
+                    &#39;description&#39;: &#39;Agent-billed account — not supported&#39;,
+                },
+            ],
+            title=&#39;Get Account Financials Response&#39;,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[Union[GetAccountFinancialsResponse1, GetAccountFinancialsResponse2]]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1">GetAccountFinancialsResponse1</a> | <a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse2" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse2">GetAccountFinancialsResponse2</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1"><code class="flex name class">
+<span>class <span class="ident">GetAccountFinancialsResponse1</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetAccountFinancialsResponse1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    account: Annotated[
+        account_ref.AccountReference,
+        Field(description=&#39;Account reference, echoed from the request&#39;),
+    ]
+    balance: Annotated[
+        Balance | None, Field(description=&#39;Prepay balance. Present for prepay accounts.&#39;)
+    ] = None
+    context: context_1.ContextObject | None = None
+    credit: Annotated[
+        Credit | None,
+        Field(
+            description=&#39;Credit status. Present for credit-based accounts (payment_terms like net_30).&#39;
+        ),
+    ] = None
+    currency: Annotated[
+        str,
+        Field(
+            description=&#39;ISO 4217 currency code for all monetary amounts in this response&#39;,
+            pattern=&#39;^[A-Z]{3}$&#39;,
+        ),
+    ]
+    ext: ext_1.ExtensionObject | None = None
+    invoices: Annotated[
+        list[Invoice] | None,
+        Field(description=&#39;Recent invoices. Sellers may limit the number returned.&#39;),
+    ] = None
+    payment_status: Annotated[
+        PaymentStatus | None,
+        Field(
+            description=&#39;Overall payment status. current: all obligations met. past_due: one or more invoices overdue. suspended: account suspended due to payment issues.&#39;
+        ),
+    ] = None
+    payment_terms: Annotated[
+        str | None, Field(description=&#34;Payment terms in effect (e.g., &#39;net_30&#39;, &#39;prepay&#39;)&#34;)
+    ] = None
+    period: Annotated[
+        date_range.DateRange,
+        Field(
+            description=&#39;The actual period covered by spend data. May differ from the requested period if the seller adjusts to billing cycle boundaries.&#39;
+        ),
+    ]
+    spend: Annotated[Spend | None, Field(description=&#39;Spend summary for the period&#39;)] = None
+    timezone: Annotated[
+        str,
+        Field(
+            description=&#34;IANA timezone of the seller&#39;s billing day boundaries (e.g., &#39;America/New_York&#39;). All dates in this response — period, invoice periods, due dates — are calendar dates in this timezone. Buyers in a different timezone should expect spend boundaries to differ from their own calendar day.&#34;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.balance"><code class="name">var <span class="ident">balance</span> : <a title="adcp.types.generated_poc.account.get_account_financials_response.Balance" href="#adcp.types.generated_poc.account.get_account_financials_response.Balance">Balance</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.credit"><code class="name">var <span class="ident">credit</span> : <a title="adcp.types.generated_poc.account.get_account_financials_response.Credit" href="#adcp.types.generated_poc.account.get_account_financials_response.Credit">Credit</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.invoices"><code class="name">var <span class="ident">invoices</span> : list[<a title="adcp.types.generated_poc.account.get_account_financials_response.Invoice" href="#adcp.types.generated_poc.account.get_account_financials_response.Invoice">Invoice</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.payment_status"><code class="name">var <span class="ident">payment_status</span> : <a title="adcp.types.generated_poc.account.get_account_financials_response.PaymentStatus" href="#adcp.types.generated_poc.account.get_account_financials_response.PaymentStatus">PaymentStatus</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.payment_terms"><code class="name">var <span class="ident">payment_terms</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.period"><code class="name">var <span class="ident">period</span> : <a title="adcp.types.generated_poc.core.date_range.DateRange" href="../core/date_range.html#adcp.types.generated_poc.core.date_range.DateRange">DateRange</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.spend"><code class="name">var <span class="ident">spend</span> : <a title="adcp.types.generated_poc.account.get_account_financials_response.Spend" href="#adcp.types.generated_poc.account.get_account_financials_response.Spend">Spend</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.timezone"><code class="name">var <span class="ident">timezone</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse2"><code class="flex name class">
+<span>class <span class="ident">GetAccountFinancialsResponse2</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetAccountFinancialsResponse2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    context: context_1.ContextObject | None = None
+    errors: Annotated[list[error.Error], Field(description=&#39;Operation-level errors&#39;, min_length=1)]
+    ext: ext_1.ExtensionObject | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="../core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Invoice"><code class="flex name class">
+<span>class <span class="ident">Invoice</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Invoice(AdCPBaseModel):
+    amount: Annotated[float, Field(description=&#39;Invoice total in currency&#39;, ge=0.0)]
+    due_date: Annotated[date_aliased | None, Field(description=&#39;Payment due date&#39;)] = None
+    invoice_id: Annotated[str, Field(description=&#39;Seller-assigned invoice identifier&#39;)]
+    paid_date: Annotated[
+        date_aliased | None,
+        Field(description=&#34;Date payment was received. Present when status is &#39;paid&#39;.&#34;),
+    ] = None
+    period: Annotated[
+        date_range.DateRange | None, Field(description=&#39;Billing period covered by this invoice&#39;)
+    ] = None
+    status: Annotated[Status, Field(description=&#39;Invoice status&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Invoice.amount"><code class="name">var <span class="ident">amount</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Invoice.due_date"><code class="name">var <span class="ident">due_date</span> : datetime.date | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Invoice.invoice_id"><code class="name">var <span class="ident">invoice_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Invoice.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Invoice.paid_date"><code class="name">var <span class="ident">paid_date</span> : datetime.date | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Invoice.period"><code class="name">var <span class="ident">period</span> : <a title="adcp.types.generated_poc.core.date_range.DateRange" href="../core/date_range.html#adcp.types.generated_poc.core.date_range.DateRange">DateRange</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Invoice.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.account.get_account_financials_response.Status" href="#adcp.types.generated_poc.account.get_account_financials_response.Status">Status</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.LastTopUp"><code class="flex name class">
+<span>class <span class="ident">LastTopUp</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class LastTopUp(AdCPBaseModel):
+    amount: Annotated[float, Field(description=&#39;Top-up amount&#39;, ge=0.0)]
+    date: Annotated[date_aliased, Field(description=&#39;Date of top-up&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.LastTopUp.amount"><code class="name">var <span class="ident">amount</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.LastTopUp.date"><code class="name">var <span class="ident">date</span> : datetime.date</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.LastTopUp.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.PaymentStatus"><code class="flex name class">
+<span>class <span class="ident">PaymentStatus</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PaymentStatus(Enum):
+    current = &#39;current&#39;
+    past_due = &#39;past_due&#39;
+    suspended = &#39;suspended&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.PaymentStatus.current"><code class="name">var <span class="ident">current</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.PaymentStatus.past_due"><code class="name">var <span class="ident">past_due</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.PaymentStatus.suspended"><code class="name">var <span class="ident">suspended</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Spend"><code class="flex name class">
+<span>class <span class="ident">Spend</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Spend(AdCPBaseModel):
+    media_buy_count: Annotated[
+        int | None, Field(description=&#39;Number of active media buys in the period&#39;, ge=0)
+    ] = None
+    total_spend: Annotated[
+        float, Field(description=&#39;Total spend in the period, in currency&#39;, ge=0.0)
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Spend.media_buy_count"><code class="name">var <span class="ident">media_buy_count</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Spend.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Spend.total_spend"><code class="name">var <span class="ident">total_spend</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Status"><code class="flex name class">
+<span>class <span class="ident">Status</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Status(Enum):
+    draft = &#39;draft&#39;
+    issued = &#39;issued&#39;
+    paid = &#39;paid&#39;
+    past_due = &#39;past_due&#39;
+    void = &#39;void&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Status.draft"><code class="name">var <span class="ident">draft</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Status.issued"><code class="name">var <span class="ident">issued</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Status.paid"><code class="name">var <span class="ident">paid</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Status.past_due"><code class="name">var <span class="ident">past_due</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_response.Status.void"><code class="name">var <span class="ident">void</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc.account" href="index.html">adcp.types.generated_poc.account</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Balance" href="#adcp.types.generated_poc.account.get_account_financials_response.Balance">Balance</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Balance.available" href="#adcp.types.generated_poc.account.get_account_financials_response.Balance.available">available</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Balance.last_top_up" href="#adcp.types.generated_poc.account.get_account_financials_response.Balance.last_top_up">last_top_up</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Balance.model_config" href="#adcp.types.generated_poc.account.get_account_financials_response.Balance.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Credit" href="#adcp.types.generated_poc.account.get_account_financials_response.Credit">Credit</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Credit.available_credit" href="#adcp.types.generated_poc.account.get_account_financials_response.Credit.available_credit">available_credit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Credit.credit_limit" href="#adcp.types.generated_poc.account.get_account_financials_response.Credit.credit_limit">credit_limit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Credit.model_config" href="#adcp.types.generated_poc.account.get_account_financials_response.Credit.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Credit.utilization_percent" href="#adcp.types.generated_poc.account.get_account_financials_response.Credit.utilization_percent">utilization_percent</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse">GetAccountFinancialsResponse</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse.model_config" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse.root" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse.root">root</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1">GetAccountFinancialsResponse1</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.account" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.account">account</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.balance" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.balance">balance</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.context" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.credit" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.credit">credit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.currency" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.ext" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.invoices" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.invoices">invoices</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.model_config" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.payment_status" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.payment_status">payment_status</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.payment_terms" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.payment_terms">payment_terms</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.period" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.period">period</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.spend" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.spend">spend</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.timezone" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1.timezone">timezone</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse2" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse2">GetAccountFinancialsResponse2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse2.context" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse2.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse2.errors" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse2.ext" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse2.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse2.model_config" href="#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse2.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Invoice" href="#adcp.types.generated_poc.account.get_account_financials_response.Invoice">Invoice</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Invoice.amount" href="#adcp.types.generated_poc.account.get_account_financials_response.Invoice.amount">amount</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Invoice.due_date" href="#adcp.types.generated_poc.account.get_account_financials_response.Invoice.due_date">due_date</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Invoice.invoice_id" href="#adcp.types.generated_poc.account.get_account_financials_response.Invoice.invoice_id">invoice_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Invoice.model_config" href="#adcp.types.generated_poc.account.get_account_financials_response.Invoice.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Invoice.paid_date" href="#adcp.types.generated_poc.account.get_account_financials_response.Invoice.paid_date">paid_date</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Invoice.period" href="#adcp.types.generated_poc.account.get_account_financials_response.Invoice.period">period</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Invoice.status" href="#adcp.types.generated_poc.account.get_account_financials_response.Invoice.status">status</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.account.get_account_financials_response.LastTopUp" href="#adcp.types.generated_poc.account.get_account_financials_response.LastTopUp">LastTopUp</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.LastTopUp.amount" href="#adcp.types.generated_poc.account.get_account_financials_response.LastTopUp.amount">amount</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.LastTopUp.date" href="#adcp.types.generated_poc.account.get_account_financials_response.LastTopUp.date">date</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.LastTopUp.model_config" href="#adcp.types.generated_poc.account.get_account_financials_response.LastTopUp.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.account.get_account_financials_response.PaymentStatus" href="#adcp.types.generated_poc.account.get_account_financials_response.PaymentStatus">PaymentStatus</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.PaymentStatus.current" href="#adcp.types.generated_poc.account.get_account_financials_response.PaymentStatus.current">current</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.PaymentStatus.past_due" href="#adcp.types.generated_poc.account.get_account_financials_response.PaymentStatus.past_due">past_due</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.PaymentStatus.suspended" href="#adcp.types.generated_poc.account.get_account_financials_response.PaymentStatus.suspended">suspended</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Spend" href="#adcp.types.generated_poc.account.get_account_financials_response.Spend">Spend</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Spend.media_buy_count" href="#adcp.types.generated_poc.account.get_account_financials_response.Spend.media_buy_count">media_buy_count</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Spend.model_config" href="#adcp.types.generated_poc.account.get_account_financials_response.Spend.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Spend.total_spend" href="#adcp.types.generated_poc.account.get_account_financials_response.Spend.total_spend">total_spend</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Status" href="#adcp.types.generated_poc.account.get_account_financials_response.Status">Status</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Status.draft" href="#adcp.types.generated_poc.account.get_account_financials_response.Status.draft">draft</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Status.issued" href="#adcp.types.generated_poc.account.get_account_financials_response.Status.issued">issued</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Status.paid" href="#adcp.types.generated_poc.account.get_account_financials_response.Status.paid">paid</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Status.past_due" href="#adcp.types.generated_poc.account.get_account_financials_response.Status.past_due">past_due</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_response.Status.void" href="#adcp.types.generated_poc.account.get_account_financials_response.Status.void">void</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

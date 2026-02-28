@@ -182,6 +182,13 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#34;Matching status. Present when action is created, updated, or unchanged; absent when action is deleted or failed. &#39;processing&#39;: platform is still matching members against its user base. &#39;ready&#39;: audience is available for targeting, matched_count is populated. &#39;too_small&#39;: matched audience is below the platform&#39;s minimum size — add more members and re-sync.&#34;
         ),
     ] = None
+    total_uploaded_count: Annotated[
+        int | None,
+        Field(
+            description=&#39;Cumulative number of members uploaded across all syncs for this audience. Compare with matched_count to calculate match rate (matched_count / total_uploaded_count). Populated when the seller tracks cumulative upload counts.&#39;,
+            ge=0,
+        ),
+    ] = None
     uploaded_count: Annotated[
         int | None,
         Field(
@@ -242,6 +249,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Status" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Status">Status</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.total_uploaded_count"><code class="name">var <span class="ident">total_uploaded_count</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -547,7 +558,7 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Audience">Audience</a></code></h4>
-<ul class="two-column">
+<ul class="">
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.action" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.action">action</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.audience_id" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.audience_id">audience_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.errors" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.errors">errors</a></code></li>
@@ -558,6 +569,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.name" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.name">name</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.seller_id" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.seller_id">seller_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.status" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.status">status</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.total_uploaded_count" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.total_uploaded_count">total_uploaded_count</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.uploaded_count" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.uploaded_count">uploaded_count</a></code></li>
 </ul>
 </li>

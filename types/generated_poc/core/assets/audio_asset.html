@@ -79,6 +79,12 @@ el.replaceWith(d);
     ] = None
     file_size_bytes: Annotated[int | None, Field(description=&#39;File size in bytes&#39;, ge=1)] = None
     loudness_lufs: Annotated[float | None, Field(description=&#39;Integrated loudness in LUFS&#39;)] = None
+    provenance: Annotated[
+        provenance_1.Provenance | None,
+        Field(
+            description=&#39;Provenance metadata for this asset, overrides manifest-level provenance&#39;
+        ),
+    ] = None
     sampling_rate_hz: Annotated[
         int | None, Field(description=&#39;Sampling rate in Hz (e.g., 44100, 48000, 96000)&#39;)
     ] = None
@@ -136,6 +142,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.provenance"><code class="name">var <span class="ident">provenance</span> : <a title="adcp.types.generated_poc.core.provenance.Provenance" href="../provenance.html#adcp.types.generated_poc.core.provenance.Provenance">Provenance</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -306,6 +316,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.file_size_bytes" href="#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.file_size_bytes">file_size_bytes</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.loudness_lufs" href="#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.loudness_lufs">loudness_lufs</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.model_config" href="#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.provenance" href="#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.provenance">provenance</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.sampling_rate_hz" href="#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.sampling_rate_hz">sampling_rate_hz</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.transcript_url" href="#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.transcript_url">transcript_url</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.true_peak_dbfs" href="#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset.true_peak_dbfs">true_peak_dbfs</a></code></li>

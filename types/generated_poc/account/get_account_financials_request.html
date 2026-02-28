@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.core.creative_brief_ref API documentation</title>
+<title>adcp.types.generated_poc.account.get_account_financials_request API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.core.creative_brief_ref</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.account.get_account_financials_request</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,80 +46,78 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference"><code class="flex name class">
-<span>class <span class="ident">CreativeBriefReference</span></span>
-<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+<dt id="adcp.types.generated_poc.account.get_account_financials_request.GetAccountFinancialsRequest"><code class="flex name class">
+<span>class <span class="ident">GetAccountFinancialsRequest</span></span>
+<span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class CreativeBriefReference(RootModel[creative_brief.CreativeBrief | AnyUrl]):
-    root: Annotated[
-        creative_brief.CreativeBrief | AnyUrl,
+<pre><code class="python">class GetAccountFinancialsRequest(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    account: Annotated[
+        account_ref.AccountReference,
+        Field(description=&#39;Account to query financials for. Must be an operator-billed account.&#39;),
+    ]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+    period: Annotated[
+        date_range.DateRange | None,
         Field(
-            description=&#39;Creative brief provided either as an inline object or a URL string pointing to a hosted brief&#39;,
-            examples=[
-                {
-                    &#39;data&#39;: {
-                        &#39;audience&#39;: &#39;Gift shoppers aged 25-55&#39;,
-                        &#39;messaging&#39;: {
-                            &#39;cta&#39;: &#39;Shop Holiday Deals&#39;,
-                            &#39;headline&#39;: &#39;Give the Gift of Style&#39;,
-                        },
-                        &#39;name&#39;: &#39;Holiday Campaign 2025&#39;,
-                        &#39;objective&#39;: &#39;conversion&#39;,
-                    },
-                    &#39;description&#39;: &#39;Inline creative brief&#39;,
-                },
-                {
-                    &#39;data&#39;: &#39;https://cdn.example.com/briefs/holiday-2025.json&#39;,
-                    &#39;description&#39;: &#39;URL string reference to hosted brief&#39;,
-                },
-            ],
-            title=&#39;Creative Brief Reference&#39;,
+            description=&#39;Date range for the spend summary. Defaults to the current billing cycle if omitted.&#39;
         ),
-    ]</code></pre>
+    ] = None</code></pre>
 </details>
-<div class="desc"><div class="admonition abstract">
-<p class="admonition-title">Usage Documentation</p>
-<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
-</div>
-<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
-<h2 id="attributes">Attributes</h2>
-<dl>
-<dt><strong><code>root</code></strong></dt>
-<dd>The root object of the model.</dd>
-<dt><strong><code>__pydantic_root_model__</code></strong></dt>
-<dd>Whether the model is a RootModel.</dd>
-<dt><strong><code>__pydantic_private__</code></strong></dt>
-<dd>Private fields in the model.</dd>
-<dt><strong><code>__pydantic_extra__</code></strong></dt>
-<dd>Extra fields in the model.</dd>
-</dl>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
 <p>Create a new model by parsing and validating input data from keyword arguments.</p>
 <p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
 validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li>pydantic.root_model.RootModel[Union[CreativeBrief, AnyUrl]]</li>
-<li>pydantic.root_model.RootModel</li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
-<li>typing.Generic</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.account.get_account_financials_request.GetAccountFinancialsRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.core.creative_brief.CreativeBrief" href="creative_brief.html#adcp.types.generated_poc.core.creative_brief.CreativeBrief">CreativeBrief</a> | pydantic.networks.AnyUrl</code></dt>
+<dt id="adcp.types.generated_poc.account.get_account_financials_request.GetAccountFinancialsRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_request.GetAccountFinancialsRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_request.GetAccountFinancialsRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.get_account_financials_request.GetAccountFinancialsRequest.period"><code class="name">var <span class="ident">period</span> : <a title="adcp.types.generated_poc.core.date_range.DateRange" href="../core/date_range.html#adcp.types.generated_poc.core.date_range.DateRange">DateRange</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
 </dd>
 </dl>
 </section>
@@ -131,16 +129,19 @@ validated to form a valid model.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.core" href="index.html">adcp.types.generated_poc.core</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account" href="index.html">adcp.types.generated_poc.account</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference" href="#adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference">CreativeBriefReference</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.account.get_account_financials_request.GetAccountFinancialsRequest" href="#adcp.types.generated_poc.account.get_account_financials_request.GetAccountFinancialsRequest">GetAccountFinancialsRequest</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference.model_config" href="#adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference.root" href="#adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference.root">root</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_request.GetAccountFinancialsRequest.account" href="#adcp.types.generated_poc.account.get_account_financials_request.GetAccountFinancialsRequest.account">account</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_request.GetAccountFinancialsRequest.context" href="#adcp.types.generated_poc.account.get_account_financials_request.GetAccountFinancialsRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_request.GetAccountFinancialsRequest.ext" href="#adcp.types.generated_poc.account.get_account_financials_request.GetAccountFinancialsRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_request.GetAccountFinancialsRequest.model_config" href="#adcp.types.generated_poc.account.get_account_financials_request.GetAccountFinancialsRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.get_account_financials_request.GetAccountFinancialsRequest.period" href="#adcp.types.generated_poc.account.get_account_financials_request.GetAccountFinancialsRequest.period">period</a></code></li>
 </ul>
 </li>
 </ul>

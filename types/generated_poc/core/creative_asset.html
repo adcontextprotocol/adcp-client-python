@@ -61,27 +61,24 @@ el.replaceWith(d);
     )
     assets: Annotated[
         dict[
-            Annotated[str, StringConstraints(pattern=r&#39;^[a-zA-Z0-9_-]+$&#39;)],
+            Annotated[str, StringConstraints(pattern=r&#39;^[a-z0-9_]+$&#39;)],
             image_asset.ImageAsset
             | video_asset.VideoAsset
             | audio_asset.AudioAsset
-            | text_asset.TextAsset
-            | html_asset.HtmlAsset
-            | css_asset.CssAsset
-            | javascript_asset.JavascriptAsset
             | vast_asset.VastAsset
+            | text_asset.TextAsset
+            | url_asset.UrlAsset
+            | html_asset.HtmlAsset
+            | javascript_asset.JavascriptAsset
+            | webhook_asset.WebhookAsset
+            | css_asset.CssAsset
             | daast_asset.DaastAsset
-            | url_asset.UrlAsset,
+            | markdown_asset.MarkdownAsset
+            | brief_asset.BriefAsset
+            | catalog_asset.CatalogAsset,
         ],
-        Field(description=&#39;Assets required by the format, keyed by asset_role&#39;),
+        Field(description=&#39;Assets required by the format, keyed by asset_id&#39;),
     ]
-    catalogs: Annotated[
-        list[catalog.Catalog] | None,
-        Field(
-            description=&#34;Catalogs this creative renders. Each entry satisfies one of the format&#39;s catalog_requirements, matched by type. Each catalog can be inline (with items), a reference to a synced catalog (by catalog_id), or a URL to an external feed.&#34;,
-            min_length=1,
-        ),
-    ] = None
     creative_id: Annotated[str, Field(description=&#39;Unique identifier for the creative&#39;)]
     format_id: Annotated[
         format_id_1.FormatId,
@@ -101,6 +98,12 @@ el.replaceWith(d);
         Field(
             description=&#34;Optional array of placement IDs where this creative should run when uploading via create_media_buy or update_media_buy. References placement_id values from the product&#39;s placements array. If omitted, creative runs on all placements. Only used during upload to media buy - not stored in creative library.&#34;,
             min_length=1,
+        ),
+    ] = None
+    provenance: Annotated[
+        provenance_1.Provenance | None,
+        Field(
+            description=&#39;Provenance metadata for this creative. Serves as the default provenance for all manifests and assets within this creative. A manifest or asset with its own provenance replaces this object entirely (no field-level merging).&#39;
         ),
     ] = None
     status: Annotated[
@@ -136,11 +139,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.creative_asset.CreativeAsset.assets"><code class="name">var <span class="ident">assets</span> : dict[str, <a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset" href="assets/image_asset.html#adcp.types.generated_poc.core.assets.image_asset.ImageAsset">ImageAsset</a> | <a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset" href="assets/video_asset.html#adcp.types.generated_poc.core.assets.video_asset.VideoAsset">VideoAsset</a> | <a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset" href="assets/audio_asset.html#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset">AudioAsset</a> | <a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset" href="assets/text_asset.html#adcp.types.generated_poc.core.assets.text_asset.TextAsset">TextAsset</a> | <a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset" href="assets/html_asset.html#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset">HtmlAsset</a> | <a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset" href="assets/css_asset.html#adcp.types.generated_poc.core.assets.css_asset.CssAsset">CssAsset</a> | <a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset" href="assets/javascript_asset.html#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset">JavascriptAsset</a> | <a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset" href="assets/vast_asset.html#adcp.types.generated_poc.core.assets.vast_asset.VastAsset">VastAsset</a> | <a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset" href="assets/daast_asset.html#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset">DaastAsset</a> | <a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset" href="assets/url_asset.html#adcp.types.generated_poc.core.assets.url_asset.UrlAsset">UrlAsset</a>]</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.creative_asset.CreativeAsset.catalogs"><code class="name">var <span class="ident">catalogs</span> : list[<a title="adcp.types.generated_poc.core.catalog.Catalog" href="catalog.html#adcp.types.generated_poc.core.catalog.Catalog">Catalog</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.creative_asset.CreativeAsset.assets"><code class="name">var <span class="ident">assets</span> : dict[str, <a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset" href="assets/image_asset.html#adcp.types.generated_poc.core.assets.image_asset.ImageAsset">ImageAsset</a> | <a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset" href="assets/video_asset.html#adcp.types.generated_poc.core.assets.video_asset.VideoAsset">VideoAsset</a> | <a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset" href="assets/audio_asset.html#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset">AudioAsset</a> | <a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset" href="assets/vast_asset.html#adcp.types.generated_poc.core.assets.vast_asset.VastAsset">VastAsset</a> | <a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset" href="assets/text_asset.html#adcp.types.generated_poc.core.assets.text_asset.TextAsset">TextAsset</a> | <a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset" href="assets/url_asset.html#adcp.types.generated_poc.core.assets.url_asset.UrlAsset">UrlAsset</a> | <a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset" href="assets/html_asset.html#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset">HtmlAsset</a> | <a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset" href="assets/javascript_asset.html#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset">JavascriptAsset</a> | <a title="adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset" href="assets/webhook_asset.html#adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset">WebhookAsset</a> | <a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset" href="assets/css_asset.html#adcp.types.generated_poc.core.assets.css_asset.CssAsset">CssAsset</a> | <a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset" href="assets/daast_asset.html#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset">DaastAsset</a> | <a title="adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset" href="assets/markdown_asset.html#adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset">MarkdownAsset</a> | <a title="adcp.types.generated_poc.core.assets.brief_asset.BriefAsset" href="assets/brief_asset.html#adcp.types.generated_poc.core.assets.brief_asset.BriefAsset">BriefAsset</a> | <a title="adcp.types.generated_poc.core.assets.catalog_asset.CatalogAsset" href="assets/catalog_asset.html#adcp.types.generated_poc.core.assets.catalog_asset.CatalogAsset">CatalogAsset</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -165,6 +164,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.creative_asset.CreativeAsset.placement_ids"><code class="name">var <span class="ident">placement_ids</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.creative_asset.CreativeAsset.provenance"><code class="name">var <span class="ident">provenance</span> : <a title="adcp.types.generated_poc.core.provenance.Provenance" href="provenance.html#adcp.types.generated_poc.core.provenance.Provenance">Provenance</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -276,13 +279,13 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset">CreativeAsset</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.assets" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.assets">assets</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.catalogs" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.catalogs">catalogs</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.creative_id" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.creative_id">creative_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.format_id" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.format_id">format_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.inputs" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.inputs">inputs</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.model_config" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.name" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.name">name</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.placement_ids" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.placement_ids">placement_ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.provenance" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.provenance">provenance</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.status" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.status">status</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.tags" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.tags">tags</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset.weight" href="#adcp.types.generated_poc.core.creative_asset.CreativeAsset.weight">weight</a></code></li>

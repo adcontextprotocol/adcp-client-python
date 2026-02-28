@@ -111,18 +111,19 @@ validated to form a valid model.</p>
         extra=&#39;forbid&#39;,
     )
     channels_any: Annotated[
-        list[channels.MediaChannel],
+        list[channels.MediaChannel] | None,
         Field(
-            description=&#39;Property must support ANY of the listed channels. Required.&#39;, min_length=1
-        ),
-    ]
-    countries_all: Annotated[
-        list[CountriesAllItem],
-        Field(
-            description=&#39;Property must have feature data for ALL listed countries (ISO codes). Required.&#39;,
+            description=&#39;Property must support ANY of the listed channels. When omitted, no channel restriction is applied.&#39;,
             min_length=1,
         ),
-    ]
+    ] = None
+    countries_all: Annotated[
+        list[CountriesAllItem] | None,
+        Field(
+            description=&#39;Property must have feature data for ALL listed countries (ISO codes). When omitted, no country restriction is applied.&#39;,
+            min_length=1,
+        ),
+    ] = None
     exclude_identifiers: Annotated[
         list[identifier.Identifier] | None,
         Field(description=&#39;Identifiers to always exclude from results&#39;, min_length=1),
@@ -154,11 +155,11 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.property.property_list_filters.PropertyListFilters.channels_any"><code class="name">var <span class="ident">channels_any</span> : list[<a title="adcp.types.generated_poc.enums.channels.MediaChannel" href="../enums/channels.html#adcp.types.generated_poc.enums.channels.MediaChannel">MediaChannel</a>]</code></dt>
+<dt id="adcp.types.generated_poc.property.property_list_filters.PropertyListFilters.channels_any"><code class="name">var <span class="ident">channels_any</span> : list[<a title="adcp.types.generated_poc.enums.channels.MediaChannel" href="../enums/channels.html#adcp.types.generated_poc.enums.channels.MediaChannel">MediaChannel</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.property.property_list_filters.PropertyListFilters.countries_all"><code class="name">var <span class="ident">countries_all</span> : list[<a title="adcp.types.generated_poc.property.property_list_filters.CountriesAllItem" href="#adcp.types.generated_poc.property.property_list_filters.CountriesAllItem">CountriesAllItem</a>]</code></dt>
+<dt id="adcp.types.generated_poc.property.property_list_filters.PropertyListFilters.countries_all"><code class="name">var <span class="ident">countries_all</span> : list[<a title="adcp.types.generated_poc.property.property_list_filters.CountriesAllItem" href="#adcp.types.generated_poc.property.property_list_filters.CountriesAllItem">CountriesAllItem</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>

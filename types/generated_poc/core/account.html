@@ -60,13 +60,19 @@ el.replaceWith(d);
         extra=&#39;allow&#39;,
     )
     account_id: Annotated[str, Field(description=&#39;Unique identifier for this account&#39;)]
+    account_scope: Annotated[
+        AccountScope | None,
+        Field(
+            description=&#34;How the seller scoped this account. operator: shared across all brands for this operator. brand: shared across all operators for this brand. operator_brand: dedicated to a specific operator+brand combination. agent: the agent&#39;s default account with no brand or operator association.&#34;
+        ),
+    ] = None
     advertiser: Annotated[
         str | None, Field(description=&#39;The advertiser whose rates apply to this account&#39;)
     ] = None
     billing: Annotated[
         Billing | None,
         Field(
-            description=&#39;Who is invoiced on this account. brand: seller invoices the brand directly. operator: seller invoices the operator (agency). agent: agent consolidates billing.&#39;
+            description=&#39;Who is invoiced on this account. operator: seller invoices the operator (agency or brand buying direct). agent: agent consolidates billing.&#39;
         ),
     ] = None
     billing_proxy: Annotated[
@@ -75,31 +81,21 @@ el.replaceWith(d);
             description=&#39;Optional intermediary who receives invoices on behalf of the advertiser (e.g., agency)&#39;
         ),
     ] = None
-    brand_id: Annotated[
-        str | None,
-        Field(
-            description=&#39;Brand ID within the house portfolio (from brand.json)&#39;,
-            pattern=&#39;^[a-z0-9_]+$&#39;,
-        ),
+    brand: Annotated[
+        brand_ref.BrandReference | None,
+        Field(description=&#39;Brand reference identifying the advertiser&#39;),
     ] = None
     credit_limit: Annotated[
         CreditLimit | None, Field(description=&#39;Maximum outstanding balance allowed&#39;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
-    house: Annotated[
-        str | None,
-        Field(
-            description=&#39;House domain where brand.json is hosted. Canonical identity anchor for the brand.&#39;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
-        ),
-    ] = None
     name: Annotated[
         str, Field(description=&#34;Human-readable account name (e.g., &#39;Acme&#39;, &#39;Acme c/o Pinnacle&#39;)&#34;)
     ]
     operator: Annotated[
         str | None,
         Field(
-            description=&#39;Domain of the entity operating this account&#39;,
+            description=&#34;Domain of the entity operating this account. When the brand operates directly, this is the brand&#39;s domain.&#34;,
             pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
         ),
     ] = None
@@ -115,10 +111,16 @@ el.replaceWith(d);
             description=&#39;When true, this is a sandbox account. All requests using this account_id are treated as sandbox — no real platform calls, no real spend.&#39;
         ),
     ] = None
+    setup: Annotated[
+        Setup | None,
+        Field(
+            description=&#34;Present when status is &#39;pending_approval&#39;. Contains next steps for completing account activation.&#34;
+        ),
+    ] = None
     status: Annotated[
         Status,
         Field(
-            description=&#39;Account status. pending_approval: seller reviewing (credit, contracts). payment_required: credit limit reached or funds depleted. suspended: was active, now paused. closed: terminated.&#39;
+            description=&#39;Account status. pending_approval: seller reviewing (credit, contracts). rejected: seller declined the account request. payment_required: credit limit reached or funds depleted. suspended: was active, now paused. closed: was active, now terminated.&#39;
         ),
     ]</code></pre>
 </details>
@@ -141,6 +143,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.account.Account.account_scope"><code class="name">var <span class="ident">account_scope</span> : <a title="adcp.types.generated_poc.core.account.AccountScope" href="#adcp.types.generated_poc.core.account.AccountScope">AccountScope</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.account.Account.advertiser"><code class="name">var <span class="ident">advertiser</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -153,7 +159,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.account.Account.brand_id"><code class="name">var <span class="ident">brand_id</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.core.account.Account.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -162,10 +168,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.account.Account.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.account.Account.house"><code class="name">var <span class="ident">house</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -193,6 +195,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.account.Account.setup"><code class="name">var <span class="ident">setup</span> : <a title="adcp.types.generated_poc.core.account.Setup" href="#adcp.types.generated_poc.core.account.Setup">Setup</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.account.Account.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.core.account.Status" href="#adcp.types.generated_poc.core.account.Status">Status</a></code></dt>
 <dd>
 <div class="desc"></div>
@@ -209,6 +215,80 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.core.account.AccountScope"><code class="flex name class">
+<span>class <span class="ident">AccountScope</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AccountScope(Enum):
+    operator = &#39;operator&#39;
+    brand = &#39;brand&#39;
+    operator_brand = &#39;operator_brand&#39;
+    agent = &#39;agent&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.account.AccountScope.agent"><code class="name">var <span class="ident">agent</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.AccountScope.brand"><code class="name">var <span class="ident">brand</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.AccountScope.operator"><code class="name">var <span class="ident">operator</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.AccountScope.operator_brand"><code class="name">var <span class="ident">operator_brand</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.generated_poc.core.account.Billing"><code class="flex name class">
 <span>class <span class="ident">Billing</span></span>
 <span>(</span><span>*args, **kwds)</span>
@@ -219,7 +299,6 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Billing(Enum):
-    brand = &#39;brand&#39;
     operator = &#39;operator&#39;
     agent = &#39;agent&#39;</code></pre>
 </details>
@@ -265,10 +344,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.core.account.Billing.agent"><code class="name">var <span class="ident">agent</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.account.Billing.brand"><code class="name">var <span class="ident">brand</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -330,6 +405,73 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.core.account.Setup"><code class="flex name class">
+<span>class <span class="ident">Setup</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Setup(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    expires_at: Annotated[
+        AwareDatetime | None, Field(description=&#39;When this setup link expires.&#39;)
+    ] = None
+    message: Annotated[str, Field(description=&#34;Human-readable description of what&#39;s needed.&#34;)]
+    url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#39;URL where the human can complete the required action (credit application, legal agreement, add funds).&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.account.Setup.expires_at"><code class="name">var <span class="ident">expires_at</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.Setup.message"><code class="name">var <span class="ident">message</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.Setup.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.Setup.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.core.account.Status"><code class="flex name class">
 <span>class <span class="ident">Status</span></span>
 <span>(</span><span>*args, **kwds)</span>
@@ -342,6 +484,7 @@ validated to form a valid model.</p>
 <pre><code class="python">class Status(Enum):
     active = &#39;active&#39;
     pending_approval = &#39;pending_approval&#39;
+    rejected = &#39;rejected&#39;
     payment_required = &#39;payment_required&#39;
     suspended = &#39;suspended&#39;
     closed = &#39;closed&#39;</code></pre>
@@ -403,6 +546,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.account.Status.rejected"><code class="name">var <span class="ident">rejected</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.account.Status.suspended"><code class="name">var <span class="ident">suspended</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -428,27 +575,36 @@ attributes &ndash; see the documentation for details.</p></div>
 <h4><code><a title="adcp.types.generated_poc.core.account.Account" href="#adcp.types.generated_poc.core.account.Account">Account</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.account.Account.account_id" href="#adcp.types.generated_poc.core.account.Account.account_id">account_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Account.account_scope" href="#adcp.types.generated_poc.core.account.Account.account_scope">account_scope</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.advertiser" href="#adcp.types.generated_poc.core.account.Account.advertiser">advertiser</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.billing" href="#adcp.types.generated_poc.core.account.Account.billing">billing</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.billing_proxy" href="#adcp.types.generated_poc.core.account.Account.billing_proxy">billing_proxy</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.account.Account.brand_id" href="#adcp.types.generated_poc.core.account.Account.brand_id">brand_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Account.brand" href="#adcp.types.generated_poc.core.account.Account.brand">brand</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.credit_limit" href="#adcp.types.generated_poc.core.account.Account.credit_limit">credit_limit</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.ext" href="#adcp.types.generated_poc.core.account.Account.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.account.Account.house" href="#adcp.types.generated_poc.core.account.Account.house">house</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.model_config" href="#adcp.types.generated_poc.core.account.Account.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.name" href="#adcp.types.generated_poc.core.account.Account.name">name</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.operator" href="#adcp.types.generated_poc.core.account.Account.operator">operator</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.payment_terms" href="#adcp.types.generated_poc.core.account.Account.payment_terms">payment_terms</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.rate_card" href="#adcp.types.generated_poc.core.account.Account.rate_card">rate_card</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.sandbox" href="#adcp.types.generated_poc.core.account.Account.sandbox">sandbox</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Account.setup" href="#adcp.types.generated_poc.core.account.Account.setup">setup</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.status" href="#adcp.types.generated_poc.core.account.Account.status">status</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.account.AccountScope" href="#adcp.types.generated_poc.core.account.AccountScope">AccountScope</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.account.AccountScope.agent" href="#adcp.types.generated_poc.core.account.AccountScope.agent">agent</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.AccountScope.brand" href="#adcp.types.generated_poc.core.account.AccountScope.brand">brand</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.AccountScope.operator" href="#adcp.types.generated_poc.core.account.AccountScope.operator">operator</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.AccountScope.operator_brand" href="#adcp.types.generated_poc.core.account.AccountScope.operator_brand">operator_brand</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.account.Billing" href="#adcp.types.generated_poc.core.account.Billing">Billing</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.account.Billing.agent" href="#adcp.types.generated_poc.core.account.Billing.agent">agent</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.account.Billing.brand" href="#adcp.types.generated_poc.core.account.Billing.brand">brand</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Billing.operator" href="#adcp.types.generated_poc.core.account.Billing.operator">operator</a></code></li>
 </ul>
 </li>
@@ -461,12 +617,22 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.account.Status" href="#adcp.types.generated_poc.core.account.Status">Status</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.account.Setup" href="#adcp.types.generated_poc.core.account.Setup">Setup</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.core.account.Setup.expires_at" href="#adcp.types.generated_poc.core.account.Setup.expires_at">expires_at</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Setup.message" href="#adcp.types.generated_poc.core.account.Setup.message">message</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Setup.model_config" href="#adcp.types.generated_poc.core.account.Setup.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Setup.url" href="#adcp.types.generated_poc.core.account.Setup.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.account.Status" href="#adcp.types.generated_poc.core.account.Status">Status</a></code></h4>
+<ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.account.Status.active" href="#adcp.types.generated_poc.core.account.Status.active">active</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Status.closed" href="#adcp.types.generated_poc.core.account.Status.closed">closed</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Status.payment_required" href="#adcp.types.generated_poc.core.account.Status.payment_required">payment_required</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Status.pending_approval" href="#adcp.types.generated_poc.core.account.Status.pending_approval">pending_approval</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Status.rejected" href="#adcp.types.generated_poc.core.account.Status.rejected">rejected</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Status.suspended" href="#adcp.types.generated_poc.core.account.Status.suspended">suspended</a></code></li>
 </ul>
 </li>

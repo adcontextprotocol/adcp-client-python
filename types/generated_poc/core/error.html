@@ -59,7 +59,12 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    code: Annotated[str, Field(description=&#39;Error code for programmatic handling&#39;)]
+    code: Annotated[
+        str,
+        Field(
+            description=&#39;Error code for programmatic handling. Standard codes are defined in error-code.json and enable autonomous agent recovery. Sellers MAY use codes not in the standard vocabulary for platform-specific errors; agents MUST handle unknown codes gracefully by falling back to the recovery classification.&#39;
+        ),
+    ]
     details: Annotated[
         dict[str, Any] | None, Field(description=&#39;Additional task-specific error details&#39;)
     ] = None
@@ -68,6 +73,12 @@ el.replaceWith(d);
         Field(description=&#34;Field path associated with the error (e.g., &#39;packages[0].targeting&#39;)&#34;),
     ] = None
     message: Annotated[str, Field(description=&#39;Human-readable error message&#39;)]
+    recovery: Annotated[
+        Recovery | None,
+        Field(
+            description=&#39;Agent recovery classification. transient: retry after delay (rate limit, service unavailable, timeout). correctable: fix the request and resend (invalid field, budget too low, creative rejected). terminal: requires human action (account suspended, payment required, account not found).&#39;
+        ),
+    ] = None
     retry_after: Annotated[
         float | None, Field(description=&#39;Seconds to wait before retrying the operation&#39;, ge=0.0)
     ] = None
@@ -108,6 +119,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.error.Error.recovery"><code class="name">var <span class="ident">recovery</span> : <a title="adcp.types.generated_poc.core.error.Recovery" href="#adcp.types.generated_poc.core.error.Recovery">Recovery</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.error.Error.retry_after"><code class="name">var <span class="ident">retry_after</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -127,6 +142,75 @@ validated to form a valid model.</p>
 </ul>
 </li>
 </ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.error.Recovery"><code class="flex name class">
+<span>class <span class="ident">Recovery</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Recovery(Enum):
+    transient = &#39;transient&#39;
+    correctable = &#39;correctable&#39;
+    terminal = &#39;terminal&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.error.Recovery.correctable"><code class="name">var <span class="ident">correctable</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.error.Recovery.terminal"><code class="name">var <span class="ident">terminal</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.error.Recovery.transient"><code class="name">var <span class="ident">transient</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
 </dd>
 </dl>
 </section>
@@ -151,8 +235,17 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.error.Error.field" href="#adcp.types.generated_poc.core.error.Error.field">field</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.error.Error.message" href="#adcp.types.generated_poc.core.error.Error.message">message</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.error.Error.model_config" href="#adcp.types.generated_poc.core.error.Error.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.error.Error.recovery" href="#adcp.types.generated_poc.core.error.Error.recovery">recovery</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.error.Error.retry_after" href="#adcp.types.generated_poc.core.error.Error.retry_after">retry_after</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.error.Error.suggestion" href="#adcp.types.generated_poc.core.error.Error.suggestion">suggestion</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.error.Recovery" href="#adcp.types.generated_poc.core.error.Recovery">Recovery</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.error.Recovery.correctable" href="#adcp.types.generated_poc.core.error.Recovery.correctable">correctable</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.error.Recovery.terminal" href="#adcp.types.generated_poc.core.error.Recovery.terminal">terminal</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.error.Recovery.transient" href="#adcp.types.generated_poc.core.error.Recovery.transient">transient</a></code></li>
 </ul>
 </li>
 </ul>

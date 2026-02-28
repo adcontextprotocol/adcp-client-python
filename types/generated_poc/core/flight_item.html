@@ -118,6 +118,13 @@ validated to form a valid model.</p>
     arrival_time: Annotated[
         AwareDatetime | None, Field(description=&#39;Arrival date and time (ISO 8601).&#39;)
     ] = None
+    assets: Annotated[
+        list[offering_asset_group.OfferingAssetGroup] | None,
+        Field(
+            description=&#34;Typed creative asset pools for this flight. Uses the same OfferingAssetGroup structure as offering-type catalogs. Standard group IDs: &#39;images_landscape&#39; (destination hero), &#39;images_vertical&#39; (9:16 for Stories), &#39;images_square&#39; (1:1). Enables formats to declare typed image requirements that map unambiguously to the right asset regardless of platform.&#34;,
+            min_length=1,
+        ),
+    ] = None
     departure_time: Annotated[
         AwareDatetime | None, Field(description=&#39;Departure date and time (ISO 8601).&#39;)
     ] = None
@@ -165,6 +172,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.flight_item.FlightItem.arrival_time"><code class="name">var <span class="ident">arrival_time</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.flight_item.FlightItem.assets"><code class="name">var <span class="ident">assets</span> : list[<a title="adcp.types.generated_poc.core.offering_asset_group.OfferingAssetGroup" href="offering_asset_group.html#adcp.types.generated_poc.core.offering_asset_group.OfferingAssetGroup">OfferingAssetGroup</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -312,6 +323,7 @@ validated to form a valid model.</p>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.flight_item.FlightItem.airline" href="#adcp.types.generated_poc.core.flight_item.FlightItem.airline">airline</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.flight_item.FlightItem.arrival_time" href="#adcp.types.generated_poc.core.flight_item.FlightItem.arrival_time">arrival_time</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.flight_item.FlightItem.assets" href="#adcp.types.generated_poc.core.flight_item.FlightItem.assets">assets</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.flight_item.FlightItem.departure_time" href="#adcp.types.generated_poc.core.flight_item.FlightItem.departure_time">departure_time</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.flight_item.FlightItem.description" href="#adcp.types.generated_poc.core.flight_item.FlightItem.description">description</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.flight_item.FlightItem.destination" href="#adcp.types.generated_poc.core.flight_item.FlightItem.destination">destination</a></code></li>

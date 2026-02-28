@@ -120,10 +120,10 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    account_id: Annotated[
-        str | None,
+    account: Annotated[
+        account_ref.AccountReference | None,
         Field(
-            description=&#39;Account context for routing and scoping. Limits results to creatives within this account. Optional if the agent has a single account or can determine routing from the media buy identifiers.&#39;
+            description=&#39;Account for routing and scoping. Limits results to creatives within this account.&#39;
         ),
     ] = None
     context: context_1.ContextObject | None = None
@@ -164,9 +164,9 @@ validated to form a valid model.</p>
         ),
     ]
     pagination: Annotated[
-        Pagination | None,
+        pagination_request.PaginationRequest | None,
         Field(
-            description=&#39;Pagination parameters for the creatives array in the response. When omitted, the agent returns all matching creatives.&#39;
+            description=&#39;Pagination parameters for the creatives array in the response. Uses cursor-based pagination consistent with other list operations.&#39;
         ),
     ] = None
     start_date: Annotated[
@@ -192,7 +192,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest1.account_id"><code class="name">var <span class="ident">account_id</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest1.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -228,7 +228,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest1.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination">Pagination</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest1.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="../core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -261,10 +261,10 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    account_id: Annotated[
-        str | None,
+    account: Annotated[
+        account_ref.AccountReference | None,
         Field(
-            description=&#39;Account context for routing and scoping. Limits results to creatives within this account. Optional if the agent has a single account or can determine routing from the media buy identifiers.&#39;
+            description=&#39;Account for routing and scoping. Limits results to creatives within this account.&#39;
         ),
     ] = None
     context: context_1.ContextObject | None = None
@@ -305,9 +305,9 @@ validated to form a valid model.</p>
         ),
     ] = None
     pagination: Annotated[
-        Pagination | None,
+        pagination_request.PaginationRequest | None,
         Field(
-            description=&#39;Pagination parameters for the creatives array in the response. When omitted, the agent returns all matching creatives.&#39;
+            description=&#39;Pagination parameters for the creatives array in the response. Uses cursor-based pagination consistent with other list operations.&#39;
         ),
     ] = None
     start_date: Annotated[
@@ -333,7 +333,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest2.account_id"><code class="name">var <span class="ident">account_id</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest2.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -369,7 +369,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest2.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination">Pagination</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest2.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="../core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -402,10 +402,10 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    account_id: Annotated[
-        str | None,
+    account: Annotated[
+        account_ref.AccountReference | None,
         Field(
-            description=&#39;Account context for routing and scoping. Limits results to creatives within this account. Optional if the agent has a single account or can determine routing from the media buy identifiers.&#39;
+            description=&#39;Account for routing and scoping. Limits results to creatives within this account.&#39;
         ),
     ] = None
     context: context_1.ContextObject | None = None
@@ -446,9 +446,9 @@ validated to form a valid model.</p>
         ),
     ] = None
     pagination: Annotated[
-        Pagination | None,
+        pagination_request.PaginationRequest | None,
         Field(
-            description=&#39;Pagination parameters for the creatives array in the response. When omitted, the agent returns all matching creatives.&#39;
+            description=&#39;Pagination parameters for the creatives array in the response. Uses cursor-based pagination consistent with other list operations.&#39;
         ),
     ] = None
     start_date: Annotated[
@@ -474,7 +474,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3.account_id"><code class="name">var <span class="ident">account_id</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -510,68 +510,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination">Pagination</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="../core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3.start_date"><code class="name">var <span class="ident">start_date</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination"><code class="flex name class">
-<span>class <span class="ident">Pagination</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Pagination(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;allow&#39;,
-    )
-    limit: Annotated[
-        int | None, Field(description=&#39;Maximum number of creatives to return&#39;, ge=1, le=100)
-    ] = 50
-    offset: Annotated[int | None, Field(description=&#39;Number of creatives to skip&#39;, ge=0)] = 0</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination.limit"><code class="name">var <span class="ident">limit</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination.offset"><code class="name">var <span class="ident">offset</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -612,7 +555,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest1" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest1">GetCreativeDeliveryRequest1</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest1.account_id" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest1.account_id">account_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest1.account" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest1.account">account</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest1.context" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest1.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest1.creative_ids" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest1.creative_ids">creative_ids</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest1.end_date" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest1.end_date">end_date</a></code></li>
@@ -628,7 +571,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest2" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest2">GetCreativeDeliveryRequest2</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest2.account_id" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest2.account_id">account_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest2.account" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest2.account">account</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest2.context" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest2.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest2.creative_ids" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest2.creative_ids">creative_ids</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest2.end_date" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest2.end_date">end_date</a></code></li>
@@ -644,7 +587,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3">GetCreativeDeliveryRequest3</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3.account_id" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3.account_id">account_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3.account" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3.account">account</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3.context" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3.creative_ids" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3.creative_ids">creative_ids</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3.end_date" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3.end_date">end_date</a></code></li>
@@ -655,14 +598,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3.model_config" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3.pagination" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3.pagination">pagination</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3.start_date" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.GetCreativeDeliveryRequest3.start_date">start_date</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination">Pagination</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination.limit" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination.limit">limit</a></code></li>
-<li><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination.model_config" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination.offset" href="#adcp.types.generated_poc.creative.get_creative_delivery_request.Pagination.offset">offset</a></code></li>
 </ul>
 </li>
 </ul>

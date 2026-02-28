@@ -59,11 +59,17 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    click_through: Annotated[
-        str, Field(description=&#34;Click-through attribution window (e.g. &#39;7d&#39;, &#39;28d&#39;, &#39;30d&#39;)&#34;)
+    post_click: Annotated[
+        duration.Duration,
+        Field(
+            description=&#39;Post-click attribution window. Conversions within this duration after a click are attributed to the ad (e.g. {&#34;interval&#34;: 7, &#34;unit&#34;: &#34;days&#34;}).&#39;
+        ),
     ]
-    view_through: Annotated[
-        str | None, Field(description=&#34;View-through attribution window (e.g. &#39;1d&#39;, &#39;7d&#39;)&#34;)
+    post_view: Annotated[
+        duration.Duration | None,
+        Field(
+            description=&#39;Post-view attribution window. Conversions within this duration after an ad impression (without click) are attributed to the ad (e.g. {&#34;interval&#34;: 1, &#34;unit&#34;: &#34;days&#34;}).&#39;
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -81,15 +87,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.optimization_goal.AttributionWindow.click_through"><code class="name">var <span class="ident">click_through</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="adcp.types.generated_poc.core.optimization_goal.AttributionWindow.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.AttributionWindow.view_through"><code class="name">var <span class="ident">view_through</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.AttributionWindow.post_click"><code class="name">var <span class="ident">post_click</span> : <a title="adcp.types.generated_poc.core.duration.Duration" href="duration.html#adcp.types.generated_poc.core.duration.Duration">Duration</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.AttributionWindow.post_view"><code class="name">var <span class="ident">post_view</span> : <a title="adcp.types.generated_poc.core.duration.Duration" href="duration.html#adcp.types.generated_poc.core.duration.Duration">Duration</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -105,8 +111,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal"><code class="flex name class">
-<span>class <span class="ident">OptimizationGoal</span></span>
+<dt id="adcp.types.generated_poc.core.optimization_goal.EventSource"><code class="flex name class">
+<span>class <span class="ident">EventSource</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -114,37 +120,308 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class OptimizationGoal(AdCPBaseModel):
+<pre><code class="python">class EventSource(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    attribution_window: Annotated[
-        AttributionWindow | None,
+    custom_event_name: Annotated[
+        str | None,
         Field(
-            description=&#34;Attribution window for this optimization goal. Values must match an option declared in the seller&#39;s conversion_tracking.attribution_windows capability. When omitted, the seller uses their default window.&#34;
+            description=&#34;Required when event_type is &#39;custom&#39;. Platform-specific name for the custom event.&#34;
         ),
     ] = None
     event_source_id: Annotated[
         str,
         Field(
-            description=&#39;Event source to optimize against (must be configured on this account via sync_event_sources)&#39;
+            description=&#39;Event source to include (must be configured on this account via sync_event_sources)&#39;,
+            min_length=1,
         ),
     ]
     event_type: Annotated[
         event_type_1.EventType,
-        Field(description=&#39;Event type to optimize for (e.g. purchase, lead)&#39;),
+        Field(
+            description=&#39;Event type to include from this source (e.g., purchase, lead, app_install, refund)&#39;
+        ),
     ]
-    target_cpa: Annotated[
+    value_factor: Annotated[
         float | None,
         Field(
-            description=&#39;Target cost per acquisition in the buy currency. Mutually exclusive with target_roas.&#39;,
-            gt=0.0,
+            description=&#34;Multiplier the seller must apply to value_field before aggregation. Use -1 for refund events (negate the value), 0.01 for values in cents, -0.01 for refunds in cents. A value of 0 zeroes out this source&#39;s value contribution (the source still counts for event dedup). Defaults to 1. This is not passed as a parameter to underlying platform APIs — the seller applies it when computing aggregated value metrics.&#34;
+        ),
+    ] = 1
+    value_field: Annotated[
+        str | None,
+        Field(
+            description=&#34;Which field in the event&#39;s custom_data carries the monetary value. The seller must use this field for value extraction and aggregation when computing ROAS and conversion value metrics. Required on at least one entry when target.kind is &#39;per_ad_spend&#39; or &#39;maximize_value&#39;. Common values: &#39;value&#39;, &#39;order_total&#39;, &#39;profit_margin&#39;. This is not passed as a parameter to underlying platform APIs — the seller maps it to their platform&#39;s value ingestion mechanism.&#34;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.optimization_goal.EventSource.custom_event_name"><code class="name">var <span class="ident">custom_event_name</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.EventSource.event_source_id"><code class="name">var <span class="ident">event_source_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.EventSource.event_type"><code class="name">var <span class="ident">event_type</span> : <a title="adcp.types.generated_poc.enums.event_type.EventType" href="../enums/event_type.html#adcp.types.generated_poc.enums.event_type.EventType">EventType</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.EventSource.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.EventSource.value_factor"><code class="name">var <span class="ident">value_factor</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.EventSource.value_field"><code class="name">var <span class="ident">value_field</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Metric"><code class="flex name class">
+<span>class <span class="ident">Metric</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Metric(Enum):
+    clicks = &#39;clicks&#39;
+    views = &#39;views&#39;
+    completed_views = &#39;completed_views&#39;
+    viewed_seconds = &#39;viewed_seconds&#39;
+    attention_seconds = &#39;attention_seconds&#39;
+    attention_score = &#39;attention_score&#39;
+    engagements = &#39;engagements&#39;
+    follows = &#39;follows&#39;
+    saves = &#39;saves&#39;
+    profile_visits = &#39;profile_visits&#39;
+    reach = &#39;reach&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Metric.attention_score"><code class="name">var <span class="ident">attention_score</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Metric.attention_seconds"><code class="name">var <span class="ident">attention_seconds</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Metric.clicks"><code class="name">var <span class="ident">clicks</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Metric.completed_views"><code class="name">var <span class="ident">completed_views</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Metric.engagements"><code class="name">var <span class="ident">engagements</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Metric.follows"><code class="name">var <span class="ident">follows</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Metric.profile_visits"><code class="name">var <span class="ident">profile_visits</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Metric.reach"><code class="name">var <span class="ident">reach</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Metric.saves"><code class="name">var <span class="ident">saves</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Metric.viewed_seconds"><code class="name">var <span class="ident">viewed_seconds</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Metric.views"><code class="name">var <span class="ident">views</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal"><code class="flex name class">
+<span>class <span class="ident">OptimizationGoal</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class OptimizationGoal(RootModel[OptimizationGoal1 | OptimizationGoal2]):
+    root: Annotated[
+        OptimizationGoal1 | OptimizationGoal2,
+        Field(
+            description=&#39;A single optimization target for a package. Packages accept an array of optimization_goals. When multiple goals are present, priority determines which the seller focuses on — 1 is highest priority (primary goal); higher numbers are secondary. Duplicate priority values result in undefined seller behavior.&#39;,
+            title=&#39;Optimization Goal&#39;,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[Union[OptimizationGoal1, OptimizationGoal2]]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1">OptimizationGoal1</a> | <a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2">OptimizationGoal2</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1"><code class="flex name class">
+<span>class <span class="ident">OptimizationGoal1</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class OptimizationGoal1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    kind: Literal[&#39;metric&#39;]
+    metric: Annotated[
+        Metric,
+        Field(
+            description=&#34;Seller-native metric to optimize for. Delivery metrics: clicks (link clicks, swipe-throughs, CTA taps that navigate away), views (viewable impressions), completed_views (video/audio completions — see view_duration_seconds), reach (unique audience reach — see reach_unit and target_frequency). Duration/score metrics: viewed_seconds (time in view per impression), attention_seconds (attention time per impression), attention_score (vendor-specific attention score). Audience action metrics: engagements (any direct interaction with the ad unit beyond viewing — social reactions/comments/shares, story/unit opens, interactive overlay taps, companion banner interactions on audio and CTV), follows (new followers, page likes, artist/podcast/channel subscribes), saves (saves, bookmarks, playlist adds, pins — signals of intent to return), profile_visits (visits to the brand&#39;s in-platform page — profile, artist page, channel, or storefront. Does not include external website clicks, which are covered by &#39;clicks&#39;).&#34;
+        ),
+    ]
+    priority: Annotated[
+        int | None,
+        Field(
+            description=&#39;Relative priority among all optimization goals on this package. 1 = highest priority (primary goal); higher numbers are lower priority (secondary signals). When omitted, sellers may use array position as priority.&#39;,
+            ge=1,
         ),
     ] = None
-    target_roas: Annotated[
+    reach_unit: Annotated[
+        reach_unit_1.ReachUnit | None,
+        Field(
+            description=&#34;Unit for reach measurement. Required when metric is &#39;reach&#39;. Must be a value declared in the product&#39;s metric_optimization.supported_reach_units.&#34;
+        ),
+    ] = None
+    target: Annotated[
+        Target | Target1 | None,
+        Field(
+            description=&#39;Target for this metric. When omitted, the seller optimizes for maximum metric volume within budget.&#39;
+        ),
+    ] = None
+    target_frequency: Annotated[
+        TargetFrequency | TargetFrequency1 | None,
+        Field(
+            description=&#34;Target frequency band for reach optimization. Only applicable when metric is &#39;reach&#39;. Frames frequency as an optimization signal: the seller should treat impressions toward entities already within the [min, max] band as lower-value, and impressions toward unreached entities as higher-value. This shifts budget toward fresh reach rather than re-reaching known users. When omitted, the seller maximizes unique reach without a frequency constraint. A hard cap can still be layered via targeting_overlay.frequency_cap if a ceiling is needed.&#34;
+        ),
+    ] = None
+    view_duration_seconds: Annotated[
         float | None,
         Field(
-            description=&#39;Target return on ad spend (e.g. 4.0 = $4 conversion value per $1 spent). Mutually exclusive with target_cpa.&#39;,
+            description=&#34;Minimum video view duration in seconds that qualifies as a completed_view for this goal. Only applicable when metric is &#39;completed_views&#39;. When omitted, the seller uses their platform default (typically 2–15 seconds). Common values: 2 (Snap/LinkedIn default), 6 (TikTok), 15 (Snap 15-second views, Meta ThruPlay). Sellers declare which durations they support in metric_optimization.supported_view_durations. Sellers must reject goals with unsupported values — silent rounding would create measurement discrepancies.&#34;,
             gt=0.0,
         ),
     ] = None</code></pre>
@@ -164,27 +441,562 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.attribution_window"><code class="name">var <span class="ident">attribution_window</span> : <a title="adcp.types.generated_poc.core.optimization_goal.AttributionWindow" href="#adcp.types.generated_poc.core.optimization_goal.AttributionWindow">AttributionWindow</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.kind"><code class="name">var <span class="ident">kind</span> : Literal['metric']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.event_source_id"><code class="name">var <span class="ident">event_source_id</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.metric"><code class="name">var <span class="ident">metric</span> : <a title="adcp.types.generated_poc.core.optimization_goal.Metric" href="#adcp.types.generated_poc.core.optimization_goal.Metric">Metric</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.event_type"><code class="name">var <span class="ident">event_type</span> : <a title="adcp.types.generated_poc.enums.event_type.EventType" href="../enums/event_type.html#adcp.types.generated_poc.enums.event_type.EventType">EventType</a></code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.priority"><code class="name">var <span class="ident">priority</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.target_cpa"><code class="name">var <span class="ident">target_cpa</span> : float | None</code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.reach_unit"><code class="name">var <span class="ident">reach_unit</span> : <a title="adcp.types.generated_poc.enums.reach_unit.ReachUnit" href="../enums/reach_unit.html#adcp.types.generated_poc.enums.reach_unit.ReachUnit">ReachUnit</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.target_roas"><code class="name">var <span class="ident">target_roas</span> : float | None</code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.target"><code class="name">var <span class="ident">target</span> : <a title="adcp.types.generated_poc.core.optimization_goal.Target" href="#adcp.types.generated_poc.core.optimization_goal.Target">Target</a> | <a title="adcp.types.generated_poc.core.optimization_goal.Target1" href="#adcp.types.generated_poc.core.optimization_goal.Target1">Target1</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.target_frequency"><code class="name">var <span class="ident">target_frequency</span> : <a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency">TargetFrequency</a> | <a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency1">TargetFrequency1</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.view_duration_seconds"><code class="name">var <span class="ident">view_duration_seconds</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2"><code class="flex name class">
+<span>class <span class="ident">OptimizationGoal2</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class OptimizationGoal2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    attribution_window: Annotated[
+        AttributionWindow | None,
+        Field(
+            description=&#34;Attribution window for this optimization goal. Values must match an option declared in the seller&#39;s conversion_tracking.attribution_windows capability. Sellers must reject windows not in their declared capabilities. When omitted, the seller uses their default window.&#34;
+        ),
+    ] = None
+    event_sources: Annotated[
+        list[EventSource],
+        Field(
+            description=&#39;Event source and type pairs that feed this goal. Each entry identifies a source and event type to include. When the seller supports multi_source_event_dedup (declared in get_adcp_capabilities), they deduplicate by event_id across all entries — the same business event from multiple sources counts once, using value_field and value_factor from the first matching entry. When multi_source_event_dedup is false or absent, buyers should use a single entry per goal; the seller will use only the first entry. All event sources must be configured via sync_event_sources.&#39;,
+            min_length=1,
+        ),
+    ]
+    kind: Literal[&#39;event&#39;]
+    priority: Annotated[
+        int | None,
+        Field(
+            description=&#39;Relative priority among all optimization goals on this package. 1 = highest priority (primary goal); higher numbers are lower priority (secondary signals). When omitted, sellers may use array position as priority.&#39;,
+            ge=1,
+        ),
+    ] = None
+    target: Annotated[
+        Target2 | Target3 | Target4 | None,
+        Field(
+            description=&#39;Target cost or return for this event goal. When omitted, the seller optimizes for maximum conversions within budget.&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2.attribution_window"><code class="name">var <span class="ident">attribution_window</span> : <a title="adcp.types.generated_poc.core.optimization_goal.AttributionWindow" href="#adcp.types.generated_poc.core.optimization_goal.AttributionWindow">AttributionWindow</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2.event_sources"><code class="name">var <span class="ident">event_sources</span> : list[<a title="adcp.types.generated_poc.core.optimization_goal.EventSource" href="#adcp.types.generated_poc.core.optimization_goal.EventSource">EventSource</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2.kind"><code class="name">var <span class="ident">kind</span> : Literal['event']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2.priority"><code class="name">var <span class="ident">priority</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2.target"><code class="name">var <span class="ident">target</span> : <a title="adcp.types.generated_poc.core.optimization_goal.Target2" href="#adcp.types.generated_poc.core.optimization_goal.Target2">Target2</a> | <a title="adcp.types.generated_poc.core.optimization_goal.Target3" href="#adcp.types.generated_poc.core.optimization_goal.Target3">Target3</a> | <a title="adcp.types.generated_poc.core.optimization_goal.Target4" href="#adcp.types.generated_poc.core.optimization_goal.Target4">Target4</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target"><code class="flex name class">
+<span>class <span class="ident">Target</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Target(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    kind: Literal[&#39;cost_per&#39;]
+    value: Annotated[
+        float, Field(description=&#39;Target cost per metric unit in the buy currency&#39;, gt=0.0)
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target.kind"><code class="name">var <span class="ident">kind</span> : Literal['cost_per']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target.value"><code class="name">var <span class="ident">value</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target1"><code class="flex name class">
+<span>class <span class="ident">Target1</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Target1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    kind: Literal[&#39;threshold_rate&#39;]
+    value: Annotated[
+        float,
+        Field(
+            description=&#39;Minimum per-impression value. Units depend on the metric: proportion (clicks, views, completed_views), seconds (viewed_seconds, attention_seconds), or score (attention_score).&#39;,
+            gt=0.0,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target1.kind"><code class="name">var <span class="ident">kind</span> : Literal['threshold_rate']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target1.value"><code class="name">var <span class="ident">value</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target2"><code class="flex name class">
+<span>class <span class="ident">Target2</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Target2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    kind: Literal[&#39;cost_per&#39;]
+    value: Annotated[float, Field(description=&#39;Target cost per event in the buy currency&#39;, gt=0.0)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target2.kind"><code class="name">var <span class="ident">kind</span> : Literal['cost_per']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target2.value"><code class="name">var <span class="ident">value</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target3"><code class="flex name class">
+<span>class <span class="ident">Target3</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Target3(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    kind: Literal[&#39;per_ad_spend&#39;]
+    value: Annotated[
+        float,
+        Field(description=&#39;Target return ratio (e.g., 4.0 means $4 of value per $1 spent)&#39;, gt=0.0),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target3.kind"><code class="name">var <span class="ident">kind</span> : Literal['per_ad_spend']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target3.value"><code class="name">var <span class="ident">value</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target4"><code class="flex name class">
+<span>class <span class="ident">Target4</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Target4(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    kind: Literal[&#39;maximize_value&#39;]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target4.kind"><code class="name">var <span class="ident">kind</span> : Literal['maximize_value']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target4.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.TargetFrequency"><code class="flex name class">
+<span>class <span class="ident">TargetFrequency</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TargetFrequency(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    max: Annotated[
+        int | None,
+        Field(
+            description=&#39;Frequency at which an entity is considered saturated within the window. Impressions toward entities at or above this threshold are treated as lower-value. When both min and max are present, max must be greater than or equal to min. When omitted, the seller determines the saturation point.&#39;,
+            ge=1,
+        ),
+    ] = None
+    min: Annotated[
+        int,
+        Field(
+            description=&#39;Minimum frequency for an entity to be considered meaningfully reached within the window. Impressions that would bring an entity below this threshold are treated as high-value (growing reach). When omitted, the seller uses their platform default (typically 1).&#39;,
+            ge=1,
+        ),
+    ]
+    window: Annotated[
+        duration.Duration,
+        Field(
+            description=&#39;Time window over which frequency is measured (e.g. {&#34;interval&#34;: 7, &#34;unit&#34;: &#34;days&#34;} or {&#34;interval&#34;: 1, &#34;unit&#34;: &#34;campaign&#34;} for the full flight). Weekly windows are typical for brand campaigns; daily windows suit high-cadence direct response.&#39;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.optimization_goal.TargetFrequency.max"><code class="name">var <span class="ident">max</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.TargetFrequency.min"><code class="name">var <span class="ident">min</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.TargetFrequency.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.TargetFrequency.window"><code class="name">var <span class="ident">window</span> : <a title="adcp.types.generated_poc.core.duration.Duration" href="duration.html#adcp.types.generated_poc.core.duration.Duration">Duration</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1"><code class="flex name class">
+<span>class <span class="ident">TargetFrequency1</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TargetFrequency1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    max: Annotated[
+        int,
+        Field(
+            description=&#39;Frequency at which an entity is considered saturated within the window. Impressions toward entities at or above this threshold are treated as lower-value. When both min and max are present, max must be greater than or equal to min. When omitted, the seller determines the saturation point.&#39;,
+            ge=1,
+        ),
+    ]
+    min: Annotated[
+        int | None,
+        Field(
+            description=&#39;Minimum frequency for an entity to be considered meaningfully reached within the window. Impressions that would bring an entity below this threshold are treated as high-value (growing reach). When omitted, the seller uses their platform default (typically 1).&#39;,
+            ge=1,
+        ),
+    ] = None
+    window: Annotated[
+        duration.Duration,
+        Field(
+            description=&#39;Time window over which frequency is measured (e.g. {&#34;interval&#34;: 7, &#34;unit&#34;: &#34;days&#34;} or {&#34;interval&#34;: 1, &#34;unit&#34;: &#34;campaign&#34;} for the full flight). Weekly windows are typical for brand campaigns; daily windows suit high-cadence direct response.&#39;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.max"><code class="name">var <span class="ident">max</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.min"><code class="name">var <span class="ident">min</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.window"><code class="name">var <span class="ident">window</span> : <a title="adcp.types.generated_poc.core.duration.Duration" href="duration.html#adcp.types.generated_poc.core.duration.Duration">Duration</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -218,20 +1030,124 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.optimization_goal.AttributionWindow" href="#adcp.types.generated_poc.core.optimization_goal.AttributionWindow">AttributionWindow</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.AttributionWindow.click_through" href="#adcp.types.generated_poc.core.optimization_goal.AttributionWindow.click_through">click_through</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.optimization_goal.AttributionWindow.model_config" href="#adcp.types.generated_poc.core.optimization_goal.AttributionWindow.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.AttributionWindow.view_through" href="#adcp.types.generated_poc.core.optimization_goal.AttributionWindow.view_through">view_through</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.AttributionWindow.post_click" href="#adcp.types.generated_poc.core.optimization_goal.AttributionWindow.post_click">post_click</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.AttributionWindow.post_view" href="#adcp.types.generated_poc.core.optimization_goal.AttributionWindow.post_view">post_view</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.optimization_goal.EventSource" href="#adcp.types.generated_poc.core.optimization_goal.EventSource">EventSource</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.EventSource.custom_event_name" href="#adcp.types.generated_poc.core.optimization_goal.EventSource.custom_event_name">custom_event_name</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.EventSource.event_source_id" href="#adcp.types.generated_poc.core.optimization_goal.EventSource.event_source_id">event_source_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.EventSource.event_type" href="#adcp.types.generated_poc.core.optimization_goal.EventSource.event_type">event_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.EventSource.model_config" href="#adcp.types.generated_poc.core.optimization_goal.EventSource.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.EventSource.value_factor" href="#adcp.types.generated_poc.core.optimization_goal.EventSource.value_factor">value_factor</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.EventSource.value_field" href="#adcp.types.generated_poc.core.optimization_goal.EventSource.value_field">value_field</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.optimization_goal.Metric" href="#adcp.types.generated_poc.core.optimization_goal.Metric">Metric</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Metric.attention_score" href="#adcp.types.generated_poc.core.optimization_goal.Metric.attention_score">attention_score</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Metric.attention_seconds" href="#adcp.types.generated_poc.core.optimization_goal.Metric.attention_seconds">attention_seconds</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Metric.clicks" href="#adcp.types.generated_poc.core.optimization_goal.Metric.clicks">clicks</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Metric.completed_views" href="#adcp.types.generated_poc.core.optimization_goal.Metric.completed_views">completed_views</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Metric.engagements" href="#adcp.types.generated_poc.core.optimization_goal.Metric.engagements">engagements</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Metric.follows" href="#adcp.types.generated_poc.core.optimization_goal.Metric.follows">follows</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Metric.profile_visits" href="#adcp.types.generated_poc.core.optimization_goal.Metric.profile_visits">profile_visits</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Metric.reach" href="#adcp.types.generated_poc.core.optimization_goal.Metric.reach">reach</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Metric.saves" href="#adcp.types.generated_poc.core.optimization_goal.Metric.saves">saves</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Metric.viewed_seconds" href="#adcp.types.generated_poc.core.optimization_goal.Metric.viewed_seconds">viewed_seconds</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Metric.views" href="#adcp.types.generated_poc.core.optimization_goal.Metric.views">views</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal">OptimizationGoal</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.attribution_window" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.attribution_window">attribution_window</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.event_source_id" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.event_source_id">event_source_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.event_type" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.event_type">event_type</a></code></li>
+<ul class="">
 <li><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.model_config" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.target_cpa" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.target_cpa">target_cpa</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.target_roas" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.target_roas">target_roas</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.root" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal.root">root</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1">OptimizationGoal1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.kind" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.kind">kind</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.metric" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.metric">metric</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.model_config" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.priority" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.priority">priority</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.reach_unit" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.reach_unit">reach_unit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.target" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.target">target</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.target_frequency" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.target_frequency">target_frequency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.view_duration_seconds" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.view_duration_seconds">view_duration_seconds</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2">OptimizationGoal2</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2.attribution_window" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2.attribution_window">attribution_window</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2.event_sources" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2.event_sources">event_sources</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2.kind" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2.kind">kind</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2.model_config" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2.priority" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2.priority">priority</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2.target" href="#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2.target">target</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.optimization_goal.Target" href="#adcp.types.generated_poc.core.optimization_goal.Target">Target</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target.kind" href="#adcp.types.generated_poc.core.optimization_goal.Target.kind">kind</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target.model_config" href="#adcp.types.generated_poc.core.optimization_goal.Target.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target.value" href="#adcp.types.generated_poc.core.optimization_goal.Target.value">value</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.optimization_goal.Target1" href="#adcp.types.generated_poc.core.optimization_goal.Target1">Target1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target1.kind" href="#adcp.types.generated_poc.core.optimization_goal.Target1.kind">kind</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target1.model_config" href="#adcp.types.generated_poc.core.optimization_goal.Target1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target1.value" href="#adcp.types.generated_poc.core.optimization_goal.Target1.value">value</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.optimization_goal.Target2" href="#adcp.types.generated_poc.core.optimization_goal.Target2">Target2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target2.kind" href="#adcp.types.generated_poc.core.optimization_goal.Target2.kind">kind</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target2.model_config" href="#adcp.types.generated_poc.core.optimization_goal.Target2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target2.value" href="#adcp.types.generated_poc.core.optimization_goal.Target2.value">value</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.optimization_goal.Target3" href="#adcp.types.generated_poc.core.optimization_goal.Target3">Target3</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target3.kind" href="#adcp.types.generated_poc.core.optimization_goal.Target3.kind">kind</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target3.model_config" href="#adcp.types.generated_poc.core.optimization_goal.Target3.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target3.value" href="#adcp.types.generated_poc.core.optimization_goal.Target3.value">value</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.optimization_goal.Target4" href="#adcp.types.generated_poc.core.optimization_goal.Target4">Target4</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target4.kind" href="#adcp.types.generated_poc.core.optimization_goal.Target4.kind">kind</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target4.model_config" href="#adcp.types.generated_poc.core.optimization_goal.Target4.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency">TargetFrequency</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency.max" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency.max">max</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency.min" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency.min">min</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency.model_config" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency.window" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency.window">window</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency1">TargetFrequency1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.max" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.max">max</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.min" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.min">min</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.model_config" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.window" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.window">window</a></code></li>
 </ul>
 </li>
 </ul>

@@ -319,7 +319,7 @@ validated to form a valid model.</p>
     ] = None
     delivery_type: delivery_type_1.DeliveryType | None = None
     end_date: Annotated[
-        date | None,
+        date_aliased | None,
         Field(
             description=&#39;Campaign end date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#39;
         ),
@@ -386,7 +386,7 @@ validated to form a valid model.</p>
         bool | None, Field(description=&#39;Only return products accepting IAB standard formats&#39;)
     ] = None
     start_date: Annotated[
-        date | None,
+        date_aliased | None,
         Field(
             description=&#39;Campaign start date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#39;
         ),

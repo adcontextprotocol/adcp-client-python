@@ -48,6 +48,63 @@ el.replaceWith(d);
 <dl>
 <dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap"><code class="flex name class">
 <span>class <span class="ident">FrequencyCap</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FrequencyCap(RootModel[FrequencyCap1 | FrequencyCap2 | FrequencyCap3]):
+    root: Annotated[
+        FrequencyCap1 | FrequencyCap2 | FrequencyCap3,
+        Field(
+            description=&#39;Frequency capping settings for package-level application. Two types of frequency control can be used independently or together: suppress enforces a cooldown between consecutive exposures; max_impressions + per + window caps total exposures per entity in a time window. When both suppress and max_impressions are set, an impression is delivered only if both constraints permit it (AND semantics). At least one of suppress, suppress_minutes, or max_impressions must be set.&#39;,
+            title=&#39;Frequency Cap&#39;,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[Union[FrequencyCap1, FrequencyCap2, FrequencyCap3]]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap1" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap1">FrequencyCap1</a> | <a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap2" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap2">FrequencyCap2</a> | <a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap3" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap3">FrequencyCap3</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap1"><code class="flex name class">
+<span>class <span class="ident">FrequencyCap1</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -55,13 +112,42 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class FrequencyCap(AdCPBaseModel):
+<pre><code class="python">class FrequencyCap1(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    max_impressions: Annotated[
+        int | None,
+        Field(
+            description=&#34;Maximum number of impressions per entity per window. For duration windows, implementations typically use a rolling window; &#39;campaign&#39; applies a fixed cap across the full flight.&#34;,
+            ge=1,
+        ),
+    ] = None
+    per: Annotated[
+        reach_unit.ReachUnit | None,
+        Field(
+            description=&#39;Entity granularity for impression counting. Required when max_impressions is set.&#39;
+        ),
+    ] = None
+    suppress: Annotated[
+        duration.Duration,
+        Field(
+            description=&#39;Cooldown period between consecutive exposures to the same entity. Prevents back-to-back ad delivery (e.g. {&#34;interval&#34;: 60, &#34;unit&#34;: &#34;minutes&#34;} for a 1-hour cooldown). Preferred over suppress_minutes.&#39;
+        ),
+    ]
     suppress_minutes: Annotated[
-        float, Field(description=&#39;Minutes to suppress after impression&#39;, ge=0.0)
-    ]</code></pre>
+        float | None,
+        Field(
+            description=&#39;Deprecated — use suppress instead. Cooldown period in minutes between consecutive exposures to the same entity (e.g. 60 for a 1-hour cooldown).&#39;,
+            ge=0.0,
+        ),
+    ] = None
+    window: Annotated[
+        duration.Duration | None,
+        Field(
+            description=&#39;Time window for the max_impressions cap (e.g. {&#34;interval&#34;: 7, &#34;unit&#34;: &#34;days&#34;} or {&#34;interval&#34;: 1, &#34;unit&#34;: &#34;campaign&#34;} for the full flight). Required when max_impressions is set.&#39;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -78,11 +164,221 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap1.max_impressions"><code class="name">var <span class="ident">max_impressions</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap.suppress_minutes"><code class="name">var <span class="ident">suppress_minutes</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap1.per"><code class="name">var <span class="ident">per</span> : <a title="adcp.types.generated_poc.enums.reach_unit.ReachUnit" href="../enums/reach_unit.html#adcp.types.generated_poc.enums.reach_unit.ReachUnit">ReachUnit</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap1.suppress"><code class="name">var <span class="ident">suppress</span> : <a title="adcp.types.generated_poc.core.duration.Duration" href="duration.html#adcp.types.generated_poc.core.duration.Duration">Duration</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap1.suppress_minutes"><code class="name">var <span class="ident">suppress_minutes</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap1.window"><code class="name">var <span class="ident">window</span> : <a title="adcp.types.generated_poc.core.duration.Duration" href="duration.html#adcp.types.generated_poc.core.duration.Duration">Duration</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap2"><code class="flex name class">
+<span>class <span class="ident">FrequencyCap2</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FrequencyCap2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    max_impressions: Annotated[
+        int | None,
+        Field(
+            description=&#34;Maximum number of impressions per entity per window. For duration windows, implementations typically use a rolling window; &#39;campaign&#39; applies a fixed cap across the full flight.&#34;,
+            ge=1,
+        ),
+    ] = None
+    per: Annotated[
+        reach_unit.ReachUnit | None,
+        Field(
+            description=&#39;Entity granularity for impression counting. Required when max_impressions is set.&#39;
+        ),
+    ] = None
+    suppress: Annotated[
+        duration.Duration | None,
+        Field(
+            description=&#39;Cooldown period between consecutive exposures to the same entity. Prevents back-to-back ad delivery (e.g. {&#34;interval&#34;: 60, &#34;unit&#34;: &#34;minutes&#34;} for a 1-hour cooldown). Preferred over suppress_minutes.&#39;
+        ),
+    ] = None
+    suppress_minutes: Annotated[
+        float,
+        Field(
+            description=&#39;Deprecated — use suppress instead. Cooldown period in minutes between consecutive exposures to the same entity (e.g. 60 for a 1-hour cooldown).&#39;,
+            ge=0.0,
+        ),
+    ]
+    window: Annotated[
+        duration.Duration | None,
+        Field(
+            description=&#39;Time window for the max_impressions cap (e.g. {&#34;interval&#34;: 7, &#34;unit&#34;: &#34;days&#34;} or {&#34;interval&#34;: 1, &#34;unit&#34;: &#34;campaign&#34;} for the full flight). Required when max_impressions is set.&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap2.max_impressions"><code class="name">var <span class="ident">max_impressions</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap2.per"><code class="name">var <span class="ident">per</span> : <a title="adcp.types.generated_poc.enums.reach_unit.ReachUnit" href="../enums/reach_unit.html#adcp.types.generated_poc.enums.reach_unit.ReachUnit">ReachUnit</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap2.suppress"><code class="name">var <span class="ident">suppress</span> : <a title="adcp.types.generated_poc.core.duration.Duration" href="duration.html#adcp.types.generated_poc.core.duration.Duration">Duration</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap2.suppress_minutes"><code class="name">var <span class="ident">suppress_minutes</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap2.window"><code class="name">var <span class="ident">window</span> : <a title="adcp.types.generated_poc.core.duration.Duration" href="duration.html#adcp.types.generated_poc.core.duration.Duration">Duration</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap3"><code class="flex name class">
+<span>class <span class="ident">FrequencyCap3</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FrequencyCap3(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    max_impressions: Annotated[
+        int,
+        Field(
+            description=&#34;Maximum number of impressions per entity per window. For duration windows, implementations typically use a rolling window; &#39;campaign&#39; applies a fixed cap across the full flight.&#34;,
+            ge=1,
+        ),
+    ]
+    per: Annotated[
+        reach_unit.ReachUnit | None,
+        Field(
+            description=&#39;Entity granularity for impression counting. Required when max_impressions is set.&#39;
+        ),
+    ] = None
+    suppress: Annotated[
+        duration.Duration | None,
+        Field(
+            description=&#39;Cooldown period between consecutive exposures to the same entity. Prevents back-to-back ad delivery (e.g. {&#34;interval&#34;: 60, &#34;unit&#34;: &#34;minutes&#34;} for a 1-hour cooldown). Preferred over suppress_minutes.&#39;
+        ),
+    ] = None
+    suppress_minutes: Annotated[
+        float | None,
+        Field(
+            description=&#39;Deprecated — use suppress instead. Cooldown period in minutes between consecutive exposures to the same entity (e.g. 60 for a 1-hour cooldown).&#39;,
+            ge=0.0,
+        ),
+    ] = None
+    window: Annotated[
+        duration.Duration | None,
+        Field(
+            description=&#39;Time window for the max_impressions cap (e.g. {&#34;interval&#34;: 7, &#34;unit&#34;: &#34;days&#34;} or {&#34;interval&#34;: 1, &#34;unit&#34;: &#34;campaign&#34;} for the full flight). Required when max_impressions is set.&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap3.max_impressions"><code class="name">var <span class="ident">max_impressions</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap3.per"><code class="name">var <span class="ident">per</span> : <a title="adcp.types.generated_poc.enums.reach_unit.ReachUnit" href="../enums/reach_unit.html#adcp.types.generated_poc.enums.reach_unit.ReachUnit">ReachUnit</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap3.suppress"><code class="name">var <span class="ident">suppress</span> : <a title="adcp.types.generated_poc.core.duration.Duration" href="duration.html#adcp.types.generated_poc.core.duration.Duration">Duration</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap3.suppress_minutes"><code class="name">var <span class="ident">suppress_minutes</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.frequency_cap.FrequencyCap3.window"><code class="name">var <span class="ident">window</span> : <a title="adcp.types.generated_poc.core.duration.Duration" href="duration.html#adcp.types.generated_poc.core.duration.Duration">Duration</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -117,7 +413,40 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap">FrequencyCap</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap.model_config" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap.suppress_minutes" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap.suppress_minutes">suppress_minutes</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap.root" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap.root">root</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap1" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap1">FrequencyCap1</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap1.max_impressions" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap1.max_impressions">max_impressions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap1.model_config" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap1.per" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap1.per">per</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap1.suppress" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap1.suppress">suppress</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap1.suppress_minutes" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap1.suppress_minutes">suppress_minutes</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap1.window" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap1.window">window</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap2" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap2">FrequencyCap2</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap2.max_impressions" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap2.max_impressions">max_impressions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap2.model_config" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap2.per" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap2.per">per</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap2.suppress" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap2.suppress">suppress</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap2.suppress_minutes" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap2.suppress_minutes">suppress_minutes</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap2.window" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap2.window">window</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap3" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap3">FrequencyCap3</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap3.max_impressions" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap3.max_impressions">max_impressions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap3.model_config" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap3.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap3.per" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap3.per">per</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap3.suppress" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap3.suppress">suppress</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap3.suppress_minutes" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap3.suppress_minutes">suppress_minutes</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap3.window" href="#adcp.types.generated_poc.core.frequency_cap.FrequencyCap3.window">window</a></code></li>
 </ul>
 </li>
 </ul>

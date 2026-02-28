@@ -268,9 +268,6 @@ validated to form a valid model.</p>
         list[Artifact], Field(description=&#39;Delivery records with full artifact content&#39;)
     ]
     context: context_1.ContextObject | None = None
-    errors: Annotated[
-        Any | None, Field(description=&#39;Field must not be present in success response&#39;)
-    ] = None
     ext: ext_1.ExtensionObject | None = None
     media_buy_id: Annotated[str, Field(description=&#39;Media buy these artifacts belong to&#39;)]
     pagination: pagination_response.PaginationResponse | None = None
@@ -298,10 +295,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse1.errors"><code class="name">var <span class="ident">errors</span> : typing.Any | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -349,10 +342,7 @@ validated to form a valid model.</p>
 <pre><code class="python">class GetMediaBuyArtifactsResponse2(AdCPBaseModel):
     context: context_1.ContextObject | None = None
     errors: list[error.Error]
-    ext: ext_1.ExtensionObject | None = None
-    media_buy_id: Annotated[
-        Any | None, Field(description=&#39;Field must not be present in error response&#39;)
-    ] = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -378,10 +368,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse2.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : typing.Any | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -661,7 +647,6 @@ validated to form a valid model.</p>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse1.artifacts" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse1.artifacts">artifacts</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse1.context" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse1.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse1.errors" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse1.errors">errors</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse1.ext" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse1.media_buy_id" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse1.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse1.model_config" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse1.model_config">model_config</a></code></li>
@@ -675,7 +660,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse2.context" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse2.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse2.errors" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse2.errors">errors</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse2.ext" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse2.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse2.media_buy_id" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse2.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse2.model_config" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse2.model_config">model_config</a></code></li>
 </ul>
 </li>

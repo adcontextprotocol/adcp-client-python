@@ -46,6 +46,73 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.types.generated_poc.core.creative_brief.Compliance"><code class="flex name class">
+<span>class <span class="ident">Compliance</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Compliance(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    prohibited_claims: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Claims that must not appear in creatives for this campaign. Creative agents should ensure generated content avoids these claims.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    required_disclosures: Annotated[
+        list[RequiredDisclosure] | None,
+        Field(
+            description=&#39;Disclosures that must appear in creatives for this campaign. Each disclosure specifies the text, where it should appear, and which jurisdictions require it.&#39;,
+            min_length=1,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.creative_brief.Compliance.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.creative_brief.Compliance.prohibited_claims"><code class="name">var <span class="ident">prohibited_claims</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.creative_brief.Compliance.required_disclosures"><code class="name">var <span class="ident">required_disclosures</span> : list[<a title="adcp.types.generated_poc.core.creative_brief.RequiredDisclosure" href="#adcp.types.generated_poc.core.creative_brief.RequiredDisclosure">RequiredDisclosure</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.core.creative_brief.CreativeBrief"><code class="flex name class">
 <span>class <span class="ident">CreativeBrief</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -61,6 +128,12 @@ el.replaceWith(d);
     )
     audience: Annotated[
         str | None, Field(description=&#39;Target audience description for this campaign&#39;)
+    ] = None
+    compliance: Annotated[
+        Compliance | None,
+        Field(
+            description=&#39;Regulatory and legal compliance requirements for this campaign. Campaign-specific, regional, and product-based — distinct from brand-level disclaimers in brand.json.&#39;
+        ),
     ] = None
     messaging: Annotated[
         Messaging | None, Field(description=&#39;Messaging framework for the campaign&#39;)
@@ -102,9 +175,17 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.core.assets.brief_asset.BriefAsset" href="assets/brief_asset.html#adcp.types.generated_poc.core.assets.brief_asset.BriefAsset">BriefAsset</a></li>
+</ul>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.core.creative_brief.CreativeBrief.audience"><code class="name">var <span class="ident">audience</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.creative_brief.CreativeBrief.compliance"><code class="name">var <span class="ident">compliance</span> : <a title="adcp.types.generated_poc.core.creative_brief.Compliance" href="#adcp.types.generated_poc.core.creative_brief.Compliance">Compliance</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -147,6 +228,57 @@ validated to form a valid model.</p>
 </ul>
 </li>
 </ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.creative_brief.Jurisdiction"><code class="flex name class">
+<span>class <span class="ident">Jurisdiction</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Jurisdiction(RootModel[str]):
+    root: Annotated[str, Field(pattern=&#39;^[A-Z]{2}(-[A-Z0-9]{1,3})?$&#39;)]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[str]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.creative_brief.Jurisdiction.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.creative_brief.Jurisdiction.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
 </dd>
 <dt id="adcp.types.generated_poc.core.creative_brief.Messaging"><code class="flex name class">
 <span>class <span class="ident">Messaging</span></span>
@@ -294,6 +426,108 @@ attributes &ndash; see the documentation for details.</p></div>
 </dd>
 </dl>
 </dd>
+<dt id="adcp.types.generated_poc.core.creative_brief.RequiredDisclosure"><code class="flex name class">
+<span>class <span class="ident">RequiredDisclosure</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class RequiredDisclosure(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    jurisdictions: Annotated[
+        list[Jurisdiction] | None,
+        Field(
+            description=&#34;Jurisdictions where this disclosure is required. ISO 3166-1 alpha-2 country codes or ISO 3166-2 subdivision codes (e.g., &#39;US&#39;, &#39;GB&#39;, &#39;US-NJ&#39;, &#39;CA-QC&#39;). If omitted, the disclosure applies to all jurisdictions in the campaign.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    language: Annotated[
+        str | None,
+        Field(
+            description=&#34;Language of the disclosure text as a BCP 47 language tag (e.g., &#39;en&#39;, &#39;fr-CA&#39;, &#39;es&#39;). When omitted, the disclosure is assumed to match the creative&#39;s language.&#34;
+        ),
+    ] = None
+    min_duration_ms: Annotated[
+        int | None,
+        Field(
+            description=&#39;Minimum display duration in milliseconds. For video/audio disclosures, how long the disclosure must be visible or audible. For static formats, how long the disclosure must remain on screen before any auto-advance.&#39;,
+            ge=1,
+        ),
+    ] = None
+    position: Annotated[
+        disclosure_position.DisclosurePosition | None,
+        Field(
+            description=&#39;Where the disclosure should appear within the creative. prominent: clearly visible in the main creative area; footer: at the bottom of visual creatives; audio: spoken in audio/video creatives; subtitle: displayed in the subtitle or closed-caption track; overlay: superimposed on video content; end_card: displayed on video end card; pre_roll: spoken or displayed before main content; companion: in companion ad unit alongside primary creative&#39;
+        ),
+    ] = None
+    regulation: Annotated[
+        str | None,
+        Field(
+            description=&#34;The regulation or legal authority requiring this disclosure (e.g., &#39;SEC Rule 156&#39;, &#39;FCA COBS 4.5&#39;, &#39;FDA 21 CFR 202&#39;)&#34;
+        ),
+    ] = None
+    text: Annotated[str, Field(description=&#39;The disclosure text that must appear in the creative&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.creative_brief.RequiredDisclosure.jurisdictions"><code class="name">var <span class="ident">jurisdictions</span> : list[<a title="adcp.types.generated_poc.core.creative_brief.Jurisdiction" href="#adcp.types.generated_poc.core.creative_brief.Jurisdiction">Jurisdiction</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.creative_brief.RequiredDisclosure.language"><code class="name">var <span class="ident">language</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.creative_brief.RequiredDisclosure.min_duration_ms"><code class="name">var <span class="ident">min_duration_ms</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.creative_brief.RequiredDisclosure.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.creative_brief.RequiredDisclosure.position"><code class="name">var <span class="ident">position</span> : <a title="adcp.types.generated_poc.enums.disclosure_position.DisclosurePosition" href="../enums/disclosure_position.html#adcp.types.generated_poc.enums.disclosure_position.DisclosurePosition">DisclosurePosition</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.creative_brief.RequiredDisclosure.regulation"><code class="name">var <span class="ident">regulation</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.creative_brief.RequiredDisclosure.text"><code class="name">var <span class="ident">text</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 </dl>
 </section>
 </article>
@@ -310,9 +544,18 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
+<h4><code><a title="adcp.types.generated_poc.core.creative_brief.Compliance" href="#adcp.types.generated_poc.core.creative_brief.Compliance">Compliance</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.creative_brief.Compliance.model_config" href="#adcp.types.generated_poc.core.creative_brief.Compliance.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.creative_brief.Compliance.prohibited_claims" href="#adcp.types.generated_poc.core.creative_brief.Compliance.prohibited_claims">prohibited_claims</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.creative_brief.Compliance.required_disclosures" href="#adcp.types.generated_poc.core.creative_brief.Compliance.required_disclosures">required_disclosures</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.core.creative_brief.CreativeBrief" href="#adcp.types.generated_poc.core.creative_brief.CreativeBrief">CreativeBrief</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.creative_brief.CreativeBrief.audience" href="#adcp.types.generated_poc.core.creative_brief.CreativeBrief.audience">audience</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.creative_brief.CreativeBrief.compliance" href="#adcp.types.generated_poc.core.creative_brief.CreativeBrief.compliance">compliance</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_brief.CreativeBrief.messaging" href="#adcp.types.generated_poc.core.creative_brief.CreativeBrief.messaging">messaging</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_brief.CreativeBrief.model_config" href="#adcp.types.generated_poc.core.creative_brief.CreativeBrief.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_brief.CreativeBrief.name" href="#adcp.types.generated_poc.core.creative_brief.CreativeBrief.name">name</a></code></li>
@@ -320,6 +563,13 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.core.creative_brief.CreativeBrief.reference_assets" href="#adcp.types.generated_poc.core.creative_brief.CreativeBrief.reference_assets">reference_assets</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_brief.CreativeBrief.territory" href="#adcp.types.generated_poc.core.creative_brief.CreativeBrief.territory">territory</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_brief.CreativeBrief.tone" href="#adcp.types.generated_poc.core.creative_brief.CreativeBrief.tone">tone</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.creative_brief.Jurisdiction" href="#adcp.types.generated_poc.core.creative_brief.Jurisdiction">Jurisdiction</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.creative_brief.Jurisdiction.model_config" href="#adcp.types.generated_poc.core.creative_brief.Jurisdiction.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.creative_brief.Jurisdiction.root" href="#adcp.types.generated_poc.core.creative_brief.Jurisdiction.root">root</a></code></li>
 </ul>
 </li>
 <li>
@@ -340,6 +590,18 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.core.creative_brief.Objective.conversion" href="#adcp.types.generated_poc.core.creative_brief.Objective.conversion">conversion</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_brief.Objective.engagement" href="#adcp.types.generated_poc.core.creative_brief.Objective.engagement">engagement</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_brief.Objective.retention" href="#adcp.types.generated_poc.core.creative_brief.Objective.retention">retention</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.creative_brief.RequiredDisclosure" href="#adcp.types.generated_poc.core.creative_brief.RequiredDisclosure">RequiredDisclosure</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.creative_brief.RequiredDisclosure.jurisdictions" href="#adcp.types.generated_poc.core.creative_brief.RequiredDisclosure.jurisdictions">jurisdictions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.creative_brief.RequiredDisclosure.language" href="#adcp.types.generated_poc.core.creative_brief.RequiredDisclosure.language">language</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.creative_brief.RequiredDisclosure.min_duration_ms" href="#adcp.types.generated_poc.core.creative_brief.RequiredDisclosure.min_duration_ms">min_duration_ms</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.creative_brief.RequiredDisclosure.model_config" href="#adcp.types.generated_poc.core.creative_brief.RequiredDisclosure.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.creative_brief.RequiredDisclosure.position" href="#adcp.types.generated_poc.core.creative_brief.RequiredDisclosure.position">position</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.creative_brief.RequiredDisclosure.regulation" href="#adcp.types.generated_poc.core.creative_brief.RequiredDisclosure.regulation">regulation</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.creative_brief.RequiredDisclosure.text" href="#adcp.types.generated_poc.core.creative_brief.RequiredDisclosure.text">text</a></code></li>
 </ul>
 </li>
 </ul>

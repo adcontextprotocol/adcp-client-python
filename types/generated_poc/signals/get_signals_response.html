@@ -129,8 +129,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_response.Pricing"><code class="flex name class">
-<span>class <span class="ident">Pricing</span></span>
+<dt id="adcp.types.generated_poc.signals.get_signals_response.Range"><code class="flex name class">
+<span>class <span class="ident">Range</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -138,12 +138,12 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Pricing(AdCPBaseModel):
+<pre><code class="python">class Range(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#39;forbid&#39;,
     )
-    cpm: Annotated[float, Field(description=&#39;Cost per thousand impressions&#39;, ge=0.0)]
-    currency: Annotated[str, Field(description=&#39;Currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]</code></pre>
+    max: Annotated[float, Field(description=&#39;Maximum value (inclusive)&#39;)]
+    min: Annotated[float, Field(description=&#39;Minimum value (inclusive)&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -160,15 +160,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.signals.get_signals_response.Pricing.cpm"><code class="name">var <span class="ident">cpm</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.signals.get_signals_response.Range.max"><code class="name">var <span class="ident">max</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_response.Pricing.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.signals.get_signals_response.Range.min"><code class="name">var <span class="ident">min</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_response.Pricing.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.signals.get_signals_response.Range.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -197,6 +197,12 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    categories: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Valid values for categorical signals. Present when value_type is &#39;categorical&#39;. Buyers must use one of these values in SignalTargeting.values.&#34;
+        ),
+    ] = None
     coverage_percentage: Annotated[
         float, Field(description=&#39;Percentage of audience coverage&#39;, ge=0.0, le=100.0)
     ]
@@ -206,7 +212,17 @@ validated to form a valid model.</p>
     ]
     description: Annotated[str, Field(description=&#39;Detailed signal description&#39;)]
     name: Annotated[str, Field(description=&#39;Human-readable signal name&#39;)]
-    pricing: Annotated[Pricing, Field(description=&#39;Pricing information&#39;)]
+    pricing_options: Annotated[
+        list[signal_pricing_option.SignalPricingOption],
+        Field(
+            description=&#39;Pricing options available for this signal. The buyer selects one and passes its pricing_option_id in report_usage for billing verification.&#39;,
+            min_length=1,
+        ),
+    ]
+    range: Annotated[
+        Range | None,
+        Field(description=&#34;Valid range for numeric signals. Present when value_type is &#39;numeric&#39;.&#34;),
+    ] = None
     signal_agent_segment_id: Annotated[
         str,
         Field(
@@ -243,6 +259,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.signals.get_signals_response.Signal.categories"><code class="name">var <span class="ident">categories</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.signals.get_signals_response.Signal.coverage_percentage"><code class="name">var <span class="ident">coverage_percentage</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
@@ -267,7 +287,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_response.Signal.pricing"><code class="name">var <span class="ident">pricing</span> : <a title="adcp.types.generated_poc.signals.get_signals_response.Pricing" href="#adcp.types.generated_poc.signals.get_signals_response.Pricing">Pricing</a></code></dt>
+<dt id="adcp.types.generated_poc.signals.get_signals_response.Signal.pricing_options"><code class="name">var <span class="ident">pricing_options</span> : list[<a title="adcp.types.generated_poc.core.signal_pricing_option.SignalPricingOption" href="../core/signal_pricing_option.html#adcp.types.generated_poc.core.signal_pricing_option.SignalPricingOption">SignalPricingOption</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.signals.get_signals_response.Signal.range"><code class="name">var <span class="ident">range</span> : <a title="adcp.types.generated_poc.signals.get_signals_response.Range" href="#adcp.types.generated_poc.signals.get_signals_response.Range">Range</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -327,23 +351,25 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.signals.get_signals_response.Pricing" href="#adcp.types.generated_poc.signals.get_signals_response.Pricing">Pricing</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.signals.get_signals_response.Range" href="#adcp.types.generated_poc.signals.get_signals_response.Range">Range</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_response.Pricing.cpm" href="#adcp.types.generated_poc.signals.get_signals_response.Pricing.cpm">cpm</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_response.Pricing.currency" href="#adcp.types.generated_poc.signals.get_signals_response.Pricing.currency">currency</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_response.Pricing.model_config" href="#adcp.types.generated_poc.signals.get_signals_response.Pricing.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.get_signals_response.Range.max" href="#adcp.types.generated_poc.signals.get_signals_response.Range.max">max</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.get_signals_response.Range.min" href="#adcp.types.generated_poc.signals.get_signals_response.Range.min">min</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.get_signals_response.Range.model_config" href="#adcp.types.generated_poc.signals.get_signals_response.Range.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.signals.get_signals_response.Signal" href="#adcp.types.generated_poc.signals.get_signals_response.Signal">Signal</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.signals.get_signals_response.Signal.categories" href="#adcp.types.generated_poc.signals.get_signals_response.Signal.categories">categories</a></code></li>
 <li><code><a title="adcp.types.generated_poc.signals.get_signals_response.Signal.coverage_percentage" href="#adcp.types.generated_poc.signals.get_signals_response.Signal.coverage_percentage">coverage_percentage</a></code></li>
 <li><code><a title="adcp.types.generated_poc.signals.get_signals_response.Signal.data_provider" href="#adcp.types.generated_poc.signals.get_signals_response.Signal.data_provider">data_provider</a></code></li>
 <li><code><a title="adcp.types.generated_poc.signals.get_signals_response.Signal.deployments" href="#adcp.types.generated_poc.signals.get_signals_response.Signal.deployments">deployments</a></code></li>
 <li><code><a title="adcp.types.generated_poc.signals.get_signals_response.Signal.description" href="#adcp.types.generated_poc.signals.get_signals_response.Signal.description">description</a></code></li>
 <li><code><a title="adcp.types.generated_poc.signals.get_signals_response.Signal.model_config" href="#adcp.types.generated_poc.signals.get_signals_response.Signal.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.signals.get_signals_response.Signal.name" href="#adcp.types.generated_poc.signals.get_signals_response.Signal.name">name</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_response.Signal.pricing" href="#adcp.types.generated_poc.signals.get_signals_response.Signal.pricing">pricing</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.get_signals_response.Signal.pricing_options" href="#adcp.types.generated_poc.signals.get_signals_response.Signal.pricing_options">pricing_options</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.get_signals_response.Signal.range" href="#adcp.types.generated_poc.signals.get_signals_response.Signal.range">range</a></code></li>
 <li><code><a title="adcp.types.generated_poc.signals.get_signals_response.Signal.signal_agent_segment_id" href="#adcp.types.generated_poc.signals.get_signals_response.Signal.signal_agent_segment_id">signal_agent_segment_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.signals.get_signals_response.Signal.signal_id" href="#adcp.types.generated_poc.signals.get_signals_response.Signal.signal_id">signal_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.signals.get_signals_response.Signal.signal_type" href="#adcp.types.generated_poc.signals.get_signals_response.Signal.signal_type">signal_type</a></code></li>

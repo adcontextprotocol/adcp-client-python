@@ -137,6 +137,12 @@ validated to form a valid model.</p>
         Field(description=&#39;Self-declared accessibility properties for this opaque creative&#39;),
     ] = None
     content: Annotated[str, Field(description=&#39;HTML content&#39;)]
+    provenance: Annotated[
+        provenance_1.Provenance | None,
+        Field(
+            description=&#39;Provenance metadata for this asset, overrides manifest-level provenance&#39;
+        ),
+    ] = None
     version: Annotated[str | None, Field(description=&#34;HTML version (e.g., &#39;HTML5&#39;)&#34;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -163,6 +169,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset.provenance"><code class="name">var <span class="ident">provenance</span> : <a title="adcp.types.generated_poc.core.provenance.Provenance" href="../provenance.html#adcp.types.generated_poc.core.provenance.Provenance">Provenance</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -213,6 +223,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset.accessibility" href="#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset.accessibility">accessibility</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset.content" href="#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset.content">content</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset.model_config" href="#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset.provenance" href="#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset.provenance">provenance</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset.version" href="#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset.version">version</a></code></li>
 </ul>
 </li>

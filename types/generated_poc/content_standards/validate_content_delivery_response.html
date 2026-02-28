@@ -378,9 +378,6 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ValidateContentDeliveryResponse1(AdCPBaseModel):
     context: context_1.ContextObject | None = None
-    errors: Annotated[
-        Any | None, Field(description=&#39;Field must not be present in success response&#39;)
-    ] = None
     ext: ext_1.ExtensionObject | None = None
     results: Annotated[list[Result], Field(description=&#39;Per-record evaluation results&#39;)]
     summary: Annotated[Summary, Field(description=&#39;Summary counts across all records&#39;)]</code></pre>
@@ -401,10 +398,6 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse1.errors"><code class="name">var <span class="ident">errors</span> : typing.Any | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -448,10 +441,7 @@ validated to form a valid model.</p>
 <pre><code class="python">class ValidateContentDeliveryResponse2(AdCPBaseModel):
     context: context_1.ContextObject | None = None
     errors: list[error.Error]
-    ext: ext_1.ExtensionObject | None = None
-    summary: Annotated[
-        Any | None, Field(description=&#39;Field must not be present in error response&#39;)
-    ] = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -481,10 +471,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse2.summary"><code class="name">var <span class="ident">summary</span> : typing.Any | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -626,9 +612,8 @@ attributes &ndash; see the documentation for details.</p></div>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse1" href="#adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse1">ValidateContentDeliveryResponse1</a></code></h4>
-<ul class="two-column">
+<ul class="">
 <li><code><a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse1.context" href="#adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse1.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse1.errors" href="#adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse1.errors">errors</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse1.ext" href="#adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse1.model_config" href="#adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse1.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse1.results" href="#adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse1.results">results</a></code></li>
@@ -642,7 +627,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse2.errors" href="#adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse2.errors">errors</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse2.ext" href="#adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse2.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse2.model_config" href="#adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse2.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse2.summary" href="#adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse2.summary">summary</a></code></li>
 </ul>
 </li>
 <li>

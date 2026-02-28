@@ -76,11 +76,23 @@ el.replaceWith(d);
     buyer_ref: Annotated[
         str | None, Field(description=&#34;Buyer&#39;s reference identifier for this package&#34;)
     ] = None
+    catalogs: Annotated[
+        list[catalog.Catalog] | None,
+        Field(
+            description=&#39;Catalogs this package promotes. Each catalog MUST have a distinct type (e.g., one product catalog, one store catalog). This constraint is enforced at the application level — sellers MUST reject requests containing multiple catalogs of the same type with a validation_error. Echoed from the create_media_buy request.&#39;
+        ),
+    ] = None
     creative_assignments: Annotated[
         list[creative_assignment.CreativeAssignment] | None,
         Field(description=&#39;Creative assets assigned to this package&#39;),
     ] = None
     ext: ext_1.ExtensionObject | None = None
+    format_ids: Annotated[
+        list[format_id.FormatId] | None,
+        Field(
+            description=&#39;Format IDs active for this package. Echoed from the create_media_buy request; omitted means all formats for the product are active.&#39;
+        ),
+    ] = None
     format_ids_to_provide: Annotated[
         list[format_id.FormatId] | None,
         Field(description=&#39;Format IDs that creative assets will be provided for this package&#39;),
@@ -88,7 +100,13 @@ el.replaceWith(d);
     impressions: Annotated[
         float | None, Field(description=&#39;Impression goal for this package&#39;, ge=0.0)
     ] = None
-    optimization_goal: optimization_goal_1.OptimizationGoal | None = None
+    optimization_goals: Annotated[
+        list[optimization_goal.OptimizationGoal] | None,
+        Field(
+            description=&#39;Optimization targets for this package. The seller optimizes delivery toward these goals in priority order. Common pattern: event goals (purchase, install) as primary targets at priority 1; metric goals (clicks, views) as secondary proxy signals at priority 2+.&#39;,
+            min_length=1,
+        ),
+    ] = None
     pacing: pacing_1.Pacing | None = None
     package_id: Annotated[str, Field(description=&#34;Publisher&#39;s unique identifier for the package&#34;)]
     paused: Annotated[
@@ -135,11 +153,19 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.package.Package.catalogs"><code class="name">var <span class="ident">catalogs</span> : list[<a title="adcp.types.generated_poc.core.catalog.Catalog" href="catalog.html#adcp.types.generated_poc.core.catalog.Catalog">Catalog</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.package.Package.creative_assignments"><code class="name">var <span class="ident">creative_assignments</span> : list[<a title="adcp.types.generated_poc.core.creative_assignment.CreativeAssignment" href="creative_assignment.html#adcp.types.generated_poc.core.creative_assignment.CreativeAssignment">CreativeAssignment</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.package.Package.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.package.Package.format_ids"><code class="name">var <span class="ident">format_ids</span> : list[<a title="adcp.types.generated_poc.core.format_id.FormatId" href="format_id.html#adcp.types.generated_poc.core.format_id.FormatId">FormatId</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -155,7 +181,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.package.Package.optimization_goal"><code class="name">var <span class="ident">optimization_goal</span> : <a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal" href="optimization_goal.html#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal">OptimizationGoal</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.package.Package.optimization_goals"><code class="name">var <span class="ident">optimization_goals</span> : list[<a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal" href="optimization_goal.html#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal">OptimizationGoal</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -216,12 +242,14 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.package.Package.bid_price" href="#adcp.types.generated_poc.core.package.Package.bid_price">bid_price</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.package.Package.budget" href="#adcp.types.generated_poc.core.package.Package.budget">budget</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.package.Package.buyer_ref" href="#adcp.types.generated_poc.core.package.Package.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.package.Package.catalogs" href="#adcp.types.generated_poc.core.package.Package.catalogs">catalogs</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.package.Package.creative_assignments" href="#adcp.types.generated_poc.core.package.Package.creative_assignments">creative_assignments</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.package.Package.ext" href="#adcp.types.generated_poc.core.package.Package.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.package.Package.format_ids" href="#adcp.types.generated_poc.core.package.Package.format_ids">format_ids</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.package.Package.format_ids_to_provide" href="#adcp.types.generated_poc.core.package.Package.format_ids_to_provide">format_ids_to_provide</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.package.Package.impressions" href="#adcp.types.generated_poc.core.package.Package.impressions">impressions</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.package.Package.model_config" href="#adcp.types.generated_poc.core.package.Package.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.package.Package.optimization_goal" href="#adcp.types.generated_poc.core.package.Package.optimization_goal">optimization_goal</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.package.Package.optimization_goals" href="#adcp.types.generated_poc.core.package.Package.optimization_goals">optimization_goals</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.package.Package.pacing" href="#adcp.types.generated_poc.core.package.Package.pacing">pacing</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.package.Package.package_id" href="#adcp.types.generated_poc.core.package.Package.package_id">package_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.package.Package.paused" href="#adcp.types.generated_poc.core.package.Package.paused">paused</a></code></li>

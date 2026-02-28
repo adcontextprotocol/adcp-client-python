@@ -46,6 +46,70 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.types.generated_poc.signals.activate_signal_request.Action"><code class="flex name class">
+<span>class <span class="ident">Action</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Action(Enum):
+    activate = &#39;activate&#39;
+    deactivate = &#39;deactivate&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.signals.activate_signal_request.Action.activate"><code class="name">var <span class="ident">activate</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.signals.activate_signal_request.Action.deactivate"><code class="name">var <span class="ident">deactivate</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest"><code class="flex name class">
 <span>class <span class="ident">ActivateSignalRequest</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -59,15 +123,39 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    account: Annotated[
+        account_ref.AccountReference | None,
+        Field(
+            description=&#39;Account for this activation. Associates with a commercial relationship established via sync_accounts.&#39;
+        ),
+    ] = None
+    action: Annotated[
+        Action | None,
+        Field(
+            description=&#34;Whether to activate or deactivate the signal. Deactivating removes the segment from downstream platforms, required when campaigns end to comply with data governance policies (GDPR, CCPA). Defaults to &#39;activate&#39; when omitted.&#34;
+        ),
+    ] = Action.activate
+    buyer_campaign_ref: Annotated[
+        str | None,
+        Field(
+            description=&#34;The buyer&#39;s campaign reference for this activation. Enables the signals agent to correlate activations with subsequent report_usage calls.&#34;
+        ),
+    ] = None
     context: context_1.ContextObject | None = None
-    deployments: Annotated[
+    destinations: Annotated[
         list[destination.Destination],
         Field(
-            description=&#39;Target deployment(s) for activation. If the authenticated caller matches one of these deployment targets, activation keys will be included in the response.&#39;,
+            description=&#39;Target destination(s) for activation. If the authenticated caller matches one of these destinations, activation keys will be included in the response.&#39;,
             min_length=1,
         ),
     ]
     ext: ext_1.ExtensionObject | None = None
+    pricing_option_id: Annotated[
+        str | None,
+        Field(
+            description=&#34;The pricing option selected from the signal&#39;s pricing_options in the get_signals response. Required when the signal has pricing options. Records the buyer&#39;s pricing commitment at activation time; pass this same value in report_usage for billing verification.&#34;
+        ),
+    ] = None
     signal_agent_segment_id: Annotated[
         str, Field(description=&#39;The universal identifier for the signal to activate&#39;)
     ]</code></pre>
@@ -87,11 +175,23 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.action"><code class="name">var <span class="ident">action</span> : <a title="adcp.types.generated_poc.signals.activate_signal_request.Action" href="#adcp.types.generated_poc.signals.activate_signal_request.Action">Action</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.buyer_campaign_ref"><code class="name">var <span class="ident">buyer_campaign_ref</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.deployments"><code class="name">var <span class="ident">deployments</span> : list[<a title="adcp.types.generated_poc.core.destination.Destination" href="../core/destination.html#adcp.types.generated_poc.core.destination.Destination">Destination</a>]</code></dt>
+<dt id="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.destinations"><code class="name">var <span class="ident">destinations</span> : list[<a title="adcp.types.generated_poc.core.destination.Destination" href="../core/destination.html#adcp.types.generated_poc.core.destination.Destination">Destination</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -100,6 +200,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.pricing_option_id"><code class="name">var <span class="ident">pricing_option_id</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -135,12 +239,23 @@ validated to form a valid model.</p>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
+<h4><code><a title="adcp.types.generated_poc.signals.activate_signal_request.Action" href="#adcp.types.generated_poc.signals.activate_signal_request.Action">Action</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.signals.activate_signal_request.Action.activate" href="#adcp.types.generated_poc.signals.activate_signal_request.Action.activate">activate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.activate_signal_request.Action.deactivate" href="#adcp.types.generated_poc.signals.activate_signal_request.Action.deactivate">deactivate</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest" href="#adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest">ActivateSignalRequest</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.account" href="#adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.account">account</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.action" href="#adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.action">action</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.buyer_campaign_ref" href="#adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.buyer_campaign_ref">buyer_campaign_ref</a></code></li>
 <li><code><a title="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.context" href="#adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.deployments" href="#adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.deployments">deployments</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.destinations" href="#adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.destinations">destinations</a></code></li>
 <li><code><a title="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.ext" href="#adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.model_config" href="#adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.pricing_option_id" href="#adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.pricing_option_id">pricing_option_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.signal_agent_segment_id" href="#adcp.types.generated_poc.signals.activate_signal_request.ActivateSignalRequest.signal_agent_segment_id">signal_agent_segment_id</a></code></li>
 </ul>
 </li>

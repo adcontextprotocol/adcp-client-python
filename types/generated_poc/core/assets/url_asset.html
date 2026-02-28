@@ -62,6 +62,12 @@ el.replaceWith(d);
     description: Annotated[
         str | None, Field(description=&#39;Description of what this URL points to&#39;)
     ] = None
+    provenance: Annotated[
+        provenance_1.Provenance | None,
+        Field(
+            description=&#39;Provenance metadata for this asset, overrides manifest-level provenance&#39;
+        ),
+    ] = None
     url: Annotated[AnyUrl, Field(description=&#39;URL reference&#39;)]
     url_type: Annotated[
         url_asset_type.UrlAssetType | None,
@@ -90,6 +96,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.assets.url_asset.UrlAsset.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.url_asset.UrlAsset.provenance"><code class="name">var <span class="ident">provenance</span> : <a title="adcp.types.generated_poc.core.provenance.Provenance" href="../provenance.html#adcp.types.generated_poc.core.provenance.Provenance">Provenance</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -133,6 +143,7 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset.description" href="#adcp.types.generated_poc.core.assets.url_asset.UrlAsset.description">description</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset.model_config" href="#adcp.types.generated_poc.core.assets.url_asset.UrlAsset.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset.provenance" href="#adcp.types.generated_poc.core.assets.url_asset.UrlAsset.provenance">provenance</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset.url" href="#adcp.types.generated_poc.core.assets.url_asset.UrlAsset.url">url</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset.url_type" href="#adcp.types.generated_poc.core.assets.url_asset.UrlAsset.url_type">url_type</a></code></li>
 </ul>

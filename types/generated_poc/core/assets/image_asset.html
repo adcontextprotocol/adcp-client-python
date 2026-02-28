@@ -64,6 +64,12 @@ el.replaceWith(d);
         str | None, Field(description=&#39;Image file format (jpg, png, gif, webp, etc.)&#39;)
     ] = None
     height: Annotated[int, Field(description=&#39;Height in pixels&#39;, ge=1)]
+    provenance: Annotated[
+        provenance_1.Provenance | None,
+        Field(
+            description=&#39;Provenance metadata for this asset, overrides manifest-level provenance&#39;
+        ),
+    ] = None
     url: Annotated[AnyUrl, Field(description=&#39;URL to the image asset&#39;)]
     width: Annotated[int, Field(description=&#39;Width in pixels&#39;, ge=1)]</code></pre>
 </details>
@@ -95,6 +101,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.assets.image_asset.ImageAsset.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.image_asset.ImageAsset.provenance"><code class="name">var <span class="ident">provenance</span> : <a title="adcp.types.generated_poc.core.provenance.Provenance" href="../provenance.html#adcp.types.generated_poc.core.provenance.Provenance">Provenance</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -140,6 +150,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset.format" href="#adcp.types.generated_poc.core.assets.image_asset.ImageAsset.format">format</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset.height" href="#adcp.types.generated_poc.core.assets.image_asset.ImageAsset.height">height</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset.model_config" href="#adcp.types.generated_poc.core.assets.image_asset.ImageAsset.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset.provenance" href="#adcp.types.generated_poc.core.assets.image_asset.ImageAsset.provenance">provenance</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset.url" href="#adcp.types.generated_poc.core.assets.image_asset.ImageAsset.url">url</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset.width" href="#adcp.types.generated_poc.core.assets.image_asset.ImageAsset.width">width</a></code></li>
 </ul>

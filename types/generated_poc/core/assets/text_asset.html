@@ -62,7 +62,13 @@ el.replaceWith(d);
     content: Annotated[str, Field(description=&#39;Text content&#39;)]
     language: Annotated[str | None, Field(description=&#34;Language code (e.g., &#39;en&#39;, &#39;es&#39;, &#39;fr&#39;)&#34;)] = (
         None
-    )</code></pre>
+    )
+    provenance: Annotated[
+        provenance_1.Provenance | None,
+        Field(
+            description=&#39;Provenance metadata for this asset, overrides manifest-level provenance&#39;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -88,6 +94,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.assets.text_asset.TextAsset.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.text_asset.TextAsset.provenance"><code class="name">var <span class="ident">provenance</span> : <a title="adcp.types.generated_poc.core.provenance.Provenance" href="../provenance.html#adcp.types.generated_poc.core.provenance.Provenance">Provenance</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -124,6 +134,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset.content" href="#adcp.types.generated_poc.core.assets.text_asset.TextAsset.content">content</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset.language" href="#adcp.types.generated_poc.core.assets.text_asset.TextAsset.language">language</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset.model_config" href="#adcp.types.generated_poc.core.assets.text_asset.TextAsset.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset.provenance" href="#adcp.types.generated_poc.core.assets.text_asset.TextAsset.provenance">provenance</a></code></li>
 </ul>
 </li>
 </ul>

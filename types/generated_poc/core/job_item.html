@@ -223,9 +223,16 @@ attributes &ndash; see the documentation for details.</p></div>
         extra=&#39;allow&#39;,
     )
     apply_url: Annotated[AnyUrl | None, Field(description=&#39;Direct application URL.&#39;)] = None
+    assets: Annotated[
+        list[offering_asset_group.OfferingAssetGroup] | None,
+        Field(
+            description=&#34;Typed creative asset pools for this job. Uses the same OfferingAssetGroup structure as offering-type catalogs. Standard group IDs: &#39;images_landscape&#39; (company/role hero), &#39;images_vertical&#39; (9:16 for Stories), &#39;logo&#39; (company logo). Enables formats to declare typed image requirements that map unambiguously to the right asset regardless of platform.&#34;,
+            min_length=1,
+        ),
+    ] = None
     company_name: Annotated[str, Field(description=&#39;Hiring company or organization name.&#39;)]
     date_posted: Annotated[
-        date | None, Field(description=&#39;Date the job was posted (ISO 8601 date).&#39;)
+        date_aliased | None, Field(description=&#39;Date the job was posted (ISO 8601 date).&#39;)
     ] = None
     description: Annotated[
         str,
@@ -274,7 +281,7 @@ attributes &ndash; see the documentation for details.</p></div>
         str, Field(description=&#34;Job title (e.g., &#39;Senior Software Engineer&#39;, &#39;Marketing Manager&#39;).&#34;)
     ]
     valid_through: Annotated[
-        date | None, Field(description=&#39;Application deadline (ISO 8601 date).&#39;)
+        date_aliased | None, Field(description=&#39;Application deadline (ISO 8601 date).&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -293,6 +300,10 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.core.job_item.JobItem.apply_url"><code class="name">var <span class="ident">apply_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.job_item.JobItem.assets"><code class="name">var <span class="ident">assets</span> : list[<a title="adcp.types.generated_poc.core.offering_asset_group.OfferingAssetGroup" href="offering_asset_group.html#adcp.types.generated_poc.core.offering_asset_group.OfferingAssetGroup">OfferingAssetGroup</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -542,6 +553,7 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.core.job_item.JobItem" href="#adcp.types.generated_poc.core.job_item.JobItem">JobItem</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.job_item.JobItem.apply_url" href="#adcp.types.generated_poc.core.job_item.JobItem.apply_url">apply_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.job_item.JobItem.assets" href="#adcp.types.generated_poc.core.job_item.JobItem.assets">assets</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.job_item.JobItem.company_name" href="#adcp.types.generated_poc.core.job_item.JobItem.company_name">company_name</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.job_item.JobItem.date_posted" href="#adcp.types.generated_poc.core.job_item.JobItem.date_posted">date_posted</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.job_item.JobItem.description" href="#adcp.types.generated_poc.core.job_item.JobItem.description">description</a></code></li>

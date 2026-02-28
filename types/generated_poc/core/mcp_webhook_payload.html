@@ -80,7 +80,7 @@ el.replaceWith(d);
     operation_id: Annotated[
         str | None,
         Field(
-            description=&#39;Publisher-defined operation identifier correlating a sequence of task updates across webhooks.&#39;
+            description=&#39;Client-generated identifier that was embedded in the webhook URL by the buyer. Publishers echo this back in webhook payloads so clients can correlate notifications without parsing URL paths. Typically generated as a unique ID per task invocation.&#39;
         ),
     ] = None
     result: Annotated[

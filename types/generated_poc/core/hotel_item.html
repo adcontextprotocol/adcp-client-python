@@ -141,6 +141,13 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
+    assets: Annotated[
+        list[offering_asset_group.OfferingAssetGroup] | None,
+        Field(
+            description=&#34;Typed creative asset pools for this hotel. Uses the same OfferingAssetGroup structure as offering-type catalogs. Standard group IDs: &#39;images_landscape&#39; (16:9 hero images), &#39;images_vertical&#39; (9:16 for Snap, Stories), &#39;images_square&#39; (1:1), &#39;logo&#39;. Enables formats to declare typed image requirements that map unambiguously to the right asset regardless of platform.&#34;,
+            min_length=1,
+        ),
+    ] = None
     check_in_time: Annotated[
         str | None,
         Field(
@@ -186,7 +193,19 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    url: Annotated[AnyUrl | None, Field(description=&#39;Property landing page or booking URL.&#39;)] = None</code></pre>
+    url: Annotated[AnyUrl | None, Field(description=&#39;Property landing page or booking URL.&#39;)] = None
+    valid_from: Annotated[
+        date_aliased | None,
+        Field(
+            description=&#34;Date from which this item is available or this rate applies (ISO 8601, e.g., &#39;2025-03-01&#39;). Used for seasonal availability windows in feed imports.&#34;
+        ),
+    ] = None
+    valid_to: Annotated[
+        date_aliased | None,
+        Field(
+            description=&#34;Date until which this item is available or this rate applies (ISO 8601, e.g., &#39;2025-09-30&#39;). Used for seasonal availability windows in feed imports.&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -208,6 +227,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.hotel_item.HotelItem.amenities"><code class="name">var <span class="ident">amenities</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.hotel_item.HotelItem.assets"><code class="name">var <span class="ident">assets</span> : list[<a title="adcp.types.generated_poc.core.offering_asset_group.OfferingAssetGroup" href="offering_asset_group.html#adcp.types.generated_poc.core.offering_asset_group.OfferingAssetGroup">OfferingAssetGroup</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -264,6 +287,14 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.hotel_item.HotelItem.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.hotel_item.HotelItem.valid_from"><code class="name">var <span class="ident">valid_from</span> : datetime.date | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.hotel_item.HotelItem.valid_to"><code class="name">var <span class="ident">valid_to</span> : datetime.date | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -369,6 +400,7 @@ validated to form a valid model.</p>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.hotel_item.HotelItem.address" href="#adcp.types.generated_poc.core.hotel_item.HotelItem.address">address</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.hotel_item.HotelItem.amenities" href="#adcp.types.generated_poc.core.hotel_item.HotelItem.amenities">amenities</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.hotel_item.HotelItem.assets" href="#adcp.types.generated_poc.core.hotel_item.HotelItem.assets">assets</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.hotel_item.HotelItem.check_in_time" href="#adcp.types.generated_poc.core.hotel_item.HotelItem.check_in_time">check_in_time</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.hotel_item.HotelItem.check_out_time" href="#adcp.types.generated_poc.core.hotel_item.HotelItem.check_out_time">check_out_time</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.hotel_item.HotelItem.description" href="#adcp.types.generated_poc.core.hotel_item.HotelItem.description">description</a></code></li>
@@ -383,6 +415,8 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.hotel_item.HotelItem.star_rating" href="#adcp.types.generated_poc.core.hotel_item.HotelItem.star_rating">star_rating</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.hotel_item.HotelItem.tags" href="#adcp.types.generated_poc.core.hotel_item.HotelItem.tags">tags</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.hotel_item.HotelItem.url" href="#adcp.types.generated_poc.core.hotel_item.HotelItem.url">url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.hotel_item.HotelItem.valid_from" href="#adcp.types.generated_poc.core.hotel_item.HotelItem.valid_from">valid_from</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.hotel_item.HotelItem.valid_to" href="#adcp.types.generated_poc.core.hotel_item.HotelItem.valid_to">valid_to</a></code></li>
 </ul>
 </li>
 <li>

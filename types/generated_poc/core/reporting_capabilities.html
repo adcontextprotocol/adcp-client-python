@@ -151,10 +151,46 @@ attributes &ndash; see the documentation for details.</p></div>
             ge=0,
         ),
     ]
+    supports_audience_breakdown: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether this product supports audience segment breakdowns in delivery reporting (by_audience within by_package)&#39;
+        ),
+    ] = None
     supports_creative_breakdown: Annotated[
         bool | None,
         Field(
             description=&#39;Whether this product supports creative-level metric breakdowns in delivery reporting (by_creative within by_package)&#39;
+        ),
+    ] = None
+    supports_device_platform_breakdown: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether this product supports device platform breakdowns in delivery reporting (by_device_platform within by_package)&#39;
+        ),
+    ] = None
+    supports_device_type_breakdown: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether this product supports device type breakdowns in delivery reporting (by_device_type within by_package)&#39;
+        ),
+    ] = None
+    supports_geo_breakdown: Annotated[
+        geo_breakdown_support.GeographicBreakdownSupport | None,
+        Field(
+            description=&#39;Geographic breakdown support for this product. Declares which geo levels and systems are available for by_geo reporting within by_package.&#39;
+        ),
+    ] = None
+    supports_keyword_breakdown: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether this product supports keyword-level metric breakdowns in delivery reporting (by_keyword within by_package)&#39;
+        ),
+    ] = None
+    supports_placement_breakdown: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether this product supports placement breakdowns in delivery reporting (by_placement within by_package)&#39;
         ),
     ] = None
     supports_webhooks: Annotated[
@@ -204,7 +240,31 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_audience_breakdown"><code class="name">var <span class="ident">supports_audience_breakdown</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_creative_breakdown"><code class="name">var <span class="ident">supports_creative_breakdown</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_device_platform_breakdown"><code class="name">var <span class="ident">supports_device_platform_breakdown</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_device_type_breakdown"><code class="name">var <span class="ident">supports_device_type_breakdown</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_geo_breakdown"><code class="name">var <span class="ident">supports_geo_breakdown</span> : <a title="adcp.types.generated_poc.core.geo_breakdown_support.GeographicBreakdownSupport" href="geo_breakdown_support.html#adcp.types.generated_poc.core.geo_breakdown_support.GeographicBreakdownSupport">GeographicBreakdownSupport</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_keyword_breakdown"><code class="name">var <span class="ident">supports_keyword_breakdown</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_placement_breakdown"><code class="name">var <span class="ident">supports_placement_breakdown</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -258,7 +318,13 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.date_range_support" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.date_range_support">date_range_support</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.expected_delay_minutes" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.expected_delay_minutes">expected_delay_minutes</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.model_config" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_audience_breakdown" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_audience_breakdown">supports_audience_breakdown</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_creative_breakdown" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_creative_breakdown">supports_creative_breakdown</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_device_platform_breakdown" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_device_platform_breakdown">supports_device_platform_breakdown</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_device_type_breakdown" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_device_type_breakdown">supports_device_type_breakdown</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_geo_breakdown" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_geo_breakdown">supports_geo_breakdown</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_keyword_breakdown" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_keyword_breakdown">supports_keyword_breakdown</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_placement_breakdown" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_placement_breakdown">supports_placement_breakdown</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_webhooks" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_webhooks">supports_webhooks</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.timezone" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.timezone">timezone</a></code></li>
 </ul>

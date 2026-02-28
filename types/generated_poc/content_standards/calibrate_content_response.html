@@ -116,12 +116,11 @@ validated to form a valid model.</p>
     confidence: Annotated[
         float | None, Field(description=&#39;Model confidence in the verdict (0-1)&#39;, ge=0.0, le=1.0)
     ] = None
-    errors: Annotated[
-        Any | None, Field(description=&#39;Field must not be present in success response&#39;)
-    ] = None
+    context: context_1.ContextObject | None = None
     explanation: Annotated[
         str | None, Field(description=&#39;Detailed natural language explanation of the decision&#39;)
     ] = None
+    ext: ext_1.ExtensionObject | None = None
     features: Annotated[
         list[Feature] | None, Field(description=&#39;Per-feature breakdown with explanations&#39;)
     ] = None
@@ -148,11 +147,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.errors"><code class="name">var <span class="ident">errors</span> : typing.Any | None</code></dt>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.explanation"><code class="name">var <span class="ident">explanation</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -190,10 +193,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class CalibrateContentResponse2(AdCPBaseModel):
+    context: context_1.ContextObject | None = None
     errors: list[error.Error]
-    verdict: Annotated[
-        Any | None, Field(description=&#39;Field must not be present in error response&#39;)
-    ] = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -210,15 +212,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="../core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.verdict"><code class="name">var <span class="ident">verdict</span> : typing.Any | None</code></dt>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -463,8 +469,9 @@ attributes &ndash; see the documentation for details.</p></div>
 <h4><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1">CalibrateContentResponse1</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.confidence" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.confidence">confidence</a></code></li>
-<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.errors" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.errors">errors</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.context" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.explanation" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.explanation">explanation</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.ext" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.features" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.features">features</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.model_config" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.verdict" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1.verdict">verdict</a></code></li>
@@ -473,9 +480,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2">CalibrateContentResponse2</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.context" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.errors" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.ext" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.model_config" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.verdict" href="#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2.verdict">verdict</a></code></li>
 </ul>
 </li>
 <li>

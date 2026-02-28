@@ -548,6 +548,13 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    assets: Annotated[
+        list[offering_asset_group.OfferingAssetGroup] | None,
+        Field(
+            description=&#34;Typed creative asset pools for this vehicle. Uses the same OfferingAssetGroup structure as offering-type catalogs. Standard group IDs: &#39;images_landscape&#39; (exterior hero), &#39;images_vertical&#39; (9:16 for Stories), &#39;images_square&#39; (1:1). Enables formats to declare typed image requirements that map unambiguously to the right asset regardless of platform.&#34;,
+            min_length=1,
+        ),
+    ] = None
     body_style: Annotated[BodyStyle | None, Field(description=&#39;Vehicle body style.&#39;)] = None
     condition: Annotated[Condition | None, Field(description=&#39;Vehicle condition.&#39;)] = None
     ext: ext_1.ExtensionObject | None = None
@@ -594,6 +601,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.assets"><code class="name">var <span class="ident">assets</span> : list[<a title="adcp.types.generated_poc.core.offering_asset_group.OfferingAssetGroup" href="offering_asset_group.html#adcp.types.generated_poc.core.offering_asset_group.OfferingAssetGroup">OfferingAssetGroup</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.vehicle_item.VehicleItem.body_style"><code class="name">var <span class="ident">body_style</span> : <a title="adcp.types.generated_poc.core.vehicle_item.BodyStyle" href="#adcp.types.generated_poc.core.vehicle_item.BodyStyle">BodyStyle</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -770,6 +781,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem">VehicleItem</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.assets" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.assets">assets</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.body_style" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.body_style">body_style</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.condition" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.condition">condition</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.vehicle_item.VehicleItem.ext" href="#adcp.types.generated_poc.core.vehicle_item.VehicleItem.ext">ext</a></code></li>

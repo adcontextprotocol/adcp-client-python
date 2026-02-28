@@ -130,6 +130,12 @@ validated to form a valid model.</p>
     duration_ms: Annotated[
         int | None, Field(description=&#39;Expected video duration in milliseconds (if known)&#39;, ge=0)
     ] = None
+    provenance: Annotated[
+        provenance_1.Provenance | None,
+        Field(
+            description=&#39;Provenance metadata for this asset, overrides manifest-level provenance&#39;
+        ),
+    ] = None
     tracking_events: Annotated[
         list[vast_tracking_event.VastTrackingEvent] | None,
         Field(description=&#39;Tracking events supported by this VAST tag&#39;),
@@ -175,6 +181,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.assets.vast_asset.VastAsset1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.vast_asset.VastAsset1.provenance"><code class="name">var <span class="ident">provenance</span> : <a title="adcp.types.generated_poc.core.provenance.Provenance" href="../provenance.html#adcp.types.generated_poc.core.provenance.Provenance">Provenance</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -234,6 +244,12 @@ validated to form a valid model.</p>
     duration_ms: Annotated[
         int | None, Field(description=&#39;Expected video duration in milliseconds (if known)&#39;, ge=0)
     ] = None
+    provenance: Annotated[
+        provenance_1.Provenance | None,
+        Field(
+            description=&#39;Provenance metadata for this asset, overrides manifest-level provenance&#39;
+        ),
+    ] = None
     tracking_events: Annotated[
         list[vast_tracking_event.VastTrackingEvent] | None,
         Field(description=&#39;Tracking events supported by this VAST tag&#39;),
@@ -282,6 +298,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.assets.vast_asset.VastAsset2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.vast_asset.VastAsset2.provenance"><code class="name">var <span class="ident">provenance</span> : <a title="adcp.types.generated_poc.core.provenance.Provenance" href="../provenance.html#adcp.types.generated_poc.core.provenance.Provenance">Provenance</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -339,6 +359,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset1.delivery_type" href="#adcp.types.generated_poc.core.assets.vast_asset.VastAsset1.delivery_type">delivery_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset1.duration_ms" href="#adcp.types.generated_poc.core.assets.vast_asset.VastAsset1.duration_ms">duration_ms</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset1.model_config" href="#adcp.types.generated_poc.core.assets.vast_asset.VastAsset1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset1.provenance" href="#adcp.types.generated_poc.core.assets.vast_asset.VastAsset1.provenance">provenance</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset1.tracking_events" href="#adcp.types.generated_poc.core.assets.vast_asset.VastAsset1.tracking_events">tracking_events</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset1.url" href="#adcp.types.generated_poc.core.assets.vast_asset.VastAsset1.url">url</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset1.vast_version" href="#adcp.types.generated_poc.core.assets.vast_asset.VastAsset1.vast_version">vast_version</a></code></li>
@@ -354,6 +375,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset2.delivery_type" href="#adcp.types.generated_poc.core.assets.vast_asset.VastAsset2.delivery_type">delivery_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset2.duration_ms" href="#adcp.types.generated_poc.core.assets.vast_asset.VastAsset2.duration_ms">duration_ms</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset2.model_config" href="#adcp.types.generated_poc.core.assets.vast_asset.VastAsset2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset2.provenance" href="#adcp.types.generated_poc.core.assets.vast_asset.VastAsset2.provenance">provenance</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset2.tracking_events" href="#adcp.types.generated_poc.core.assets.vast_asset.VastAsset2.tracking_events">tracking_events</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset2.vast_version" href="#adcp.types.generated_poc.core.assets.vast_asset.VastAsset2.vast_version">vast_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset2.vpaid_enabled" href="#adcp.types.generated_poc.core.assets.vast_asset.VastAsset2.vpaid_enabled">vpaid_enabled</a></code></li>

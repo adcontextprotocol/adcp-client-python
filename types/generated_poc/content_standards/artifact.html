@@ -91,6 +91,12 @@ el.replaceWith(d);
         identifier.Identifier,
         Field(description=&#39;Identifier for the property where this artifact appears&#39;),
     ]
+    provenance: Annotated[
+        provenance_1.Provenance | None,
+        Field(
+            description=&#39;Provenance metadata for this artifact. Serves as the default provenance for all assets within this artifact — individual assets can override with their own provenance.&#39;
+        ),
+    ] = None
     published_time: Annotated[
         AwareDatetime | None, Field(description=&#39;When the artifact was published (ISO 8601 format)&#39;)
     ] = None
@@ -151,6 +157,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.content_standards.artifact.Artifact.property_id"><code class="name">var <span class="ident">property_id</span> : <a title="adcp.types.generated_poc.core.identifier.Identifier" href="../core/identifier.html#adcp.types.generated_poc.core.identifier.Identifier">Identifier</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Artifact.provenance"><code class="name">var <span class="ident">provenance</span> : <a title="adcp.types.generated_poc.core.provenance.Provenance" href="../core/provenance.html#adcp.types.generated_poc.core.provenance.Provenance">Provenance</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -410,6 +420,10 @@ validated to form a valid model.</p>
             description=&#34;BCP 47 language tag for this text (e.g., &#39;en&#39;, &#39;es-MX&#39;). Useful when artifact contains mixed-language content.&#34;
         ),
     ] = None
+    provenance: Annotated[
+        provenance_1.Provenance | None,
+        Field(description=&#39;Provenance for this text block, overrides artifact-level provenance&#39;),
+    ] = None
     role: Annotated[
         Role | None,
         Field(
@@ -449,6 +463,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets.provenance"><code class="name">var <span class="ident">provenance</span> : <a title="adcp.types.generated_poc.core.provenance.Provenance" href="../core/provenance.html#adcp.types.generated_poc.core.provenance.Provenance">Provenance</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.content_standards.artifact.Assets.role"><code class="name">var <span class="ident">role</span> : <a title="adcp.types.generated_poc.content_standards.artifact.Role" href="#adcp.types.generated_poc.content_standards.artifact.Role">Role</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -485,6 +503,10 @@ validated to form a valid model.</p>
     alt_text: Annotated[str | None, Field(description=&#39;Alt text or image description&#39;)] = None
     caption: Annotated[str | None, Field(description=&#39;Image caption&#39;)] = None
     height: Annotated[int | None, Field(description=&#39;Image height in pixels&#39;)] = None
+    provenance: Annotated[
+        provenance_1.Provenance | None,
+        Field(description=&#39;Provenance for this image, overrides artifact-level provenance&#39;),
+    ] = None
     type: Literal[&#39;image&#39;]
     url: Annotated[AnyUrl, Field(description=&#39;Image URL&#39;)]
     width: Annotated[int | None, Field(description=&#39;Image width in pixels&#39;)] = None</code></pre>
@@ -521,6 +543,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.content_standards.artifact.Assets1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets1.provenance"><code class="name">var <span class="ident">provenance</span> : <a title="adcp.types.generated_poc.core.provenance.Provenance" href="../core/provenance.html#adcp.types.generated_poc.core.provenance.Provenance">Provenance</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -562,6 +588,10 @@ validated to form a valid model.</p>
         None
     )
     duration_ms: Annotated[int | None, Field(description=&#39;Video duration in milliseconds&#39;)] = None
+    provenance: Annotated[
+        provenance_1.Provenance | None,
+        Field(description=&#39;Provenance for this video, overrides artifact-level provenance&#39;),
+    ] = None
     thumbnail_url: Annotated[AnyUrl | None, Field(description=&#39;Video thumbnail URL&#39;)] = None
     transcript: Annotated[str | None, Field(description=&#39;Video transcript&#39;)] = None
     transcript_source: Annotated[
@@ -594,6 +624,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.content_standards.artifact.Assets2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets2.provenance"><code class="name">var <span class="ident">provenance</span> : <a title="adcp.types.generated_poc.core.provenance.Provenance" href="../core/provenance.html#adcp.types.generated_poc.core.provenance.Provenance">Provenance</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -643,6 +677,10 @@ validated to form a valid model.</p>
         None
     )
     duration_ms: Annotated[int | None, Field(description=&#39;Audio duration in milliseconds&#39;)] = None
+    provenance: Annotated[
+        provenance_1.Provenance | None,
+        Field(description=&#39;Provenance for this audio, overrides artifact-level provenance&#39;),
+    ] = None
     transcript: Annotated[str | None, Field(description=&#39;Audio transcript&#39;)] = None
     transcript_source: Annotated[
         TranscriptSource1 | None, Field(description=&#39;How the transcript was generated&#39;)
@@ -674,6 +712,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.content_standards.artifact.Assets3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact.Assets3.provenance"><code class="name">var <span class="ident">provenance</span> : <a title="adcp.types.generated_poc.core.provenance.Provenance" href="../core/provenance.html#adcp.types.generated_poc.core.provenance.Provenance">Provenance</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1183,6 +1225,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Artifact.metadata" href="#adcp.types.generated_poc.content_standards.artifact.Artifact.metadata">metadata</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Artifact.model_config" href="#adcp.types.generated_poc.content_standards.artifact.Artifact.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Artifact.property_id" href="#adcp.types.generated_poc.content_standards.artifact.Artifact.property_id">property_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Artifact.provenance" href="#adcp.types.generated_poc.content_standards.artifact.Artifact.provenance">provenance</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Artifact.published_time" href="#adcp.types.generated_poc.content_standards.artifact.Artifact.published_time">published_time</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Artifact.url" href="#adcp.types.generated_poc.content_standards.artifact.Artifact.url">url</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Artifact.variant_id" href="#adcp.types.generated_poc.content_standards.artifact.Artifact.variant_id">variant_id</a></code></li>
@@ -1226,6 +1269,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets.heading_level" href="#adcp.types.generated_poc.content_standards.artifact.Assets.heading_level">heading_level</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets.language" href="#adcp.types.generated_poc.content_standards.artifact.Assets.language">language</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets.model_config" href="#adcp.types.generated_poc.content_standards.artifact.Assets.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets.provenance" href="#adcp.types.generated_poc.content_standards.artifact.Assets.provenance">provenance</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets.role" href="#adcp.types.generated_poc.content_standards.artifact.Assets.role">role</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets.type" href="#adcp.types.generated_poc.content_standards.artifact.Assets.type">type</a></code></li>
 </ul>
@@ -1238,6 +1282,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets1.caption" href="#adcp.types.generated_poc.content_standards.artifact.Assets1.caption">caption</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets1.height" href="#adcp.types.generated_poc.content_standards.artifact.Assets1.height">height</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets1.model_config" href="#adcp.types.generated_poc.content_standards.artifact.Assets1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets1.provenance" href="#adcp.types.generated_poc.content_standards.artifact.Assets1.provenance">provenance</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets1.type" href="#adcp.types.generated_poc.content_standards.artifact.Assets1.type">type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets1.url" href="#adcp.types.generated_poc.content_standards.artifact.Assets1.url">url</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets1.width" href="#adcp.types.generated_poc.content_standards.artifact.Assets1.width">width</a></code></li>
@@ -1249,6 +1294,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets2.access" href="#adcp.types.generated_poc.content_standards.artifact.Assets2.access">access</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets2.duration_ms" href="#adcp.types.generated_poc.content_standards.artifact.Assets2.duration_ms">duration_ms</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets2.model_config" href="#adcp.types.generated_poc.content_standards.artifact.Assets2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets2.provenance" href="#adcp.types.generated_poc.content_standards.artifact.Assets2.provenance">provenance</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets2.thumbnail_url" href="#adcp.types.generated_poc.content_standards.artifact.Assets2.thumbnail_url">thumbnail_url</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets2.transcript" href="#adcp.types.generated_poc.content_standards.artifact.Assets2.transcript">transcript</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets2.transcript_source" href="#adcp.types.generated_poc.content_standards.artifact.Assets2.transcript_source">transcript_source</a></code></li>
@@ -1262,6 +1308,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets3.access" href="#adcp.types.generated_poc.content_standards.artifact.Assets3.access">access</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets3.duration_ms" href="#adcp.types.generated_poc.content_standards.artifact.Assets3.duration_ms">duration_ms</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets3.model_config" href="#adcp.types.generated_poc.content_standards.artifact.Assets3.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets3.provenance" href="#adcp.types.generated_poc.content_standards.artifact.Assets3.provenance">provenance</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets3.transcript" href="#adcp.types.generated_poc.content_standards.artifact.Assets3.transcript">transcript</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets3.transcript_source" href="#adcp.types.generated_poc.content_standards.artifact.Assets3.transcript_source">transcript_source</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact.Assets3.type" href="#adcp.types.generated_poc.content_standards.artifact.Assets3.type">type</a></code></li>

@@ -116,9 +116,6 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreateContentStandardsResponse1(AdCPBaseModel):
     context: context_1.ContextObject | None = None
-    errors: Annotated[
-        Any | None, Field(description=&#39;Field must not be present in success response&#39;)
-    ] = None
     ext: ext_1.ExtensionObject | None = None
     standards_id: Annotated[
         str, Field(description=&#39;Unique identifier for the created standards configuration&#39;)
@@ -140,10 +137,6 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse1.errors"><code class="name">var <span class="ident">errors</span> : typing.Any | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -189,10 +182,7 @@ validated to form a valid model.</p>
     ] = None
     context: context_1.ContextObject | None = None
     errors: list[error.Error]
-    ext: ext_1.ExtensionObject | None = None
-    standards_id: Annotated[
-        Any | None, Field(description=&#39;Field must not be present in error response&#39;)
-    ] = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null
@@ -226,10 +216,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse2.standards_id"><code class="name">var <span class="ident">standards_id</span> : typing.Any | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -271,7 +257,6 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse1" href="#adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse1">CreateContentStandardsResponse1</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse1.context" href="#adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse1.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse1.errors" href="#adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse1.errors">errors</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse1.ext" href="#adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse1.model_config" href="#adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse1.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse1.standards_id" href="#adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse1.standards_id">standards_id</a></code></li>
@@ -285,7 +270,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse2.errors" href="#adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse2.errors">errors</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse2.ext" href="#adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse2.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse2.model_config" href="#adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse2.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse2.standards_id" href="#adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse2.standards_id">standards_id</a></code></li>
 </ul>
 </li>
 </ul>

@@ -46,6 +46,84 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_request.Assignment"><code class="flex name class">
+<span>class <span class="ident">Assignment</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Assignment(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    creative_id: Annotated[str, Field(description=&#39;ID of the creative to assign&#39;)]
+    package_id: Annotated[str, Field(description=&#39;ID of the package to assign the creative to&#39;)]
+    placement_ids: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Restrict this creative to specific placements within the package. When omitted, the creative is eligible for all placements.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    weight: Annotated[
+        float | None,
+        Field(
+            description=&#39;Relative delivery weight (0–100). When multiple creatives are assigned to the same package, weights determine impression distribution proportionally — a creative with weight 2 gets twice the delivery of weight 1. When omitted, the creative receives equal rotation with other unweighted creatives. A weight of 0 means the creative is assigned but paused (receives no delivery).&#39;,
+            ge=0.0,
+            le=100.0,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_request.Assignment.creative_id"><code class="name">var <span class="ident">creative_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_request.Assignment.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_request.Assignment.package_id"><code class="name">var <span class="ident">package_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_request.Assignment.placement_ids"><code class="name">var <span class="ident">placement_ids</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_request.Assignment.weight"><code class="name">var <span class="ident">weight</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest"><code class="flex name class">
 <span>class <span class="ident">SyncCreativesRequest</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -59,15 +137,15 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    account_id: Annotated[
-        str | None,
-        Field(
-            description=&#39;Account that owns these creatives. Optional if the agent has a single account or the seller can determine the account from context. Required if the agent has multiple accounts and the seller cannot route automatically.&#39;
-        ),
-    ] = None
+    account: Annotated[
+        account_ref.AccountReference, Field(description=&#39;Account that owns these creatives.&#39;)
+    ]
     assignments: Annotated[
-        dict[Annotated[str, StringConstraints(pattern=r&#39;^[a-zA-Z0-9_-]+$&#39;)], list[str]] | None,
-        Field(description=&#39;Optional bulk assignment of creatives to packages&#39;),
+        list[Assignment] | None,
+        Field(
+            description=&#39;Optional bulk assignment of creatives to packages. Each entry maps one creative to one package with optional weight and placement targeting.&#39;,
+            min_length=1,
+        ),
     ] = None
     context: context_1.ContextObject | None = None
     creative_ids: Annotated[
@@ -99,6 +177,14 @@ el.replaceWith(d);
         ),
     ] = False
     ext: ext_1.ExtensionObject | None = None
+    idempotency_key: Annotated[
+        str | None,
+        Field(
+            description=&#39;Client-generated idempotency key for safe retries. If a sync fails without a response, resending with the same idempotency_key guarantees at-most-once execution.&#39;,
+            max_length=255,
+            min_length=8,
+        ),
+    ] = None
     push_notification_config: Annotated[
         push_notification_config_1.PushNotificationConfig | None,
         Field(
@@ -127,11 +213,11 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.account_id"><code class="name">var <span class="ident">account_id</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.assignments"><code class="name">var <span class="ident">assignments</span> : dict[str, list[str]] | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.assignments"><code class="name">var <span class="ident">assignments</span> : list[<a title="adcp.types.generated_poc.media_buy.sync_creatives_request.Assignment" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.Assignment">Assignment</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -156,6 +242,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -199,9 +289,19 @@ validated to form a valid model.</p>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.Assignment" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.Assignment">Assignment</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.Assignment.creative_id" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.Assignment.creative_id">creative_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.Assignment.model_config" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.Assignment.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.Assignment.package_id" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.Assignment.package_id">package_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.Assignment.placement_ids" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.Assignment.placement_ids">placement_ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.Assignment.weight" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.Assignment.weight">weight</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest">SyncCreativesRequest</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.account_id" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.account_id">account_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.account" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.account">account</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.assignments" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.assignments">assignments</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.context" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.creative_ids" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.creative_ids">creative_ids</a></code></li>
@@ -209,6 +309,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.delete_missing" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.delete_missing">delete_missing</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.dry_run" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.dry_run">dry_run</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.ext" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.idempotency_key" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.model_config" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.push_notification_config" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.push_notification_config">push_notification_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.validation_mode" href="#adcp.types.generated_poc.media_buy.sync_creatives_request.SyncCreativesRequest.validation_mode">validation_mode</a></code></li>

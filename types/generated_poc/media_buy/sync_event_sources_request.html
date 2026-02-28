@@ -135,7 +135,9 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    account_id: Annotated[str, Field(description=&#39;Account to configure event sources for&#39;)]
+    account: Annotated[
+        account_ref.AccountReference, Field(description=&#39;Account to configure event sources for.&#39;)
+    ]
     context: context_1.ContextObject | None = None
     delete_missing: Annotated[
         bool | None,
@@ -165,7 +167,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.account_id"><code class="name">var <span class="ident">account_id</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -229,7 +231,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest" href="#adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest">SyncEventSourcesRequest</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.account_id" href="#adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.account_id">account_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.account" href="#adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.account">account</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.context" href="#adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.delete_missing" href="#adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.delete_missing">delete_missing</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.event_sources" href="#adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.event_sources">event_sources</a></code></li>

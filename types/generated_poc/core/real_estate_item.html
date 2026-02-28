@@ -395,6 +395,13 @@ attributes &ndash; see the documentation for details.</p></div>
     )
     address: Annotated[Address, Field(description=&#39;Property address.&#39;)]
     area: Annotated[Area | None, Field(description=&#39;Property size.&#39;)] = None
+    assets: Annotated[
+        list[offering_asset_group.OfferingAssetGroup] | None,
+        Field(
+            description=&#34;Typed creative asset pools for this property listing. Uses the same OfferingAssetGroup structure as offering-type catalogs. Standard group IDs: &#39;images_landscape&#39; (exterior/interior hero), &#39;images_vertical&#39; (9:16 for Stories), &#39;images_square&#39; (1:1). Enables formats to declare typed image requirements that map unambiguously to the right asset regardless of platform.&#34;,
+            min_length=1,
+        ),
+    ] = None
     bathrooms: Annotated[
         float | None,
         Field(
@@ -451,6 +458,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.real_estate_item.RealEstateItem.area"><code class="name">var <span class="ident">area</span> : <a title="adcp.types.generated_poc.core.real_estate_item.Area" href="#adcp.types.generated_poc.core.real_estate_item.Area">Area</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.real_estate_item.RealEstateItem.assets"><code class="name">var <span class="ident">assets</span> : list[<a title="adcp.types.generated_poc.core.offering_asset_group.OfferingAssetGroup" href="offering_asset_group.html#adcp.types.generated_poc.core.offering_asset_group.OfferingAssetGroup">OfferingAssetGroup</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -659,6 +670,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.real_estate_item.RealEstateItem.address" href="#adcp.types.generated_poc.core.real_estate_item.RealEstateItem.address">address</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.real_estate_item.RealEstateItem.area" href="#adcp.types.generated_poc.core.real_estate_item.RealEstateItem.area">area</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.real_estate_item.RealEstateItem.assets" href="#adcp.types.generated_poc.core.real_estate_item.RealEstateItem.assets">assets</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.real_estate_item.RealEstateItem.bathrooms" href="#adcp.types.generated_poc.core.real_estate_item.RealEstateItem.bathrooms">bathrooms</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.real_estate_item.RealEstateItem.bedrooms" href="#adcp.types.generated_poc.core.real_estate_item.RealEstateItem.bedrooms">bedrooms</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.real_estate_item.RealEstateItem.description" href="#adcp.types.generated_poc.core.real_estate_item.RealEstateItem.description">description</a></code></li>

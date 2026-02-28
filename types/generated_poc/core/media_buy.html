@@ -82,6 +82,12 @@ el.replaceWith(d);
     packages: Annotated[
         list[package.Package], Field(description=&#39;Array of packages within this media buy&#39;)
     ]
+    rejection_reason: Annotated[
+        str | None,
+        Field(
+            description=&#34;Reason provided by the seller when status is &#39;rejected&#39;. Present only when status is &#39;rejected&#39;.&#34;
+        ),
+    ] = None
     status: media_buy_status.MediaBuyStatus
     total_budget: Annotated[float, Field(description=&#39;Total budget amount&#39;, ge=0.0)]
     updated_at: Annotated[AwareDatetime | None, Field(description=&#39;Last update timestamp&#39;)] = None</code></pre>
@@ -137,6 +143,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.media_buy.MediaBuy.rejection_reason"><code class="name">var <span class="ident">rejection_reason</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.media_buy.MediaBuy.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.enums.media_buy_status.MediaBuyStatus" href="../enums/media_buy_status.html#adcp.types.generated_poc.enums.media_buy_status.MediaBuyStatus">MediaBuyStatus</a></code></dt>
 <dd>
 <div class="desc"></div>
@@ -188,6 +198,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.media_buy_id" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.model_config" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.packages" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.packages">packages</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.rejection_reason" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.rejection_reason">rejection_reason</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.status" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.status">status</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.total_budget" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.total_budget">total_budget</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.updated_at" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.updated_at">updated_at</a></code></li>

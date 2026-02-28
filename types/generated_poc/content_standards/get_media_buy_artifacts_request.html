@@ -56,10 +56,10 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class GetMediaBuyArtifactsRequest(AdCPBaseModel):
-    account_id: Annotated[
-        str | None,
+    account: Annotated[
+        account_ref.AccountReference | None,
         Field(
-            description=&#39;Filter artifacts to a specific account. When provided, only returns artifacts for media buys belonging to this account. When omitted, returns artifacts across all accessible accounts. Optional if the agent has a single account.&#39;
+            description=&#39;Filter artifacts to a specific account. When omitted, returns artifacts across all accessible accounts.&#39;
         ),
     ] = None
     context: context_1.ContextObject | None = None
@@ -100,7 +100,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.account_id"><code class="name">var <span class="ident">account_id</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -414,7 +414,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest">GetMediaBuyArtifactsRequest</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.account_id" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.account_id">account_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.account" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.account">account</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.context" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.ext" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.media_buy_id" href="#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_request.GetMediaBuyArtifactsRequest.media_buy_id">media_buy_id</a></code></li>

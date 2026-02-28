@@ -67,9 +67,9 @@ el.replaceWith(d);
         ),
     ]
     metrics: Annotated[
-        dict[str, forecast_range.ForecastRange],
+        Metrics,
         Field(
-            description=&#39;Forecasted metric values at this budget level. Keys are either forecastable-metric values for delivery/engagement (impressions, reach, spend, etc.) or event-type values for outcomes (purchase, lead, app_install, etc.). Values are ForecastRange objects (low/mid/high). Use { &#34;mid&#34;: value } for point estimates. Include spend when the platform predicts it will differ from budget.&#39;
+            description=&#39;Forecasted metric values at this budget level. Keys are forecastable-metric enum values for delivery/engagement or event-type enum values for outcomes. Values are ForecastRange objects (low/mid/high). Use { &#34;mid&#34;: value } for point estimates. Include spend when the platform predicts it will differ from budget. Additional keys beyond the documented properties are allowed for event-type values (purchase, lead, app_install, etc.).&#39;
         ),
     ]</code></pre>
 </details>
@@ -92,11 +92,118 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.forecast_point.ForecastPoint.metrics"><code class="name">var <span class="ident">metrics</span> : dict[str, <a title="adcp.types.generated_poc.core.forecast_range.ForecastRange" href="forecast_range.html#adcp.types.generated_poc.core.forecast_range.ForecastRange">ForecastRange</a>]</code></dt>
+<dt id="adcp.types.generated_poc.core.forecast_point.ForecastPoint.metrics"><code class="name">var <span class="ident">metrics</span> : <a title="adcp.types.generated_poc.core.forecast_point.Metrics" href="#adcp.types.generated_poc.core.forecast_point.Metrics">Metrics</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.forecast_point.ForecastPoint.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.forecast_point.Metrics"><code class="flex name class">
+<span>class <span class="ident">Metrics</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Metrics(AdCPBaseModel):
+    audience_size: forecast_range.ForecastRange | None = None
+    clicks: forecast_range.ForecastRange | None = None
+    completed_views: forecast_range.ForecastRange | None = None
+    engagements: forecast_range.ForecastRange | None = None
+    follows: forecast_range.ForecastRange | None = None
+    frequency: forecast_range.ForecastRange | None = None
+    grps: forecast_range.ForecastRange | None = None
+    impressions: forecast_range.ForecastRange | None = None
+    profile_visits: forecast_range.ForecastRange | None = None
+    reach: forecast_range.ForecastRange | None = None
+    saves: forecast_range.ForecastRange | None = None
+    spend: forecast_range.ForecastRange | None = None
+    views: forecast_range.ForecastRange | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.forecast_point.Metrics.audience_size"><code class="name">var <span class="ident">audience_size</span> : <a title="adcp.types.generated_poc.core.forecast_range.ForecastRange" href="forecast_range.html#adcp.types.generated_poc.core.forecast_range.ForecastRange">ForecastRange</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.forecast_point.Metrics.clicks"><code class="name">var <span class="ident">clicks</span> : <a title="adcp.types.generated_poc.core.forecast_range.ForecastRange" href="forecast_range.html#adcp.types.generated_poc.core.forecast_range.ForecastRange">ForecastRange</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.forecast_point.Metrics.completed_views"><code class="name">var <span class="ident">completed_views</span> : <a title="adcp.types.generated_poc.core.forecast_range.ForecastRange" href="forecast_range.html#adcp.types.generated_poc.core.forecast_range.ForecastRange">ForecastRange</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.forecast_point.Metrics.engagements"><code class="name">var <span class="ident">engagements</span> : <a title="adcp.types.generated_poc.core.forecast_range.ForecastRange" href="forecast_range.html#adcp.types.generated_poc.core.forecast_range.ForecastRange">ForecastRange</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.forecast_point.Metrics.follows"><code class="name">var <span class="ident">follows</span> : <a title="adcp.types.generated_poc.core.forecast_range.ForecastRange" href="forecast_range.html#adcp.types.generated_poc.core.forecast_range.ForecastRange">ForecastRange</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.forecast_point.Metrics.frequency"><code class="name">var <span class="ident">frequency</span> : <a title="adcp.types.generated_poc.core.forecast_range.ForecastRange" href="forecast_range.html#adcp.types.generated_poc.core.forecast_range.ForecastRange">ForecastRange</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.forecast_point.Metrics.grps"><code class="name">var <span class="ident">grps</span> : <a title="adcp.types.generated_poc.core.forecast_range.ForecastRange" href="forecast_range.html#adcp.types.generated_poc.core.forecast_range.ForecastRange">ForecastRange</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.forecast_point.Metrics.impressions"><code class="name">var <span class="ident">impressions</span> : <a title="adcp.types.generated_poc.core.forecast_range.ForecastRange" href="forecast_range.html#adcp.types.generated_poc.core.forecast_range.ForecastRange">ForecastRange</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.forecast_point.Metrics.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.forecast_point.Metrics.profile_visits"><code class="name">var <span class="ident">profile_visits</span> : <a title="adcp.types.generated_poc.core.forecast_range.ForecastRange" href="forecast_range.html#adcp.types.generated_poc.core.forecast_range.ForecastRange">ForecastRange</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.forecast_point.Metrics.reach"><code class="name">var <span class="ident">reach</span> : <a title="adcp.types.generated_poc.core.forecast_range.ForecastRange" href="forecast_range.html#adcp.types.generated_poc.core.forecast_range.ForecastRange">ForecastRange</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.forecast_point.Metrics.saves"><code class="name">var <span class="ident">saves</span> : <a title="adcp.types.generated_poc.core.forecast_range.ForecastRange" href="forecast_range.html#adcp.types.generated_poc.core.forecast_range.ForecastRange">ForecastRange</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.forecast_point.Metrics.spend"><code class="name">var <span class="ident">spend</span> : <a title="adcp.types.generated_poc.core.forecast_range.ForecastRange" href="forecast_range.html#adcp.types.generated_poc.core.forecast_range.ForecastRange">ForecastRange</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.forecast_point.Metrics.views"><code class="name">var <span class="ident">views</span> : <a title="adcp.types.generated_poc.core.forecast_range.ForecastRange" href="forecast_range.html#adcp.types.generated_poc.core.forecast_range.ForecastRange">ForecastRange</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -133,6 +240,25 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.forecast_point.ForecastPoint.budget" href="#adcp.types.generated_poc.core.forecast_point.ForecastPoint.budget">budget</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.forecast_point.ForecastPoint.metrics" href="#adcp.types.generated_poc.core.forecast_point.ForecastPoint.metrics">metrics</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.forecast_point.ForecastPoint.model_config" href="#adcp.types.generated_poc.core.forecast_point.ForecastPoint.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.forecast_point.Metrics" href="#adcp.types.generated_poc.core.forecast_point.Metrics">Metrics</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.forecast_point.Metrics.audience_size" href="#adcp.types.generated_poc.core.forecast_point.Metrics.audience_size">audience_size</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.forecast_point.Metrics.clicks" href="#adcp.types.generated_poc.core.forecast_point.Metrics.clicks">clicks</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.forecast_point.Metrics.completed_views" href="#adcp.types.generated_poc.core.forecast_point.Metrics.completed_views">completed_views</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.forecast_point.Metrics.engagements" href="#adcp.types.generated_poc.core.forecast_point.Metrics.engagements">engagements</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.forecast_point.Metrics.follows" href="#adcp.types.generated_poc.core.forecast_point.Metrics.follows">follows</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.forecast_point.Metrics.frequency" href="#adcp.types.generated_poc.core.forecast_point.Metrics.frequency">frequency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.forecast_point.Metrics.grps" href="#adcp.types.generated_poc.core.forecast_point.Metrics.grps">grps</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.forecast_point.Metrics.impressions" href="#adcp.types.generated_poc.core.forecast_point.Metrics.impressions">impressions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.forecast_point.Metrics.model_config" href="#adcp.types.generated_poc.core.forecast_point.Metrics.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.forecast_point.Metrics.profile_visits" href="#adcp.types.generated_poc.core.forecast_point.Metrics.profile_visits">profile_visits</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.forecast_point.Metrics.reach" href="#adcp.types.generated_poc.core.forecast_point.Metrics.reach">reach</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.forecast_point.Metrics.saves" href="#adcp.types.generated_poc.core.forecast_point.Metrics.saves">saves</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.forecast_point.Metrics.spend" href="#adcp.types.generated_poc.core.forecast_point.Metrics.spend">spend</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.forecast_point.Metrics.views" href="#adcp.types.generated_poc.core.forecast_point.Metrics.views">views</a></code></li>
 </ul>
 </li>
 </ul>

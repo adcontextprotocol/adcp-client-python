@@ -62,6 +62,12 @@ el.replaceWith(d);
     content: Annotated[str, Field(description=&#39;CSS content&#39;)]
     media: Annotated[
         str | None, Field(description=&#34;CSS media query context (e.g., &#39;screen&#39;, &#39;print&#39;)&#34;)
+    ] = None
+    provenance: Annotated[
+        provenance_1.Provenance | None,
+        Field(
+            description=&#39;Provenance metadata for this asset, overrides manifest-level provenance&#39;
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -88,6 +94,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.assets.css_asset.CssAsset.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.css_asset.CssAsset.provenance"><code class="name">var <span class="ident">provenance</span> : <a title="adcp.types.generated_poc.core.provenance.Provenance" href="../provenance.html#adcp.types.generated_poc.core.provenance.Provenance">Provenance</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -124,6 +134,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset.content" href="#adcp.types.generated_poc.core.assets.css_asset.CssAsset.content">content</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset.media" href="#adcp.types.generated_poc.core.assets.css_asset.CssAsset.media">media</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset.model_config" href="#adcp.types.generated_poc.core.assets.css_asset.CssAsset.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset.provenance" href="#adcp.types.generated_poc.core.assets.css_asset.CssAsset.provenance">provenance</a></code></li>
 </ul>
 </li>
 </ul>

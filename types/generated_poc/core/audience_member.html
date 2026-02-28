@@ -59,7 +59,7 @@ el.replaceWith(d);
     root: Annotated[
         AudienceMember1 | AudienceMember2 | AudienceMember3,
         Field(
-            description=&#39;Hashed identifiers for a CRM audience member. All identifiers must be normalized before hashing: emails to lowercase+trim, phone numbers to E.164 format (e.g. +12065551234). At least one identifier is required. Providing multiple identifiers for the same person improves match rates. Composite identifiers (e.g. hashed first name + last name + zip for Google Customer Match) are not yet standardized — use the ext field for platform-specific extensions.&#39;,
+            description=&#39;A CRM audience member identified by a buyer-assigned external_id and at least one matchable identifier. All identifiers must be normalized before hashing: emails to lowercase+trim, phone numbers to E.164 format (e.g. +12065551234). Providing multiple identifiers for the same person improves match rates. Composite identifiers (e.g. hashed first name + last name + zip for Google Customer Match) are not yet standardized — use the ext field for platform-specific extensions.&#39;,
             title=&#39;Audience Member&#39;,
         ),
     ]</code></pre>
@@ -117,6 +117,12 @@ validated to form a valid model.</p>
         extra=&#39;allow&#39;,
     )
     ext: ext_1.ExtensionObject | None = None
+    external_id: Annotated[
+        str,
+        Field(
+            description=&#34;Buyer-assigned stable identifier for this audience member (e.g. CRM record ID, loyalty ID). Used for deduplication, removal, and cross-referencing with buyer systems. Adapters for CDPs that don&#39;t natively assign IDs can derive one (e.g. hash of the member&#39;s identifiers).&#34;
+        ),
+    ]
     hashed_email: Annotated[
         str,
         Field(
@@ -155,6 +161,10 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.core.audience_member.AudienceMember1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.audience_member.AudienceMember1.external_id"><code class="name">var <span class="ident">external_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -200,6 +210,12 @@ validated to form a valid model.</p>
         extra=&#39;allow&#39;,
     )
     ext: ext_1.ExtensionObject | None = None
+    external_id: Annotated[
+        str,
+        Field(
+            description=&#34;Buyer-assigned stable identifier for this audience member (e.g. CRM record ID, loyalty ID). Used for deduplication, removal, and cross-referencing with buyer systems. Adapters for CDPs that don&#39;t natively assign IDs can derive one (e.g. hash of the member&#39;s identifiers).&#34;
+        ),
+    ]
     hashed_email: Annotated[
         str | None,
         Field(
@@ -238,6 +254,10 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.core.audience_member.AudienceMember2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.audience_member.AudienceMember2.external_id"><code class="name">var <span class="ident">external_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -283,6 +303,12 @@ validated to form a valid model.</p>
         extra=&#39;allow&#39;,
     )
     ext: ext_1.ExtensionObject | None = None
+    external_id: Annotated[
+        str,
+        Field(
+            description=&#34;Buyer-assigned stable identifier for this audience member (e.g. CRM record ID, loyalty ID). Used for deduplication, removal, and cross-referencing with buyer systems. Adapters for CDPs that don&#39;t natively assign IDs can derive one (e.g. hash of the member&#39;s identifiers).&#34;
+        ),
+    ]
     hashed_email: Annotated[
         str | None,
         Field(
@@ -321,6 +347,10 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.core.audience_member.AudienceMember3.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.audience_member.AudienceMember3.external_id"><code class="name">var <span class="ident">external_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -431,8 +461,9 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.audience_member.AudienceMember1" href="#adcp.types.generated_poc.core.audience_member.AudienceMember1">AudienceMember1</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.audience_member.AudienceMember1.ext" href="#adcp.types.generated_poc.core.audience_member.AudienceMember1.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.audience_member.AudienceMember1.external_id" href="#adcp.types.generated_poc.core.audience_member.AudienceMember1.external_id">external_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.audience_member.AudienceMember1.hashed_email" href="#adcp.types.generated_poc.core.audience_member.AudienceMember1.hashed_email">hashed_email</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.audience_member.AudienceMember1.hashed_phone" href="#adcp.types.generated_poc.core.audience_member.AudienceMember1.hashed_phone">hashed_phone</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.audience_member.AudienceMember1.model_config" href="#adcp.types.generated_poc.core.audience_member.AudienceMember1.model_config">model_config</a></code></li>
@@ -441,8 +472,9 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.audience_member.AudienceMember2" href="#adcp.types.generated_poc.core.audience_member.AudienceMember2">AudienceMember2</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.audience_member.AudienceMember2.ext" href="#adcp.types.generated_poc.core.audience_member.AudienceMember2.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.audience_member.AudienceMember2.external_id" href="#adcp.types.generated_poc.core.audience_member.AudienceMember2.external_id">external_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.audience_member.AudienceMember2.hashed_email" href="#adcp.types.generated_poc.core.audience_member.AudienceMember2.hashed_email">hashed_email</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.audience_member.AudienceMember2.hashed_phone" href="#adcp.types.generated_poc.core.audience_member.AudienceMember2.hashed_phone">hashed_phone</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.audience_member.AudienceMember2.model_config" href="#adcp.types.generated_poc.core.audience_member.AudienceMember2.model_config">model_config</a></code></li>
@@ -451,8 +483,9 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.audience_member.AudienceMember3" href="#adcp.types.generated_poc.core.audience_member.AudienceMember3">AudienceMember3</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.audience_member.AudienceMember3.ext" href="#adcp.types.generated_poc.core.audience_member.AudienceMember3.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.audience_member.AudienceMember3.external_id" href="#adcp.types.generated_poc.core.audience_member.AudienceMember3.external_id">external_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.audience_member.AudienceMember3.hashed_email" href="#adcp.types.generated_poc.core.audience_member.AudienceMember3.hashed_email">hashed_email</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.audience_member.AudienceMember3.hashed_phone" href="#adcp.types.generated_poc.core.audience_member.AudienceMember3.hashed_phone">hashed_phone</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.audience_member.AudienceMember3.model_config" href="#adcp.types.generated_poc.core.audience_member.AudienceMember3.model_config">model_config</a></code></li>

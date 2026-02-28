@@ -66,12 +66,6 @@ el.replaceWith(d);
         ),
     ] = None
     context: context_1.ContextObject | None = None
-    creative_brief: Annotated[
-        creative_brief_ref.CreativeBriefReference | None,
-        Field(
-            description=&#39;Campaign-level creative brief with objective, audience, messaging, and reference assets. Can be an inline brief object or a URL to a hosted brief. Supplements the natural language message with structured creative direction.&#39;
-        ),
-    ] = None
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest | None,
         Field(
@@ -82,7 +76,7 @@ el.replaceWith(d);
     message: Annotated[
         str | None,
         Field(
-            description=&#39;Natural language instructions for the transformation or generation. For pure generation, this is the creative brief. For transformation, this provides guidance on how to adapt the creative.&#39;
+            description=&#39;Natural language instructions for the transformation or generation. For pure generation, this is the creative brief. For transformation, this provides guidance on how to adapt the creative. For refinement, this describes the desired changes.&#39;
         ),
     ] = None
     target_format_id: Annotated[
@@ -112,10 +106,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.build_creative_request.BuildCreativeRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.build_creative_request.BuildCreativeRequest.creative_brief"><code class="name">var <span class="ident">creative_brief</span> : <a title="adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference" href="../core/creative_brief_ref.html#adcp.types.generated_poc.core.creative_brief_ref.CreativeBriefReference">CreativeBriefReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -171,7 +161,6 @@ validated to form a valid model.</p>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_request.BuildCreativeRequest.brand" href="#adcp.types.generated_poc.media_buy.build_creative_request.BuildCreativeRequest.brand">brand</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_request.BuildCreativeRequest.context" href="#adcp.types.generated_poc.media_buy.build_creative_request.BuildCreativeRequest.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_request.BuildCreativeRequest.creative_brief" href="#adcp.types.generated_poc.media_buy.build_creative_request.BuildCreativeRequest.creative_brief">creative_brief</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_request.BuildCreativeRequest.creative_manifest" href="#adcp.types.generated_poc.media_buy.build_creative_request.BuildCreativeRequest.creative_manifest">creative_manifest</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_request.BuildCreativeRequest.ext" href="#adcp.types.generated_poc.media_buy.build_creative_request.BuildCreativeRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_request.BuildCreativeRequest.message" href="#adcp.types.generated_poc.media_buy.build_creative_request.BuildCreativeRequest.message">message</a></code></li>

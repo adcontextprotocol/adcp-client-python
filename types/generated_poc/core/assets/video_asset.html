@@ -717,6 +717,12 @@ attributes &ndash; see the documentation for details.</p></div>
     moov_atom_position: Annotated[
         MoovAtomPosition | None, Field(description=&#39;Position of moov atom in MP4 container&#39;)
     ] = None
+    provenance: Annotated[
+        provenance_1.Provenance | None,
+        Field(
+            description=&#39;Provenance metadata for this asset, overrides manifest-level provenance&#39;
+        ),
+    ] = None
     scan_type: Annotated[ScanType | None, Field(description=&#39;Scan type of the video&#39;)] = None
     transcript_url: Annotated[
         AnyUrl | None, Field(description=&#39;URL to text transcript of the video content&#39;)
@@ -835,6 +841,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.moov_atom_position"><code class="name">var <span class="ident">moov_atom_position</span> : <a title="adcp.types.generated_poc.core.assets.video_asset.MoovAtomPosition" href="#adcp.types.generated_poc.core.assets.video_asset.MoovAtomPosition">MoovAtomPosition</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.provenance"><code class="name">var <span class="ident">provenance</span> : <a title="adcp.types.generated_poc.core.provenance.Provenance" href="../provenance.html#adcp.types.generated_poc.core.provenance.Provenance">Provenance</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1030,6 +1040,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.height" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.height">height</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.model_config" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.moov_atom_position" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.moov_atom_position">moov_atom_position</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.provenance" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.provenance">provenance</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.scan_type" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.scan_type">scan_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.transcript_url" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.transcript_url">transcript_url</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset.url" href="#adcp.types.generated_poc.core.assets.video_asset.VideoAsset.url">url</a></code></li>

@@ -494,7 +494,7 @@ validated to form a valid model.</p>
         extra=&#39;forbid&#39;,
     )
     coordinates: Annotated[
-        Any,
+        list[Any],
         Field(
             description=&#39;GeoJSON coordinates array. For Polygon: array of linear rings. For MultiPolygon: array of polygons.&#39;
         ),
@@ -521,7 +521,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.catchment.Geometry.coordinates"><code class="name">var <span class="ident">coordinates</span> : Any</code></dt>
+<dt id="adcp.types.generated_poc.core.catchment.Geometry.coordinates"><code class="name">var <span class="ident">coordinates</span> : list[typing.Any]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>

@@ -59,10 +59,10 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    account_id: Annotated[
-        str | None,
+    account_scope: Annotated[
+        AccountScope | None,
         Field(
-            description=&#34;Seller-assigned account identifier. When billing is &#39;agent&#39;, multiple brands may share the same account_id.&#34;
+            description=&#34;How the seller scoped this account. operator: shared across all brands for this operator. brand: shared across all operators for this brand. operator_brand: dedicated to this operator+brand pair. agent: the agent&#39;s default account.&#34;
         ),
     ] = None
     action: Annotated[
@@ -73,41 +73,20 @@ el.replaceWith(d);
     ]
     billing: Annotated[
         Billing | None,
-        Field(
-            description=&#34;Who is invoiced on this account. May differ from the requested billing if the seller doesn&#39;t support it.&#34;
-        ),
+        Field(description=&#39;Who is invoiced on this account. Matches the requested billing model.&#39;),
     ] = None
-    brand_id: Annotated[
-        str | None,
-        Field(
-            description=&#39;Brand ID within the house portfolio, echoed from request&#39;,
-            pattern=&#39;^[a-z0-9_]+$&#39;,
-        ),
-    ] = None
+    brand: Annotated[
+        brand_ref.BrandReference, Field(description=&#39;Brand reference, echoed from the request&#39;)
+    ]
     credit_limit: CreditLimit | None = None
     errors: Annotated[
         list[error.Error] | None,
         Field(description=&#34;Per-account errors (only present when action is &#39;failed&#39;)&#34;),
     ] = None
-    house: Annotated[
-        str,
-        Field(
-            description=&#39;House domain, echoed from the request&#39;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
-        ),
-    ]
     name: Annotated[
         str | None, Field(description=&#39;Human-readable account name assigned by the seller&#39;)
     ] = None
-    operator: Annotated[str | None, Field(description=&#39;Operator domain, echoed from request&#39;)] = (
-        None
-    )
-    parent_account_id: Annotated[
-        str | None,
-        Field(
-            description=&#39;Parent account ID when this account is a sub-account under a shared billing account&#39;
-        ),
-    ] = None
+    operator: Annotated[str, Field(description=&#39;Operator domain, echoed from request&#39;)]
     payment_terms: Annotated[
         str | None, Field(description=&#34;Payment terms (e.g., &#39;net_30&#39;, &#39;prepay&#39;)&#34;)
     ] = None
@@ -125,7 +104,7 @@ el.replaceWith(d);
     status: Annotated[
         Status,
         Field(
-            description=&#39;Account status. active: ready for use. pending_approval: seller reviewing (credit, legal). payment_required: credit limit reached or funds depleted. suspended: was active, now paused. closed: terminated.&#39;
+            description=&#39;Account status. active: ready for use. pending_approval: seller reviewing (credit, legal). rejected: seller declined the account request. payment_required: credit limit reached or funds depleted. suspended: was active, now paused. closed: was active, now terminated.&#39;
         ),
     ]
     warnings: Annotated[
@@ -147,7 +126,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.account.sync_accounts_response.Account.account_id"><code class="name">var <span class="ident">account_id</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.account.sync_accounts_response.Account.account_scope"><code class="name">var <span class="ident">account_scope</span> : <a title="adcp.types.generated_poc.account.sync_accounts_response.AccountScope" href="#adcp.types.generated_poc.account.sync_accounts_response.AccountScope">AccountScope</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -159,7 +138,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_response.Account.brand_id"><code class="name">var <span class="ident">brand_id</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.account.sync_accounts_response.Account.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="../core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -171,10 +150,6 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_response.Account.house"><code class="name">var <span class="ident">house</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="adcp.types.generated_poc.account.sync_accounts_response.Account.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -183,11 +158,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_response.Account.operator"><code class="name">var <span class="ident">operator</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_response.Account.parent_account_id"><code class="name">var <span class="ident">parent_account_id</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.account.sync_accounts_response.Account.operator"><code class="name">var <span class="ident">operator</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -226,6 +197,80 @@ validated to form a valid model.</p>
 </ul>
 </li>
 </ul>
+</dd>
+<dt id="adcp.types.generated_poc.account.sync_accounts_response.AccountScope"><code class="flex name class">
+<span>class <span class="ident">AccountScope</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AccountScope(Enum):
+    operator = &#39;operator&#39;
+    brand = &#39;brand&#39;
+    operator_brand = &#39;operator_brand&#39;
+    agent = &#39;agent&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.account.sync_accounts_response.AccountScope.agent"><code class="name">var <span class="ident">agent</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.sync_accounts_response.AccountScope.brand"><code class="name">var <span class="ident">brand</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.sync_accounts_response.AccountScope.operator"><code class="name">var <span class="ident">operator</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.sync_accounts_response.AccountScope.operator_brand"><code class="name">var <span class="ident">operator_brand</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
 </dd>
 <dt id="adcp.types.generated_poc.account.sync_accounts_response.Action"><code class="flex name class">
 <span>class <span class="ident">Action</span></span>
@@ -311,7 +356,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Billing(Enum):
-    brand = &#39;brand&#39;
     operator = &#39;operator&#39;
     agent = &#39;agent&#39;</code></pre>
 </details>
@@ -357,10 +401,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.account.sync_accounts_response.Billing.agent"><code class="name">var <span class="ident">agent</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_response.Billing.brand"><code class="name">var <span class="ident">brand</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -501,6 +541,7 @@ validated to form a valid model.</p>
 <pre><code class="python">class Status(Enum):
     active = &#39;active&#39;
     pending_approval = &#39;pending_approval&#39;
+    rejected = &#39;rejected&#39;
     payment_required = &#39;payment_required&#39;
     suspended = &#39;suspended&#39;
     closed = &#39;closed&#39;</code></pre>
@@ -562,6 +603,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.account.sync_accounts_response.Status.rejected"><code class="name">var <span class="ident">rejected</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.account.sync_accounts_response.Status.suspended"><code class="name">var <span class="ident">suspended</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -587,52 +632,66 @@ attributes &ndash; see the documentation for details.</p></div>
                     &#39;data&#39;: {
                         &#39;accounts&#39;: [
                             {
-                                &#39;account_id&#39;: &#39;sub_tide_001&#39;,
+                                &#39;account_scope&#39;: &#39;operator_brand&#39;,
                                 &#39;action&#39;: &#39;created&#39;,
-                                &#39;billing&#39;: &#39;agent&#39;,
-                                &#39;brand_id&#39;: &#39;tide&#39;,
-                                &#39;house&#39;: &#39;pg.com&#39;,
-                                &#39;name&#39;: &#39;Tide (via GroupM)&#39;,
-                                &#39;operator&#39;: &#39;groupm.com&#39;,
-                                &#39;parent_account_id&#39;: &#39;acc_agent_house&#39;,
+                                &#39;billing&#39;: &#39;operator&#39;,
+                                &#39;brand&#39;: {&#39;brand_id&#39;: &#39;spark&#39;, &#39;domain&#39;: &#39;nova-brands.com&#39;},
+                                &#39;name&#39;: &#39;Spark (via Pinnacle)&#39;,
+                                &#39;operator&#39;: &#39;pinnacle-media.com&#39;,
                                 &#39;status&#39;: &#39;active&#39;,
                             },
                             {
-                                &#39;account_id&#39;: &#39;acc_dove_pending&#39;,
+                                &#39;account_scope&#39;: &#39;operator_brand&#39;,
                                 &#39;action&#39;: &#39;created&#39;,
-                                &#39;billing&#39;: &#39;brand&#39;,
-                                &#39;brand_id&#39;: &#39;dove&#39;,
-                                &#39;house&#39;: &#39;unilever.com&#39;,
-                                &#39;name&#39;: &#39;Dove&#39;,
-                                &#39;operator&#39;: &#39;mindshare.com&#39;,
+                                &#39;billing&#39;: &#39;operator&#39;,
+                                &#39;brand&#39;: {&#39;brand_id&#39;: &#39;glow&#39;, &#39;domain&#39;: &#39;nova-brands.com&#39;},
+                                &#39;name&#39;: &#39;Glow&#39;,
+                                &#39;operator&#39;: &#39;pinnacle-media.com&#39;,
                                 &#39;setup&#39;: {
                                     &#39;expires_at&#39;: &#39;2026-03-10T00:00:00Z&#39;,
-                                    &#39;message&#39;: &#39;Credit application required for direct billing&#39;,
-                                    &#39;url&#39;: &#39;https://seller.com/onboard/dove&#39;,
+                                    &#39;message&#39;: &#39;Complete advertiser registration and credit application&#39;,
+                                    &#39;url&#39;: &#39;https://seller.example.com/advertiser-onboard&#39;,
                                 },
                                 &#39;status&#39;: &#39;pending_approval&#39;,
                             },
                         ]
                     },
-                    &#39;description&#39;: &#39;Mixed results - one active, one pending approval&#39;,
+                    &#39;description&#39;: &#39;Mixed results — one active, one pending approval&#39;,
                 },
                 {
                     &#39;data&#39;: {
                         &#39;accounts&#39;: [
                             {
-                                &#39;account_id&#39;: &#39;acc_agent_house&#39;,
                                 &#39;action&#39;: &#39;created&#39;,
-                                &#39;billing&#39;: &#39;agent&#39;,
-                                &#39;house&#39;: &#39;acme-corp.com&#39;,
-                                &#39;name&#39;: &#39;Acme Corp (via agent)&#39;,
-                                &#39;status&#39;: &#39;active&#39;,
+                                &#39;brand&#39;: {&#39;brand_id&#39;: &#39;clearance&#39;, &#39;domain&#39;: &#39;acme-corp.com&#39;},
+                                &#39;operator&#39;: &#39;acme-corp.com&#39;,
+                                &#39;status&#39;: &#39;rejected&#39;,
                                 &#39;warnings&#39;: [
-                                    &#39;Direct billing (brand) not supported. Mapped to agent billing.&#39;
+                                    &#39;Account request declined: advertiser category not accepted on this platform.&#39;
                                 ],
                             }
                         ]
                     },
-                    &#39;description&#39;: &#34;Seller doesn&#39;t support direct billing, maps to agent billing&#34;,
+                    &#39;description&#39;: &#39;Rejected account — no account_id assigned&#39;,
+                },
+                {
+                    &#39;data&#39;: {
+                        &#39;accounts&#39;: [
+                            {
+                                &#39;action&#39;: &#39;failed&#39;,
+                                &#39;brand&#39;: {&#39;domain&#39;: &#39;acme-corp.com&#39;},
+                                &#39;errors&#39;: [
+                                    {
+                                        &#39;code&#39;: &#39;BILLING_NOT_SUPPORTED&#39;,
+                                        &#39;message&#39;: &#39;Operator billing is not supported. This seller only accepts agent billing.&#39;,
+                                    }
+                                ],
+                                &#39;operator&#39;: &#39;acme-corp.com&#39;,
+                                &#39;status&#39;: &#39;rejected&#39;,
+                            }
+                        ]
+                    },
+                    &#39;description&#39;: &#39;Unsupported billing — seller rejects the request&#39;,
                 },
             ],
             title=&#39;Sync Accounts Response&#39;,
@@ -829,23 +888,30 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account" href="#adcp.types.generated_poc.account.sync_accounts_response.Account">Account</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.account_id" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.account_id">account_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.account_scope" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.account_scope">account_scope</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.action" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.action">action</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.billing" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.billing">billing</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.brand_id" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.brand_id">brand_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.brand" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.brand">brand</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.credit_limit" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.credit_limit">credit_limit</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.errors" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.errors">errors</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.house" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.house">house</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.model_config" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.name" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.name">name</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.operator" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.operator">operator</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.parent_account_id" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.parent_account_id">parent_account_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.payment_terms" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.payment_terms">payment_terms</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.rate_card" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.rate_card">rate_card</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.sandbox" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.sandbox">sandbox</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.setup" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.setup">setup</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.status" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.status">status</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.warnings" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.warnings">warnings</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.account.sync_accounts_response.AccountScope" href="#adcp.types.generated_poc.account.sync_accounts_response.AccountScope">AccountScope</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.AccountScope.agent" href="#adcp.types.generated_poc.account.sync_accounts_response.AccountScope.agent">agent</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.AccountScope.brand" href="#adcp.types.generated_poc.account.sync_accounts_response.AccountScope.brand">brand</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.AccountScope.operator" href="#adcp.types.generated_poc.account.sync_accounts_response.AccountScope.operator">operator</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.AccountScope.operator_brand" href="#adcp.types.generated_poc.account.sync_accounts_response.AccountScope.operator_brand">operator_brand</a></code></li>
 </ul>
 </li>
 <li>
@@ -861,7 +927,6 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Billing" href="#adcp.types.generated_poc.account.sync_accounts_response.Billing">Billing</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Billing.agent" href="#adcp.types.generated_poc.account.sync_accounts_response.Billing.agent">agent</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Billing.brand" href="#adcp.types.generated_poc.account.sync_accounts_response.Billing.brand">brand</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Billing.operator" href="#adcp.types.generated_poc.account.sync_accounts_response.Billing.operator">operator</a></code></li>
 </ul>
 </li>
@@ -884,11 +949,12 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Status" href="#adcp.types.generated_poc.account.sync_accounts_response.Status">Status</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Status.active" href="#adcp.types.generated_poc.account.sync_accounts_response.Status.active">active</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Status.closed" href="#adcp.types.generated_poc.account.sync_accounts_response.Status.closed">closed</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Status.payment_required" href="#adcp.types.generated_poc.account.sync_accounts_response.Status.payment_required">payment_required</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Status.pending_approval" href="#adcp.types.generated_poc.account.sync_accounts_response.Status.pending_approval">pending_approval</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Status.rejected" href="#adcp.types.generated_poc.account.sync_accounts_response.Status.rejected">rejected</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Status.suspended" href="#adcp.types.generated_poc.account.sync_accounts_response.Status.suspended">suspended</a></code></li>
 </ul>
 </li>

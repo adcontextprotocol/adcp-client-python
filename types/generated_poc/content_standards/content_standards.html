@@ -151,6 +151,13 @@ validated to form a valid model.</p>
             description=&#39;Natural language policy describing acceptable and unacceptable content contexts. Used by LLMs and human reviewers to make judgments.&#39;
         ),
     ] = None
+    pricing_options: Annotated[
+        list[pricing_option.PricingOption] | None,
+        Field(
+            description=&#39;Pricing options for this content standards service. The buyer passes the selected pricing_option_id in report_usage for billing verification.&#39;,
+            min_length=1,
+        ),
+    ] = None
     standards_id: Annotated[
         str, Field(description=&#39;Unique identifier for this standards configuration&#39;)
     ]</code></pre>
@@ -206,6 +213,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.content_standards.content_standards.ContentStandards.pricing_options"><code class="name">var <span class="ident">pricing_options</span> : list[<a title="adcp.types.generated_poc.core.pricing_option.PricingOption" href="../core/pricing_option.html#adcp.types.generated_poc.core.pricing_option.PricingOption">PricingOption</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.content_standards.content_standards.ContentStandards.standards_id"><code class="name">var <span class="ident">standards_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
@@ -256,6 +267,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.content_standards.content_standards.ContentStandards.model_config" href="#adcp.types.generated_poc.content_standards.content_standards.ContentStandards.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.content_standards.ContentStandards.name" href="#adcp.types.generated_poc.content_standards.content_standards.ContentStandards.name">name</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.content_standards.ContentStandards.policy" href="#adcp.types.generated_poc.content_standards.content_standards.ContentStandards.policy">policy</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.content_standards.ContentStandards.pricing_options" href="#adcp.types.generated_poc.content_standards.content_standards.ContentStandards.pricing_options">pricing_options</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.content_standards.ContentStandards.standards_id" href="#adcp.types.generated_poc.content_standards.content_standards.ContentStandards.standards_id">standards_id</a></code></li>
 </ul>
 </li>

@@ -70,6 +70,20 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
+    field_bindings: Annotated[
+        list[catalog_field_binding.CatalogFieldBinding] | None,
+        Field(
+            description=&#39;Explicit mappings from format template slots to catalog item fields or typed asset pools. Optional — creative agents can infer mappings without them, but bindings make the relationship self-describing and enable validation. Covers scalar fields (asset_id → catalog_field), asset pools (asset_id → asset_group_id on the catalog item), and repeatable groups that iterate over catalog items.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    max_items: Annotated[
+        int | None,
+        Field(
+            description=&#39;Maximum number of items the format can render. Items beyond this limit are ignored. Useful for fixed-slot layouts (e.g., a 3-product card) or feed-size constraints.&#39;,
+            ge=1,
+        ),
+    ] = None
     min_items: Annotated[
         int | None,
         Field(
@@ -80,7 +94,7 @@ el.replaceWith(d);
     offering_asset_constraints: Annotated[
         list[offering_asset_constraint.OfferingAssetConstraint] | None,
         Field(
-            description=&#34;Per-offering creative requirements. Only applicable when catalog_type is &#39;offering&#39;. Declares what asset groups (headlines, images, videos) each offering must provide, along with count bounds and per-asset technical constraints.&#34;,
+            description=&#34;Per-item creative asset requirements. Declares what asset groups (headlines, images, videos) each catalog item must provide in its assets array, along with count bounds and per-asset technical constraints. Applicable to &#39;offering&#39; and all vertical catalog types (hotel, flight, job, etc.) whose items carry typed assets.&#34;,
             min_length=1,
         ),
     ] = None
@@ -118,6 +132,14 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.feed_formats"><code class="name">var <span class="ident">feed_formats</span> : list[<a title="adcp.types.generated_poc.enums.feed_format.FeedFormat" href="../../enums/feed_format.html#adcp.types.generated_poc.enums.feed_format.FeedFormat">FeedFormat</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.field_bindings"><code class="name">var <span class="ident">field_bindings</span> : list[<a title="adcp.types.generated_poc.core.requirements.catalog_field_binding.CatalogFieldBinding" href="catalog_field_binding.html#adcp.types.generated_poc.core.requirements.catalog_field_binding.CatalogFieldBinding">CatalogFieldBinding</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.max_items"><code class="name">var <span class="ident">max_items</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -173,6 +195,8 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.catalog_type" href="#adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.catalog_type">catalog_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.feed_formats" href="#adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.feed_formats">feed_formats</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.field_bindings" href="#adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.field_bindings">field_bindings</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.max_items" href="#adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.max_items">max_items</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.min_items" href="#adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.min_items">min_items</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.model_config" href="#adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.offering_asset_constraints" href="#adcp.types.generated_poc.core.requirements.catalog_requirements.CatalogRequirements.offering_asset_constraints">offering_asset_constraints</a></code></li>

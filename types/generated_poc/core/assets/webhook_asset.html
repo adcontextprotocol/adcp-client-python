@@ -125,6 +125,12 @@ validated to form a valid model.</p>
     method: Annotated[http_method.HttpMethod | None, Field(description=&#39;HTTP method&#39;)] = (
         http_method.HttpMethod.POST
     )
+    provenance: Annotated[
+        provenance_1.Provenance | None,
+        Field(
+            description=&#39;Provenance metadata for this asset, overrides manifest-level provenance&#39;
+        ),
+    ] = None
     required_macros: Annotated[
         list[universal_macro.UniversalMacro | str] | None,
         Field(description=&#39;Universal macros that must be provided for webhook to function&#39;),
@@ -166,6 +172,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset.provenance"><code class="name">var <span class="ident">provenance</span> : <a title="adcp.types.generated_poc.core.provenance.Provenance" href="../provenance.html#adcp.types.generated_poc.core.provenance.Provenance">Provenance</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -234,6 +244,7 @@ validated to form a valid model.</p>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset.method" href="#adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset.method">method</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset.model_config" href="#adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset.provenance" href="#adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset.provenance">provenance</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset.required_macros" href="#adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset.required_macros">required_macros</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset.response_type" href="#adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset.response_type">response_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset.security" href="#adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset.security">security</a></code></li>

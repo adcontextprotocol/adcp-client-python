@@ -222,7 +222,11 @@ validated to form a valid model.</p>
     ] = None
     clicks: Annotated[float | None, Field(description=&#39;Total clicks&#39;, ge=0.0)] = None
     completed_views: Annotated[
-        float | None, Field(description=&#39;100% completions (for CPCV)&#39;, ge=0.0)
+        float | None,
+        Field(
+            description=&#39;Video/audio completions. When the package has a completed_views optimization goal with view_duration_seconds, completions are counted at that threshold rather than 100% completion.&#39;,
+            ge=0.0,
+        ),
     ] = None
     completion_rate: Annotated[
         float | None,
@@ -258,9 +262,23 @@ validated to form a valid model.</p>
     engagement_rate: Annotated[
         float | None,
         Field(
-            description=&#39;Platform-specific engagement rate (0.0 to 1.0). Definition varies by platform (e.g., likes+comments+shares/impressions on social, interactions/impressions on rich media).&#39;,
+            description=&#39;Platform-specific engagement rate (0.0 to 1.0). Typically engagements/impressions, but definition varies by platform.&#39;,
             ge=0.0,
             le=1.0,
+        ),
+    ] = None
+    engagements: Annotated[
+        float | None,
+        Field(
+            description=&#34;Total engagements — direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the &#39;engagements&#39; optimization metric.&#34;,
+            ge=0.0,
+        ),
+    ] = None
+    follows: Annotated[
+        float | None,
+        Field(
+            description=&#39;New followers, page likes, artist/podcast/channel subscribes attributed to this delivery.&#39;,
+            ge=0.0,
         ),
     ] = None
     frequency: Annotated[
@@ -289,6 +307,13 @@ validated to form a valid model.</p>
             le=1.0,
         ),
     ] = None
+    profile_visits: Annotated[
+        float | None,
+        Field(
+            description=&#34;Visits to the brand&#39;s in-platform page (profile, artist page, channel, or storefront) attributed to this delivery. Does not include external website clicks.&#34;,
+            ge=0.0,
+        ),
+    ] = None
     quartile_data: Annotated[
         QuartileData | None, Field(description=&#39;Video quartile completion data&#39;)
     ] = None
@@ -301,6 +326,12 @@ validated to form a valid model.</p>
     ] = None
     roas: Annotated[
         float | None, Field(description=&#39;Return on ad spend (conversion_value / spend)&#39;, ge=0.0)
+    ] = None
+    saves: Annotated[
+        float | None,
+        Field(
+            description=&#39;Saves, bookmarks, playlist adds, pins attributed to this delivery.&#39;, ge=0.0
+        ),
     ] = None
     spend: Annotated[float | None, Field(description=&#39;Amount spent&#39;, ge=0.0)] = None
     viewability: Annotated[
@@ -327,9 +358,15 @@ validated to form a valid model.</p>
 <h3>Subclasses</h3>
 <ul class="hlist">
 <li><a title="adcp.types.generated_poc.core.creative_variant.CreativeVariant" href="creative_variant.html#adcp.types.generated_poc.core.creative_variant.CreativeVariant">CreativeVariant</a></li>
+<li><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByAudienceItem" href="../media_buy/get_media_buy_delivery_response.html#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByAudienceItem">ByAudienceItem</a></li>
 <li><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem" href="../media_buy/get_media_buy_delivery_response.html#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCatalogItemItem">ByCatalogItemItem</a></li>
 <li><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCreativeItem" href="../media_buy/get_media_buy_delivery_response.html#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByCreativeItem">ByCreativeItem</a></li>
+<li><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByDevicePlatformItem" href="../media_buy/get_media_buy_delivery_response.html#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByDevicePlatformItem">ByDevicePlatformItem</a></li>
+<li><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByDeviceTypeItem" href="../media_buy/get_media_buy_delivery_response.html#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByDeviceTypeItem">ByDeviceTypeItem</a></li>
+<li><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByGeoItem" href="../media_buy/get_media_buy_delivery_response.html#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByGeoItem">ByGeoItem</a></li>
+<li><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByKeywordItem" href="../media_buy/get_media_buy_delivery_response.html#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByKeywordItem">ByKeywordItem</a></li>
 <li><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem" href="../media_buy/get_media_buy_delivery_response.html#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem">ByPackageItem</a></li>
+<li><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPlacementItem" href="../media_buy/get_media_buy_delivery_response.html#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPlacementItem">ByPlacementItem</a></li>
 <li><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Totals" href="../media_buy/get_media_buy_delivery_response.html#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Totals">Totals</a></li>
 </ul>
 <h3>Class variables</h3>
@@ -382,6 +419,14 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.engagements"><code class="name">var <span class="ident">engagements</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.follows"><code class="name">var <span class="ident">follows</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.frequency"><code class="name">var <span class="ident">frequency</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -406,6 +451,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.profile_visits"><code class="name">var <span class="ident">profile_visits</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.quartile_data"><code class="name">var <span class="ident">quartile_data</span> : <a title="adcp.types.generated_poc.core.delivery_metrics.QuartileData" href="#adcp.types.generated_poc.core.delivery_metrics.QuartileData">QuartileData</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -415,6 +464,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.roas"><code class="name">var <span class="ident">roas</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.saves"><code class="name">var <span class="ident">saves</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -875,15 +928,19 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.ctr" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.ctr">ctr</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.dooh_metrics" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.dooh_metrics">dooh_metrics</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.engagement_rate" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.engagement_rate">engagement_rate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.engagements" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.engagements">engagements</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.follows" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.follows">follows</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.frequency" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.frequency">frequency</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.grps" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.grps">grps</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.impressions" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.impressions">impressions</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.leads" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.leads">leads</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.model_config" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.new_to_brand_rate" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.new_to_brand_rate">new_to_brand_rate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.profile_visits" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.profile_visits">profile_visits</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.quartile_data" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.quartile_data">quartile_data</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.reach" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.reach">reach</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.roas" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.roas">roas</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.saves" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.saves">saves</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.spend" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.spend">spend</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.viewability" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.viewability">viewability</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.views" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.views">views</a></code></li>

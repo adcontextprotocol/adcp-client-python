@@ -124,6 +124,14 @@ validated to form a valid model.</p>
         AwareDatetime | None, Field(description=&#39;New end date/time in ISO 8601 format&#39;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
+    idempotency_key: Annotated[
+        str | None,
+        Field(
+            description=&#39;Client-generated idempotency key for safe retries. If an update fails without a response, resending with the same idempotency_key guarantees the update is applied at most once.&#39;,
+            max_length=255,
+            min_length=8,
+        ),
+    ] = None
     media_buy_id: Annotated[str, Field(description=&#34;Publisher&#39;s ID of the media buy to update&#34;)]
     packages: Annotated[
         list[package_update.PackageUpdate] | None,
@@ -175,6 +183,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest1.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -237,6 +249,14 @@ validated to form a valid model.</p>
         AwareDatetime | None, Field(description=&#39;New end date/time in ISO 8601 format&#39;)
     ] = None
     ext: ext_1.ExtensionObject | None = None
+    idempotency_key: Annotated[
+        str | None,
+        Field(
+            description=&#39;Client-generated idempotency key for safe retries. If an update fails without a response, resending with the same idempotency_key guarantees the update is applied at most once.&#39;,
+            max_length=255,
+            min_length=8,
+        ),
+    ] = None
     media_buy_id: Annotated[
         str | None, Field(description=&#34;Publisher&#39;s ID of the media buy to update&#34;)
     ] = None
@@ -290,6 +310,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest2.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -362,6 +386,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest1.context" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest1.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest1.end_time" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest1.end_time">end_time</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest1.ext" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest1.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest1.idempotency_key" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest1.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest1.media_buy_id" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest1.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest1.model_config" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest1.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest1.packages" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest1.packages">packages</a></code></li>
@@ -378,6 +403,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest2.context" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest2.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest2.end_time" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest2.end_time">end_time</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest2.ext" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest2.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest2.idempotency_key" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest2.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest2.media_buy_id" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest2.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest2.model_config" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest2.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest2.packages" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest2.packages">packages</a></code></li>

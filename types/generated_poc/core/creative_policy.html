@@ -66,6 +66,12 @@ el.replaceWith(d);
         landing_page_requirement.LandingPageRequirement,
         Field(description=&#39;Landing page requirements&#39;),
     ]
+    provenance_required: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether creatives must include provenance metadata. When true, the seller requires buyers to attach provenance declarations to creative submissions. The seller may independently verify claims via get_creative_features.&#39;
+        ),
+    ] = None
     templates_available: Annotated[
         bool, Field(description=&#39;Whether creative templates are provided&#39;)
     ]</code></pre>
@@ -94,6 +100,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.creative_policy.CreativePolicy.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.creative_policy.CreativePolicy.provenance_required"><code class="name">var <span class="ident">provenance_required</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -134,6 +144,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.creative_policy.CreativePolicy.co_branding" href="#adcp.types.generated_poc.core.creative_policy.CreativePolicy.co_branding">co_branding</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_policy.CreativePolicy.landing_page" href="#adcp.types.generated_poc.core.creative_policy.CreativePolicy.landing_page">landing_page</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_policy.CreativePolicy.model_config" href="#adcp.types.generated_poc.core.creative_policy.CreativePolicy.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.creative_policy.CreativePolicy.provenance_required" href="#adcp.types.generated_poc.core.creative_policy.CreativePolicy.provenance_required">provenance_required</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.creative_policy.CreativePolicy.templates_available" href="#adcp.types.generated_poc.core.creative_policy.CreativePolicy.templates_available">templates_available</a></code></li>
 </ul>
 </li>

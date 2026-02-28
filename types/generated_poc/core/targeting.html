@@ -478,6 +478,378 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity"><code class="flex name class">
+<span>class <span class="ident">GeoProximity</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GeoProximity(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    ext: ext_1.ExtensionObject | None = None
+    geometry: Annotated[
+        Geometry | None,
+        Field(
+            description=&#39;Pre-computed GeoJSON geometry defining the proximity boundary. Use when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom boundaries. When geometry is provided, lat/lng are not required.&#39;
+        ),
+    ] = None
+    label: Annotated[
+        str | None,
+        Field(
+            description=&#34;Human-readable label for this entry (e.g., &#39;Düsseldorf&#39;, &#39;Heathrow Airport&#39;, &#39;Primary trade area&#39;).&#34;
+        ),
+    ] = None
+    lat: Annotated[
+        float,
+        Field(
+            description=&#39;Latitude in decimal degrees (WGS 84). Required for travel_time and radius methods.&#39;,
+            ge=-90.0,
+            le=90.0,
+        ),
+    ]
+    lng: Annotated[
+        float,
+        Field(
+            description=&#39;Longitude in decimal degrees (WGS 84). Required for travel_time and radius methods.&#39;,
+            ge=-180.0,
+            le=180.0,
+        ),
+    ]
+    radius: Annotated[
+        Radius | None,
+        Field(
+            description=&#39;Simple radius from the point. The platform draws a circle of this distance around the coordinates.&#39;
+        ),
+    ] = None
+    transport_mode: Annotated[
+        transport_mode_1.TransportMode,
+        Field(
+            description=&#39;Transportation mode for isochrone calculation. Required when travel_time is provided.&#39;
+        ),
+    ]
+    travel_time: Annotated[
+        TravelTime,
+        Field(
+            description=&#39;Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks.&#39;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.targeting.Geometry" href="#adcp.types.generated_poc.core.targeting.Geometry">Geometry</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity.label"><code class="name">var <span class="ident">label</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity.lat"><code class="name">var <span class="ident">lat</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity.lng"><code class="name">var <span class="ident">lng</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity.radius"><code class="name">var <span class="ident">radius</span> : <a title="adcp.types.generated_poc.core.targeting.Radius" href="#adcp.types.generated_poc.core.targeting.Radius">Radius</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity.transport_mode"><code class="name">var <span class="ident">transport_mode</span> : <a title="adcp.types.generated_poc.enums.transport_mode.TransportMode" href="../enums/transport_mode.html#adcp.types.generated_poc.enums.transport_mode.TransportMode">TransportMode</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.targeting.TravelTime" href="#adcp.types.generated_poc.core.targeting.TravelTime">TravelTime</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2"><code class="flex name class">
+<span>class <span class="ident">GeoProximity2</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GeoProximity2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    ext: ext_1.ExtensionObject | None = None
+    geometry: Annotated[
+        Geometry4 | None,
+        Field(
+            description=&#39;Pre-computed GeoJSON geometry defining the proximity boundary. Use when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom boundaries. When geometry is provided, lat/lng are not required.&#39;
+        ),
+    ] = None
+    label: Annotated[
+        str | None,
+        Field(
+            description=&#34;Human-readable label for this entry (e.g., &#39;Düsseldorf&#39;, &#39;Heathrow Airport&#39;, &#39;Primary trade area&#39;).&#34;
+        ),
+    ] = None
+    lat: Annotated[
+        float,
+        Field(
+            description=&#39;Latitude in decimal degrees (WGS 84). Required for travel_time and radius methods.&#39;,
+            ge=-90.0,
+            le=90.0,
+        ),
+    ]
+    lng: Annotated[
+        float,
+        Field(
+            description=&#39;Longitude in decimal degrees (WGS 84). Required for travel_time and radius methods.&#39;,
+            ge=-180.0,
+            le=180.0,
+        ),
+    ]
+    radius: Annotated[
+        Radius,
+        Field(
+            description=&#39;Simple radius from the point. The platform draws a circle of this distance around the coordinates.&#39;
+        ),
+    ]
+    transport_mode: Annotated[
+        transport_mode_1.TransportMode | None,
+        Field(
+            description=&#39;Transportation mode for isochrone calculation. Required when travel_time is provided.&#39;
+        ),
+    ] = None
+    travel_time: Annotated[
+        TravelTime4 | None,
+        Field(
+            description=&#39;Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks.&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.targeting.Geometry4" href="#adcp.types.generated_poc.core.targeting.Geometry4">Geometry4</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.label"><code class="name">var <span class="ident">label</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.lat"><code class="name">var <span class="ident">lat</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.lng"><code class="name">var <span class="ident">lng</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.radius"><code class="name">var <span class="ident">radius</span> : <a title="adcp.types.generated_poc.core.targeting.Radius" href="#adcp.types.generated_poc.core.targeting.Radius">Radius</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.transport_mode"><code class="name">var <span class="ident">transport_mode</span> : <a title="adcp.types.generated_poc.enums.transport_mode.TransportMode" href="../enums/transport_mode.html#adcp.types.generated_poc.enums.transport_mode.TransportMode">TransportMode</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.targeting.TravelTime4" href="#adcp.types.generated_poc.core.targeting.TravelTime4">TravelTime4</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3"><code class="flex name class">
+<span>class <span class="ident">GeoProximity3</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GeoProximity3(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    ext: ext_1.ExtensionObject | None = None
+    geometry: Annotated[
+        Geometry5,
+        Field(
+            description=&#39;Pre-computed GeoJSON geometry defining the proximity boundary. Use when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom boundaries. When geometry is provided, lat/lng are not required.&#39;
+        ),
+    ]
+    label: Annotated[
+        str | None,
+        Field(
+            description=&#34;Human-readable label for this entry (e.g., &#39;Düsseldorf&#39;, &#39;Heathrow Airport&#39;, &#39;Primary trade area&#39;).&#34;
+        ),
+    ] = None
+    lat: Annotated[
+        float | None,
+        Field(
+            description=&#39;Latitude in decimal degrees (WGS 84). Required for travel_time and radius methods.&#39;,
+            ge=-90.0,
+            le=90.0,
+        ),
+    ] = None
+    lng: Annotated[
+        float | None,
+        Field(
+            description=&#39;Longitude in decimal degrees (WGS 84). Required for travel_time and radius methods.&#39;,
+            ge=-180.0,
+            le=180.0,
+        ),
+    ] = None
+    radius: Annotated[
+        Radius | None,
+        Field(
+            description=&#39;Simple radius from the point. The platform draws a circle of this distance around the coordinates.&#39;
+        ),
+    ] = None
+    transport_mode: Annotated[
+        transport_mode_1.TransportMode | None,
+        Field(
+            description=&#39;Transportation mode for isochrone calculation. Required when travel_time is provided.&#39;
+        ),
+    ] = None
+    travel_time: Annotated[
+        TravelTime5 | None,
+        Field(
+            description=&#39;Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks.&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.targeting.Geometry5" href="#adcp.types.generated_poc.core.targeting.Geometry5">Geometry5</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.label"><code class="name">var <span class="ident">label</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.lat"><code class="name">var <span class="ident">lat</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.lng"><code class="name">var <span class="ident">lng</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.radius"><code class="name">var <span class="ident">radius</span> : <a title="adcp.types.generated_poc.core.targeting.Radius" href="#adcp.types.generated_poc.core.targeting.Radius">Radius</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.transport_mode"><code class="name">var <span class="ident">transport_mode</span> : <a title="adcp.types.generated_poc.enums.transport_mode.TransportMode" href="../enums/transport_mode.html#adcp.types.generated_poc.enums.transport_mode.TransportMode">TransportMode</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.targeting.TravelTime5" href="#adcp.types.generated_poc.core.targeting.TravelTime5">TravelTime5</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.core.targeting.GeoRegion"><code class="flex name class">
 <span>class <span class="ident">GeoRegion</span></span>
 <span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
@@ -581,6 +953,230 @@ validated to form a valid model.</p>
 </dd>
 </dl>
 </dd>
+<dt id="adcp.types.generated_poc.core.targeting.Geometry"><code class="flex name class">
+<span>class <span class="ident">Geometry</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Geometry(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    coordinates: Annotated[
+        list[Any],
+        Field(
+            description=&#39;GeoJSON coordinates array. For Polygon: array of linear rings. For MultiPolygon: array of polygons.&#39;
+        ),
+    ]
+    type: Annotated[Type, Field(description=&#39;GeoJSON geometry type.&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.core.targeting.Geometry4" href="#adcp.types.generated_poc.core.targeting.Geometry4">Geometry4</a></li>
+<li><a title="adcp.types.generated_poc.core.targeting.Geometry5" href="#adcp.types.generated_poc.core.targeting.Geometry5">Geometry5</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.targeting.Geometry.coordinates"><code class="name">var <span class="ident">coordinates</span> : list[typing.Any]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.Geometry.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.Geometry.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.core.targeting.Type" href="#adcp.types.generated_poc.core.targeting.Type">Type</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.Geometry4"><code class="flex name class">
+<span>class <span class="ident">Geometry4</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Geometry4(Geometry):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.core.targeting.Geometry" href="#adcp.types.generated_poc.core.targeting.Geometry">Geometry</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.targeting.Geometry4.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.core.targeting.Geometry" href="#adcp.types.generated_poc.core.targeting.Geometry">Geometry</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.core.targeting.Geometry.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.Geometry.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.Geometry.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.Geometry5"><code class="flex name class">
+<span>class <span class="ident">Geometry5</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Geometry5(Geometry):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.core.targeting.Geometry" href="#adcp.types.generated_poc.core.targeting.Geometry">Geometry</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.targeting.Geometry5.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.core.targeting.Geometry" href="#adcp.types.generated_poc.core.targeting.Geometry">Geometry</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.core.targeting.Geometry.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.Geometry.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.Geometry.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.KeywordTarget"><code class="flex name class">
+<span>class <span class="ident">KeywordTarget</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class KeywordTarget(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    bid_price: Annotated[
+        float | None,
+        Field(
+            description=&#34;Per-keyword bid price, denominated in the same currency as the package&#39;s pricing option. Overrides the package-level bid_price for this keyword. Inherits the max_bid interpretation from the pricing option: when max_bid is true, this is the keyword&#39;s bid ceiling; when false, this is the exact bid. If omitted, the package bid_price applies.&#34;,
+            ge=0.0,
+        ),
+    ] = None
+    keyword: Annotated[str, Field(description=&#39;The keyword to target&#39;, min_length=1)]
+    match_type: Annotated[
+        MatchType,
+        Field(
+            description=&#39;Match type: broad matches related queries, phrase matches queries containing the keyword phrase, exact matches the query exactly&#39;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.targeting.KeywordTarget.bid_price"><code class="name">var <span class="ident">bid_price</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.KeywordTarget.keyword"><code class="name">var <span class="ident">keyword</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.KeywordTarget.match_type"><code class="name">var <span class="ident">match_type</span> : <a title="adcp.types.generated_poc.core.targeting.MatchType" href="#adcp.types.generated_poc.core.targeting.MatchType">MatchType</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.KeywordTarget.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.core.targeting.LanguageItem"><code class="flex name class">
 <span>class <span class="ident">LanguageItem</span></span>
 <span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
@@ -631,6 +1227,185 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 </dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.MatchType"><code class="flex name class">
+<span>class <span class="ident">MatchType</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MatchType(Enum):
+    broad = &#39;broad&#39;
+    phrase = &#39;phrase&#39;
+    exact = &#39;exact&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.targeting.MatchType.broad"><code class="name">var <span class="ident">broad</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.MatchType.exact"><code class="name">var <span class="ident">exact</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.MatchType.phrase"><code class="name">var <span class="ident">phrase</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.NegativeKeyword"><code class="flex name class">
+<span>class <span class="ident">NegativeKeyword</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class NegativeKeyword(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    keyword: Annotated[str, Field(description=&#39;The keyword to exclude&#39;, min_length=1)]
+    match_type: Annotated[MatchType, Field(description=&#39;Match type for exclusion&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.targeting.NegativeKeyword.keyword"><code class="name">var <span class="ident">keyword</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.NegativeKeyword.match_type"><code class="name">var <span class="ident">match_type</span> : <a title="adcp.types.generated_poc.core.targeting.MatchType" href="#adcp.types.generated_poc.core.targeting.MatchType">MatchType</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.NegativeKeyword.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.Radius"><code class="flex name class">
+<span>class <span class="ident">Radius</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Radius(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    unit: Annotated[distance_unit.DistanceUnit, Field(description=&#39;Distance unit.&#39;)]
+    value: Annotated[float, Field(description=&#39;Radius distance.&#39;, gt=0.0)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.targeting.Radius.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.Radius.unit"><code class="name">var <span class="ident">unit</span> : <a title="adcp.types.generated_poc.enums.distance_unit.DistanceUnit" href="../enums/distance_unit.html#adcp.types.generated_poc.enums.distance_unit.DistanceUnit">DistanceUnit</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.Radius.value"><code class="name">var <span class="ident">value</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
 </dd>
 <dt id="adcp.types.generated_poc.core.targeting.StoreCatchment"><code class="flex name class">
 <span>class <span class="ident">StoreCatchment</span></span>
@@ -759,6 +1534,20 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
+    device_type: Annotated[
+        list[device_type_1.DeviceType] | None,
+        Field(
+            description=&#39;Restrict to specific device form factors. Use for campaigns targeting hardware categories rather than operating systems (e.g., mobile-only promotions, CTV campaigns).&#39;,
+            min_length=1,
+        ),
+    ] = None
+    device_type_exclude: Annotated[
+        list[device_type_1.DeviceType] | None,
+        Field(
+            description=&#39;Exclude specific device form factors from delivery (e.g., exclude CTV for app-install campaigns).&#39;,
+            min_length=1,
+        ),
+    ] = None
     frequency_cap: frequency_cap_1.FrequencyCap | None = None
     geo_countries: Annotated[
         list[GeoCountry] | None,
@@ -802,6 +1591,13 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
+    geo_proximity: Annotated[
+        list[GeoProximity | GeoProximity2 | GeoProximity3] | None,
+        Field(
+            description=&#39;Target users within travel time, distance, or a custom boundary around arbitrary geographic points. Multiple entries use OR semantics — a user within range of any listed point is eligible. For campaigns targeting 10+ locations, consider using store_catchments with a location catalog instead. Seller must declare support in get_adcp_capabilities.&#39;,
+            min_length=1,
+        ),
+    ] = None
     geo_regions: Annotated[
         list[GeoRegion] | None,
         Field(
@@ -816,10 +1612,24 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
+    keyword_targets: Annotated[
+        list[KeywordTarget] | None,
+        Field(
+            description=&#39;Keyword targeting for search and retail media platforms. Restricts delivery to queries matching the specified keywords. Each keyword is identified by the tuple (keyword, match_type) — the same keyword string with different match types are distinct targets. Sellers SHOULD reject duplicate (keyword, match_type) pairs within a single request. Seller must declare support in get_adcp_capabilities.&#39;,
+            min_length=1,
+        ),
+    ] = None
     language: Annotated[
         list[LanguageItem] | None,
         Field(
             description=&#34;Restrict to users with specific language preferences. ISO 639-1 codes (e.g., &#39;en&#39;, &#39;es&#39;, &#39;fr&#39;).&#34;,
+            min_length=1,
+        ),
+    ] = None
+    negative_keywords: Annotated[
+        list[NegativeKeyword] | None,
+        Field(
+            description=&#39;Keywords to exclude from delivery. Queries matching these keywords will not trigger the ad. Each negative keyword is identified by the tuple (keyword, match_type). Seller must declare support in get_adcp_capabilities.&#39;,
             min_length=1,
         ),
     ] = None
@@ -880,6 +1690,14 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.device_type"><code class="name">var <span class="ident">device_type</span> : list[<a title="adcp.types.generated_poc.enums.device_type.DeviceType" href="../enums/device_type.html#adcp.types.generated_poc.enums.device_type.DeviceType">DeviceType</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.device_type_exclude"><code class="name">var <span class="ident">device_type_exclude</span> : list[<a title="adcp.types.generated_poc.enums.device_type.DeviceType" href="../enums/device_type.html#adcp.types.generated_poc.enums.device_type.DeviceType">DeviceType</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.frequency_cap"><code class="name">var <span class="ident">frequency_cap</span> : <a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap" href="frequency_cap.html#adcp.types.generated_poc.core.frequency_cap.FrequencyCap">FrequencyCap</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -908,6 +1726,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_proximity"><code class="name">var <span class="ident">geo_proximity</span> : list[<a title="adcp.types.generated_poc.core.targeting.GeoProximity" href="#adcp.types.generated_poc.core.targeting.GeoProximity">GeoProximity</a> | <a title="adcp.types.generated_poc.core.targeting.GeoProximity2" href="#adcp.types.generated_poc.core.targeting.GeoProximity2">GeoProximity2</a> | <a title="adcp.types.generated_poc.core.targeting.GeoProximity3" href="#adcp.types.generated_poc.core.targeting.GeoProximity3">GeoProximity3</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_regions"><code class="name">var <span class="ident">geo_regions</span> : list[<a title="adcp.types.generated_poc.core.targeting.GeoRegion" href="#adcp.types.generated_poc.core.targeting.GeoRegion">GeoRegion</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -916,11 +1738,19 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.keyword_targets"><code class="name">var <span class="ident">keyword_targets</span> : list[<a title="adcp.types.generated_poc.core.targeting.KeywordTarget" href="#adcp.types.generated_poc.core.targeting.KeywordTarget">KeywordTarget</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.language"><code class="name">var <span class="ident">language</span> : list[<a title="adcp.types.generated_poc.core.targeting.LanguageItem" href="#adcp.types.generated_poc.core.targeting.LanguageItem">LanguageItem</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.negative_keywords"><code class="name">var <span class="ident">negative_keywords</span> : list[<a title="adcp.types.generated_poc.core.targeting.NegativeKeyword" href="#adcp.types.generated_poc.core.targeting.NegativeKeyword">NegativeKeyword</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -943,6 +1773,282 @@ validated to form a valid model.</p>
 </ul>
 </li>
 </ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.TravelTime"><code class="flex name class">
+<span>class <span class="ident">TravelTime</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TravelTime(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    unit: Annotated[Unit, Field(description=&#39;Time unit.&#39;)]
+    value: Annotated[float, Field(description=&#39;Travel time limit.&#39;, ge=1.0)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.core.targeting.TravelTime4" href="#adcp.types.generated_poc.core.targeting.TravelTime4">TravelTime4</a></li>
+<li><a title="adcp.types.generated_poc.core.targeting.TravelTime5" href="#adcp.types.generated_poc.core.targeting.TravelTime5">TravelTime5</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.targeting.TravelTime.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.TravelTime.unit"><code class="name">var <span class="ident">unit</span> : <a title="adcp.types.generated_poc.core.targeting.Unit" href="#adcp.types.generated_poc.core.targeting.Unit">Unit</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.TravelTime.value"><code class="name">var <span class="ident">value</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.TravelTime4"><code class="flex name class">
+<span>class <span class="ident">TravelTime4</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TravelTime4(TravelTime):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.core.targeting.TravelTime" href="#adcp.types.generated_poc.core.targeting.TravelTime">TravelTime</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.targeting.TravelTime4.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.core.targeting.TravelTime" href="#adcp.types.generated_poc.core.targeting.TravelTime">TravelTime</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.core.targeting.TravelTime.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.TravelTime.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.TravelTime.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.TravelTime5"><code class="flex name class">
+<span>class <span class="ident">TravelTime5</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TravelTime5(TravelTime):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>AdCP JSON schemas use additionalProperties: false and do not allow null
+for optional fields. Therefore, optional fields must be omitted entirely
+when not present (not sent as null).</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.core.targeting.TravelTime" href="#adcp.types.generated_poc.core.targeting.TravelTime">TravelTime</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.targeting.TravelTime5.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.core.targeting.TravelTime" href="#adcp.types.generated_poc.core.targeting.TravelTime">TravelTime</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.core.targeting.TravelTime.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.TravelTime.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.TravelTime.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.Type"><code class="flex name class">
+<span>class <span class="ident">Type</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Type(Enum):
+    Polygon = &#39;Polygon&#39;
+    MultiPolygon = &#39;MultiPolygon&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.targeting.Type.MultiPolygon"><code class="name">var <span class="ident">MultiPolygon</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.Type.Polygon"><code class="name">var <span class="ident">Polygon</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.Unit"><code class="flex name class">
+<span>class <span class="ident">Unit</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Unit(Enum):
+    min = &#39;min&#39;
+    hr = &#39;hr&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.targeting.Unit.hr"><code class="name">var <span class="ident">hr</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.Unit.min"><code class="name">var <span class="ident">min</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
 </dd>
 </dl>
 </section>
@@ -1014,6 +2120,48 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity" href="#adcp.types.generated_poc.core.targeting.GeoProximity">GeoProximity</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity.ext" href="#adcp.types.generated_poc.core.targeting.GeoProximity.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity.geometry" href="#adcp.types.generated_poc.core.targeting.GeoProximity.geometry">geometry</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity.label" href="#adcp.types.generated_poc.core.targeting.GeoProximity.label">label</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity.lat" href="#adcp.types.generated_poc.core.targeting.GeoProximity.lat">lat</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity.lng" href="#adcp.types.generated_poc.core.targeting.GeoProximity.lng">lng</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity.model_config" href="#adcp.types.generated_poc.core.targeting.GeoProximity.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity.radius" href="#adcp.types.generated_poc.core.targeting.GeoProximity.radius">radius</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity.transport_mode" href="#adcp.types.generated_poc.core.targeting.GeoProximity.transport_mode">transport_mode</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity.travel_time" href="#adcp.types.generated_poc.core.targeting.GeoProximity.travel_time">travel_time</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity2" href="#adcp.types.generated_poc.core.targeting.GeoProximity2">GeoProximity2</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity2.ext" href="#adcp.types.generated_poc.core.targeting.GeoProximity2.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity2.geometry" href="#adcp.types.generated_poc.core.targeting.GeoProximity2.geometry">geometry</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity2.label" href="#adcp.types.generated_poc.core.targeting.GeoProximity2.label">label</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity2.lat" href="#adcp.types.generated_poc.core.targeting.GeoProximity2.lat">lat</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity2.lng" href="#adcp.types.generated_poc.core.targeting.GeoProximity2.lng">lng</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity2.model_config" href="#adcp.types.generated_poc.core.targeting.GeoProximity2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity2.radius" href="#adcp.types.generated_poc.core.targeting.GeoProximity2.radius">radius</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity2.transport_mode" href="#adcp.types.generated_poc.core.targeting.GeoProximity2.transport_mode">transport_mode</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity2.travel_time" href="#adcp.types.generated_poc.core.targeting.GeoProximity2.travel_time">travel_time</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity3" href="#adcp.types.generated_poc.core.targeting.GeoProximity3">GeoProximity3</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity3.ext" href="#adcp.types.generated_poc.core.targeting.GeoProximity3.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity3.geometry" href="#adcp.types.generated_poc.core.targeting.GeoProximity3.geometry">geometry</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity3.label" href="#adcp.types.generated_poc.core.targeting.GeoProximity3.label">label</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity3.lat" href="#adcp.types.generated_poc.core.targeting.GeoProximity3.lat">lat</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity3.lng" href="#adcp.types.generated_poc.core.targeting.GeoProximity3.lng">lng</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity3.model_config" href="#adcp.types.generated_poc.core.targeting.GeoProximity3.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity3.radius" href="#adcp.types.generated_poc.core.targeting.GeoProximity3.radius">radius</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity3.transport_mode" href="#adcp.types.generated_poc.core.targeting.GeoProximity3.transport_mode">transport_mode</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity3.travel_time" href="#adcp.types.generated_poc.core.targeting.GeoProximity3.travel_time">travel_time</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.core.targeting.GeoRegion" href="#adcp.types.generated_poc.core.targeting.GeoRegion">GeoRegion</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.targeting.GeoRegion.model_config" href="#adcp.types.generated_poc.core.targeting.GeoRegion.model_config">model_config</a></code></li>
@@ -1027,10 +2175,63 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.Geometry" href="#adcp.types.generated_poc.core.targeting.Geometry">Geometry</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.targeting.Geometry.coordinates" href="#adcp.types.generated_poc.core.targeting.Geometry.coordinates">coordinates</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.Geometry.model_config" href="#adcp.types.generated_poc.core.targeting.Geometry.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.Geometry.type" href="#adcp.types.generated_poc.core.targeting.Geometry.type">type</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.Geometry4" href="#adcp.types.generated_poc.core.targeting.Geometry4">Geometry4</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.targeting.Geometry4.model_config" href="#adcp.types.generated_poc.core.targeting.Geometry4.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.Geometry5" href="#adcp.types.generated_poc.core.targeting.Geometry5">Geometry5</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.targeting.Geometry5.model_config" href="#adcp.types.generated_poc.core.targeting.Geometry5.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.KeywordTarget" href="#adcp.types.generated_poc.core.targeting.KeywordTarget">KeywordTarget</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.targeting.KeywordTarget.bid_price" href="#adcp.types.generated_poc.core.targeting.KeywordTarget.bid_price">bid_price</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.KeywordTarget.keyword" href="#adcp.types.generated_poc.core.targeting.KeywordTarget.keyword">keyword</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.KeywordTarget.match_type" href="#adcp.types.generated_poc.core.targeting.KeywordTarget.match_type">match_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.KeywordTarget.model_config" href="#adcp.types.generated_poc.core.targeting.KeywordTarget.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.core.targeting.LanguageItem" href="#adcp.types.generated_poc.core.targeting.LanguageItem">LanguageItem</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.targeting.LanguageItem.model_config" href="#adcp.types.generated_poc.core.targeting.LanguageItem.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.targeting.LanguageItem.root" href="#adcp.types.generated_poc.core.targeting.LanguageItem.root">root</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.MatchType" href="#adcp.types.generated_poc.core.targeting.MatchType">MatchType</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.targeting.MatchType.broad" href="#adcp.types.generated_poc.core.targeting.MatchType.broad">broad</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.MatchType.exact" href="#adcp.types.generated_poc.core.targeting.MatchType.exact">exact</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.MatchType.phrase" href="#adcp.types.generated_poc.core.targeting.MatchType.phrase">phrase</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.NegativeKeyword" href="#adcp.types.generated_poc.core.targeting.NegativeKeyword">NegativeKeyword</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.targeting.NegativeKeyword.keyword" href="#adcp.types.generated_poc.core.targeting.NegativeKeyword.keyword">keyword</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.NegativeKeyword.match_type" href="#adcp.types.generated_poc.core.targeting.NegativeKeyword.match_type">match_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.NegativeKeyword.model_config" href="#adcp.types.generated_poc.core.targeting.NegativeKeyword.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.Radius" href="#adcp.types.generated_poc.core.targeting.Radius">Radius</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.targeting.Radius.model_config" href="#adcp.types.generated_poc.core.targeting.Radius.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.Radius.unit" href="#adcp.types.generated_poc.core.targeting.Radius.unit">unit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.Radius.value" href="#adcp.types.generated_poc.core.targeting.Radius.value">value</a></code></li>
 </ul>
 </li>
 <li>
@@ -1052,6 +2253,8 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.axe_include_segment" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.axe_include_segment">axe_include_segment</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.daypart_targets" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.daypart_targets">daypart_targets</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.device_platform" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.device_platform">device_platform</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.device_type" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.device_type">device_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.device_type_exclude" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.device_type_exclude">device_type_exclude</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.frequency_cap" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.frequency_cap">frequency_cap</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_countries" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_countries">geo_countries</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_countries_exclude" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_countries_exclude">geo_countries_exclude</a></code></li>
@@ -1059,12 +2262,49 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_metros_exclude" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_metros_exclude">geo_metros_exclude</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_postal_areas" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_postal_areas">geo_postal_areas</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_postal_areas_exclude" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_postal_areas_exclude">geo_postal_areas_exclude</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_proximity" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_proximity">geo_proximity</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_regions" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_regions">geo_regions</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_regions_exclude" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_regions_exclude">geo_regions_exclude</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.keyword_targets" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.keyword_targets">keyword_targets</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.language" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.language">language</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.model_config" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.negative_keywords" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.negative_keywords">negative_keywords</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.property_list" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.property_list">property_list</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.targeting.TargetingOverlay.store_catchments" href="#adcp.types.generated_poc.core.targeting.TargetingOverlay.store_catchments">store_catchments</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.TravelTime" href="#adcp.types.generated_poc.core.targeting.TravelTime">TravelTime</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.targeting.TravelTime.model_config" href="#adcp.types.generated_poc.core.targeting.TravelTime.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.TravelTime.unit" href="#adcp.types.generated_poc.core.targeting.TravelTime.unit">unit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.TravelTime.value" href="#adcp.types.generated_poc.core.targeting.TravelTime.value">value</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.TravelTime4" href="#adcp.types.generated_poc.core.targeting.TravelTime4">TravelTime4</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.targeting.TravelTime4.model_config" href="#adcp.types.generated_poc.core.targeting.TravelTime4.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.TravelTime5" href="#adcp.types.generated_poc.core.targeting.TravelTime5">TravelTime5</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.targeting.TravelTime5.model_config" href="#adcp.types.generated_poc.core.targeting.TravelTime5.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.Type" href="#adcp.types.generated_poc.core.targeting.Type">Type</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.targeting.Type.MultiPolygon" href="#adcp.types.generated_poc.core.targeting.Type.MultiPolygon">MultiPolygon</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.Type.Polygon" href="#adcp.types.generated_poc.core.targeting.Type.Polygon">Polygon</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.Unit" href="#adcp.types.generated_poc.core.targeting.Unit">Unit</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.targeting.Unit.hr" href="#adcp.types.generated_poc.core.targeting.Unit.hr">hr</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.Unit.min" href="#adcp.types.generated_poc.core.targeting.Unit.min">min</a></code></li>
 </ul>
 </li>
 </ul>

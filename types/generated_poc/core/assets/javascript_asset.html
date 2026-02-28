@@ -140,6 +140,12 @@ validated to form a valid model.</p>
     module_type: Annotated[
         javascript_module_type.JavascriptModuleType | None,
         Field(description=&#39;JavaScript module type&#39;),
+    ] = None
+    provenance: Annotated[
+        provenance_1.Provenance | None,
+        Field(
+            description=&#39;Provenance metadata for this asset, overrides manifest-level provenance&#39;
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -170,6 +176,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset.module_type"><code class="name">var <span class="ident">module_type</span> : <a title="adcp.types.generated_poc.enums.javascript_module_type.JavascriptModuleType" href="../../enums/javascript_module_type.html#adcp.types.generated_poc.enums.javascript_module_type.JavascriptModuleType">JavascriptModuleType</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset.provenance"><code class="name">var <span class="ident">provenance</span> : <a title="adcp.types.generated_poc.core.provenance.Provenance" href="../provenance.html#adcp.types.generated_poc.core.provenance.Provenance">Provenance</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -217,6 +227,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset.content" href="#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset.content">content</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset.model_config" href="#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset.module_type" href="#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset.module_type">module_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset.provenance" href="#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset.provenance">provenance</a></code></li>
 </ul>
 </li>
 </ul>
