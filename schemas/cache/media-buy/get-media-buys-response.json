@@ -48,6 +48,11 @@
             "pattern": "^[A-Z]{3}$",
             "type": "string"
           },
+          "end_time": {
+            "description": "ISO 8601 flight end time for this media buy (latest package end_time). Avoids requiring buyers to compute max(packages[].end_time).",
+            "format": "date-time",
+            "type": "string"
+          },
           "ext": {
             "$ref": "../core/ext.json"
           },
@@ -221,6 +226,11 @@
               "type": "object"
             },
             "type": "array"
+          },
+          "start_time": {
+            "description": "ISO 8601 flight start time for this media buy (earliest package start_time). Avoids requiring buyers to compute min(packages[].start_time).",
+            "format": "date-time",
+            "type": "string"
           },
           "status": {
             "$ref": "../enums/media-buy-status.json"

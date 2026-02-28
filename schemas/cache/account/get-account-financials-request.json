@@ -51,24 +51,8 @@
       "$ref": "../core/ext.json"
     },
     "period": {
-      "description": "Date range for the spend summary. Defaults to the current billing cycle if omitted.",
-      "properties": {
-        "end": {
-          "description": "Period end (ISO 8601 date)",
-          "format": "date",
-          "type": "string"
-        },
-        "start": {
-          "description": "Period start (ISO 8601 date)",
-          "format": "date",
-          "type": "string"
-        }
-      },
-      "required": [
-        "start",
-        "end"
-      ],
-      "type": "object"
+      "$ref": "../core/date-range.json",
+      "description": "Date range for the spend summary. Defaults to the current billing cycle if omitted."
     }
   },
   "required": [

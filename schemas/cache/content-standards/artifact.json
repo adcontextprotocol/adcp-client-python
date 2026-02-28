@@ -94,6 +94,10 @@
                 "description": "BCP 47 language tag for this text (e.g., 'en', 'es-MX'). Useful when artifact contains mixed-language content.",
                 "type": "string"
               },
+              "provenance": {
+                "$ref": "../core/provenance.json",
+                "description": "Provenance for this text block, overrides artifact-level provenance"
+              },
               "role": {
                 "description": "Role of this text in the document. Use 'title' for the main artifact title, 'description' for summaries.",
                 "enum": [
@@ -137,6 +141,10 @@
                 "description": "Image height in pixels",
                 "type": "integer"
               },
+              "provenance": {
+                "$ref": "../core/provenance.json",
+                "description": "Provenance for this image, overrides artifact-level provenance"
+              },
               "type": {
                 "const": "image",
                 "type": "string"
@@ -167,6 +175,10 @@
               "duration_ms": {
                 "description": "Video duration in milliseconds",
                 "type": "integer"
+              },
+              "provenance": {
+                "$ref": "../core/provenance.json",
+                "description": "Provenance for this video, overrides artifact-level provenance"
               },
               "thumbnail_url": {
                 "description": "Video thumbnail URL",
@@ -214,6 +226,10 @@
               "duration_ms": {
                 "description": "Audio duration in milliseconds",
                 "type": "integer"
+              },
+              "provenance": {
+                "$ref": "../core/provenance.json",
+                "description": "Provenance for this audio, overrides artifact-level provenance"
               },
               "transcript": {
                 "description": "Audio transcript",
@@ -325,6 +341,10 @@
     "property_id": {
       "$ref": "../core/identifier.json",
       "description": "Identifier for the property where this artifact appears"
+    },
+    "provenance": {
+      "$ref": "../core/provenance.json",
+      "description": "Provenance metadata for this artifact. Serves as the default provenance for all assets within this artifact \u2014 individual assets can override with their own provenance."
     },
     "published_time": {
       "description": "When the artifact was published (ISO 8601 format)",

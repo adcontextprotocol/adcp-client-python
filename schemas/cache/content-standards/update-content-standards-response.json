@@ -1,30 +1,67 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "additionalProperties": true,
   "description": "Response from updating a content standards configuration",
-  "properties": {
-    "conflicting_standards_id": {
-      "description": "If scope change conflicts with another configuration, the ID of the conflicting standards",
-      "type": "string"
-    },
-    "context": {
-      "$ref": "../core/context.json"
-    },
-    "errors": {
-      "description": "Errors that occurred during the update",
-      "items": {
-        "$ref": "../core/error.json"
+  "oneOf": [
+    {
+      "additionalProperties": true,
+      "properties": {
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
+        "standards_id": {
+          "description": "ID of the updated standards configuration",
+          "type": "string"
+        },
+        "success": {
+          "const": true,
+          "description": "Indicates the update was applied successfully",
+          "type": "boolean"
+        }
       },
-      "type": "array"
+      "required": [
+        "success",
+        "standards_id"
+      ],
+      "title": "UpdateContentStandardsSuccess",
+      "type": "object"
     },
-    "ext": {
-      "$ref": "../core/ext.json"
-    },
-    "standards_id": {
-      "description": "ID of the updated standards configuration",
-      "type": "string"
+    {
+      "additionalProperties": true,
+      "properties": {
+        "conflicting_standards_id": {
+          "description": "If scope change conflicts with another configuration, the ID of the conflicting standards",
+          "type": "string"
+        },
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "errors": {
+          "description": "Errors that occurred during the update",
+          "items": {
+            "$ref": "../core/error.json"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
+        "success": {
+          "const": false,
+          "description": "Indicates the update failed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "success",
+        "errors"
+      ],
+      "title": "UpdateContentStandardsError",
+      "type": "object"
     }
-  },
-  "title": "Update Content Standards Response",
-  "type": "object"
+  ],
+  "title": "Update Content Standards Response"
 }

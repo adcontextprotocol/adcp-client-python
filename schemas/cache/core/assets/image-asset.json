@@ -17,6 +17,10 @@
       "minimum": 1,
       "type": "integer"
     },
+    "provenance": {
+      "$ref": "../../core/provenance.json",
+      "description": "Provenance metadata for this asset, overrides manifest-level provenance"
+    },
     "url": {
       "description": "URL to the image asset",
       "format": "uri",

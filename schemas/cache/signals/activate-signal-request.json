@@ -1,10 +1,19 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
-  "description": "Request parameters for activating a signal on a specific deployment target",
+  "description": "Request parameters for activating or deactivating a signal on deployment targets",
   "properties": {
-    "account_id": {
-      "description": "The caller's account with the signals agent. Associates this activation with a commercial relationship established via sync_accounts.",
+    "account": {
+      "$ref": "../core/account-ref.json",
+      "description": "Account for this activation. Associates with a commercial relationship established via sync_accounts."
+    },
+    "action": {
+      "default": "activate",
+      "description": "Whether to activate or deactivate the signal. Deactivating removes the segment from downstream platforms, required when campaigns end to comply with data governance policies (GDPR, CCPA). Defaults to 'activate' when omitted.",
+      "enum": [
+        "activate",
+        "deactivate"
+      ],
       "type": "string"
     },
     "buyer_campaign_ref": {
@@ -14,8 +23,8 @@
     "context": {
       "$ref": "../core/context.json"
     },
-    "deployments": {
-      "description": "Target deployment(s) for activation. If the authenticated caller matches one of these deployment targets, activation keys will be included in the response.",
+    "destinations": {
+      "description": "Target destination(s) for activation. If the authenticated caller matches one of these destinations, activation keys will be included in the response.",
       "items": {
         "$ref": "../core/destination.json"
       },
@@ -36,7 +45,7 @@
   },
   "required": [
     "signal_agent_segment_id",
-    "deployments"
+    "destinations"
   ],
   "title": "Activate Signal Request",
   "type": "object"

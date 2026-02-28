@@ -144,8 +144,9 @@ def test_all_response_aliases_exported():
 def test_all_request_aliases_exported():
     """Test that all expected request type aliases are exported."""
     expected_aliases = [
-        "PreviewCreativeFormatRequest",
-        "PreviewCreativeManifestRequest",
+        "PreviewCreativeSingleRequest",
+        "PreviewCreativeBatchRequest",
+        "PreviewCreativeVariantRequest",
         "UpdateMediaBuyPackagesRequest",
         "UpdateMediaBuyPropertiesRequest",
     ]
@@ -158,28 +159,24 @@ def test_all_request_aliases_exported():
 
 
 def test_all_activation_key_aliases_exported():
-    """Test that activation key types are available.
+    """Test that activation key aliases are exported from the public API."""
+    import adcp.types.aliases as aliases_module
 
-    Note: The activation key schema changed in the latest ADCP schemas.
-    Previously it had property_id/property_tag variants (PropertyIdActivationKey,
-    PropertyTagActivationKey). Now it uses segment_id/key_value variants.
-    Direct activation key types are available from the generated types.
-    """
-    # Activation key types are now segment_id and key_value based
-    # Import directly from generated types, not aliases
-    from adcp.types._generated import ActivationKey, ActivationKey1, ActivationKey2
-
-    # Basic sanity check that the types exist
-    assert ActivationKey is not None
-    assert ActivationKey1 is not None  # segment_id variant
-    assert ActivationKey2 is not None  # key_value variant
+    expected_aliases = [
+        "SegmentIdActivationKey",
+        "KeyValueActivationKey",
+    ]
+    for alias in expected_aliases:
+        assert hasattr(aliases_module, alias), f"Missing alias: {alias}"
+        assert alias in aliases_module.__all__, f"Alias not in __all__: {alias}"
 
 
 def test_all_preview_render_aliases_exported():
     """Test that all preview render aliases are exported."""
     expected_aliases = [
-        "PreviewCreativeStaticResponse",
-        "PreviewCreativeInteractiveResponse",
+        "PreviewCreativeSingleResponse",
+        "PreviewCreativeBatchResponse",
+        "PreviewCreativeVariantResponse",
         # Semantic aliases based on output_format discriminator
         "UrlPreviewRender",
         "HtmlPreviewRender",

@@ -25,6 +25,11 @@
       "type": "array",
       "uniqueItems": true
     },
+    "max_items": {
+      "description": "Maximum number of items the format can render. Items beyond this limit are ignored. Useful for fixed-slot layouts (e.g., a 3-product card) or feed-size constraints.",
+      "minimum": 1,
+      "type": "integer"
+    },
     "min_items": {
       "description": "Minimum number of items the catalog must contain for this format to render properly (e.g., a carousel might require at least 3 products)",
       "minimum": 1,

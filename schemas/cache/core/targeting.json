@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
-  "description": "Optional restriction overlays for media buys. Most targeting should be expressed in the brief and handled by the publisher. These fields are for functional restrictions: geographic (RCT testing, regulatory compliance), age verification (alcohol, gambling), device platform (app compatibility), language (localization), and keyword targeting (search/retail media).",
+  "description": "Optional restriction overlays for media buys. Most targeting should be expressed in the brief and handled by the publisher. These fields are for functional restrictions: geographic (RCT testing, regulatory compliance, proximity targeting), age verification (alcohol, gambling), device platform (app compatibility), language (localization), and keyword targeting (search/retail media).",
   "properties": {
     "age_restriction": {
       "additionalProperties": false,
@@ -68,6 +68,22 @@
       "description": "Restrict to specific platforms. Use for technical compatibility (app only works on iOS). Values from Sec-CH-UA-Platform standard, extended for CTV.",
       "items": {
         "$ref": "../enums/device-platform.json"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "device_type": {
+      "description": "Restrict to specific device form factors. Use for campaigns targeting hardware categories rather than operating systems (e.g., mobile-only promotions, CTV campaigns).",
+      "items": {
+        "$ref": "../enums/device-type.json"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "device_type_exclude": {
+      "description": "Exclude specific device form factors from delivery (e.g., exclude CTV for app-install campaigns).",
+      "items": {
+        "$ref": "../enums/device-type.json"
       },
       "minItems": 1,
       "type": "array"
@@ -196,6 +212,171 @@
           "system",
           "values"
         ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "geo_proximity": {
+      "description": "Target users within travel time, distance, or a custom boundary around arbitrary geographic points. Multiple entries use OR semantics \u2014 a user within range of any listed point is eligible. For campaigns targeting 10+ locations, consider using store_catchments with a location catalog instead. Seller must declare support in get_adcp_capabilities.",
+      "items": {
+        "additionalProperties": true,
+        "oneOf": [
+          {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "radius"
+                  ]
+                },
+                {
+                  "required": [
+                    "geometry"
+                  ]
+                }
+              ]
+            },
+            "required": [
+              "lat",
+              "lng",
+              "travel_time",
+              "transport_mode"
+            ]
+          },
+          {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "travel_time"
+                  ]
+                },
+                {
+                  "required": [
+                    "geometry"
+                  ]
+                }
+              ]
+            },
+            "required": [
+              "lat",
+              "lng",
+              "radius"
+            ]
+          },
+          {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "travel_time"
+                  ]
+                },
+                {
+                  "required": [
+                    "radius"
+                  ]
+                }
+              ]
+            },
+            "required": [
+              "geometry"
+            ]
+          }
+        ],
+        "properties": {
+          "ext": {
+            "$ref": "ext.json"
+          },
+          "geometry": {
+            "additionalProperties": false,
+            "description": "Pre-computed GeoJSON geometry defining the proximity boundary. Use when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom boundaries. When geometry is provided, lat/lng are not required.",
+            "properties": {
+              "coordinates": {
+                "description": "GeoJSON coordinates array. For Polygon: array of linear rings. For MultiPolygon: array of polygons.",
+                "type": "array"
+              },
+              "type": {
+                "description": "GeoJSON geometry type.",
+                "enum": [
+                  "Polygon",
+                  "MultiPolygon"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "coordinates"
+            ],
+            "type": "object"
+          },
+          "label": {
+            "description": "Human-readable label for this entry (e.g., 'D\u00fcsseldorf', 'Heathrow Airport', 'Primary trade area').",
+            "type": "string"
+          },
+          "lat": {
+            "description": "Latitude in decimal degrees (WGS 84). Required for travel_time and radius methods.",
+            "maximum": 90,
+            "minimum": -90,
+            "type": "number"
+          },
+          "lng": {
+            "description": "Longitude in decimal degrees (WGS 84). Required for travel_time and radius methods.",
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          },
+          "radius": {
+            "additionalProperties": false,
+            "description": "Simple radius from the point. The platform draws a circle of this distance around the coordinates.",
+            "properties": {
+              "unit": {
+                "$ref": "../enums/distance-unit.json",
+                "description": "Distance unit."
+              },
+              "value": {
+                "description": "Radius distance.",
+                "exclusiveMinimum": 0,
+                "type": "number"
+              }
+            },
+            "required": [
+              "value",
+              "unit"
+            ],
+            "type": "object"
+          },
+          "transport_mode": {
+            "$ref": "../enums/transport-mode.json",
+            "description": "Transportation mode for isochrone calculation. Required when travel_time is provided."
+          },
+          "travel_time": {
+            "additionalProperties": false,
+            "description": "Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks.",
+            "properties": {
+              "unit": {
+                "description": "Time unit.",
+                "enum": [
+                  "min",
+                  "hr"
+                ],
+                "type": "string"
+              },
+              "value": {
+                "description": "Travel time limit.",
+                "minimum": 1,
+                "type": "number"
+              }
+            },
+            "required": [
+              "value",
+              "unit"
+            ],
+            "type": "object"
+          }
+        },
         "type": "object"
       },
       "minItems": 1,

@@ -30,6 +30,10 @@
       "description": "HTML content",
       "type": "string"
     },
+    "provenance": {
+      "$ref": "../../core/provenance.json",
+      "description": "Provenance metadata for this asset, overrides manifest-level provenance"
+    },
     "version": {
       "description": "HTML version (e.g., 'HTML5')",
       "type": "string"

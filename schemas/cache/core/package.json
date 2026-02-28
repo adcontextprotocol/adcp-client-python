@@ -17,6 +17,13 @@
       "description": "Buyer's reference identifier for this package",
       "type": "string"
     },
+    "catalogs": {
+      "description": "Catalogs this package promotes. Each catalog MUST have a distinct type (e.g., one product catalog, one store catalog). This constraint is enforced at the application level \u2014 sellers MUST reject requests containing multiple catalogs of the same type with a validation_error. Echoed from the create_media_buy request.",
+      "items": {
+        "$ref": "catalog.json"
+      },
+      "type": "array"
+    },
     "creative_assignments": {
       "description": "Creative assets assigned to this package",
       "items": {
@@ -26,6 +33,13 @@
     },
     "ext": {
       "$ref": "ext.json"
+    },
+    "format_ids": {
+      "description": "Format IDs active for this package. Echoed from the create_media_buy request; omitted means all formats for the product are active.",
+      "items": {
+        "$ref": "format-id.json"
+      },
+      "type": "array"
     },
     "format_ids_to_provide": {
       "description": "Format IDs that creative assets will be provided for this package",

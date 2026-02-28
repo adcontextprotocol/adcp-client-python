@@ -11,13 +11,15 @@
           "minimum": 0,
           "type": "number"
         },
-        "errors": {
-          "description": "Field must not be present in success response",
-          "not": {}
+        "context": {
+          "$ref": "../core/context.json"
         },
         "explanation": {
           "description": "Detailed natural language explanation of the decision",
           "type": "string"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
         },
         "features": {
           "description": "Per-feature breakdown with explanations",
@@ -67,15 +69,17 @@
     {
       "description": "Error response",
       "properties": {
+        "context": {
+          "$ref": "../core/context.json"
+        },
         "errors": {
           "items": {
             "$ref": "../core/error.json"
           },
           "type": "array"
         },
-        "verdict": {
-          "description": "Field must not be present in error response",
-          "not": {}
+        "ext": {
+          "$ref": "../core/ext.json"
         }
       },
       "required": [

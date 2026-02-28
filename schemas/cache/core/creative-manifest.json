@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
-  "description": "Complete specification of a creative with all assets needed for rendering in a specific format. Each asset is typed according to its asset_role from the format specification and contains the actual content/URL that fulfills the format requirements.",
+  "description": "Complete specification of a creative: format_id + assets. Everything the creative needs \u2014 images, text, briefs, catalogs \u2014 lives in the assets map, declared by the format. Each asset is typed according to its asset_type from the format specification.",
   "properties": {
     "assets": {
       "additionalProperties": true,
@@ -41,19 +41,20 @@
             },
             {
               "$ref": "assets/daast-asset.json"
+            },
+            {
+              "$ref": "assets/markdown-asset.json"
+            },
+            {
+              "$ref": "assets/brief-asset.json"
+            },
+            {
+              "$ref": "assets/catalog-asset.json"
             }
           ]
         }
       },
       "type": "object"
-    },
-    "catalogs": {
-      "description": "Catalogs this creative renders. Each entry satisfies one of the format's catalog_requirements, matched by type. Tells the creative what data to display \u2014 product listings for a carousel, job vacancies for a recruitment ad, store locations for a locator. This is a data reference, not a campaign expansion directive; campaign structure and budget allocation are handled by create_media_buy packages. Each catalog can be inline (with items), a reference to a synced catalog (by catalog_id), or a URL to an external feed.",
-      "items": {
-        "$ref": "catalog.json"
-      },
-      "minItems": 1,
-      "type": "array"
     },
     "ext": {
       "$ref": "ext.json"
@@ -61,6 +62,10 @@
     "format_id": {
       "$ref": "format-id.json",
       "description": "Format identifier this manifest is for. Can be a template format (id only) or a deterministic format (id + dimensions/duration). For dimension-specific creatives, include width/height/unit in the format_id to create a unique identifier (e.g., {id: 'display_static', width: 300, height: 250, unit: 'px'})."
+    },
+    "provenance": {
+      "$ref": "provenance.json",
+      "description": "Provenance metadata for this creative manifest. Serves as the default provenance for all assets in this manifest. An asset with its own provenance replaces this object entirely (no field-level merging)."
     }
   },
   "required": [

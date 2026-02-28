@@ -214,7 +214,7 @@ async def test_all_client_methods():
                 "signal_spec": "test",
                 "deliver_to": {
                     "countries": ["US"],
-                    "deployments": [{"type": "platform", "platform": "test"}],
+                    "destinations": [{"type": "platform", "platform": "test"}],
                 },
             },
         ),
@@ -223,7 +223,7 @@ async def test_all_client_methods():
             "ActivateSignalRequest",
             {
                 "signal_agent_segment_id": "test",
-                "deployments": [{"type": "platform", "platform": "test"}],
+                "destinations": [{"type": "platform", "platform": "test"}],
             },
         ),
         (

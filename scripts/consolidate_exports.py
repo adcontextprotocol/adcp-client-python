@@ -78,6 +78,13 @@ def generate_consolidated_exports() -> str:
         # Note: "Catalog" also collides between core.catalog and media_buy.sync_catalogs_response.
         # We intentionally let core.catalog win (first-seen, since core/ sorts before media_buy/).
         # The response-level Catalog is imported directly in aliases.py as SyncCatalogResult.
+        # Audience collides between get_media_buy_delivery_request (breakdown config) and
+        # sync_audiences_request (audience payload). aliases.py imports the request one directly.
+        "Audience": {
+            "get_media_buy_delivery_request",
+            "sync_audiences_request",
+            "sync_audiences_response",
+        },
     }
 
     special_imports = []
@@ -110,7 +117,8 @@ def generate_consolidated_exports() -> str:
                 first_module = export_to_module[export_name]
                 # Collision detected - skip this duplicate
                 collisions.append(
-                    f"  {export_name}: defined in both {first_module} and {module_name} (using {first_module})"
+                    f"  {export_name}: defined in both "
+                    f"{first_module} and {module_name} (using {first_module})"
                 )
             else:
                 unique_exports.add(export_name)
@@ -142,9 +150,11 @@ def generate_consolidated_exports() -> str:
             qualified_name = (
                 f"_{type_name}From{parts[-1].replace('_', ' ').title().replace(' ', '')}"
             )
-            special_imports.append(
-                f"from adcp.types.generated_poc.{module_name} import {type_name} as {qualified_name}"
+            import_str = (
+                f"from adcp.types.generated_poc.{module_name}"
+                f" import {type_name} as {qualified_name}"
             )
+            special_imports.append(import_str)
             all_exports.add(qualified_name)
 
     if collisions:
@@ -158,7 +168,7 @@ def generate_consolidated_exports() -> str:
         '"""INTERNAL: Consolidated generated types.',
         "",
         "DO NOT import from this module directly.",
-        "Use 'from adcp import Type' or 'from adcp.types.stable import Type' instead.",
+        "Use 'from adcp import Type' or 'from adcp.types import Type' instead.",
         "",
         "This module consolidates all generated types from generated_poc/ into a single",
         "namespace for convenience. The leading underscore signals this is private API.",
@@ -182,7 +192,8 @@ def generate_consolidated_exports() -> str:
         lines.extend(
             [
                 "",
-                "# Special imports for name collisions (qualified names for types defined in multiple modules)",
+                "# Special imports for name collisions"
+                " (qualified names for types defined in multiple modules)",
             ]
         )
         lines.extend(special_imports)
@@ -276,6 +287,27 @@ def generate_consolidated_exports() -> str:
         "class Pricing(_AdCPBaseModel):",
         '    model_config = _ConfigDict(extra="allow")',
         "",
+        "",
+        "# Measurement was renamed to OutcomeMeasurement upstream. This alias preserves imports.",
+        "Measurement = OutcomeMeasurement",
+        "",
+        "# ListAuthorizedProperties was removed from upstream schemas.",
+        "# Replaced by adagents.json-based authorization model.",
+        "class ListAuthorizedPropertiesRequest(_AdCPBaseModel):",
+        '    model_config = _ConfigDict(extra="allow")',
+        "",
+        "",
+        "class ListAuthorizedPropertiesResponse(_AdCPBaseModel):",
+        '    model_config = _ConfigDict(extra="allow")',
+        "",
+        "",
+        "# PackageStatus enum was removed from upstream schemas.",
+        "class PackageStatus(str, _Enum):",
+        "    draft = 'draft'",
+        "    active = 'active'",
+        "    paused = 'paused'",
+        "    completed = 'completed'",
+        "",
     ]
     lines.extend(compat_lines)
     all_exports_with_aliases = all_exports_with_aliases | {
@@ -283,6 +315,10 @@ def generate_consolidated_exports() -> str:
         "BrandManifest",
         "DeliverTo",
         "DeliverTo1",
+        "ListAuthorizedPropertiesRequest",
+        "ListAuthorizedPropertiesResponse",
+        "Measurement",
+        "PackageStatus",
         "Pricing",
         "PromotedOfferings",
         "PromotedOfferingsAssetRequirements",

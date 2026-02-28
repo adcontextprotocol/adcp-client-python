@@ -152,9 +152,6 @@
       "minimum": 1,
       "type": "integer"
     },
-    "measurement": {
-      "$ref": "measurement.json"
-    },
     "metric_optimization": {
       "additionalProperties": true,
       "description": "Metric optimization capabilities for this product. Presence indicates the product supports optimization_goals with kind: 'metric'. No event source or conversion tracking setup required \u2014 the seller tracks these metrics natively.",
@@ -216,6 +213,9 @@
     "name": {
       "description": "Human-readable product name",
       "type": "string"
+    },
+    "outcome_measurement": {
+      "$ref": "outcome-measurement.json"
     },
     "placements": {
       "description": "Optional array of specific placements within this product. When provided, buyers can target specific placements when assigning creatives.",

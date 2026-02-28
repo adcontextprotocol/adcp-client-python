@@ -13,7 +13,9 @@
     "vast",
     "daast",
     "url",
-    "webhook"
+    "webhook",
+    "brief",
+    "catalog"
   ],
   "title": "Asset Content Type",
   "type": "string"

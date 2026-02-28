@@ -5,12 +5,19 @@
   "examples": [
     {
       "data": {
-        "assignments": {
-          "hero_video_30s": [
-            "pkg_ctv_001",
-            "pkg_ctv_002"
-          ]
+        "account": {
+          "account_id": "acct_acmecorp"
         },
+        "assignments": [
+          {
+            "creative_id": "hero_video_30s",
+            "package_id": "pkg_ctv_001"
+          },
+          {
+            "creative_id": "hero_video_30s",
+            "package_id": "pkg_ctv_002"
+          }
+        ],
         "creatives": [
           {
             "assets": {
@@ -38,19 +45,20 @@
     },
     {
       "data": {
+        "account": {
+          "account_id": "acct_acmecorp"
+        },
         "creatives": [
           {
             "assets": {
               "generation_prompt": {
                 "content": "Create a warm, festive holiday campaign featuring winter products"
-              }
-            },
-            "catalogs": [
-              {
+              },
+              "product_catalog": {
                 "catalog_id": "winter-products",
                 "type": "product"
               }
-            ],
+            },
             "creative_id": "holiday_hero",
             "format_id": {
               "agent_url": "https://publisher.com/.well-known/adcp/sales",
@@ -68,6 +76,9 @@
     },
     {
       "data": {
+        "account": {
+          "account_id": "acct_acmecorp"
+        },
         "creative_ids": [
           "hero_video_30s",
           "banner_300x250"
@@ -115,18 +126,41 @@
       "description": "Account that owns these creatives."
     },
     "assignments": {
-      "additionalProperties": true,
-      "description": "Optional bulk assignment of creatives to packages",
-      "patternProperties": {
-        "^[a-zA-Z0-9_-]+$": {
-          "description": "Array of package IDs to assign this creative to",
-          "items": {
+      "description": "Optional bulk assignment of creatives to packages. Each entry maps one creative to one package with optional weight and placement targeting.",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "creative_id": {
+            "description": "ID of the creative to assign",
             "type": "string"
           },
-          "type": "array"
-        }
+          "package_id": {
+            "description": "ID of the package to assign the creative to",
+            "type": "string"
+          },
+          "placement_ids": {
+            "description": "Restrict this creative to specific placements within the package. When omitted, the creative is eligible for all placements.",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "weight": {
+            "description": "Relative delivery weight (0\u2013100). When multiple creatives are assigned to the same package, weights determine impression distribution proportionally \u2014 a creative with weight 2 gets twice the delivery of weight 1. When omitted, the creative receives equal rotation with other unweighted creatives. A weight of 0 means the creative is assigned but paused (receives no delivery).",
+            "maximum": 100,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "creative_id",
+          "package_id"
+        ],
+        "type": "object"
       },
-      "type": "object"
+      "minItems": 1,
+      "type": "array"
     },
     "context": {
       "$ref": "../core/context.json"
@@ -161,6 +195,12 @@
     },
     "ext": {
       "$ref": "../core/ext.json"
+    },
+    "idempotency_key": {
+      "description": "Client-generated idempotency key for safe retries. If a sync fails without a response, resending with the same idempotency_key guarantees at-most-once execution.",
+      "maxLength": 255,
+      "minLength": 8,
+      "type": "string"
     },
     "push_notification_config": {
       "$ref": "../core/push-notification-config.json",

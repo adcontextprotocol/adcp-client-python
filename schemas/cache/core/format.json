@@ -7,7 +7,7 @@
           "type": "string"
         },
         "asset_role": {
-          "description": "Optional descriptive label for this asset's purpose. Not used for referencing assets in manifests\u2014use asset_id instead. This field is for human-readable documentation and UI display only.",
+          "description": "Descriptive label for this asset's purpose. For documentation and UI display only \u2014 manifests key assets by asset_id, not asset_role.",
           "type": "string"
         },
         "overlays": {
@@ -37,7 +37,7 @@
           "type": "string"
         },
         "asset_role": {
-          "description": "Optional descriptive label for this asset's purpose (e.g., 'hero_image', 'logo', 'third_party_tracking'). Not used for referencing assets in manifests\u2014use asset_id instead. This field is for human-readable documentation and UI display only.",
+          "description": "Descriptive label for this asset's purpose (e.g., 'hero_image', 'logo', 'third_party_tracking'). For documentation and UI display only \u2014 manifests key assets by asset_id, not asset_role.",
           "type": "string"
         },
         "item_type": {
@@ -328,6 +328,41 @@
             }
           },
           {
+            "allOf": [
+              {
+                "$ref": "#/$defs/baseIndividualAsset"
+              }
+            ],
+            "description": "Brief asset",
+            "properties": {
+              "asset_type": {
+                "const": "brief"
+              },
+              "item_type": {
+                "const": "individual"
+              }
+            }
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/$defs/baseIndividualAsset"
+              }
+            ],
+            "description": "Catalog asset",
+            "properties": {
+              "asset_type": {
+                "const": "catalog"
+              },
+              "item_type": {
+                "const": "individual"
+              },
+              "requirements": {
+                "$ref": "requirements/catalog-requirements.json"
+              }
+            }
+          },
+          {
             "description": "Repeatable asset group (for carousels, slideshows, playlists, etc.)",
             "properties": {
               "asset_group_id": {
@@ -577,14 +612,6 @@
       },
       "type": "array"
     },
-    "catalog_requirements": {
-      "description": "Catalog feeds this format requires for rendering. Formats that display product listings, store locators, inventory availability, or promotional pricing declare what catalog types must be synced to the account. Buyers ensure the required catalogs are synced via sync_catalogs before submitting creatives in this format.",
-      "items": {
-        "$ref": "requirements/catalog-requirements.json"
-      },
-      "minItems": 1,
-      "type": "array"
-    },
     "delivery": {
       "additionalProperties": true,
       "description": "Delivery method specifications (e.g., hosted, VAST, third-party tags)",
@@ -770,6 +797,15 @@
       "description": "Metrics this format can produce in delivery reporting. Buyers receive the intersection of format reported_metrics and product available_metrics. If omitted, the format defers entirely to product-level metric declarations.",
       "items": {
         "$ref": "../enums/available-metric.json"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "supported_disclosure_positions": {
+      "description": "Disclosure positions this format can render. Buyers use this to determine whether a format can satisfy their compliance requirements before submitting a creative. When omitted, the format makes no disclosure rendering guarantees \u2014 creative agents SHOULD treat this as incompatible with briefs that require specific disclosure positions. Values correspond to positions on creative-brief.json required_disclosures.",
+      "items": {
+        "$ref": "../enums/disclosure-position.json"
       },
       "minItems": 1,
       "type": "array",

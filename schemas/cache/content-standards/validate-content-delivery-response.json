@@ -8,10 +8,6 @@
         "context": {
           "$ref": "../core/context.json"
         },
-        "errors": {
-          "description": "Field must not be present in success response",
-          "not": {}
-        },
         "ext": {
           "$ref": "../core/ext.json"
         },
@@ -114,10 +110,6 @@
         },
         "ext": {
           "$ref": "../core/ext.json"
-        },
-        "summary": {
-          "description": "Field must not be present in error response",
-          "not": {}
         }
       },
       "required": [

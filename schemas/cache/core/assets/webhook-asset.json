@@ -8,6 +8,10 @@
       "default": "POST",
       "description": "HTTP method"
     },
+    "provenance": {
+      "$ref": "../../core/provenance.json",
+      "description": "Provenance metadata for this asset, overrides manifest-level provenance"
+    },
     "required_macros": {
       "description": "Universal macros that must be provided for webhook to function",
       "items": {

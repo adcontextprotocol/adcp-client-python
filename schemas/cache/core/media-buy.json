@@ -39,6 +39,10 @@
       },
       "type": "array"
     },
+    "rejection_reason": {
+      "description": "Reason provided by the seller when status is 'rejected'. Present only when status is 'rejected'.",
+      "type": "string"
+    },
     "status": {
       "$ref": "../enums/media-buy-status.json"
     },

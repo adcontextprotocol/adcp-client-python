@@ -49,6 +49,10 @@
       "description": "Integrated loudness in LUFS",
       "type": "number"
     },
+    "provenance": {
+      "$ref": "../../core/provenance.json",
+      "description": "Provenance metadata for this asset, overrides manifest-level provenance"
+    },
     "sampling_rate_hz": {
       "description": "Sampling rate in Hz (e.g., 44100, 48000, 96000)",
       "type": "integer"

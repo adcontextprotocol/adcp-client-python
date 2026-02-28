@@ -7,6 +7,10 @@
       "description": "Description of what this URL points to",
       "type": "string"
     },
+    "provenance": {
+      "$ref": "../../core/provenance.json",
+      "description": "Provenance metadata for this asset, overrides manifest-level provenance"
+    },
     "url": {
       "description": "URL reference",
       "format": "uri",

@@ -52,6 +52,7 @@ from adcp.types.generated_poc.core.package import Package
 from adcp.types.generated_poc.core.product import Product
 from adcp.types.generated_poc.enums.asset_content_type import AssetContentType
 from adcp.types.generated_poc.enums.creative_sort_field import CreativeSortField
+from adcp.types.generated_poc.enums.disclosure_position import DisclosurePosition
 from adcp.types.generated_poc.enums.format_category import FormatCategory
 from adcp.types.generated_poc.enums.pacing import Pacing
 from adcp.types.generated_poc.enums.sort_direction import SortDirection
@@ -63,7 +64,7 @@ from adcp.types.generated_poc.media_buy.list_creative_formats_request import (
     ListCreativeFormatsRequest,
 )
 from adcp.types.generated_poc.media_buy.list_creatives_request import (
-    FieldModel,
+    Field1,
     ListCreativesRequest,
     Sort,
 )
@@ -100,6 +101,7 @@ def _apply_coercion() -> None:
     # Apply coercion to ListCreativeFormatsRequest
     # - asset_types: list[AssetContentType | str] | None
     # - context: ContextObject | dict | None
+    # - disclosure_positions: list[DisclosurePosition | str] | None
     # - ext: ExtensionObject | dict | None
     # - type: FormatCategory | str | None
     # - wcag_level: WcagLevel | str | None
@@ -115,6 +117,14 @@ def _apply_coercion() -> None:
         ListCreativeFormatsRequest,
         "context",
         Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],
+    )
+    _patch_field_annotation(
+        ListCreativeFormatsRequest,
+        "disclosure_positions",
+        Annotated[
+            list[DisclosurePosition] | None,
+            BeforeValidator(coerce_to_enum_list(DisclosurePosition)),
+        ],
     )
     _patch_field_annotation(
         ListCreativeFormatsRequest,
@@ -136,7 +146,7 @@ def _apply_coercion() -> None:
     # Apply coercion to ListCreativesRequest
     # - context: ContextObject | dict | None
     # - ext: ExtensionObject | dict | None
-    # - fields: list[FieldModel | str] | None
+    # - fields: list[Field1 | str] | None
     _patch_field_annotation(
         ListCreativesRequest,
         "context",
@@ -151,8 +161,8 @@ def _apply_coercion() -> None:
         ListCreativesRequest,
         "fields",
         Annotated[
-            list[FieldModel] | None,
-            BeforeValidator(coerce_to_enum_list(FieldModel)),
+            list[Field1] | None,
+            BeforeValidator(coerce_to_enum_list(Field1)),
         ],
     )
     ListCreativesRequest.model_rebuild(force=True)

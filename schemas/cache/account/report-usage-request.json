@@ -73,25 +73,8 @@
       "type": "string"
     },
     "reporting_period": {
-      "additionalProperties": false,
-      "description": "The time range covered by this usage report. Applies to all records in the request.",
-      "properties": {
-        "end": {
-          "description": "End of the reporting period (inclusive), in UTC.",
-          "format": "date-time",
-          "type": "string"
-        },
-        "start": {
-          "description": "Start of the reporting period (inclusive), in UTC.",
-          "format": "date-time",
-          "type": "string"
-        }
-      },
-      "required": [
-        "start",
-        "end"
-      ],
-      "type": "object"
+      "$ref": "../core/datetime-range.json",
+      "description": "The time range covered by this usage report. Applies to all records in the request."
     },
     "usage": {
       "description": "One or more usage records. Each record is self-contained: it carries its own account and buyer_campaign_ref, allowing a single request to span multiple accounts and campaigns.",

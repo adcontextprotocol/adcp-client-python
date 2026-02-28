@@ -11,7 +11,7 @@
         },
         "creative_manifest": {
           "$ref": "../core/creative-manifest.json",
-          "description": "Complete creative manifest with all required assets for the format"
+          "description": "Complete creative manifest with all required assets for the format."
         },
         "ext": {
           "$ref": "../core/ext.json"
@@ -97,7 +97,7 @@
             "properties": {
               "creative_manifest": {
                 "$ref": "../core/creative-manifest.json",
-                "description": "Complete creative manifest with all required assets"
+                "description": "Complete creative manifest with all required assets."
               },
               "format_id": {
                 "$ref": "../core/format-id.json",

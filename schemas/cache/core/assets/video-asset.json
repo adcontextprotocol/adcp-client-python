@@ -141,6 +141,10 @@
       ],
       "type": "string"
     },
+    "provenance": {
+      "$ref": "../../core/provenance.json",
+      "description": "Provenance metadata for this asset, overrides manifest-level provenance"
+    },
     "scan_type": {
       "description": "Scan type of the video",
       "enum": [

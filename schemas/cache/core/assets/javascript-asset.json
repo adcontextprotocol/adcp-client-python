@@ -33,6 +33,10 @@
     "module_type": {
       "$ref": "../../enums/javascript-module-type.json",
       "description": "JavaScript module type"
+    },
+    "provenance": {
+      "$ref": "../../core/provenance.json",
+      "description": "Provenance metadata for this asset, overrides manifest-level provenance"
     }
   },
   "required": [

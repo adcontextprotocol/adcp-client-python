@@ -28,6 +28,13 @@
       "items": {
         "additionalProperties": true,
         "properties": {
+          "categories": {
+            "description": "Valid values for categorical signals. Present when value_type is 'categorical'. Buyers must use one of these values in SignalTargeting.values.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "coverage_percentage": {
             "description": "Percentage of audience coverage",
             "maximum": 100,
@@ -60,6 +67,25 @@
             },
             "minItems": 1,
             "type": "array"
+          },
+          "range": {
+            "additionalProperties": false,
+            "description": "Valid range for numeric signals. Present when value_type is 'numeric'.",
+            "properties": {
+              "max": {
+                "description": "Maximum value (inclusive)",
+                "type": "number"
+              },
+              "min": {
+                "description": "Minimum value (inclusive)",
+                "type": "number"
+              }
+            },
+            "required": [
+              "min",
+              "max"
+            ],
+            "type": "object"
           },
           "signal_agent_segment_id": {
             "description": "Opaque identifier used for activation. This is the signals agent's internal segment ID.",

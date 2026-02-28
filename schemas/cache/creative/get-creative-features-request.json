@@ -1,8 +1,12 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "additionalProperties": false,
-  "description": "Request payload for get_creative_features task. Evaluates a creative manifest and returns feature values from a creative governance agent.",
+  "additionalProperties": true,
+  "description": "Request payload for the get_creative_features task. Submits a creative manifest for evaluation by a governance agent, which analyzes the creative and returns scored feature values (brand safety, content categorization, quality metrics, etc.).",
   "properties": {
+    "account": {
+      "$ref": "../core/account-ref.json",
+      "description": "Account for billing this evaluation. Required when the governance agent charges per evaluation."
+    },
     "context": {
       "$ref": "../core/context.json"
     },

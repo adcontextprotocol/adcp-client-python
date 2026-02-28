@@ -41,6 +41,45 @@
       },
       "type": "array"
     },
+    "refinement_applied": {
+      "description": "Seller's response to each change request in the refine array, matched by position. Each entry acknowledges whether the corresponding ask was applied, partially applied, or unable to be fulfilled. MUST contain the same number of entries in the same order as the request's refine array. Only present when the request used buying_mode: 'refine'.",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Echoes the id from the corresponding refine entry (for product and proposal scopes).",
+            "type": "string"
+          },
+          "notes": {
+            "description": "Seller explanation of what was done, what couldn't be done, or why. Recommended when status is 'partial' or 'unable'.",
+            "type": "string"
+          },
+          "scope": {
+            "description": "Echoes the scope from the corresponding refine entry. Allows orchestrators to cross-validate alignment.",
+            "enum": [
+              "request",
+              "product",
+              "proposal"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "description": "'applied': the ask was fulfilled. 'partial': the ask was partially fulfilled \u2014 see notes for details. 'unable': the seller could not fulfill the ask \u2014 see notes for why.",
+            "enum": [
+              "applied",
+              "partial",
+              "unable"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
     "sandbox": {
       "description": "When true, this response contains simulated data from sandbox mode.",
       "type": "boolean"

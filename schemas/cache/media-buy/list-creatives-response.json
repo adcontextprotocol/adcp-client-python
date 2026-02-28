@@ -9,6 +9,7 @@
           {
             "assets": {
               "vast": {
+                "delivery_type": "url",
                 "url": "https://vast.example.com/video/123",
                 "vast_version": "4.1"
               }
@@ -115,10 +116,11 @@
             "description": "Account that owns this creative"
           },
           "assets": {
-            "description": "Assets for this creative, keyed by asset_role",
+            "additionalProperties": true,
+            "description": "Assets for this creative, keyed by asset_id",
             "patternProperties": {
-              "^[a-zA-Z0-9_-]+$": {
-                "oneOf": [
+              "^[a-z0-9_]+$": {
+                "anyOf": [
                   {
                     "$ref": "../core/assets/image-asset.json"
                   },
@@ -129,25 +131,37 @@
                     "$ref": "../core/assets/audio-asset.json"
                   },
                   {
+                    "$ref": "../core/assets/vast-asset.json"
+                  },
+                  {
                     "$ref": "../core/assets/text-asset.json"
+                  },
+                  {
+                    "$ref": "../core/assets/url-asset.json"
                   },
                   {
                     "$ref": "../core/assets/html-asset.json"
                   },
                   {
-                    "$ref": "../core/assets/css-asset.json"
-                  },
-                  {
                     "$ref": "../core/assets/javascript-asset.json"
                   },
                   {
-                    "$ref": "../core/assets/vast-asset.json"
+                    "$ref": "../core/assets/webhook-asset.json"
+                  },
+                  {
+                    "$ref": "../core/assets/css-asset.json"
                   },
                   {
                     "$ref": "../core/assets/daast-asset.json"
                   },
                   {
-                    "$ref": "../core/assets/url-asset.json"
+                    "$ref": "../core/assets/markdown-asset.json"
+                  },
+                  {
+                    "$ref": "../core/assets/brief-asset.json"
+                  },
+                  {
+                    "$ref": "../core/assets/catalog-asset.json"
                   }
                 ]
               }
@@ -195,14 +209,6 @@
               "assignment_count"
             ],
             "type": "object"
-          },
-          "catalogs": {
-            "description": "Catalogs this creative renders, if any",
-            "items": {
-              "$ref": "../core/catalog.json"
-            },
-            "minItems": 1,
-            "type": "array"
           },
           "created_date": {
             "description": "When the creative was uploaded to the library",

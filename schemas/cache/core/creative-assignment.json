@@ -16,7 +16,7 @@
       "type": "array"
     },
     "weight": {
-      "description": "Delivery weight for this creative",
+      "description": "Relative delivery weight for this creative (0\u2013100). When multiple creatives are assigned to the same package, weights determine impression distribution proportionally \u2014 a creative with weight 2 gets twice the delivery of weight 1. When omitted, the creative receives equal rotation with other unweighted creatives. A weight of 0 means the creative is assigned but paused (receives no delivery).",
       "maximum": 100,
       "minimum": 0,
       "type": "number"

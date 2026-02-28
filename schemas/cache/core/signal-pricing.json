@@ -70,10 +70,10 @@
     },
     {
       "additionalProperties": true,
-      "description": "Fixed charge per reporting period, regardless of impressions or spend. Used for licensed data bundles and monthly audience subscriptions.",
+      "description": "Fixed charge per billing period, regardless of impressions or spend. Used for licensed data bundles and audience subscriptions.",
       "properties": {
         "amount": {
-          "description": "Fixed charge for the reporting period",
+          "description": "Fixed charge for the billing period",
           "minimum": 0,
           "type": "number"
         },
@@ -88,11 +88,22 @@
         "model": {
           "const": "flat_fee",
           "type": "string"
+        },
+        "period": {
+          "description": "Billing period for the flat fee.",
+          "enum": [
+            "monthly",
+            "quarterly",
+            "annual",
+            "campaign"
+          ],
+          "type": "string"
         }
       },
       "required": [
         "model",
         "amount",
+        "period",
         "currency"
       ],
       "title": "FlatFeePricing",

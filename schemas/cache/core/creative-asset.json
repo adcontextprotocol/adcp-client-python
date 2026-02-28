@@ -5,10 +5,10 @@
   "properties": {
     "assets": {
       "additionalProperties": true,
-      "description": "Assets required by the format, keyed by asset_role",
+      "description": "Assets required by the format, keyed by asset_id",
       "patternProperties": {
-        "^[a-zA-Z0-9_-]+$": {
-          "oneOf": [
+        "^[a-z0-9_]+$": {
+          "anyOf": [
             {
               "$ref": "assets/image-asset.json"
             },
@@ -19,38 +19,42 @@
               "$ref": "assets/audio-asset.json"
             },
             {
+              "$ref": "assets/vast-asset.json"
+            },
+            {
               "$ref": "assets/text-asset.json"
+            },
+            {
+              "$ref": "assets/url-asset.json"
             },
             {
               "$ref": "assets/html-asset.json"
             },
             {
-              "$ref": "assets/css-asset.json"
-            },
-            {
               "$ref": "assets/javascript-asset.json"
             },
             {
-              "$ref": "assets/vast-asset.json"
+              "$ref": "assets/webhook-asset.json"
+            },
+            {
+              "$ref": "assets/css-asset.json"
             },
             {
               "$ref": "assets/daast-asset.json"
             },
             {
-              "$ref": "assets/url-asset.json"
+              "$ref": "assets/markdown-asset.json"
+            },
+            {
+              "$ref": "assets/brief-asset.json"
+            },
+            {
+              "$ref": "assets/catalog-asset.json"
             }
           ]
         }
       },
       "type": "object"
-    },
-    "catalogs": {
-      "description": "Catalogs this creative renders. Each entry satisfies one of the format's catalog_requirements, matched by type. Each catalog can be inline (with items), a reference to a synced catalog (by catalog_id), or a URL to an external feed.",
-      "items": {
-        "$ref": "catalog.json"
-      },
-      "minItems": 1,
-      "type": "array"
     },
     "creative_id": {
       "description": "Unique identifier for the creative",
@@ -99,6 +103,10 @@
       },
       "minItems": 1,
       "type": "array"
+    },
+    "provenance": {
+      "$ref": "provenance.json",
+      "description": "Provenance metadata for this creative. Serves as the default provenance for all manifests and assets within this creative. A manifest or asset with its own provenance replaces this object entirely (no field-level merging)."
     },
     "status": {
       "$ref": "../enums/creative-status.json",

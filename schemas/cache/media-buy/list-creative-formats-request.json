@@ -14,6 +14,15 @@
     "context": {
       "$ref": "../core/context.json"
     },
+    "disclosure_positions": {
+      "description": "Filter to formats whose supported_disclosure_positions include all of these positions. Use to find formats compatible with a brief's compliance requirements.",
+      "items": {
+        "$ref": "../enums/disclosure-position.json"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
     "ext": {
       "$ref": "../core/ext.json"
     },

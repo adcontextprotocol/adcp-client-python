@@ -30,6 +30,12 @@
     "ext": {
       "$ref": "../core/ext.json"
     },
+    "idempotency_key": {
+      "description": "Client-generated idempotency key for safe retries. If an update fails without a response, resending with the same idempotency_key guarantees the update is applied at most once.",
+      "maxLength": 255,
+      "minLength": 8,
+      "type": "string"
+    },
     "media_buy_id": {
       "description": "Publisher's ID of the media buy to update",
       "type": "string"

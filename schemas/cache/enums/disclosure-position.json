@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
+  "enum": [
+    "prominent",
+    "footer",
+    "audio",
+    "subtitle",
+    "overlay",
+    "end_card",
+    "pre_roll",
+    "companion"
+  ],
+  "title": "Disclosure Position",
+  "type": "string"
+}

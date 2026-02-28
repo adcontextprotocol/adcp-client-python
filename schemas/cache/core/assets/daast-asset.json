@@ -23,6 +23,10 @@
           "minimum": 0,
           "type": "integer"
         },
+        "provenance": {
+          "$ref": "../../core/provenance.json",
+          "description": "Provenance metadata for this asset, overrides manifest-level provenance"
+        },
         "tracking_events": {
           "description": "Tracking events supported by this DAAST tag",
           "items": {
@@ -72,6 +76,10 @@
           "description": "Expected audio duration in milliseconds (if known)",
           "minimum": 0,
           "type": "integer"
+        },
+        "provenance": {
+          "$ref": "../../core/provenance.json",
+          "description": "Provenance metadata for this asset, overrides manifest-level provenance"
         },
         "tracking_events": {
           "description": "Tracking events supported by this DAAST tag",

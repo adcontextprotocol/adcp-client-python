@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
-  "description": "Measurement capabilities included with a product",
+  "description": "Business outcome measurement capabilities included with a product (e.g., incremental sales lift, brand lift, foot traffic). Distinct from delivery_measurement, which declares who counts ad impressions.",
   "properties": {
     "attribution": {
       "description": "Attribution methodology",
@@ -29,12 +29,12 @@
       "type": "string"
     },
     "window": {
-      "description": "Attribution window",
-      "examples": [
-        "30_days",
-        "7_days"
+      "allOf": [
+        {
+          "$ref": "duration.json"
+        }
       ],
-      "type": "string"
+      "description": "Attribution window as a structured duration (e.g., {\"interval\": 30, \"unit\": \"days\"})."
     }
   },
   "required": [
@@ -42,6 +42,6 @@
     "attribution",
     "reporting"
   ],
-  "title": "Measurement",
+  "title": "Outcome Measurement",
   "type": "object"
 }

@@ -7,6 +7,33 @@
       "$ref": "../core/account-ref.json",
       "description": "Filter delivery data to a specific account. When omitted, returns data across all accessible accounts."
     },
+    "attribution_window": {
+      "additionalProperties": true,
+      "description": "Attribution window to apply for conversion metrics. When provided, the seller returns conversion data using the requested lookback windows instead of their platform default. The seller echoes the applied window in the response. Sellers that do not support configurable windows ignore this field and return their default. Check get_adcp_capabilities conversion_tracking.attribution_windows for available options.",
+      "properties": {
+        "model": {
+          "$ref": "../enums/attribution-model.json",
+          "description": "Attribution model to use. When omitted, the seller applies their default model."
+        },
+        "post_click": {
+          "allOf": [
+            {
+              "$ref": "../core/duration.json"
+            }
+          ],
+          "description": "Post-click attribution window to apply."
+        },
+        "post_view": {
+          "allOf": [
+            {
+              "$ref": "../core/duration.json"
+            }
+          ],
+          "description": "Post-view attribution window to apply."
+        }
+      },
+      "type": "object"
+    },
     "buyer_refs": {
       "description": "Array of buyer reference IDs to get delivery data for",
       "items": {
@@ -26,6 +53,11 @@
     "ext": {
       "$ref": "../core/ext.json"
     },
+    "include_package_daily_breakdown": {
+      "default": false,
+      "description": "When true, include daily_breakdown arrays within each package in by_package. Useful for per-package pacing analysis and line-item monitoring. Omit or set false to reduce response size \u2014 package daily data can be large for multi-package buys over long flights.",
+      "type": "boolean"
+    },
     "media_buy_ids": {
       "description": "Array of publisher media buy IDs to get delivery data for",
       "items": {
@@ -33,6 +65,119 @@
       },
       "minItems": 1,
       "type": "array"
+    },
+    "reporting_dimensions": {
+      "additionalProperties": true,
+      "description": "Request dimensional breakdowns in delivery reporting. Each key enables a specific breakdown dimension within by_package \u2014 include as an empty object (e.g., \"device_type\": {}) to activate with defaults. Omit entirely for no breakdowns (backward compatible). Unsupported dimensions are silently omitted from the response. Note: keyword, catalog_item, and creative breakdowns are returned automatically when the seller supports them and are not controlled by this object.",
+      "properties": {
+        "audience": {
+          "additionalProperties": true,
+          "description": "Request audience segment breakdown.",
+          "properties": {
+            "limit": {
+              "default": 25,
+              "description": "Maximum number of entries to return. Defaults to 25.",
+              "minimum": 1,
+              "type": "integer"
+            },
+            "sort_by": {
+              "$ref": "../enums/sort-metric.json",
+              "default": "spend",
+              "description": "Metric to sort breakdown rows by (descending). Falls back to 'spend' if the seller does not report the requested metric."
+            }
+          },
+          "type": "object"
+        },
+        "device_platform": {
+          "additionalProperties": true,
+          "description": "Request device platform breakdown.",
+          "properties": {
+            "limit": {
+              "description": "Maximum number of entries to return. When omitted, all entries are returned (the enum is small and bounded).",
+              "minimum": 1,
+              "type": "integer"
+            },
+            "sort_by": {
+              "$ref": "../enums/sort-metric.json",
+              "default": "spend",
+              "description": "Metric to sort breakdown rows by (descending). Falls back to 'spend' if the seller does not report the requested metric."
+            }
+          },
+          "type": "object"
+        },
+        "device_type": {
+          "additionalProperties": true,
+          "description": "Request device type breakdown.",
+          "properties": {
+            "limit": {
+              "description": "Maximum number of entries to return. When omitted, all entries are returned (the enum is small and bounded).",
+              "minimum": 1,
+              "type": "integer"
+            },
+            "sort_by": {
+              "$ref": "../enums/sort-metric.json",
+              "default": "spend",
+              "description": "Metric to sort breakdown rows by (descending). Falls back to 'spend' if the seller does not report the requested metric."
+            }
+          },
+          "type": "object"
+        },
+        "geo": {
+          "additionalProperties": true,
+          "description": "Request geographic breakdown. Check reporting_capabilities.supports_geo_breakdown for available levels and systems.",
+          "properties": {
+            "geo_level": {
+              "$ref": "../enums/geo-level.json",
+              "description": "Geographic granularity level for the breakdown"
+            },
+            "limit": {
+              "default": 25,
+              "description": "Maximum number of geo entries to return. Defaults to 25. When truncated, by_geo_truncated is true in the response.",
+              "minimum": 1,
+              "type": "integer"
+            },
+            "sort_by": {
+              "$ref": "../enums/sort-metric.json",
+              "default": "spend",
+              "description": "Metric to sort breakdown rows by (descending). Falls back to 'spend' if the seller does not report the requested metric."
+            },
+            "system": {
+              "description": "Classification system for metro or postal_area levels (e.g., 'nielsen_dma', 'us_zip'). Required when geo_level is 'metro' or 'postal_area'.",
+              "oneOf": [
+                {
+                  "$ref": "../enums/metro-system.json"
+                },
+                {
+                  "$ref": "../enums/postal-system.json"
+                }
+              ]
+            }
+          },
+          "required": [
+            "geo_level"
+          ],
+          "type": "object"
+        },
+        "placement": {
+          "additionalProperties": true,
+          "description": "Request placement breakdown.",
+          "properties": {
+            "limit": {
+              "default": 25,
+              "description": "Maximum number of entries to return. Defaults to 25.",
+              "minimum": 1,
+              "type": "integer"
+            },
+            "sort_by": {
+              "$ref": "../enums/sort-metric.json",
+              "default": "spend",
+              "description": "Metric to sort breakdown rows by (descending). Falls back to 'spend' if the seller does not report the requested metric."
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
     },
     "start_date": {
       "description": "Start date for reporting period (YYYY-MM-DD). When omitted along with end_date, returns campaign lifetime data. Only accepted when the product's reporting_capabilities.date_range_support is 'date_range'.",

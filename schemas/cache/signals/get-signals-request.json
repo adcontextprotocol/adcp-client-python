@@ -13,11 +13,11 @@
       ]
     }
   ],
-  "description": "Request parameters for discovering signals. Use signal_spec for natural language discovery, signal_ids for exact lookups, or both (signal_ids take precedence for exact matches, signal_spec provides additional discovery context).",
+  "description": "Request parameters for discovering and refining signals. Use signal_spec for natural language discovery, signal_ids for exact lookups, or both to refine previous results (signal_ids anchor the starting set, signal_spec guides adjustments).",
   "properties": {
-    "account_id": {
-      "description": "The caller's account with this signals agent. When provided, the signals agent returns per-account pricing options if configured.",
-      "type": "string"
+    "account": {
+      "$ref": "../core/account-ref.json",
+      "description": "Account for this request. When provided, the signals agent returns per-account pricing options if configured."
     },
     "buyer_campaign_ref": {
       "description": "The buyer's campaign reference. Used to correlate signal discovery with subsequent report_usage calls.",
@@ -58,7 +58,7 @@
       "$ref": "../core/pagination-request.json"
     },
     "signal_ids": {
-      "description": "Specific signals to look up by data provider and ID. Returns exact matches from the data provider's catalog. Takes precedence over signal_spec when both are provided.",
+      "description": "Specific signals to look up by data provider and ID. Returns exact matches from the data provider's catalog. When combined with signal_spec, these signals anchor the starting set and signal_spec guides adjustments.",
       "items": {
         "$ref": "../core/signal-id.json"
       },

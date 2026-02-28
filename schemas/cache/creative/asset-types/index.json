@@ -28,6 +28,16 @@
       "schema": "/schemas/core/assets/audio-asset.json",
       "typical_use": "Audio ads for streaming, podcasts, radio"
     },
+    "brief": {
+      "description": "Campaign-level creative context (creative brief)",
+      "schema": "/schemas/core/assets/brief-asset.json",
+      "typical_use": "Campaign briefs with objective, messaging, compliance requirements"
+    },
+    "catalog": {
+      "description": "Typed data feed (products, stores, jobs, etc.)",
+      "schema": "/schemas/core/assets/catalog-asset.json",
+      "typical_use": "Product catalogs, store locators, job feeds for dynamic creatives"
+    },
     "css": {
       "description": "CSS stylesheet asset for styling",
       "schema": "/schemas/core/assets/css-asset.json",
@@ -86,7 +96,7 @@
   },
   "baseUrl": "/schemas/latest",
   "description": "Registry of asset types used in AdCP creative manifests. Each asset type defines the structure of actual content payloads (what you send), not requirements or constraints (which belong in format specifications).",
-  "lastUpdated": "2026-02-27",
+  "lastUpdated": "2026-02-28",
   "title": "AdCP Asset Type Registry",
   "usage_notes": {
     "creative_manifests": "Creative manifests provide actual asset content, keyed by asset_id from the format. Asset type is determined by the format specification, not declared in the payload.",

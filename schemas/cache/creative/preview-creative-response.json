@@ -110,6 +110,7 @@
                 "properties": {
                   "success": {
                     "const": true,
+                    "description": "Indicates this preview request succeeded",
                     "type": "boolean"
                   }
                 },
@@ -122,43 +123,34 @@
                 "properties": {
                   "success": {
                     "const": false,
+                    "description": "Indicates this preview request failed",
                     "type": "boolean"
                   }
                 },
                 "required": [
-                  "error"
+                  "errors"
                 ],
                 "title": "PreviewBatchResultError"
               }
             ],
             "properties": {
-              "error": {
-                "description": "Error information for failed requests",
-                "properties": {
-                  "code": {
-                    "description": "Error code (e.g., 'invalid_manifest', 'unsupported_format', 'missing_assets')",
-                    "type": "string"
-                  },
-                  "details": {
-                    "additionalProperties": true,
-                    "description": "Additional error context",
-                    "type": "object"
-                  },
-                  "message": {
-                    "description": "Human-readable error message",
-                    "type": "string"
-                  }
+              "creative_id": {
+                "description": "ID of the creative this result corresponds to. Enables correlation when processing batch results.",
+                "type": "string"
+              },
+              "errors": {
+                "description": "Errors for failed requests",
+                "items": {
+                  "$ref": "../core/error.json"
                 },
-                "required": [
-                  "code",
-                  "message"
-                ],
-                "type": "object"
+                "minItems": 1,
+                "type": "array"
               },
               "response": {
-                "description": "Preview response for successful requests",
+                "description": "Preview data for successful requests",
                 "properties": {
                   "expires_at": {
+                    "description": "When the preview URLs expire",
                     "format": "date-time",
                     "type": "string"
                   },
@@ -224,7 +216,8 @@
               }
             },
             "required": [
-              "success"
+              "success",
+              "creative_id"
             ],
             "type": "object"
           },

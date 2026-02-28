@@ -91,7 +91,7 @@
       "type": "string"
     },
     "buyer_ref": {
-      "description": "Buyer's reference identifier for this media buy",
+      "description": "Buyer's reference identifier for this media buy. Also serves as an idempotency key: sellers SHOULD deduplicate requests with the same buyer_ref and account, returning the existing media buy rather than creating a duplicate.",
       "type": "string"
     },
     "context": {

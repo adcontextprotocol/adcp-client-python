@@ -11,6 +11,10 @@
       "$ref": "../enums/landing-page-requirement.json",
       "description": "Landing page requirements"
     },
+    "provenance_required": {
+      "description": "Whether creatives must include provenance metadata. When true, the seller requires buyers to attach provenance declarations to creative submissions. The seller may independently verify claims via get_creative_features.",
+      "type": "boolean"
+    },
     "templates_available": {
       "description": "Whether creative templates are provided",
       "type": "boolean"

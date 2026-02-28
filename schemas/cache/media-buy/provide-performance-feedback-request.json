@@ -41,25 +41,8 @@
       "description": "Source of the performance data"
     },
     "measurement_period": {
-      "additionalProperties": true,
-      "description": "Time period for performance measurement",
-      "properties": {
-        "end": {
-          "description": "ISO 8601 end timestamp for measurement period",
-          "format": "date-time",
-          "type": "string"
-        },
-        "start": {
-          "description": "ISO 8601 start timestamp for measurement period",
-          "format": "date-time",
-          "type": "string"
-        }
-      },
-      "required": [
-        "start",
-        "end"
-      ],
-      "type": "object"
+      "$ref": "../core/datetime-range.json",
+      "description": "Time period for performance measurement"
     },
     "media_buy_id": {
       "description": "Publisher's media buy identifier",
