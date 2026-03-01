@@ -75,6 +75,8 @@ extend-exclude = [
     "src/adcp/types/_generated.py",
     "src/adcp/types/tasks.py",
     "src/adcp/types/generated_poc/",
+    "examples/",
+    "scripts/",
 ]
 
 [tool.ruff.lint]
