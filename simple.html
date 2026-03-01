@@ -280,7 +280,11 @@ print(products.products)</p>
         Raises:
             Exception: If the request fails
         &#34;&#34;&#34;
-        request = GetSignalsRequest(**kwargs)
+        request: GetSignalsDiscoveryRequest | GetSignalsLookupRequest
+        if &#34;signal_ids&#34; in kwargs:
+            request = GetSignalsLookupRequest.model_validate(kwargs)
+        else:
+            request = GetSignalsDiscoveryRequest.model_validate(kwargs)
         result = await self._client.get_signals(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
@@ -938,7 +942,11 @@ print(f"Found {len(products.products)} products")</p></div>
     Raises:
         Exception: If the request fails
     &#34;&#34;&#34;
-    request = GetSignalsRequest(**kwargs)
+    request: GetSignalsDiscoveryRequest | GetSignalsLookupRequest
+    if &#34;signal_ids&#34; in kwargs:
+        request = GetSignalsLookupRequest.model_validate(kwargs)
+    else:
+        request = GetSignalsDiscoveryRequest.model_validate(kwargs)
     result = await self._client.get_signals(request)
     if not result.success or not result.data:
         raise ADCPSimpleAPIError(
