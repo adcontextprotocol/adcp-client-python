@@ -507,7 +507,7 @@ GetProductsWholesaleRequest = GetProductsRequest2
 
 # Get Signals Request Variants
 GetSignalsRequest = GetSignalsRequest1 | GetSignalsRequest2
-"""Union of GetSignalsRequest variants. Use instead of the RootModel wrapper to allow subclassing."""
+"""Union of GetSignalsRequest variants. Use instead of the RootModel wrapper."""
 
 GetSignalsDiscoveryRequest = GetSignalsRequest1
 """Discover signals by natural language spec - signal_spec required."""

@@ -36,7 +36,8 @@ from adcp.types import (
     GetMediaBuyDeliveryResponse,
     GetProductsRequest,
     GetProductsResponse,
-    GetSignalsRequest,
+    GetSignalsDiscoveryRequest,
+    GetSignalsLookupRequest,
     GetSignalsResponse,
     ListAccountsRequest,
     ListAccountsResponse,
@@ -275,7 +276,11 @@ class SimpleAPI:
         Raises:
             Exception: If the request fails
         """
-        request = GetSignalsRequest(**kwargs)
+        request: GetSignalsDiscoveryRequest | GetSignalsLookupRequest
+        if "signal_ids" in kwargs:
+            request = GetSignalsLookupRequest.model_validate(kwargs)
+        else:
+            request = GetSignalsDiscoveryRequest.model_validate(kwargs)
         result = await self._client.get_signals(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
