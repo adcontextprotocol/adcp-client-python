@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.8.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v3.7.0...v3.8.0) (2026-03-01)
+
+
+### Features
+
+* sync schemas to AdCP 3.0.0-rc.1 ([#141](https://github.com/adcontextprotocol/adcp-client-python/issues/141)) ([b0497a3](https://github.com/adcontextprotocol/adcp-client-python/commit/b0497a3f673ce3b11b4f6c29d8b49953c1d5afd0))
+
+
+### Bug Fixes
+
+* resolve CI failures from GetSignalsRequest union alias ([#144](https://github.com/adcontextprotocol/adcp-client-python/issues/144)) ([f135651](https://github.com/adcontextprotocol/adcp-client-python/commit/f13565106931f471b0304e58b4c182679777676b))
+
 ## [3.7.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v3.6.0...v3.7.0) (2026-02-28)
 
 
