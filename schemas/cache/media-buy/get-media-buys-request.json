@@ -5,7 +5,7 @@
   "properties": {
     "account": {
       "$ref": "../core/account-ref.json",
-      "description": "Account to retrieve media buys for."
+      "description": "Account to retrieve media buys for. When omitted, returns data across all accessible accounts."
     },
     "buyer_refs": {
       "description": "Array of buyer reference IDs to retrieve",
@@ -54,9 +54,6 @@
       ]
     }
   },
-  "required": [
-    "account"
-  ],
   "title": "Get Media Buys Request",
   "type": "object"
 }

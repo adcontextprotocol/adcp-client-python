@@ -14,7 +14,7 @@
       "type": "number"
     },
     "buyer_ref": {
-      "description": "Buyer's reference identifier for this package",
+      "description": "Buyer's reference identifier for this package. Sellers SHOULD deduplicate requests with the same buyer_ref within a media buy, returning the existing package rather than creating a duplicate.",
       "type": "string"
     },
     "catalogs": {

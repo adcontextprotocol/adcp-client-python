@@ -60,6 +60,12 @@ from adcp.types.generated_poc.enums.wcag_level import WcagLevel
 from adcp.types.generated_poc.media_buy.create_media_buy_request import (
     CreateMediaBuyRequest,
 )
+from adcp.types.generated_poc.media_buy.get_products_request import (
+    FieldModel,
+    GetProductsRequest1,
+    GetProductsRequest2,
+    GetProductsRequest3,
+)
 from adcp.types.generated_poc.media_buy.list_creative_formats_request import (
     ListCreativeFormatsRequest,
 )
@@ -181,6 +187,78 @@ def _apply_coercion() -> None:
         Annotated[CreativeSortField | None, BeforeValidator(coerce_to_enum(CreativeSortField))],
     )
     Sort.model_rebuild(force=True)
+
+    # Apply coercion to GetProductsRequest1
+    # - context: ContextObject | dict | None
+    # - ext: ExtensionObject | dict | None
+    # - fields: list[FieldModel | str] | None
+    _patch_field_annotation(
+        GetProductsRequest1,
+        "context",
+        Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],
+    )
+    _patch_field_annotation(
+        GetProductsRequest1,
+        "ext",
+        Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
+    )
+    _patch_field_annotation(
+        GetProductsRequest1,
+        "fields",
+        Annotated[
+            list[FieldModel] | None,
+            BeforeValidator(coerce_to_enum_list(FieldModel)),
+        ],
+    )
+    GetProductsRequest1.model_rebuild(force=True)
+
+    # Apply coercion to GetProductsRequest2
+    # - context: ContextObject | dict | None
+    # - ext: ExtensionObject | dict | None
+    # - fields: list[FieldModel | str] | None
+    _patch_field_annotation(
+        GetProductsRequest2,
+        "context",
+        Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],
+    )
+    _patch_field_annotation(
+        GetProductsRequest2,
+        "ext",
+        Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
+    )
+    _patch_field_annotation(
+        GetProductsRequest2,
+        "fields",
+        Annotated[
+            list[FieldModel] | None,
+            BeforeValidator(coerce_to_enum_list(FieldModel)),
+        ],
+    )
+    GetProductsRequest2.model_rebuild(force=True)
+
+    # Apply coercion to GetProductsRequest3
+    # - context: ContextObject | dict | None
+    # - ext: ExtensionObject | dict | None
+    # - fields: list[FieldModel | str] | None
+    _patch_field_annotation(
+        GetProductsRequest3,
+        "context",
+        Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],
+    )
+    _patch_field_annotation(
+        GetProductsRequest3,
+        "ext",
+        Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
+    )
+    _patch_field_annotation(
+        GetProductsRequest3,
+        "fields",
+        Annotated[
+            list[FieldModel] | None,
+            BeforeValidator(coerce_to_enum_list(FieldModel)),
+        ],
+    )
+    GetProductsRequest3.model_rebuild(force=True)
 
     # Apply coercion to PackageRequest
     # - creative_assignments: list[CreativeAssignment] (accepts subclass instances)

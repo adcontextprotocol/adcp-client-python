@@ -568,6 +568,15 @@ async def test_client_context_manager_with_exception():
         mock_close.assert_called_once()
 
 
+def test_get_media_buys_request_account_is_optional():
+    """GetMediaBuysRequest.account is optional per AdCP 3.0.0-rc.1 schema."""
+    from adcp.types._generated import GetMediaBuysRequest
+
+    req = GetMediaBuysRequest.model_validate({})
+    assert req.account is None
+    assert "account" not in req.model_dump(exclude_none=True)
+
+
 @pytest.mark.asyncio
 async def test_get_media_buys_parses_response():
     """Test that get_media_buys parses A2A response into typed GetMediaBuysResponse."""
