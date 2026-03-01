@@ -12777,7 +12777,7 @@ validated to form a valid model.</p>
     buyer_ref: Annotated[
         str,
         Field(
-            description=&#34;Buyer&#39;s reference identifier for this media buy. Also serves as an idempotency key: sellers SHOULD deduplicate requests with the same buyer_ref and account, returning the existing media buy rather than creating a duplicate.&#34;
+            description=&#34;Buyer&#39;s reference identifier for this media buy. Sellers SHOULD deduplicate requests with the same buyer_ref and account, returning the existing media buy rather than creating a duplicate.&#34;
         ),
     ]
     context: context_1.ContextObject | None = None
@@ -17891,8 +17891,11 @@ validated to form a valid model.</p>
         extra=&#39;allow&#39;,
     )
     account: Annotated[
-        account_ref.AccountReference, Field(description=&#39;Account to retrieve media buys for.&#39;)
-    ]
+        account_ref.AccountReference | None,
+        Field(
+            description=&#39;Account to retrieve media buys for. When omitted, returns data across all accessible accounts.&#39;
+        ),
+    ] = None
     buyer_refs: Annotated[
         list[str] | None,
         Field(description=&#39;Array of buyer reference IDs to retrieve&#39;, min_length=1),
@@ -17940,7 +17943,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.GetMediaBuysRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="types/generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a></code></dt>
+<dt id="adcp.GetMediaBuysRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="types/generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -18176,7 +18179,7 @@ validated to form a valid model.</p>
     buying_mode: Annotated[
         Literal[&#39;brief&#39;],
         Field(
-            description=&#34;Declares buyer intent for this request. &#39;brief&#39;: publisher curates product recommendations from the provided brief. &#39;wholesale&#39;: buyer requests raw inventory to apply their own audiences — brief must not be provided, and proposals are omitted. &#39;refine&#39;: iterate on products and proposals from a previous get_products response using the refine array of change requests.&#34;
+            description=&#34;Declares buyer intent for this request. &#39;brief&#39;: publisher curates product recommendations from the provided brief. &#39;wholesale&#39;: buyer requests raw inventory to apply their own audiences — brief must not be provided, and proposals are omitted. &#39;refine&#39;: iterate on products and proposals from a previous get_products response using the refine array of change requests. v3 clients MUST include buying_mode. Sellers receiving requests from pre-v3 clients without buying_mode SHOULD default to &#39;brief&#39;.&#34;
         ),
     ]
     catalog: Annotated[
@@ -18322,7 +18325,7 @@ validated to form a valid model.</p>
     buying_mode: Annotated[
         Literal[&#39;wholesale&#39;],
         Field(
-            description=&#34;Declares buyer intent for this request. &#39;brief&#39;: publisher curates product recommendations from the provided brief. &#39;wholesale&#39;: buyer requests raw inventory to apply their own audiences — brief must not be provided, and proposals are omitted. &#39;refine&#39;: iterate on products and proposals from a previous get_products response using the refine array of change requests.&#34;
+            description=&#34;Declares buyer intent for this request. &#39;brief&#39;: publisher curates product recommendations from the provided brief. &#39;wholesale&#39;: buyer requests raw inventory to apply their own audiences — brief must not be provided, and proposals are omitted. &#39;refine&#39;: iterate on products and proposals from a previous get_products response using the refine array of change requests. v3 clients MUST include buying_mode. Sellers receiving requests from pre-v3 clients without buying_mode SHOULD default to &#39;brief&#39;.&#34;
         ),
     ]
     catalog: Annotated[
@@ -18468,7 +18471,7 @@ validated to form a valid model.</p>
     buying_mode: Annotated[
         Literal[&#39;refine&#39;],
         Field(
-            description=&#34;Declares buyer intent for this request. &#39;brief&#39;: publisher curates product recommendations from the provided brief. &#39;wholesale&#39;: buyer requests raw inventory to apply their own audiences — brief must not be provided, and proposals are omitted. &#39;refine&#39;: iterate on products and proposals from a previous get_products response using the refine array of change requests.&#34;
+            description=&#34;Declares buyer intent for this request. &#39;brief&#39;: publisher curates product recommendations from the provided brief. &#39;wholesale&#39;: buyer requests raw inventory to apply their own audiences — brief must not be provided, and proposals are omitted. &#39;refine&#39;: iterate on products and proposals from a previous get_products response using the refine array of change requests. v3 clients MUST include buying_mode. Sellers receiving requests from pre-v3 clients without buying_mode SHOULD default to &#39;brief&#39;.&#34;
         ),
     ]
     catalog: Annotated[
@@ -20470,7 +20473,10 @@ validated to form a valid model.</p>
         ),
     ] = None
     buyer_ref: Annotated[
-        str | None, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)
+        str | None,
+        Field(
+            description=&#34;Buyer&#39;s reference identifier for this media buy. Sellers SHOULD deduplicate requests with the same buyer_ref and account, returning the existing media buy rather than creating a duplicate.&#34;
+        ),
     ] = None
     created_at: Annotated[AwareDatetime | None, Field(description=&#39;Creation timestamp&#39;)] = None
     creative_deadline: Annotated[
@@ -21543,7 +21549,10 @@ validated to form a valid model.</p>
         ),
     ] = None
     buyer_ref: Annotated[
-        str | None, Field(description=&#34;Buyer&#39;s reference identifier for this package&#34;)
+        str | None,
+        Field(
+            description=&#34;Buyer&#39;s reference identifier for this package. Sellers SHOULD deduplicate requests with the same buyer_ref within a media buy, returning the existing package rather than creating a duplicate.&#34;
+        ),
     ] = None
     catalogs: Annotated[
         list[catalog.Catalog] | None,
@@ -21714,7 +21723,12 @@ validated to form a valid model.</p>
         float,
         Field(description=&#34;Budget allocation for this package in the media buy&#39;s currency&#34;, ge=0.0),
     ]
-    buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this package&#34;)]
+    buyer_ref: Annotated[
+        str,
+        Field(
+            description=&#34;Buyer&#39;s reference identifier for this package. Sellers SHOULD deduplicate requests with the same buyer_ref within a media buy, returning the existing package rather than creating a duplicate.&#34;
+        ),
+    ]
     catalogs: Annotated[
         list[catalog.Catalog] | None,
         Field(

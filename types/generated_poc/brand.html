@@ -803,21 +803,21 @@ validated to form a valid model.</p>
             description=&#39;Brand identity and discovery file. Hosted at /.well-known/brand.json on house domains. Contains the full brand portfolio with identity, creative assets, and digital properties. Brands are identified by house + brand_id (like properties are identified by publisher + property_id). Supports variants: house portfolio (full brand data), brand agent (agent provides brand info via MCP), house redirect (pointer to house domain), or authoritative location redirect.&#39;,
             examples=[
                 {
-                    &#39;$schema&#39;: &#39;/schemas/latest/brand.json&#39;,
+                    &#39;$schema&#39;: &#39;/schemas/3.0.0-rc.1/brand.json&#39;,
                     &#39;authoritative_location&#39;: &#39;https://adcontextprotocol.org/brand/abc123/brand.json&#39;,
                 },
                 {
-                    &#39;$schema&#39;: &#39;/schemas/latest/brand.json&#39;,
+                    &#39;$schema&#39;: &#39;/schemas/3.0.0-rc.1/brand.json&#39;,
                     &#39;house&#39;: &#39;nikeinc.com&#39;,
                     &#39;note&#39;: &#39;Redirect to house domain for full brand portfolio&#39;,
                 },
                 {
-                    &#39;$schema&#39;: &#39;/schemas/latest/brand.json&#39;,
+                    &#39;$schema&#39;: &#39;/schemas/3.0.0-rc.1/brand.json&#39;,
                     &#39;brand_agent&#39;: {&#39;id&#39;: &#39;acme_brand_agent&#39;, &#39;url&#39;: &#39;https://agent.acme.com/mcp&#39;},
                     &#39;version&#39;: &#39;1.0&#39;,
                 },
                 {
-                    &#39;$schema&#39;: &#39;/schemas/latest/brand.json&#39;,
+                    &#39;$schema&#39;: &#39;/schemas/3.0.0-rc.1/brand.json&#39;,
                     &#39;brands&#39;: [
                         {
                             &#39;colors&#39;: {&#39;primary&#39;: &#39;#FF6600&#39;, &#39;secondary&#39;: &#39;#0066CC&#39;},
@@ -889,7 +889,7 @@ validated to form a valid model.</p>
                     &#39;version&#39;: &#39;1.0&#39;,
                 },
                 {
-                    &#39;$schema&#39;: &#39;/schemas/latest/brand.json&#39;,
+                    &#39;$schema&#39;: &#39;/schemas/3.0.0-rc.1/brand.json&#39;,
                     &#39;authorized_operators&#39;: [
                         {
                             &#39;brands&#39;: [&#39;nike&#39;, &#39;air_jordan&#39;],

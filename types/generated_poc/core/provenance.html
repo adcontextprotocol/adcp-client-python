@@ -71,7 +71,12 @@ el.replaceWith(d);
             description=&#34;Organization that provides the AI tool (e.g., &#39;OpenAI&#39;, &#39;Stability AI&#39;, &#39;Google&#39;)&#34;
         ),
     ] = None
-    version: Annotated[str | None, Field(description=&#39;Version identifier for the AI tool&#39;)] = None</code></pre>
+    version: Annotated[
+        str | None,
+        Field(
+            description=&#34;Version identifier for the AI tool or model (e.g., &#39;25.1&#39;, &#39;0125&#39;, &#39;2.1&#39;). For generative models, use the model version rather than the API version.&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>AdCP JSON schemas use additionalProperties: false and do not allow null

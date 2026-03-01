@@ -70,7 +70,12 @@ el.replaceWith(d);
         float,
         Field(description=&#34;Budget allocation for this package in the media buy&#39;s currency&#34;, ge=0.0),
     ]
-    buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this package&#34;)]
+    buyer_ref: Annotated[
+        str,
+        Field(
+            description=&#34;Buyer&#39;s reference identifier for this package. Sellers SHOULD deduplicate requests with the same buyer_ref within a media buy, returning the existing package rather than creating a duplicate.&#34;
+        ),
+    ]
     catalogs: Annotated[
         list[catalog.Catalog] | None,
         Field(

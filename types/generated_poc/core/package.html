@@ -74,7 +74,10 @@ el.replaceWith(d);
         ),
     ] = None
     buyer_ref: Annotated[
-        str | None, Field(description=&#34;Buyer&#39;s reference identifier for this package&#34;)
+        str | None,
+        Field(
+            description=&#34;Buyer&#39;s reference identifier for this package. Sellers SHOULD deduplicate requests with the same buyer_ref within a media buy, returning the existing package rather than creating a duplicate.&#34;
+        ),
     ] = None
     catalogs: Annotated[
         list[catalog.Catalog] | None,

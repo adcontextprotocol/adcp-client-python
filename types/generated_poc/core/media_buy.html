@@ -69,7 +69,10 @@ el.replaceWith(d);
         ),
     ] = None
     buyer_ref: Annotated[
-        str | None, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)
+        str | None,
+        Field(
+            description=&#34;Buyer&#39;s reference identifier for this media buy. Sellers SHOULD deduplicate requests with the same buyer_ref and account, returning the existing media buy rather than creating a duplicate.&#34;
+        ),
     ] = None
     created_at: Annotated[AwareDatetime | None, Field(description=&#39;Creation timestamp&#39;)] = None
     creative_deadline: Annotated[

@@ -521,7 +521,7 @@ validated to form a valid model.</p>
     buying_mode: Annotated[
         Literal[&#39;brief&#39;],
         Field(
-            description=&#34;Declares buyer intent for this request. &#39;brief&#39;: publisher curates product recommendations from the provided brief. &#39;wholesale&#39;: buyer requests raw inventory to apply their own audiences — brief must not be provided, and proposals are omitted. &#39;refine&#39;: iterate on products and proposals from a previous get_products response using the refine array of change requests.&#34;
+            description=&#34;Declares buyer intent for this request. &#39;brief&#39;: publisher curates product recommendations from the provided brief. &#39;wholesale&#39;: buyer requests raw inventory to apply their own audiences — brief must not be provided, and proposals are omitted. &#39;refine&#39;: iterate on products and proposals from a previous get_products response using the refine array of change requests. v3 clients MUST include buying_mode. Sellers receiving requests from pre-v3 clients without buying_mode SHOULD default to &#39;brief&#39;.&#34;
         ),
     ]
     catalog: Annotated[
@@ -667,7 +667,7 @@ validated to form a valid model.</p>
     buying_mode: Annotated[
         Literal[&#39;wholesale&#39;],
         Field(
-            description=&#34;Declares buyer intent for this request. &#39;brief&#39;: publisher curates product recommendations from the provided brief. &#39;wholesale&#39;: buyer requests raw inventory to apply their own audiences — brief must not be provided, and proposals are omitted. &#39;refine&#39;: iterate on products and proposals from a previous get_products response using the refine array of change requests.&#34;
+            description=&#34;Declares buyer intent for this request. &#39;brief&#39;: publisher curates product recommendations from the provided brief. &#39;wholesale&#39;: buyer requests raw inventory to apply their own audiences — brief must not be provided, and proposals are omitted. &#39;refine&#39;: iterate on products and proposals from a previous get_products response using the refine array of change requests. v3 clients MUST include buying_mode. Sellers receiving requests from pre-v3 clients without buying_mode SHOULD default to &#39;brief&#39;.&#34;
         ),
     ]
     catalog: Annotated[
@@ -813,7 +813,7 @@ validated to form a valid model.</p>
     buying_mode: Annotated[
         Literal[&#39;refine&#39;],
         Field(
-            description=&#34;Declares buyer intent for this request. &#39;brief&#39;: publisher curates product recommendations from the provided brief. &#39;wholesale&#39;: buyer requests raw inventory to apply their own audiences — brief must not be provided, and proposals are omitted. &#39;refine&#39;: iterate on products and proposals from a previous get_products response using the refine array of change requests.&#34;
+            description=&#34;Declares buyer intent for this request. &#39;brief&#39;: publisher curates product recommendations from the provided brief. &#39;wholesale&#39;: buyer requests raw inventory to apply their own audiences — brief must not be provided, and proposals are omitted. &#39;refine&#39;: iterate on products and proposals from a previous get_products response using the refine array of change requests. v3 clients MUST include buying_mode. Sellers receiving requests from pre-v3 clients without buying_mode SHOULD default to &#39;brief&#39;.&#34;
         ),
     ]
     catalog: Annotated[
