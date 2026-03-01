@@ -808,3 +808,48 @@ def test_destination_union_contains_all_variants():
     }
 
     assert union_args == expected_variants
+
+
+def test_get_signals_request_is_union_not_root_model():
+    """GetSignalsRequest is a plain union alias, not a RootModel.
+
+    This allows consumers to subclass GetSignalsRequest1 or GetSignalsRequest2
+    with custom model_config (e.g. extra='forbid' in CI, extra='ignore' in prod).
+    See: https://github.com/adcontextprotocol/adcp-client-python/issues/138
+    """
+    import types
+
+    from pydantic import RootModel
+
+    from adcp import GetSignalsRequest
+
+    # Must be a union, not a RootModel subclass
+    assert isinstance(GetSignalsRequest, types.UnionType)
+    assert not (isinstance(GetSignalsRequest, type) and issubclass(GetSignalsRequest, RootModel))
+
+
+def test_get_signals_request_union_contains_variants():
+    """GetSignalsRequest union contains the two concrete variants."""
+    from typing import get_args
+
+    from adcp import GetSignalsDiscoveryRequest, GetSignalsLookupRequest, GetSignalsRequest
+
+    union_args = set(get_args(GetSignalsRequest))
+    assert union_args == {GetSignalsDiscoveryRequest, GetSignalsLookupRequest}
+
+
+def test_get_signals_request_variants_are_subclassable():
+    """Consumers can subclass GetSignalsRequest variants with custom model_config."""
+    from pydantic import ConfigDict
+
+    from adcp import GetSignalsDiscoveryRequest, GetSignalsLookupRequest
+
+    class MyDiscoveryRequest(GetSignalsDiscoveryRequest):
+        model_config = ConfigDict(extra="forbid")
+
+    class MyLookupRequest(GetSignalsLookupRequest):
+        model_config = ConfigDict(extra="forbid")
+
+    # Should construct without error
+    req = MyDiscoveryRequest(signal_spec="targeting signals for automotive in-market buyers")
+    assert req.signal_spec == "targeting signals for automotive in-market buyers"
