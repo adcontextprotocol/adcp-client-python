@@ -156,6 +156,12 @@ class ColorValue2(RootModel[list[ColorValue2Item]]):
 class ColorValue(RootModel[ColorValue1 | ColorValue2]):
     root: ColorValue1 | ColorValue2
 
+    def __getattr__(self, name: str) -> Any:
+        """Proxy attribute access to the wrapped type."""
+        if name.startswith('_'):
+            raise AttributeError(name)
+        return getattr(self.root, name)
+
 
 class Colors(AdCPBaseModel):
     model_config = ConfigDict(
@@ -693,3 +699,9 @@ class BrandDiscovery(
             title='Brand Discovery',
         ),
     ]
+
+    def __getattr__(self, name: str) -> Any:
+        """Proxy attribute access to the wrapped type."""
+        if name.startswith('_'):
+            raise AttributeError(name)
+        return getattr(self.root, name)

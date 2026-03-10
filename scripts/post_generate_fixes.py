@@ -295,6 +295,79 @@ def fix_constr_type_annotations():
         print("  No constr(pattern=...) annotations needed fixing")
 
 
+def add_rootmodel_getattr_proxy():
+    """Add __getattr__ delegation to RootModel union types.
+
+    RootModel wrappers around discriminated unions are opaque — accessing
+    attributes of the inner type requires .root.attribute_name. This adds
+    __getattr__ so attribute access delegates transparently to the wrapped type.
+
+    See: https://github.com/adcontextprotocol/adcp-client-python/issues/145
+    """
+    import ast
+
+    fixed_count = 0
+
+    for py_file in OUTPUT_DIR.rglob("*.py"):
+        source = py_file.read_text()
+
+        if "RootModel[" not in source:
+            continue
+
+        # Already patched
+        if "def __getattr__" in source:
+            continue
+
+        # Ensure Any is imported before parsing AST (avoids line number shift)
+        if "from typing import Any" not in source and "Any," not in source:
+            if "from typing import " in source:
+                source = source.replace(
+                    "from typing import ", "from typing import Any, ", 1
+                )
+            else:
+                source = "from typing import Any\n" + source
+
+        # Find RootModel union classes using AST
+        tree = ast.parse(source)
+        lines = source.split("\n")
+        insertions: list[tuple[int, str]] = []  # (line_index, class_name)
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef) or not node.end_lineno:
+                continue
+            for base in node.bases:
+                base_src = ast.get_source_segment(source, base)
+                if base_src and "RootModel[" in base_src and "|" in base_src:
+                    insertions.append((node.end_lineno, node.name))
+                    break
+
+        if not insertions:
+            continue
+
+        # Insert __getattr__ methods (reverse order to preserve line numbers)
+        method_lines = [
+            "",
+            "    def __getattr__(self, name: str) -> Any:",
+            '        """Proxy attribute access to the wrapped type."""',
+            "        if name.startswith('_'):",
+            "            raise AttributeError(name)",
+            "        return getattr(self.root, name)",
+        ]
+
+        for end_lineno, class_name in sorted(insertions, reverse=True):
+            for i, method_line in enumerate(method_lines):
+                lines.insert(end_lineno + i, method_line)
+
+        source = "\n".join(lines)
+        py_file.write_text(source)
+        fixed_count += len(insertions)
+
+    if fixed_count > 0:
+        print(f"  Added __getattr__ proxy to {fixed_count} RootModel union type(s)")
+    else:
+        print("  No RootModel union types needed __getattr__ proxy")
+
+
 def main():
     """Apply all post-generation fixes."""
     print("Applying post-generation fixes...")
@@ -306,6 +379,7 @@ def main():
     fix_preview_creative_request_discriminator()
     add_deprecated_field_metadata()
     fix_constr_type_annotations()
+    add_rootmodel_getattr_proxy()
 
     print("\n✓ Post-generation fixes complete\n")
 

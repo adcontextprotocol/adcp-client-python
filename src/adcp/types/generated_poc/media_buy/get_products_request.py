@@ -314,3 +314,9 @@ class GetProductsRequest(
             title='Get Products Request',
         ),
     ]
+
+    def __getattr__(self, name: str) -> Any:
+        """Proxy attribute access to the wrapped type."""
+        if name.startswith('_'):
+            raise AttributeError(name)
+        return getattr(self.root, name)

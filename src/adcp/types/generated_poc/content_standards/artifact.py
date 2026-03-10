@@ -96,6 +96,12 @@ class AssetAccess(RootModel[AssetAccess1 | AssetAccess2 | AssetAccess3]):
         Field(description='Authentication for accessing secured asset URLs'),
     ]
 
+    def __getattr__(self, name: str) -> Any:
+        """Proxy attribute access to the wrapped type."""
+        if name.startswith('_'):
+            raise AttributeError(name)
+        return getattr(self.root, name)
+
 
 class Assets(AdCPBaseModel):
     content: Annotated[str, Field(description='Text content')]

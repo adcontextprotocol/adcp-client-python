@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Any, Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import ConfigDict, Field, RootModel
@@ -84,3 +84,9 @@ class BasePropertySource(
             title='Base Property Source',
         ),
     ]
+
+    def __getattr__(self, name: str) -> Any:
+        """Proxy attribute access to the wrapped type."""
+        if name.startswith('_'):
+            raise AttributeError(name)
+        return getattr(self.root, name)

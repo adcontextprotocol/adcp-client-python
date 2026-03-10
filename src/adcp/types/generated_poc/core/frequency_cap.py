@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Any, Annotated
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import ConfigDict, Field, RootModel
@@ -135,3 +135,9 @@ class FrequencyCap(RootModel[FrequencyCap1 | FrequencyCap2 | FrequencyCap3]):
             title='Frequency Cap',
         ),
     ]
+
+    def __getattr__(self, name: str) -> Any:
+        """Proxy attribute access to the wrapped type."""
+        if name.startswith('_'):
+            raise AttributeError(name)
+        return getattr(self.root, name)
