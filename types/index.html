@@ -347,7 +347,13 @@ validated to form a valid model.</p>
             ],
             title=&#39;Account Reference&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -709,7 +715,13 @@ validated to form a valid model.</p>
             description=&#39;Response payload for activate_signal task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - the signal is either fully activated or not activated at all.&#39;,
             title=&#39;Activate Signal Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -3642,7 +3654,13 @@ validated to form a valid model.</p>
             description=&#39;Response containing the transformed or generated creative manifest, ready for use with preview_creative or sync_creatives. Returns either the complete creative manifest OR error information, never both.&#39;,
             title=&#39;Build Creative Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -4281,7 +4299,13 @@ validated to form a valid model.</p>
             description=&#39;Response payload with verdict and detailed explanations for collaborative calibration&#39;,
             title=&#39;Calibrate Content Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -4957,7 +4981,13 @@ attributes &ndash; see the documentation for details.</p></div>
             ],
             title=&#39;Catalog Field Binding&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -7407,7 +7437,13 @@ validated to form a valid model.</p>
             description=&#39;Response payload for creating a content standards configuration&#39;,
             title=&#39;Create Content Standards Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -7761,7 +7797,13 @@ validated to form a valid model.</p>
             description=&#39;Response payload for create_media_buy task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - the media buy is either fully created or not created at all.&#39;,
             title=&#39;Create Media Buy Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -14420,7 +14462,13 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;Frequency capping settings for package-level application. Two types of frequency control can be used independently or together: suppress enforces a cooldown between consecutive exposures; max_impressions + per + window caps total exposures per entity in a time window. When both suppress and max_impressions are set, an impression is delivered only if both constraints permit it (AND semantics). At least one of suppress, suppress_minutes, or max_impressions must be set.&#39;,
             title=&#39;Frequency Cap&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -14905,7 +14953,13 @@ validated to form a valid model.</p>
             ],
             title=&#39;Get Account Financials Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -15445,7 +15499,13 @@ validated to form a valid model.</p>
             description=&#39;Response payload with content safety policies&#39;,
             title=&#39;Get Content Standards Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -15611,7 +15671,13 @@ validated to form a valid model.</p>
             description=&#39;Request parameters for retrieving creative delivery data including variant-level metrics from a creative agent. At least one scoping filter (media_buy_ids, media_buy_buyer_refs, or creative_ids) is required.&#39;,
             title=&#39;Get Creative Delivery Request&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -16302,7 +16368,13 @@ validated to form a valid model.</p>
             description=&#34;Response payload for the get_creative_features task. Returns scored feature values from the governance agent&#39;s evaluation of the submitted creative manifest.&#34;,
             title=&#39;Get Creative Features Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -16590,7 +16662,13 @@ validated to form a valid model.</p>
             description=&#39;Response containing content artifacts from a media buy for validation&#39;,
             title=&#39;Get Media Buy Artifacts Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -17296,7 +17374,13 @@ validated to form a valid model.</p>
             description=&#34;Request parameters for discovering or refining advertising products. buying_mode declares the buyer&#39;s intent: &#39;brief&#39; for curated discovery, &#39;wholesale&#39; for raw catalog access, or &#39;refine&#39; to iterate on known products and proposals.&#34;,
             title=&#39;Get Products Request&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -19592,7 +19676,13 @@ validated to form a valid model.</p>
             description=&#39;Response payload with list of content standards configurations&#39;,
             title=&#39;List Content Standards Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -20474,7 +20564,13 @@ validated to form a valid model.</p>
             description=&#39;Response from event logging operation. Returns either event processing results OR operation-level errors.&#39;,
             title=&#39;Log Event Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -22272,7 +22368,13 @@ validated to form a valid model.</p>
             description=&#39;A single optimization target for a package. Packages accept an array of optimization_goals. When multiple goals are present, priority determines which the seller focuses on — 1 is highest priority (primary goal); higher numbers are secondary. Duplicate priority values result in undefined seller behavior.&#39;,
             title=&#39;Optimization Goal&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -23216,7 +23318,13 @@ errors defaults to 'strict'.</p></div>
             description=&#39;Package update configuration for update_media_buy. Identifies package by package_id or buyer_ref and specifies fields to modify. Fields not present are left unchanged. Note: product_id, format_ids, and pricing_option_id cannot be changed after creation.&#39;,
             title=&#39;Package Update&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -23834,7 +23942,13 @@ validated to form a valid model.</p>
             description=&#39;Request to generate previews of one or more creative manifests. Accepts either a single creative request or an array of requests for batch processing.&#39;,
             title=&#39;Preview Creative Request&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -24349,7 +24463,13 @@ validated to form a valid model.</p>
             description=&#39;Response containing preview links for one or more creatives. Format matches the request: single preview response for single requests, batch results for batch requests.&#39;,
             title=&#39;Preview Creative Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -24947,7 +25067,13 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;A single rendered piece of a creative preview with discriminated output format&#39;,
             title=&#39;Preview Render&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -27625,7 +27751,13 @@ validated to form a valid model.</p>
             description=&#39;Request payload for provide_performance_feedback task&#39;,
             title=&#39;Provide Performance Feedback Request&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -27928,7 +28060,13 @@ validated to form a valid model.</p>
             description=&#39;Response payload for provide_performance_feedback task. Returns either success confirmation OR error information, never both.&#39;,
             title=&#39;Provide Performance Feedback Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -30511,7 +30649,13 @@ validated to form a valid model.</p>
             description=&#39;Send a message to the brand agent within an active session&#39;,
             title=&#39;SI Send Message Request&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -31354,7 +31498,13 @@ validated to form a valid model.</p>
             description=&#34;Pricing model for a signal. Discriminated by model: &#39;cpm&#39; (fixed CPM), &#39;percent_of_media&#39; (percentage of spend with optional CPM cap), or &#39;flat_fee&#39; (fixed charge per reporting period, e.g. monthly licensed segments).&#34;,
             title=&#39;Signal Pricing&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -31413,7 +31563,13 @@ validated to form a valid model.</p>
             description=&#39;A pricing option offered by a signals agent. Combines pricing_option_id with the signal pricing model fields at the same level — pass pricing_option_id in report_usage for billing verification.&#39;,
             title=&#39;Signal Pricing Option&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -32564,7 +32720,13 @@ validated to form a valid model.</p>
             ],
             title=&#39;Sync Accounts Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -32837,7 +32999,13 @@ validated to form a valid model.</p>
             description=&#39;Response from audience sync operation. Returns either per-audience results OR operation-level errors.&#39;,
             title=&#39;Sync Audiences Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -33218,7 +33386,13 @@ validated to form a valid model.</p>
             description=&#39;Response from catalog sync operation. Returns either per-catalog results (best-effort processing) OR operation-level errors (complete failure). Platforms may approve, reject, or flag individual items within each catalog (similar to Google Merchant Center product review).&#39;,
             title=&#39;Sync Catalogs Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -33739,7 +33913,13 @@ validated to form a valid model.</p>
             description=&#39;Response from creative sync operation. Returns either per-creative results (best-effort processing) OR operation-level errors (complete failure). This enforces atomic semantics at the operation level while allowing per-item failures within successful operations.&#39;,
             title=&#39;Sync Creatives Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -34023,7 +34203,13 @@ validated to form a valid model.</p>
             description=&#39;Response from event source sync operation. Returns either per-source results OR operation-level errors.&#39;,
             title=&#39;Sync Event Sources Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -35391,7 +35577,13 @@ validated to form a valid model.</p>
             description=&#39;Response from updating a content standards configuration&#39;,
             title=&#39;Update Content Standards Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -35666,7 +35858,13 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;Request parameters for updating campaign and package settings&#39;,
             title=&#39;Update Media Buy Request&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -35977,7 +36175,13 @@ validated to form a valid model.</p>
             description=&#39;Response payload for update_media_buy task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - updates are either fully applied or not applied at all.&#39;,
             title=&#39;Update Media Buy Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -36648,7 +36852,13 @@ validated to form a valid model.</p>
             description=&#39;Response payload with per-record verdicts and optional feature breakdown&#39;,
             title=&#39;Validate Content Delivery Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>

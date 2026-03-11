@@ -64,7 +64,13 @@ el.replaceWith(d);
             description=&#39;Response from updating a content standards configuration&#39;,
             title=&#39;Update Content Standards Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>

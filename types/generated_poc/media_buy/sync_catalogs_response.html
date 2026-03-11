@@ -283,7 +283,13 @@ validated to form a valid model.</p>
             description=&#39;Response from catalog sync operation. Returns either per-catalog results (best-effort processing) OR operation-level errors (complete failure). Platforms may approve, reject, or flag individual items within each catalog (similar to Google Merchant Center product review).&#39;,
             title=&#39;Sync Catalogs Response&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>

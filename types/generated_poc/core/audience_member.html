@@ -62,7 +62,13 @@ el.replaceWith(d);
             description=&#39;A CRM audience member identified by a buyer-assigned external_id and at least one matchable identifier. All identifiers must be normalized before hashing: emails to lowercase+trim, phone numbers to E.164 format (e.g. +12065551234). Providing multiple identifiers for the same person improves match rates. Composite identifiers (e.g. hashed first name + last name + zip for Google Customer Match) are not yet standardized — use the ext field for platform-specific extensions.&#39;,
             title=&#39;Audience Member&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>

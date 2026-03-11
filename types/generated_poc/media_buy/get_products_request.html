@@ -440,7 +440,13 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#34;Request parameters for discovering or refining advertising products. buying_mode declares the buyer&#39;s intent: &#39;brief&#39; for curated discovery, &#39;wholesale&#39; for raw catalog access, or &#39;refine&#39; to iterate on known products and proposals.&#34;,
             title=&#39;Get Products Request&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>

@@ -136,7 +136,13 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#34;Pricing model for a signal. Discriminated by model: &#39;cpm&#39; (fixed CPM), &#39;percent_of_media&#39; (percentage of spend with optional CPM cap), or &#39;flat_fee&#39; (fixed charge per reporting period, e.g. monthly licensed segments).&#34;,
             title=&#39;Signal Pricing&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>

@@ -62,7 +62,13 @@ el.replaceWith(d);
             description=&#34;Universal identifier for using a signal on a destination platform. Can be either a segment ID or a key-value pair depending on the platform&#39;s targeting mechanism.&#34;,
             title=&#39;Activation Key&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>

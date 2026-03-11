@@ -82,7 +82,13 @@ el.replaceWith(d);
             description=&#34;A pricing model option offered by a publisher for a product. Discriminated by pricing_model field. If fixed_price is present, it&#39;s fixed pricing. If absent, it&#39;s auction-based (floor_price and price_guidance optional). Bid-based auction models may also include max_bid as a boolean signal to interpret bid_price as a buyer ceiling instead of an exact honored price.&#34;,
             title=&#39;Pricing Option&#39;,
         ),
-    ]</code></pre>
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
