@@ -1767,22 +1767,29 @@ el.replaceWith(d);
         await self.close()
 
     def _verify_webhook_signature(
-        self, payload: dict[str, Any], signature: str, timestamp: str
+        self,
+        payload: dict[str, Any],
+        signature: str,
+        timestamp: str,
+        raw_body: bytes | str | None = None,
     ) -&gt; bool:
         &#34;&#34;&#34;
         Verify HMAC-SHA256 signature of webhook payload.
 
         The verification algorithm matches get_adcp_signed_headers_for_webhook:
         1. Constructs message as &#34;{timestamp}.{json_payload}&#34;
-        2. JSON-serializes payload with compact separators
-        3. UTF-8 encodes the message
+        2. Uses raw HTTP body bytes when available (preserves sender&#39;s serialization)
+        3. Falls back to json.dumps() if raw_body not provided
         4. HMAC-SHA256 signs with the shared secret
         5. Compares against the provided signature (with &#34;sha256=&#34; prefix stripped)
 
         Args:
-            payload: Webhook payload dict
+            payload: Webhook payload dict (used as fallback if raw_body not provided)
             signature: Signature to verify (with or without &#34;sha256=&#34; prefix)
-            timestamp: ISO 8601 timestamp from X-AdCP-Timestamp header
+            timestamp: Unix timestamp in seconds from X-AdCP-Timestamp header
+            raw_body: Raw HTTP request body bytes. When provided, used directly
+                for signature verification to avoid cross-language serialization
+                mismatches. Strongly recommended for production use.
 
         Returns:
             True if signature is valid, False otherwise
@@ -1794,11 +1801,15 @@ el.replaceWith(d);
         if signature.startswith(&#34;sha256=&#34;):
             signature = signature[7:]
 
-        # Serialize payload to JSON with consistent formatting (matches signing)
-        payload_bytes = json.dumps(payload, separators=(&#34;,&#34;, &#34;:&#34;), sort_keys=False).encode(&#34;utf-8&#34;)
+        # Use raw body if available (avoids cross-language serialization mismatches),
+        # otherwise fall back to json.dumps() for backward compatibility
+        if raw_body is not None:
+            payload_str = raw_body.decode(&#34;utf-8&#34;) if isinstance(raw_body, bytes) else raw_body
+        else:
+            payload_str = json.dumps(payload)
 
-        # Construct signed message: timestamp.payload (matches get_adcp_signed_headers_for_webhook)
-        signed_message = f&#34;{timestamp}.{payload_bytes.decode(&#39;utf-8&#39;)}&#34;
+        # Construct signed message: timestamp.payload
+        signed_message = f&#34;{timestamp}.{payload_str}&#34;
 
         # Generate expected signature
         expected_signature = hmac.new(
@@ -1947,6 +1958,7 @@ el.replaceWith(d);
         operation_id: str,
         signature: str | None,
         timestamp: str | None = None,
+        raw_body: bytes | str | None = None,
     ) -&gt; TaskResult[AdcpAsyncResponseData]:
         &#34;&#34;&#34;
         Handle MCP webhook delivered via HTTP POST.
@@ -1956,7 +1968,8 @@ el.replaceWith(d);
             task_type: Task type from application routing
             operation_id: Operation identifier from application routing
             signature: Optional HMAC-SHA256 signature for verification (X-AdCP-Signature header)
-            timestamp: Optional timestamp for signature verification (X-AdCP-Timestamp header)
+            timestamp: Optional Unix timestamp for signature verification (X-AdCP-Timestamp header)
+            raw_body: Optional raw HTTP request body for signature verification
 
         Returns:
             TaskResult with parsed task-specific response data
@@ -1971,7 +1984,7 @@ el.replaceWith(d);
         if (
             signature
             and timestamp
-            and not self._verify_webhook_signature(payload, signature, timestamp)
+            and not self._verify_webhook_signature(payload, signature, timestamp, raw_body)
         ):
             logger.warning(
                 f&#34;Webhook signature verification failed for agent {self.agent_config.id}&#34;
@@ -2157,6 +2170,7 @@ el.replaceWith(d);
         operation_id: str,
         signature: str | None = None,
         timestamp: str | None = None,
+        raw_body: bytes | str | None = None,
     ) -&gt; TaskResult[AdcpAsyncResponseData]:
         &#34;&#34;&#34;
         Handle incoming webhook and return typed result.
@@ -2184,8 +2198,12 @@ el.replaceWith(d);
                 Used to correlate webhook notifications with original task submission.
             signature: Optional HMAC-SHA256 signature for MCP webhook verification
                 (X-AdCP-Signature header). Ignored for A2A webhooks.
-            timestamp: Optional timestamp for MCP webhook signature verification
-                (X-AdCP-Timestamp header). Required when signature is provided.
+            timestamp: Optional Unix timestamp (seconds) for MCP webhook signature
+                verification (X-AdCP-Timestamp header). Required when signature is provided.
+            raw_body: Optional raw HTTP request body bytes for signature verification.
+                When provided, used directly instead of re-serializing the payload,
+                avoiding cross-language JSON serialization mismatches. Strongly
+                recommended for production use.
 
         Returns:
             TaskResult with parsed task-specific response data. The structure
@@ -2204,11 +2222,13 @@ el.replaceWith(d);
             MCP webhook (HTTP endpoint):
             &gt;&gt;&gt; @app.post(&#34;/webhook/{task_type}/{agent_id}/{operation_id}&#34;)
             &gt;&gt;&gt; async def webhook_handler(task_type: str, operation_id: str, request: Request):
-            &gt;&gt;&gt;     payload = await request.json()
+            &gt;&gt;&gt;     raw_body = await request.body()
+            &gt;&gt;&gt;     payload = json.loads(raw_body)
             &gt;&gt;&gt;     signature = request.headers.get(&#34;X-AdCP-Signature&#34;)
             &gt;&gt;&gt;     timestamp = request.headers.get(&#34;X-AdCP-Timestamp&#34;)
             &gt;&gt;&gt;     result = await client.handle_webhook(
-            &gt;&gt;&gt;         payload, task_type, operation_id, signature, timestamp
+            &gt;&gt;&gt;         payload, task_type, operation_id, signature, timestamp,
+            &gt;&gt;&gt;         raw_body=raw_body,
             &gt;&gt;&gt;     )
             &gt;&gt;&gt;     if result.success:
             &gt;&gt;&gt;         print(f&#34;Task completed: {result.data}&#34;)
@@ -2242,7 +2262,7 @@ el.replaceWith(d);
         else:
             # MCP webhook (dict payload)
             return await self._handle_mcp_webhook(
-                payload, task_type, operation_id, signature, timestamp
+                payload, task_type, operation_id, signature, timestamp, raw_body
             )</code></pre>
 </details>
 <div class="desc"><p>Client for interacting with a single AdCP agent.</p>
@@ -3443,7 +3463,7 @@ Use this to get the actual properties that match the list's filters.</p>
 <div class="desc"><p>Generate webhook URL for a task.</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.handle_webhook"><code class="name flex">
-<span>async def <span class="ident">handle_webhook</span></span>(<span>self,<br>payload: dict[str, Any] | Task | TaskStatusUpdateEvent,<br>task_type: str,<br>operation_id: str,<br>signature: str | None = None,<br>timestamp: str | None = None) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[AdcpAsyncResponseData]</span>
+<span>async def <span class="ident">handle_webhook</span></span>(<span>self,<br>payload: dict[str, Any] | Task | TaskStatusUpdateEvent,<br>task_type: str,<br>operation_id: str,<br>signature: str | None = None,<br>timestamp: str | None = None,<br>raw_body: bytes | str | None = None) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[AdcpAsyncResponseData]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -3457,6 +3477,7 @@ Use this to get the actual properties that match the list's filters.</p>
     operation_id: str,
     signature: str | None = None,
     timestamp: str | None = None,
+    raw_body: bytes | str | None = None,
 ) -&gt; TaskResult[AdcpAsyncResponseData]:
     &#34;&#34;&#34;
     Handle incoming webhook and return typed result.
@@ -3484,8 +3505,12 @@ Use this to get the actual properties that match the list's filters.</p>
             Used to correlate webhook notifications with original task submission.
         signature: Optional HMAC-SHA256 signature for MCP webhook verification
             (X-AdCP-Signature header). Ignored for A2A webhooks.
-        timestamp: Optional timestamp for MCP webhook signature verification
-            (X-AdCP-Timestamp header). Required when signature is provided.
+        timestamp: Optional Unix timestamp (seconds) for MCP webhook signature
+            verification (X-AdCP-Timestamp header). Required when signature is provided.
+        raw_body: Optional raw HTTP request body bytes for signature verification.
+            When provided, used directly instead of re-serializing the payload,
+            avoiding cross-language JSON serialization mismatches. Strongly
+            recommended for production use.
 
     Returns:
         TaskResult with parsed task-specific response data. The structure
@@ -3504,11 +3529,13 @@ Use this to get the actual properties that match the list's filters.</p>
         MCP webhook (HTTP endpoint):
         &gt;&gt;&gt; @app.post(&#34;/webhook/{task_type}/{agent_id}/{operation_id}&#34;)
         &gt;&gt;&gt; async def webhook_handler(task_type: str, operation_id: str, request: Request):
-        &gt;&gt;&gt;     payload = await request.json()
+        &gt;&gt;&gt;     raw_body = await request.body()
+        &gt;&gt;&gt;     payload = json.loads(raw_body)
         &gt;&gt;&gt;     signature = request.headers.get(&#34;X-AdCP-Signature&#34;)
         &gt;&gt;&gt;     timestamp = request.headers.get(&#34;X-AdCP-Timestamp&#34;)
         &gt;&gt;&gt;     result = await client.handle_webhook(
-        &gt;&gt;&gt;         payload, task_type, operation_id, signature, timestamp
+        &gt;&gt;&gt;         payload, task_type, operation_id, signature, timestamp,
+        &gt;&gt;&gt;         raw_body=raw_body,
         &gt;&gt;&gt;     )
         &gt;&gt;&gt;     if result.success:
         &gt;&gt;&gt;         print(f&#34;Task completed: {result.data}&#34;)
@@ -3542,7 +3569,7 @@ Use this to get the actual properties that match the list's filters.</p>
     else:
         # MCP webhook (dict payload)
         return await self._handle_mcp_webhook(
-            payload, task_type, operation_id, signature, timestamp
+            payload, task_type, operation_id, signature, timestamp, raw_body
         )</code></pre>
 </details>
 <div class="desc"><p>Handle incoming webhook and return typed result.</p>
@@ -3574,8 +3601,13 @@ Used to correlate webhook notifications with original task submission.</dd>
 <dd>Optional HMAC-SHA256 signature for MCP webhook verification
 (X-AdCP-Signature header). Ignored for A2A webhooks.</dd>
 <dt><strong><code>timestamp</code></strong></dt>
-<dd>Optional timestamp for MCP webhook signature verification
-(X-AdCP-Timestamp header). Required when signature is provided.</dd>
+<dd>Optional Unix timestamp (seconds) for MCP webhook signature
+verification (X-AdCP-Timestamp header). Required when signature is provided.</dd>
+<dt><strong><code>raw_body</code></strong></dt>
+<dd>Optional raw HTTP request body bytes for signature verification.
+When provided, used directly instead of re-serializing the payload,
+avoiding cross-language JSON serialization mismatches. Strongly
+recommended for production use.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>TaskResult with parsed task-specific response data. The structure
@@ -3595,11 +3627,13 @@ routing and pass them explicitly.</p>
 <p>MCP webhook (HTTP endpoint):</p>
 <pre><code class="language-python-repl">&gt;&gt;&gt; @app.post(&quot;/webhook/{task_type}/{agent_id}/{operation_id}&quot;)
 &gt;&gt;&gt; async def webhook_handler(task_type: str, operation_id: str, request: Request):
-&gt;&gt;&gt;     payload = await request.json()
+&gt;&gt;&gt;     raw_body = await request.body()
+&gt;&gt;&gt;     payload = json.loads(raw_body)
 &gt;&gt;&gt;     signature = request.headers.get(&quot;X-AdCP-Signature&quot;)
 &gt;&gt;&gt;     timestamp = request.headers.get(&quot;X-AdCP-Timestamp&quot;)
 &gt;&gt;&gt;     result = await client.handle_webhook(
-&gt;&gt;&gt;         payload, task_type, operation_id, signature, timestamp
+&gt;&gt;&gt;         payload, task_type, operation_id, signature, timestamp,
+&gt;&gt;&gt;         raw_body=raw_body,
 &gt;&gt;&gt;     )
 &gt;&gt;&gt;     if result.success:
 &gt;&gt;&gt;         print(f&quot;Task completed: {result.data}&quot;)

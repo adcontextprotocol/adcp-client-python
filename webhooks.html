@@ -646,7 +646,7 @@ None
 </code></pre></div>
 </dd>
 <dt id="adcp.webhooks.get_adcp_signed_headers_for_webhook"><code class="name flex">
-<span>def <span class="ident">get_adcp_signed_headers_for_webhook</span></span>(<span>headers: dict[str, Any],<br>secret: str,<br>timestamp: str,<br>payload: dict[str, Any] | AdCPBaseModel) ‑> dict[str, typing.Any]</span>
+<span>def <span class="ident">get_adcp_signed_headers_for_webhook</span></span>(<span>headers: dict[str, Any],<br>secret: str,<br>timestamp: str | int | None,<br>payload: dict[str, Any] | AdCPBaseModel) ‑> dict[str, typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -654,7 +654,10 @@ None
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def get_adcp_signed_headers_for_webhook(
-    headers: dict[str, Any], secret: str, timestamp: str, payload: dict[str, Any] | AdCPBaseModel
+    headers: dict[str, Any],
+    secret: str,
+    timestamp: str | int | None,
+    payload: dict[str, Any] | AdCPBaseModel,
 ) -&gt; dict[str, Any]:
     &#34;&#34;&#34;
     Generate AdCP-compliant signed headers for webhook delivery.
@@ -665,11 +668,11 @@ None
 
     The function adds two headers to the provided headers dict:
     - X-AdCP-Signature: HMAC-SHA256 signature in format &#34;sha256=&lt;hex_digest&gt;&#34;
-    - X-AdCP-Timestamp: ISO 8601 timestamp used in signature generation
+    - X-AdCP-Timestamp: Unix timestamp in seconds
 
     The signing algorithm:
     1. Constructs message as &#34;{timestamp}.{json_payload}&#34;
-    2. JSON-serializes payload with compact separators (no sorted keys for performance)
+    2. JSON-serializes payload with default separators (matches wire format from json= kwarg)
     3. UTF-8 encodes the message
     4. HMAC-SHA256 signs with the shared secret
     5. Hex-encodes and prefixes with &#34;sha256=&#34;
@@ -677,7 +680,7 @@ None
     Args:
         headers: Existing headers dictionary to add signature headers to
         secret: Shared secret key for HMAC signing
-        timestamp: ISO 8601 timestamp string (e.g., &#34;2025-01-15T10:00:00Z&#34;)
+        timestamp: Unix timestamp in seconds (str or int). If None, uses current time.
         payload: Webhook payload (dict or Pydantic model - will be JSON-serialized)
 
     Returns:
@@ -685,8 +688,9 @@ None
 
     Examples:
         Sign and send an MCP webhook:
-        &gt;&gt;&gt; from adcp.webhooks import create_mcp_webhook_payload get_adcp_signed_headers_for_webhook
-        &gt;&gt;&gt; from datetime import datetime, timezone
+        &gt;&gt;&gt; import time
+        &gt;&gt;&gt; from adcp.webhooks import create_mcp_webhook_payload
+        &gt;&gt;&gt; from adcp.webhooks import get_adcp_signed_headers_for_webhook
         &gt;&gt;&gt;
         &gt;&gt;&gt; payload = create_mcp_webhook_payload(
         ...     task_id=&#34;task_123&#34;,
@@ -695,9 +699,9 @@ None
         ...     result={&#34;products&#34;: [...]}
         ... )
         &gt;&gt;&gt; headers = {&#34;Content-Type&#34;: &#34;application/json&#34;}
-        &gt;&gt;&gt; timestamp = datetime.now(timezone.utc).isoformat()
         &gt;&gt;&gt; signed_headers = get_adcp_signed_headers_for_webhook(
-        ...     headers, secret=&#34;my-webhook-secret&#34;, timestamp=timestamp, payload=payload
+        ...     headers, secret=&#34;my-webhook-secret&#34;, timestamp=str(int(time.time())),
+        ...     payload=payload,
         ... )
         &gt;&gt;&gt;
         &gt;&gt;&gt; # Send webhook with signed headers
@@ -713,21 +717,17 @@ None
         {
             &#34;Content-Type&#34;: &#34;application/json&#34;,
             &#34;X-AdCP-Signature&#34;: &#34;sha256=a1b2c3...&#34;,
-            &#34;X-AdCP-Timestamp&#34;: &#34;2025-01-15T10:00:00Z&#34;
+            &#34;X-AdCP-Timestamp&#34;: &#34;1773185740&#34;
         }
-
-        Sign with Pydantic model directly:
-        &gt;&gt;&gt; from adcp import GetMediaBuyDeliveryResponse
-        &gt;&gt;&gt; from datetime import datetime, timezone
-        &gt;&gt;&gt;
-        &gt;&gt;&gt; response: GetMediaBuyDeliveryResponse = ...  # From API call
-        &gt;&gt;&gt; headers = {&#34;Content-Type&#34;: &#34;application/json&#34;}
-        &gt;&gt;&gt; timestamp = datetime.now(timezone.utc).isoformat()
-        &gt;&gt;&gt; signed_headers = get_adcp_signed_headers_for_webhook(
-        ...     headers, secret=&#34;my-webhook-secret&#34;, timestamp=timestamp, payload=response
-        ... )
-        &gt;&gt;&gt; # Pydantic model is automatically converted to dict for signing
     &#34;&#34;&#34;
+    # Default to current Unix time if not provided
+    if timestamp is None:
+        import time
+
+        timestamp = str(int(time.time()))
+    else:
+        timestamp = str(timestamp)
+
     # Convert Pydantic model to dict if needed
     # All AdCP types inherit from AdCPBaseModel (Pydantic BaseModel)
     if hasattr(payload, &#34;model_dump&#34;):
@@ -735,13 +735,13 @@ None
     else:
         payload_dict = payload
 
-    # Serialize payload to JSON with consistent formatting
-    # Note: sort_keys=False for performance (key order doesn&#39;t affect signature)
-    payload_bytes = json.dumps(payload_dict, separators=(&#34;,&#34;, &#34;:&#34;), sort_keys=False).encode(&#34;utf-8&#34;)
+    # Serialize payload to JSON with default formatting (matches what json= kwarg sends on the wire)
+    # This aligns with the JS reference implementation&#39;s JSON.stringify() behavior
+    payload_json = json.dumps(payload_dict)
 
     # Construct signed message: timestamp.payload
     # Including timestamp prevents replay attacks
-    signed_message = f&#34;{timestamp}.{payload_bytes.decode(&#39;utf-8&#39;)}&#34;
+    signed_message = f&#34;{timestamp}.{payload_json}&#34;
 
     # Generate HMAC-SHA256 signature over timestamp + payload
     signature_hex = hmac.new(
@@ -760,10 +760,10 @@ came from an authorized agent and protects against replay attacks by
 including a timestamp in the signed message.</p>
 <p>The function adds two headers to the provided headers dict:
 - X-AdCP-Signature: HMAC-SHA256 signature in format "sha256=<hex_digest>"
-- X-AdCP-Timestamp: ISO 8601 timestamp used in signature generation</p>
+- X-AdCP-Timestamp: Unix timestamp in seconds</p>
 <p>The signing algorithm:
 1. Constructs message as "{timestamp}.{json_payload}"
-2. JSON-serializes payload with compact separators (no sorted keys for performance)
+2. JSON-serializes payload with default separators (matches wire format from json= kwarg)
 3. UTF-8 encodes the message
 4. HMAC-SHA256 signs with the shared secret
 5. Hex-encodes and prefixes with "sha256="</p>
@@ -774,7 +774,7 @@ including a timestamp in the signed message.</p>
 <dt><strong><code>secret</code></strong></dt>
 <dd>Shared secret key for HMAC signing</dd>
 <dt><strong><code>timestamp</code></strong></dt>
-<dd>ISO 8601 timestamp string (e.g., "2025-01-15T10:00:00Z")</dd>
+<dd>Unix timestamp in seconds (str or int). If None, uses current time.</dd>
 <dt><strong><code>payload</code></strong></dt>
 <dd>Webhook payload (dict or Pydantic model - will be JSON-serialized)</dd>
 </dl>
@@ -782,8 +782,9 @@ including a timestamp in the signed message.</p>
 <p>The modified headers dictionary with signature headers added</p>
 <h2 id="examples">Examples</h2>
 <p>Sign and send an MCP webhook:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; from adcp.webhooks import create_mcp_webhook_payload get_adcp_signed_headers_for_webhook
-&gt;&gt;&gt; from datetime import datetime, timezone
+<pre><code class="language-python-repl">&gt;&gt;&gt; import time
+&gt;&gt;&gt; from adcp.webhooks import create_mcp_webhook_payload
+&gt;&gt;&gt; from adcp.webhooks import get_adcp_signed_headers_for_webhook
 &gt;&gt;&gt;
 &gt;&gt;&gt; payload = create_mcp_webhook_payload(
 ...     task_id=&quot;task_123&quot;,
@@ -792,9 +793,9 @@ including a timestamp in the signed message.</p>
 ...     result={&quot;products&quot;: [...]}
 ... )
 &gt;&gt;&gt; headers = {&quot;Content-Type&quot;: &quot;application/json&quot;}
-&gt;&gt;&gt; timestamp = datetime.now(timezone.utc).isoformat()
 &gt;&gt;&gt; signed_headers = get_adcp_signed_headers_for_webhook(
-...     headers, secret=&quot;my-webhook-secret&quot;, timestamp=timestamp, payload=payload
+...     headers, secret=&quot;my-webhook-secret&quot;, timestamp=str(int(time.time())),
+...     payload=payload,
 ... )
 &gt;&gt;&gt;
 &gt;&gt;&gt; # Send webhook with signed headers
@@ -810,20 +811,8 @@ including a timestamp in the signed message.</p>
 {
     &quot;Content-Type&quot;: &quot;application/json&quot;,
     &quot;X-AdCP-Signature&quot;: &quot;sha256=a1b2c3...&quot;,
-    &quot;X-AdCP-Timestamp&quot;: &quot;2025-01-15T10:00:00Z&quot;
+    &quot;X-AdCP-Timestamp&quot;: &quot;1773185740&quot;
 }
-</code></pre>
-<p>Sign with Pydantic model directly:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; from adcp import GetMediaBuyDeliveryResponse
-&gt;&gt;&gt; from datetime import datetime, timezone
-&gt;&gt;&gt;
-&gt;&gt;&gt; response: GetMediaBuyDeliveryResponse = ...  # From API call
-&gt;&gt;&gt; headers = {&quot;Content-Type&quot;: &quot;application/json&quot;}
-&gt;&gt;&gt; timestamp = datetime.now(timezone.utc).isoformat()
-&gt;&gt;&gt; signed_headers = get_adcp_signed_headers_for_webhook(
-...     headers, secret=&quot;my-webhook-secret&quot;, timestamp=timestamp, payload=response
-... )
-&gt;&gt;&gt; # Pydantic model is automatically converted to dict for signing
 </code></pre></div>
 </dd>
 </dl>
