@@ -186,8 +186,9 @@ el.replaceWith(d);
                 # Not JSON, try next item
                 continue
             except ValidationError as e:
+                type_name = getattr(response_type, &#34;__name__&#34;, str(response_type))
                 logger.warning(
-                    f&#34;MCP content doesn&#39;t match expected schema {response_type.__name__}: {e}&#34;
+                    f&#34;MCP content doesn&#39;t match expected schema {type_name}: {e}&#34;
                 )
                 raise ValueError(f&#34;MCP response doesn&#39;t match expected schema: {e}&#34;) from e
         elif item.get(&#34;type&#34;) == &#34;resource&#34;:
@@ -204,8 +205,9 @@ el.replaceWith(d);
     if len(content_preview) &gt; 500:
         content_preview = content_preview[:500] + &#34;...&#34;
 
+    type_name = getattr(response_type, &#34;__name__&#34;, str(response_type))
     raise ValueError(
-        f&#34;No valid {response_type.__name__} data found in MCP content. &#34;
+        f&#34;No valid {type_name} data found in MCP content. &#34;
         f&#34;Content types: {[item.get(&#39;type&#39;) for item in content]}. &#34;
         f&#34;Content preview:\n{content_preview}&#34;
     )</code></pre>

@@ -2282,7 +2282,7 @@ el.replaceWith(d);
 <h3>Methods</h3>
 <dl>
 <dt id="adcp.client.ADCPClient.activate_signal"><code class="name flex">
-<span>async def <span class="ident">activate_signal</span></span>(<span>self, request: ActivateSignalRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[ActivateSignalResponse]</span>
+<span>async def <span class="ident">activate_signal</span></span>(<span>self, request: ActivateSignalRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[ActivateSignalResponse1, ActivateSignalResponse2]]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -2340,7 +2340,7 @@ el.replaceWith(d);
 <p>TaskResult containing ActivateSignalResponse</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.build_creative"><code class="name flex">
-<span>async def <span class="ident">build_creative</span></span>(<span>self, request: BuildCreativeRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[BuildCreativeResponse]</span>
+<span>async def <span class="ident">build_creative</span></span>(<span>self, request: BuildCreativeRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[BuildCreativeResponse1, BuildCreativeResponse2]]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -2445,7 +2445,7 @@ and approving a creative manifest.</p>
 </code></pre></div>
 </dd>
 <dt id="adcp.client.ADCPClient.calibrate_content"><code class="name flex">
-<span>async def <span class="ident">calibrate_content</span></span>(<span>self, request: CalibrateContentRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[CalibrateContentResponse]</span>
+<span>async def <span class="ident">calibrate_content</span></span>(<span>self, request: CalibrateContentRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[CalibrateContentResponse1, CalibrateContentResponse2]]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -2524,7 +2524,7 @@ determine suitability for ad placement.</p>
 <div class="desc"><p>Close the adapter and clean up resources.</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.create_content_standards"><code class="name flex">
-<span>async def <span class="ident">create_content_standards</span></span>(<span>self, request: CreateContentStandardsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[CreateContentStandardsResponse]</span>
+<span>async def <span class="ident">create_content_standards</span></span>(<span>self, request: CreateContentStandardsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[CreateContentStandardsResponse1, CreateContentStandardsResponse2]]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -2587,7 +2587,7 @@ language policy and optional calibration exemplars.</p>
 <p>TaskResult containing CreateContentStandardsResponse with standards_id</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.create_media_buy"><code class="name flex">
-<span>async def <span class="ident">create_media_buy</span></span>(<span>self, request: CreateMediaBuyRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[CreateMediaBuyResponse]</span>
+<span>async def <span class="ident">create_media_buy</span></span>(<span>self, request: CreateMediaBuyRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[CreateMediaBuyResponse1, CreateMediaBuyResponse2]]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -2891,7 +2891,7 @@ domain-specific capabilities (media_buy, signals, sponsored_intelligence).</p>
 - signals: Signals capabilities (if supported)</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.get_content_standards"><code class="name flex">
-<span>async def <span class="ident">get_content_standards</span></span>(<span>self, request: GetContentStandardsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[GetContentStandardsResponse]</span>
+<span>async def <span class="ident">get_content_standards</span></span>(<span>self, request: GetContentStandardsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[GetContentStandardsResponse1, GetContentStandardsResponse2]]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -3041,7 +3041,7 @@ domain-specific capabilities (media_buy, signals, sponsored_intelligence).</p>
 <p>Dictionary with agent metadata</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.get_media_buy_artifacts"><code class="name flex">
-<span>async def <span class="ident">get_media_buy_artifacts</span></span>(<span>self, request: GetMediaBuyArtifactsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[GetMediaBuyArtifactsResponse]</span>
+<span>async def <span class="ident">get_media_buy_artifacts</span></span>(<span>self, request: GetMediaBuyArtifactsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[GetMediaBuyArtifactsResponse1, GetMediaBuyArtifactsResponse2]]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -3720,7 +3720,7 @@ routing and pass them explicitly.</p>
 <p>TaskResult containing ListAccountsResponse</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.list_content_standards"><code class="name flex">
-<span>async def <span class="ident">list_content_standards</span></span>(<span>self, request: ListContentStandardsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[ListContentStandardsResponse]</span>
+<span>async def <span class="ident">list_content_standards</span></span>(<span>self, request: ListContentStandardsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[ListContentStandardsResponse1, ListContentStandardsResponse2]]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -4006,7 +4006,7 @@ by principal or pagination parameters.</p>
 <p>List of tool names</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.log_event"><code class="name flex">
-<span>async def <span class="ident">log_event</span></span>(<span>self, request: LogEventRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[LogEventResponse]</span>
+<span>async def <span class="ident">log_event</span></span>(<span>self, request: LogEventRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[LogEventResponse1, LogEventResponse2]]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -4064,7 +4064,7 @@ by principal or pagination parameters.</p>
 <p>TaskResult containing LogEventResponse</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.preview_creative"><code class="name flex">
-<span>async def <span class="ident">preview_creative</span></span>(<span>self, request: PreviewCreativeRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[PreviewCreativeResponse]</span>
+<span>async def <span class="ident">preview_creative</span></span>(<span>self, request: PreviewCreativeRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[PreviewCreativeResponse1, PreviewCreativeResponse2, PreviewCreativeResponse3]]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -4122,7 +4122,7 @@ by principal or pagination parameters.</p>
 <p>TaskResult containing PreviewCreativeResponse with preview URLs</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.provide_performance_feedback"><code class="name flex">
-<span>async def <span class="ident">provide_performance_feedback</span></span>(<span>self, request: ProvidePerformanceFeedbackRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[ProvidePerformanceFeedbackResponse]</span>
+<span>async def <span class="ident">provide_performance_feedback</span></span>(<span>self, request: ProvidePerformanceFeedbackRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[ProvidePerformanceFeedbackResponse1, ProvidePerformanceFeedbackResponse2]]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -4426,7 +4426,7 @@ sponsored intelligence session.</p>
 <p>TaskResult containing SiTerminateSessionResponse</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.sync_accounts"><code class="name flex">
-<span>async def <span class="ident">sync_accounts</span></span>(<span>self, request: SyncAccountsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[SyncAccountsResponse]</span>
+<span>async def <span class="ident">sync_accounts</span></span>(<span>self, request: SyncAccountsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[SyncAccountsResponse1, SyncAccountsResponse2]]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -4484,7 +4484,7 @@ sponsored intelligence session.</p>
 <p>TaskResult containing SyncAccountsResponse</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.sync_creatives"><code class="name flex">
-<span>async def <span class="ident">sync_creatives</span></span>(<span>self, request: SyncCreativesRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[SyncCreativesResponse]</span>
+<span>async def <span class="ident">sync_creatives</span></span>(<span>self, request: SyncCreativesRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[SyncCreativesResponse1, SyncCreativesResponse2]]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -4542,7 +4542,7 @@ sponsored intelligence session.</p>
 <p>TaskResult containing SyncCreativesResponse</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.sync_event_sources"><code class="name flex">
-<span>async def <span class="ident">sync_event_sources</span></span>(<span>self, request: SyncEventSourcesRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[SyncEventSourcesResponse]</span>
+<span>async def <span class="ident">sync_event_sources</span></span>(<span>self, request: SyncEventSourcesRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[SyncEventSourcesResponse1, SyncEventSourcesResponse2]]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -4600,7 +4600,7 @@ sponsored intelligence session.</p>
 <p>TaskResult containing SyncEventSourcesResponse</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.update_content_standards"><code class="name flex">
-<span>async def <span class="ident">update_content_standards</span></span>(<span>self, request: UpdateContentStandardsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[UpdateContentStandardsResponse]</span>
+<span>async def <span class="ident">update_content_standards</span></span>(<span>self, request: UpdateContentStandardsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[UpdateContentStandardsResponse1, UpdateContentStandardsResponse2]]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -4658,7 +4658,7 @@ sponsored intelligence session.</p>
 <p>TaskResult containing UpdateContentStandardsResponse</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.update_media_buy"><code class="name flex">
-<span>async def <span class="ident">update_media_buy</span></span>(<span>self, request: UpdateMediaBuyRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[UpdateMediaBuyResponse]</span>
+<span>async def <span class="ident">update_media_buy</span></span>(<span>self, request: UpdateMediaBuyRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[UpdateMediaBuyResponse1, UpdateMediaBuyResponse2]]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -4824,7 +4824,7 @@ of an existing property list.</p>
 <p>TaskResult containing UpdatePropertyListResponse</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.validate_content_delivery"><code class="name flex">
-<span>async def <span class="ident">validate_content_delivery</span></span>(<span>self, request: ValidateContentDeliveryRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[ValidateContentDeliveryResponse]</span>
+<span>async def <span class="ident">validate_content_delivery</span></span>(<span>self, request: ValidateContentDeliveryRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[ValidateContentDeliveryResponse1, ValidateContentDeliveryResponse2]]</span>
 </code></dt>
 <dd>
 <details class="source">

@@ -152,7 +152,7 @@ Non-SI operations return 'not supported' by default.</p>
             Message response with AI-generated content, or error response
         &#34;&#34;&#34;
         try:
-            request = SiSendMessageRequest.model_validate(params)
+            request = _si_send_message_adapter.validate_python(params)
         except ValidationError as e:
             return NotImplementedResponse(
                 supported=False,
@@ -1169,7 +1169,7 @@ async def handle_si_terminate_session(
         Message response with AI-generated content, or error response
     &#34;&#34;&#34;
     try:
-        request = SiSendMessageRequest.model_validate(params)
+        request = _si_send_message_adapter.validate_python(params)
     except ValidationError as e:
         return NotImplementedResponse(
             supported=False,

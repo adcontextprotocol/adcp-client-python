@@ -44,11 +44,11 @@ el.replaceWith(d);
 <h2 id="usage">Usage</h2>
 <p>client = ADCPClient(config)</p>
 <h1 id="standard-api-full-control">Standard API: full control</h1>
-<p>result = await client.get_products(GetProductsRequest(brief="Coffee"))
+<p>result = await client.get_products(GetProductsRequest(brief="Coffee", buying_mode="brief"))
 if result.success:
 print(result.data.products)</p>
 <h1 id="simple-api-ergonomic">Simple API: ergonomic</h1>
-<p>products = await client.simple.get_products(brief="Coffee")
+<p>products = await client.simple.get_products(brief="Coffee", buying_mode="brief")
 print(products.products)</p>
 </section>
 <section>
@@ -116,11 +116,12 @@ print(products.products)</p>
 
         Example:
             products = await client.simple.get_products(
-                brief=&#39;Coffee subscription service&#39;
+                brief=&#39;Coffee subscription service&#39;,
+                buying_mode=&#39;brief&#39;,
             )
             print(f&#34;Found {len(products.products)} products&#34;)
         &#34;&#34;&#34;
-        request = GetProductsRequest(**kwargs)
+        request = _make_request(GetProductsRequest, kwargs)
         result = await self._client.get_products(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
@@ -149,7 +150,7 @@ print(products.products)</p>
             formats = await client.simple.list_creative_formats()
             print(f&#34;Found {len(formats.formats)} formats&#34;)
         &#34;&#34;&#34;
-        request = ListCreativeFormatsRequest(**kwargs)
+        request = _make_request(ListCreativeFormatsRequest, kwargs)
         result = await self._client.list_creative_formats(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
@@ -180,7 +181,7 @@ print(products.products)</p>
             )
             print(f&#34;Preview: {preview.previews[0]}&#34;)
         &#34;&#34;&#34;
-        request = PreviewCreativeRequest(**kwargs)
+        request = _make_request(PreviewCreativeRequest, kwargs)
         result = await self._client.preview_creative(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
@@ -205,7 +206,7 @@ print(products.products)</p>
         Raises:
             Exception: If the request fails
         &#34;&#34;&#34;
-        request = SyncCreativesRequest(**kwargs)
+        request = _make_request(SyncCreativesRequest, kwargs)
         result = await self._client.sync_creatives(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
@@ -230,7 +231,7 @@ print(products.products)</p>
         Raises:
             Exception: If the request fails
         &#34;&#34;&#34;
-        request = ListCreativesRequest(**kwargs)
+        request = _make_request(ListCreativesRequest, kwargs)
         result = await self._client.list_creatives(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
@@ -255,7 +256,7 @@ print(products.products)</p>
         Raises:
             Exception: If the request fails
         &#34;&#34;&#34;
-        request = GetMediaBuyDeliveryRequest(**kwargs)
+        request = _make_request(GetMediaBuyDeliveryRequest, kwargs)
         result = await self._client.get_media_buy_delivery(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
@@ -309,7 +310,7 @@ print(products.products)</p>
         Raises:
             Exception: If the request fails
         &#34;&#34;&#34;
-        request = ActivateSignalRequest(**kwargs)
+        request = _make_request(ActivateSignalRequest, kwargs)
         result = await self._client.activate_signal(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
@@ -334,7 +335,7 @@ print(products.products)</p>
         Raises:
             Exception: If the request fails
         &#34;&#34;&#34;
-        request = ProvidePerformanceFeedbackRequest(**kwargs)
+        request = _make_request(ProvidePerformanceFeedbackRequest, kwargs)
         result = await self._client.provide_performance_feedback(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
@@ -367,7 +368,7 @@ print(products.products)</p>
             )
             print(f&#34;Created media buy: {media_buy.media_buy_id}&#34;)
         &#34;&#34;&#34;
-        request = CreateMediaBuyRequest(**kwargs)
+        request = _make_request(CreateMediaBuyRequest, kwargs)
         result = await self._client.create_media_buy(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
@@ -399,7 +400,7 @@ print(products.products)</p>
             )
             print(f&#34;Updated media buy: {updated.media_buy_id}&#34;)
         &#34;&#34;&#34;
-        request = UpdateMediaBuyRequest(**kwargs)
+        request = _make_request(UpdateMediaBuyRequest, kwargs)
         result = await self._client.update_media_buy(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
@@ -432,7 +433,7 @@ print(products.products)</p>
             )
             print(f&#34;Built creative: {creative.assets[0].url}&#34;)
         &#34;&#34;&#34;
-        request = BuildCreativeRequest(**kwargs)
+        request = _make_request(BuildCreativeRequest, kwargs)
         result = await self._client.build_creative(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
@@ -457,7 +458,7 @@ print(products.products)</p>
         Raises:
             Exception: If the request fails
         &#34;&#34;&#34;
-        request = ListAccountsRequest(**kwargs)
+        request = _make_request(ListAccountsRequest, kwargs)
         result = await self._client.list_accounts(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
@@ -482,7 +483,7 @@ print(products.products)</p>
         Raises:
             Exception: If the request fails
         &#34;&#34;&#34;
-        request = SyncAccountsRequest(**kwargs)
+        request = _make_request(SyncAccountsRequest, kwargs)
         result = await self._client.sync_accounts(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
@@ -507,7 +508,7 @@ print(products.products)</p>
         Raises:
             Exception: If the request fails
         &#34;&#34;&#34;
-        request = LogEventRequest(**kwargs)
+        request = _make_request(LogEventRequest, kwargs)
         result = await self._client.log_event(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
@@ -532,7 +533,7 @@ print(products.products)</p>
         Raises:
             Exception: If the request fails
         &#34;&#34;&#34;
-        request = SyncEventSourcesRequest(**kwargs)
+        request = _make_request(SyncEventSourcesRequest, kwargs)
         result = await self._client.sync_event_sources(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
@@ -557,7 +558,7 @@ print(products.products)</p>
         Raises:
             Exception: If the request fails
         &#34;&#34;&#34;
-        request = GetCreativeDeliveryRequest(**kwargs)
+        request = _make_request(GetCreativeDeliveryRequest, kwargs)
         result = await self._client.get_creative_delivery(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
@@ -585,7 +586,7 @@ client API which returns TaskResult wrappers.</p>
 <h3>Methods</h3>
 <dl>
 <dt id="adcp.simple.SimpleAPI.activate_signal"><code class="name flex">
-<span>async def <span class="ident">activate_signal</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.signals.activate_signal_response.ActivateSignalResponse" href="types/generated_poc/signals/activate_signal_response.html#adcp.types.generated_poc.signals.activate_signal_response.ActivateSignalResponse">ActivateSignalResponse</a></span>
+<span>async def <span class="ident">activate_signal</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.signals.activate_signal_response.ActivateSignalResponse1" href="types/generated_poc/signals/activate_signal_response.html#adcp.types.generated_poc.signals.activate_signal_response.ActivateSignalResponse1">ActivateSignalResponse1</a> | <a title="adcp.types.generated_poc.signals.activate_signal_response.ActivateSignalResponse2" href="types/generated_poc/signals/activate_signal_response.html#adcp.types.generated_poc.signals.activate_signal_response.ActivateSignalResponse2">ActivateSignalResponse2</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -607,7 +608,7 @@ client API which returns TaskResult wrappers.</p>
     Raises:
         Exception: If the request fails
     &#34;&#34;&#34;
-    request = ActivateSignalRequest(**kwargs)
+    request = _make_request(ActivateSignalRequest, kwargs)
     result = await self._client.activate_signal(request)
     if not result.success or not result.data:
         raise ADCPSimpleAPIError(
@@ -632,7 +633,7 @@ client API which returns TaskResult wrappers.</p>
 </dl></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.build_creative"><code class="name flex">
-<span>async def <span class="ident">build_creative</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse" href="types/generated_poc/media_buy/build_creative_response.html#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse">BuildCreativeResponse</a></span>
+<span>async def <span class="ident">build_creative</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1" href="types/generated_poc/media_buy/build_creative_response.html#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1">BuildCreativeResponse1</a> | <a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2" href="types/generated_poc/media_buy/build_creative_response.html#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2">BuildCreativeResponse2</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -662,7 +663,7 @@ client API which returns TaskResult wrappers.</p>
         )
         print(f&#34;Built creative: {creative.assets[0].url}&#34;)
     &#34;&#34;&#34;
-    request = BuildCreativeRequest(**kwargs)
+    request = _make_request(BuildCreativeRequest, kwargs)
     result = await self._client.build_creative(request)
     if not result.success or not result.data:
         raise ADCPSimpleAPIError(
@@ -694,7 +695,7 @@ inputs={"duration": 30}
 print(f"Built creative: {creative.assets[0].url}")</p></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.create_media_buy"><code class="name flex">
-<span>async def <span class="ident">create_media_buy</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse" href="types/generated_poc/media_buy/create_media_buy_response.html#adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse">CreateMediaBuyResponse</a></span>
+<span>async def <span class="ident">create_media_buy</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1" href="types/generated_poc/media_buy/create_media_buy_response.html#adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1">CreateMediaBuyResponse1</a> | <a title="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse2" href="types/generated_poc/media_buy/create_media_buy_response.html#adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse2">CreateMediaBuyResponse2</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -724,7 +725,7 @@ print(f"Built creative: {creative.assets[0].url}")</p></div>
         )
         print(f&#34;Created media buy: {media_buy.media_buy_id}&#34;)
     &#34;&#34;&#34;
-    request = CreateMediaBuyRequest(**kwargs)
+    request = _make_request(CreateMediaBuyRequest, kwargs)
     result = await self._client.create_media_buy(request)
     if not result.success or not result.data:
         raise ADCPSimpleAPIError(
@@ -778,7 +779,7 @@ print(f"Created media buy: {media_buy.media_buy_id}")</p></div>
     Raises:
         Exception: If the request fails
     &#34;&#34;&#34;
-    request = GetCreativeDeliveryRequest(**kwargs)
+    request = _make_request(GetCreativeDeliveryRequest, kwargs)
     result = await self._client.get_creative_delivery(request)
     if not result.success or not result.data:
         raise ADCPSimpleAPIError(
@@ -825,7 +826,7 @@ print(f"Created media buy: {media_buy.media_buy_id}")</p></div>
     Raises:
         Exception: If the request fails
     &#34;&#34;&#34;
-    request = GetMediaBuyDeliveryRequest(**kwargs)
+    request = _make_request(GetMediaBuyDeliveryRequest, kwargs)
     result = await self._client.get_media_buy_delivery(request)
     if not result.success or not result.data:
         raise ADCPSimpleAPIError(
@@ -881,11 +882,12 @@ print(f"Created media buy: {media_buy.media_buy_id}")</p></div>
 
     Example:
         products = await client.simple.get_products(
-            brief=&#39;Coffee subscription service&#39;
+            brief=&#39;Coffee subscription service&#39;,
+            buying_mode=&#39;brief&#39;,
         )
         print(f&#34;Found {len(products.products)} products&#34;)
     &#34;&#34;&#34;
-    request = GetProductsRequest(**kwargs)
+    request = _make_request(GetProductsRequest, kwargs)
     result = await self._client.get_products(request)
     if not result.success or not result.data:
         raise ADCPSimpleAPIError(
@@ -915,7 +917,8 @@ print(f"Created media buy: {media_buy.media_buy_id}")</p></div>
 </dl>
 <h2 id="example">Example</h2>
 <p>products = await client.simple.get_products(
-brief='Coffee subscription service'
+brief='Coffee subscription service',
+buying_mode='brief',
 )
 print(f"Found {len(products.products)} products")</p></div>
 </dd>
@@ -993,7 +996,7 @@ print(f"Found {len(products.products)} products")</p></div>
     Raises:
         Exception: If the request fails
     &#34;&#34;&#34;
-    request = ListAccountsRequest(**kwargs)
+    request = _make_request(ListAccountsRequest, kwargs)
     result = await self._client.list_accounts(request)
     if not result.success or not result.data:
         raise ADCPSimpleAPIError(
@@ -1044,7 +1047,7 @@ print(f"Found {len(products.products)} products")</p></div>
         formats = await client.simple.list_creative_formats()
         print(f&#34;Found {len(formats.formats)} formats&#34;)
     &#34;&#34;&#34;
-    request = ListCreativeFormatsRequest(**kwargs)
+    request = _make_request(ListCreativeFormatsRequest, kwargs)
     result = await self._client.list_creative_formats(request)
     if not result.success or not result.data:
         raise ADCPSimpleAPIError(
@@ -1094,7 +1097,7 @@ print(f"Found {len(formats.formats)} formats")</p></div>
     Raises:
         Exception: If the request fails
     &#34;&#34;&#34;
-    request = ListCreativesRequest(**kwargs)
+    request = _make_request(ListCreativesRequest, kwargs)
     result = await self._client.list_creatives(request)
     if not result.success or not result.data:
         raise ADCPSimpleAPIError(
@@ -1119,7 +1122,7 @@ print(f"Found {len(formats.formats)} formats")</p></div>
 </dl></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.log_event"><code class="name flex">
-<span>async def <span class="ident">log_event</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse" href="types/generated_poc/media_buy/log_event_response.html#adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse">LogEventResponse</a></span>
+<span>async def <span class="ident">log_event</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse1" href="types/generated_poc/media_buy/log_event_response.html#adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse1">LogEventResponse1</a> | <a title="adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse2" href="types/generated_poc/media_buy/log_event_response.html#adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse2">LogEventResponse2</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1141,7 +1144,7 @@ print(f"Found {len(formats.formats)} formats")</p></div>
     Raises:
         Exception: If the request fails
     &#34;&#34;&#34;
-    request = LogEventRequest(**kwargs)
+    request = _make_request(LogEventRequest, kwargs)
     result = await self._client.log_event(request)
     if not result.success or not result.data:
         raise ADCPSimpleAPIError(
@@ -1166,7 +1169,7 @@ print(f"Found {len(formats.formats)} formats")</p></div>
 </dl></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.preview_creative"><code class="name flex">
-<span>async def <span class="ident">preview_creative</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.creative.preview_creative_response.PreviewCreativeResponse" href="types/generated_poc/creative/preview_creative_response.html#adcp.types.generated_poc.creative.preview_creative_response.PreviewCreativeResponse">PreviewCreativeResponse</a></span>
+<span>async def <span class="ident">preview_creative</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.creative.preview_creative_response.PreviewCreativeResponse1" href="types/generated_poc/creative/preview_creative_response.html#adcp.types.generated_poc.creative.preview_creative_response.PreviewCreativeResponse1">PreviewCreativeResponse1</a> | <a title="adcp.types.generated_poc.creative.preview_creative_response.PreviewCreativeResponse2" href="types/generated_poc/creative/preview_creative_response.html#adcp.types.generated_poc.creative.preview_creative_response.PreviewCreativeResponse2">PreviewCreativeResponse2</a> | <a title="adcp.types.generated_poc.creative.preview_creative_response.PreviewCreativeResponse3" href="types/generated_poc/creative/preview_creative_response.html#adcp.types.generated_poc.creative.preview_creative_response.PreviewCreativeResponse3">PreviewCreativeResponse3</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1194,7 +1197,7 @@ print(f"Found {len(formats.formats)} formats")</p></div>
         )
         print(f&#34;Preview: {preview.previews[0]}&#34;)
     &#34;&#34;&#34;
-    request = PreviewCreativeRequest(**kwargs)
+    request = _make_request(PreviewCreativeRequest, kwargs)
     result = await self._client.preview_creative(request)
     if not result.success or not result.data:
         raise ADCPSimpleAPIError(
@@ -1224,7 +1227,7 @@ manifest={'format_id': 'banner_300x250', 'assets': {&hellip;}}
 print(f"Preview: {preview.previews[0]}")</p></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.provide_performance_feedback"><code class="name flex">
-<span>async def <span class="ident">provide_performance_feedback</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse" href="types/generated_poc/media_buy/provide_performance_feedback_response.html#adcp.types.generated_poc.media_buy.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse">ProvidePerformanceFeedbackResponse</a></span>
+<span>async def <span class="ident">provide_performance_feedback</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse1" href="types/generated_poc/media_buy/provide_performance_feedback_response.html#adcp.types.generated_poc.media_buy.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse1">ProvidePerformanceFeedbackResponse1</a> | <a title="adcp.types.generated_poc.media_buy.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse2" href="types/generated_poc/media_buy/provide_performance_feedback_response.html#adcp.types.generated_poc.media_buy.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse2">ProvidePerformanceFeedbackResponse2</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1246,7 +1249,7 @@ print(f"Preview: {preview.previews[0]}")</p></div>
     Raises:
         Exception: If the request fails
     &#34;&#34;&#34;
-    request = ProvidePerformanceFeedbackRequest(**kwargs)
+    request = _make_request(ProvidePerformanceFeedbackRequest, kwargs)
     result = await self._client.provide_performance_feedback(request)
     if not result.success or not result.data:
         raise ADCPSimpleAPIError(
@@ -1271,7 +1274,7 @@ print(f"Preview: {preview.previews[0]}")</p></div>
 </dl></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.sync_accounts"><code class="name flex">
-<span>async def <span class="ident">sync_accounts</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.account.sync_accounts_response.SyncAccountsResponse" href="types/generated_poc/account/sync_accounts_response.html#adcp.types.generated_poc.account.sync_accounts_response.SyncAccountsResponse">SyncAccountsResponse</a></span>
+<span>async def <span class="ident">sync_accounts</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.account.sync_accounts_response.SyncAccountsResponse1" href="types/generated_poc/account/sync_accounts_response.html#adcp.types.generated_poc.account.sync_accounts_response.SyncAccountsResponse1">SyncAccountsResponse1</a> | <a title="adcp.types.generated_poc.account.sync_accounts_response.SyncAccountsResponse2" href="types/generated_poc/account/sync_accounts_response.html#adcp.types.generated_poc.account.sync_accounts_response.SyncAccountsResponse2">SyncAccountsResponse2</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1293,7 +1296,7 @@ print(f"Preview: {preview.previews[0]}")</p></div>
     Raises:
         Exception: If the request fails
     &#34;&#34;&#34;
-    request = SyncAccountsRequest(**kwargs)
+    request = _make_request(SyncAccountsRequest, kwargs)
     result = await self._client.sync_accounts(request)
     if not result.success or not result.data:
         raise ADCPSimpleAPIError(
@@ -1318,7 +1321,7 @@ print(f"Preview: {preview.previews[0]}")</p></div>
 </dl></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.sync_creatives"><code class="name flex">
-<span>async def <span class="ident">sync_creatives</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse" href="types/generated_poc/media_buy/sync_creatives_response.html#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse">SyncCreativesResponse</a></span>
+<span>async def <span class="ident">sync_creatives</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1" href="types/generated_poc/media_buy/sync_creatives_response.html#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1">SyncCreativesResponse1</a> | <a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse2" href="types/generated_poc/media_buy/sync_creatives_response.html#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse2">SyncCreativesResponse2</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1340,7 +1343,7 @@ print(f"Preview: {preview.previews[0]}")</p></div>
     Raises:
         Exception: If the request fails
     &#34;&#34;&#34;
-    request = SyncCreativesRequest(**kwargs)
+    request = _make_request(SyncCreativesRequest, kwargs)
     result = await self._client.sync_creatives(request)
     if not result.success or not result.data:
         raise ADCPSimpleAPIError(
@@ -1365,7 +1368,7 @@ print(f"Preview: {preview.previews[0]}")</p></div>
 </dl></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.sync_event_sources"><code class="name flex">
-<span>async def <span class="ident">sync_event_sources</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.sync_event_sources_response.SyncEventSourcesResponse" href="types/generated_poc/media_buy/sync_event_sources_response.html#adcp.types.generated_poc.media_buy.sync_event_sources_response.SyncEventSourcesResponse">SyncEventSourcesResponse</a></span>
+<span>async def <span class="ident">sync_event_sources</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.sync_event_sources_response.SyncEventSourcesResponse1" href="types/generated_poc/media_buy/sync_event_sources_response.html#adcp.types.generated_poc.media_buy.sync_event_sources_response.SyncEventSourcesResponse1">SyncEventSourcesResponse1</a> | <a title="adcp.types.generated_poc.media_buy.sync_event_sources_response.SyncEventSourcesResponse2" href="types/generated_poc/media_buy/sync_event_sources_response.html#adcp.types.generated_poc.media_buy.sync_event_sources_response.SyncEventSourcesResponse2">SyncEventSourcesResponse2</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1387,7 +1390,7 @@ print(f"Preview: {preview.previews[0]}")</p></div>
     Raises:
         Exception: If the request fails
     &#34;&#34;&#34;
-    request = SyncEventSourcesRequest(**kwargs)
+    request = _make_request(SyncEventSourcesRequest, kwargs)
     result = await self._client.sync_event_sources(request)
     if not result.success or not result.data:
         raise ADCPSimpleAPIError(
@@ -1412,7 +1415,7 @@ print(f"Preview: {preview.previews[0]}")</p></div>
 </dl></div>
 </dd>
 <dt id="adcp.simple.SimpleAPI.update_media_buy"><code class="name flex">
-<span>async def <span class="ident">update_media_buy</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse" href="types/generated_poc/media_buy/update_media_buy_response.html#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse">UpdateMediaBuyResponse</a></span>
+<span>async def <span class="ident">update_media_buy</span></span>(<span>self, **kwargs: Any) ‑> <a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1" href="types/generated_poc/media_buy/update_media_buy_response.html#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1">UpdateMediaBuyResponse1</a> | <a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse2" href="types/generated_poc/media_buy/update_media_buy_response.html#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse2">UpdateMediaBuyResponse2</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1441,7 +1444,7 @@ print(f"Preview: {preview.previews[0]}")</p></div>
         )
         print(f&#34;Updated media buy: {updated.media_buy_id}&#34;)
     &#34;&#34;&#34;
-    request = UpdateMediaBuyRequest(**kwargs)
+    request = _make_request(UpdateMediaBuyRequest, kwargs)
     result = await self._client.update_media_buy(request)
     if not result.success or not result.data:
         raise ADCPSimpleAPIError(

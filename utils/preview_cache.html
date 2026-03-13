@@ -369,7 +369,11 @@ el.replaceWith(d);
         Returns:
             List of preview data dicts (or None for failures), in same order as requests
         &#34;&#34;&#34;
+        from pydantic import TypeAdapter
+
         from adcp.types import PreviewCreativeRequest
+
+        _pcr_adapter: TypeAdapter[Any] = TypeAdapter(PreviewCreativeRequest)
 
         if not requests:
             return []
@@ -411,11 +415,11 @@ el.replaceWith(d);
                 chunk_requests = uncached_requests[chunk_start:chunk_end]
                 chunk_indices = uncached_indices[chunk_start:chunk_end]
 
-                batch_request = PreviewCreativeRequest(
-                    requests=chunk_requests,
-                    output_format=output_format,  # type: ignore[arg-type]
-                    context=None,
-                )
+                batch_request = _pcr_adapter.validate_python({
+                    &#34;requests&#34;: chunk_requests,
+                    &#34;output_format&#34;: output_format,
+                    &#34;context&#34;: None,
+                })
                 result = await self.creative_agent_client.preview_creative(batch_request)
 
                 if result.success and result.data and result.data.results:
@@ -488,7 +492,11 @@ el.replaceWith(d);
     Returns:
         List of preview data dicts (or None for failures), in same order as requests
     &#34;&#34;&#34;
+    from pydantic import TypeAdapter
+
     from adcp.types import PreviewCreativeRequest
+
+    _pcr_adapter: TypeAdapter[Any] = TypeAdapter(PreviewCreativeRequest)
 
     if not requests:
         return []
@@ -530,11 +538,11 @@ el.replaceWith(d);
             chunk_requests = uncached_requests[chunk_start:chunk_end]
             chunk_indices = uncached_indices[chunk_start:chunk_end]
 
-            batch_request = PreviewCreativeRequest(
-                requests=chunk_requests,
-                output_format=output_format,  # type: ignore[arg-type]
-                context=None,
-            )
+            batch_request = _pcr_adapter.validate_python({
+                &#34;requests&#34;: chunk_requests,
+                &#34;output_format&#34;: output_format,
+                &#34;context&#34;: None,
+            })
             result = await self.creative_agent_client.preview_creative(batch_request)
 
             if result.success and result.data and result.data.results:
