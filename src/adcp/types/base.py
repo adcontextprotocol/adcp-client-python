@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 # Type alias to shorten long type annotations
 MessageFormatter = Callable[[Any], str]
@@ -180,10 +180,13 @@ def _provide_performance_feedback_error_message(self: Any) -> str:
 class AdCPBaseModel(BaseModel):
     """Base model for AdCP types with spec-compliant serialization.
 
-    AdCP JSON schemas use additionalProperties: false and do not allow null
-    for optional fields. Therefore, optional fields must be omitted entirely
-    when not present (not sent as null).
+    Defaults to ``extra='forbid'`` so that types without an explicit
+    ``additionalProperties`` in the JSON schema reject unknown fields.
+    Generated types whose schemas set ``additionalProperties: true``
+    override this with ``extra='allow'`` in their own ``model_config``.
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     def model_dump(self, **kwargs: Any) -> dict[str, Any]:
         if "exclude_none" not in kwargs:
