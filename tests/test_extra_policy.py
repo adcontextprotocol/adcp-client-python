@@ -1,9 +1,9 @@
 """Tests for AdCPBaseModel extra field policy.
 
 Validates that:
-- AdCPBaseModel defaults to extra='forbid'
+- AdCPBaseModel defaults to extra='ignore' (forward-compatible)
 - Generated types with additionalProperties: true override to extra='allow'
-- Types without additionalProperties inherit forbid from base
+- Types without additionalProperties inherit ignore from base
 - Consumer subclasses can override extra policy freely
 """
 
@@ -23,53 +23,57 @@ SCHEMAS_DIR = Path(__file__).parent.parent / "schemas" / "cache"
 GENERATED_DIR = Path(__file__).parent.parent / "src" / "adcp" / "types" / "generated_poc"
 
 
-def test_base_model_config_is_forbid() -> None:
-    """Sanity check: AdCPBaseModel must have extra='forbid'."""
-    assert AdCPBaseModel.model_config.get("extra") == "forbid", (
+def test_base_model_config_is_ignore() -> None:
+    """Sanity check: AdCPBaseModel must have extra='ignore'."""
+    assert AdCPBaseModel.model_config.get("extra") == "ignore", (
         f"AdCPBaseModel.model_config is {AdCPBaseModel.model_config!r} — "
         "is the package installed from the correct branch?"
     )
 
 
 class TestBaseModelDefault:
-    """AdCPBaseModel defaults to extra='forbid'."""
+    """AdCPBaseModel defaults to extra='ignore'."""
 
-    def test_base_model_forbids_extra_fields(self) -> None:
-        class StrictType(AdCPBaseModel):
+    def test_base_model_drops_extra_fields(self) -> None:
+        """Unknown fields are silently dropped, not stored or rejected."""
+
+        class DefaultType(AdCPBaseModel):
             name: str
 
-        with pytest.raises(ValidationError, match="extra_forbidden"):
-            StrictType(name="test", unknown_field="oops")
+        obj = DefaultType(name="test", unknown_field="dropped")
+        assert obj.name == "test"
+        assert not hasattr(obj, "unknown_field")
 
     def test_base_model_accepts_known_fields(self) -> None:
-        class StrictType(AdCPBaseModel):
+        class DefaultType(AdCPBaseModel):
             name: str
 
-        obj = StrictType(name="test")
+        obj = DefaultType(name="test")
         assert obj.name == "test"
 
 
 class TestGeneratedTypeOverrides:
     """Generated types with additionalProperties: true override to extra='allow'."""
 
-    def test_allow_override_accepts_extra_fields(self) -> None:
+    def test_allow_override_stores_extra_fields(self) -> None:
         class ExtensibleType(AdCPBaseModel):
             model_config = ConfigDict(extra="allow")
             name: str
 
-        obj = ExtensibleType(name="test", extra_field="allowed")
+        obj = ExtensibleType(name="test", extra_field="stored")
         assert obj.name == "test"
-        assert obj.extra_field == "allowed"  # type: ignore[attr-defined]
+        assert obj.extra_field == "stored"  # type: ignore[attr-defined]
 
-    def test_forbid_inherited_without_explicit_config(self) -> None:
-        """A subclass without its own model_config inherits forbid from base."""
+    def test_ignore_inherited_without_explicit_config(self) -> None:
+        """A subclass without its own model_config inherits ignore from base."""
 
         class InheritedType(AdCPBaseModel):
             name: str
             value: int
 
-        with pytest.raises(ValidationError, match="extra_forbidden"):
-            InheritedType(name="test", value=1, surprise="nope")
+        obj = InheritedType(name="test", value=1, surprise="dropped")
+        assert obj.name == "test"
+        assert not hasattr(obj, "surprise")
 
 
 class TestConsumerSubclassing:
@@ -88,19 +92,17 @@ class TestConsumerSubclassing:
         with pytest.raises(ValidationError, match="extra_forbidden"):
             ConsumerType(name="test", unknown="rejected")
 
-    def test_consumer_can_ignore_on_allow_parent(self) -> None:
-        """Consumer subclass can relax from allow to ignore."""
+    def test_consumer_can_forbid_on_ignore_parent(self) -> None:
+        """Consumer subclass can tighten from ignore to forbid (dev/CI pattern)."""
 
         class LibraryType(AdCPBaseModel):
-            model_config = ConfigDict(extra="allow")
             name: str
 
         class ConsumerType(LibraryType):
-            model_config = ConfigDict(extra="ignore")
+            model_config = ConfigDict(extra="forbid")
 
-        obj = ConsumerType(name="test", unknown="silently_dropped")
-        assert obj.name == "test"
-        assert not hasattr(obj, "unknown")
+        with pytest.raises(ValidationError, match="extra_forbidden"):
+            ConsumerType(name="test", unknown="rejected")
 
     def test_consumer_base_class_pattern(self) -> None:
         """Consumer can use a base class to batch-apply extra policy."""

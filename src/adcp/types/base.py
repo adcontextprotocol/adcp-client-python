@@ -180,13 +180,14 @@ def _provide_performance_feedback_error_message(self: Any) -> str:
 class AdCPBaseModel(BaseModel):
     """Base model for AdCP types with spec-compliant serialization.
 
-    Defaults to ``extra='forbid'`` so that types without an explicit
-    ``additionalProperties`` in the JSON schema reject unknown fields.
+    Defaults to ``extra='ignore'`` so that unknown fields from newer spec
+    versions are silently dropped rather than causing validation errors.
     Generated types whose schemas set ``additionalProperties: true``
     override this with ``extra='allow'`` in their own ``model_config``.
+    Consumers who want strict validation can override with ``extra='forbid'``.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     def model_dump(self, **kwargs: Any) -> dict[str, Any]:
         if "exclude_none" not in kwargs:
