@@ -3,7 +3,7 @@
 Validates that:
 - AdCPBaseModel defaults to extra='forbid'
 - Generated types with additionalProperties: true override to extra='allow'
-- Generated types with additionalProperties: false use extra='forbid'
+- Types without additionalProperties inherit forbid from base
 - Consumer subclasses can override extra policy freely
 """
 
@@ -21,6 +21,14 @@ from adcp.types.base import AdCPBaseModel
 
 SCHEMAS_DIR = Path(__file__).parent.parent / "schemas" / "cache"
 GENERATED_DIR = Path(__file__).parent.parent / "src" / "adcp" / "types" / "generated_poc"
+
+
+def test_base_model_config_is_forbid() -> None:
+    """Sanity check: AdCPBaseModel must have extra='forbid'."""
+    assert AdCPBaseModel.model_config.get("extra") == "forbid", (
+        f"AdCPBaseModel.model_config is {AdCPBaseModel.model_config!r} — "
+        "is the package installed from the correct branch?"
+    )
 
 
 class TestBaseModelDefault:
@@ -53,13 +61,15 @@ class TestGeneratedTypeOverrides:
         assert obj.name == "test"
         assert obj.extra_field == "allowed"  # type: ignore[attr-defined]
 
-    def test_forbid_override_rejects_extra_fields(self) -> None:
-        class StrictType(AdCPBaseModel):
-            model_config = ConfigDict(extra="forbid")
+    def test_forbid_inherited_without_explicit_config(self) -> None:
+        """A subclass without its own model_config inherits forbid from base."""
+
+        class InheritedType(AdCPBaseModel):
             name: str
+            value: int
 
         with pytest.raises(ValidationError, match="extra_forbidden"):
-            StrictType(name="test", unknown_field="oops")
+            InheritedType(name="test", value=1, surprise="nope")
 
 
 class TestConsumerSubclassing:
@@ -110,18 +120,22 @@ class TestConsumerSubclassing:
 
 
 class TestGeneratedCodeMatchesSchemas:
-    """CI guard: generated extra policy matches schema additionalProperties."""
+    """CI guard: generated extra='allow' must be backed by schema additionalProperties."""
 
     @staticmethod
     def _schema_allows_extra(obj: Any, all_schemas: dict[str, Any]) -> bool:
-        """Check if a schema has additionalProperties: true, following $ref chains."""
+        """Check if a schema has additionalProperties: true, following $ref chains.
+
+        Recursively walks the full schema tree. This is safe because
+        non-structural keys (description, title, examples) contain strings
+        or simple arrays, never dicts with additionalProperties.
+        """
         if isinstance(obj, dict):
             if obj.get("additionalProperties") is True:
                 return True
             # Follow $ref to check composed schemas
             if "$ref" in obj:
                 ref_path = obj["$ref"]
-                # Normalize: strip ./, replace hyphens, try both raw and prefixed
                 ref_normalized = ref_path.replace("-", "_").lstrip("./")
                 for key in all_schemas:
                     if key == ref_normalized or key.endswith("/" + ref_normalized):
@@ -141,14 +155,9 @@ class TestGeneratedCodeMatchesSchemas:
             )
         return False
 
-    def test_no_spurious_extra_allow(self) -> None:
-        """Generated types should only have extra='allow' when schema says so.
-
-        Any generated file with extra='allow' must correspond to a schema
-        that has additionalProperties: true somewhere in its structure,
-        including transitively via $ref composition.
-        """
-        # Load all schemas for $ref resolution
+    @staticmethod
+    def _load_schemas() -> dict[str, Any]:
+        """Load all schemas with underscore-normalized keys for lookup."""
         all_schemas: dict[str, Any] = {}
         for schema_file in SCHEMAS_DIR.rglob("*.json"):
             if schema_file.name in (".hashes.json", "index.json"):
@@ -158,19 +167,22 @@ class TestGeneratedCodeMatchesSchemas:
             rel = str(schema_file.relative_to(SCHEMAS_DIR))
             underscore_key = rel.replace("-", "_")
             all_schemas[underscore_key] = schema
+        return all_schemas
 
-        # Build lookup
-        schema_allows: dict[str, bool] = {}
-        for key, schema in all_schemas.items():
-            schema_allows[key] = self._schema_allows_extra(schema, all_schemas)
+    def test_no_spurious_extra_allow(self) -> None:
+        """Generated types with extra='allow' must have schema additionalProperties: true."""
+        all_schemas = self._load_schemas()
+        schema_allows = {
+            key: self._schema_allows_extra(schema, all_schemas)
+            for key, schema in all_schemas.items()
+        }
 
-        # Check each generated file
         spurious = []
         for py_file in sorted(GENERATED_DIR.rglob("*.py")):
             if py_file.name == "__init__.py":
                 continue
             content = py_file.read_text()
-            if "extra='allow'" not in content:
+            if "extra='allow'" not in content and 'extra="allow"' not in content:
                 continue
             m = re.search(r"filename:\s+(.+)", content)
             if m:
