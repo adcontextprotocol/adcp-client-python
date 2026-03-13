@@ -24,6 +24,7 @@ from adcp.server.base import (
     ToolContext,
     not_supported,
 )
+from adcp.server.campaign_governance import CampaignGovernanceHandler
 from adcp.server.content_standards import ContentStandardsHandler
 from adcp.server.governance import GovernanceHandler
 from adcp.server.mcp_tools import MCPToolSet, create_mcp_tools
@@ -37,6 +38,7 @@ __all__ = [
     "NotImplementedResponse",
     "not_supported",
     # Protocol handlers
+    "CampaignGovernanceHandler",
     "ContentStandardsHandler",
     "GovernanceHandler",
     "SponsoredIntelligenceHandler",

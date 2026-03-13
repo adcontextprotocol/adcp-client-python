@@ -419,6 +419,144 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "required": ["list_id"],
         },
     },
+    # Campaign Governance
+    {
+        "name": "sync_plans",
+        "description": (
+            "Register campaign plans with the governance agent. "
+            "Must be called before check_governance to establish plan budgets, "
+            "policies, and constraints. Each plan includes brand, objectives, "
+            "budget, flight dates, and optional channel/delegation config."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "plans": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": (
+                        "Campaign plans. Each requires plan_id, brand, "
+                        "objectives, budget (total, currency, authority_level), "
+                        "and flight (start, end)."
+                    ),
+                },
+            },
+            "required": ["plans"],
+        },
+    },
+    {
+        "name": "check_governance",
+        "description": (
+            "Validate a campaign action against governance policies. "
+            "Two modes: binding='proposed' checks before sending to seller "
+            "(provide tool and payload); binding='committed' checks after "
+            "seller confirms (provide planned_delivery and phase). "
+            "Returns approved, denied, conditions, or escalated. "
+            "Use report_plan_outcome after the action completes."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "plan_id": {"type": "string"},
+                "buyer_campaign_ref": {"type": "string"},
+                "binding": {
+                    "type": "string",
+                    "enum": ["proposed", "committed"],
+                    "description": (
+                        "proposed: pre-check before seller call. "
+                        "committed: post-check after seller confirms."
+                    ),
+                },
+                "caller": {
+                    "type": "string",
+                    "description": "Agent URL or identifier of the caller.",
+                },
+                "tool": {
+                    "type": "string",
+                    "description": "Tool name being called (proposed binding).",
+                },
+                "payload": {
+                    "type": "object",
+                    "description": "Tool arguments (proposed binding).",
+                },
+                "media_buy_id": {"type": "string"},
+                "buyer_ref": {"type": "string"},
+                "phase": {
+                    "type": "string",
+                    "enum": ["purchase", "modification", "delivery"],
+                    "description": "Governance phase (committed binding).",
+                },
+                "planned_delivery": {
+                    "type": "object",
+                    "description": (
+                        "Delivery parameters confirmed by seller "
+                        "(committed binding)."
+                    ),
+                },
+                "modification_summary": {"type": "string"},
+                "delivery_metrics": {"type": "object"},
+            },
+            "required": ["plan_id", "buyer_campaign_ref", "binding", "caller"],
+        },
+    },
+    {
+        "name": "report_plan_outcome",
+        "description": (
+            "Report the result of a governance-checked action. "
+            "Call after a media buy action completes or fails to update "
+            "budget tracking and audit logs. Optionally pass check_id from "
+            "a prior check_governance response to link the outcome."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "plan_id": {"type": "string"},
+                "check_id": {
+                    "type": "string",
+                    "description": (
+                        "ID from a prior check_governance response."
+                    ),
+                },
+                "buyer_campaign_ref": {"type": "string"},
+                "outcome": {
+                    "type": "string",
+                    "enum": ["completed", "failed", "delivery"],
+                },
+                "seller_response": {"type": "object"},
+                "delivery": {
+                    "type": "object",
+                    "description": "Delivery performance metrics.",
+                },
+                "error": {"type": "object"},
+            },
+            "required": ["plan_id", "buyer_campaign_ref", "outcome"],
+        },
+    },
+    {
+        "name": "get_plan_audit_logs",
+        "description": (
+            "Read-only query for audit trail, budget status, and drift "
+            "metrics. Provide at least one of plan_ids, portfolio_plan_ids, "
+            "or buyer_campaign_ref."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "plan_ids": {"type": "array", "items": {"type": "string"}},
+                "portfolio_plan_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+                "buyer_campaign_ref": {"type": "string"},
+                "include_entries": {
+                    "type": "boolean",
+                    "description": (
+                        "Include detailed check/outcome log entries."
+                    ),
+                },
+            },
+        },
+    },
 ]
 
 

@@ -481,6 +481,12 @@ class TestMCPToolSet:
         assert "si_get_offering" in names
         assert "si_send_message" in names
 
+        # Should include Campaign Governance
+        assert "sync_plans" in names
+        assert "check_governance" in names
+        assert "report_plan_outcome" in names
+        assert "get_plan_audit_logs" in names
+
     @pytest.mark.asyncio
     async def test_call_tool_invokes_handler(self):
         """Test calling a tool invokes the handler method."""
@@ -502,6 +508,351 @@ class TestMCPToolSet:
             await tools.call_tool("nonexistent_tool", {})
 
 
+class TestCampaignGovernanceHandler:
+    """Tests for CampaignGovernanceHandler."""
+
+    @pytest.mark.asyncio
+    async def test_non_governance_operations_return_not_supported(self):
+        """Non-governance operations should return not_supported."""
+        from adcp.server import CampaignGovernanceHandler
+        from adcp.types.campaign_governance import (
+            CheckGovernanceResponse,
+            GetPlanAuditLogsResponse,
+            ReportPlanOutcomeResponse,
+            SyncPlansResponse,
+        )
+
+        class MinimalGovernanceHandler(CampaignGovernanceHandler):
+            async def handle_sync_plans(self, request, context=None):
+                return SyncPlansResponse(plans=[])
+
+            async def handle_check_governance(self, request, context=None):
+                return CheckGovernanceResponse(
+                    check_id="chk-1",
+                    status="approved",
+                    binding=request.binding,
+                    plan_id=request.plan_id,
+                    buyer_campaign_ref=request.buyer_campaign_ref,
+                    explanation="OK",
+                    mode="enforce",
+                )
+
+            async def handle_report_plan_outcome(self, request, context=None):
+                return ReportPlanOutcomeResponse(
+                    outcome_id="out-1", status="recorded"
+                )
+
+            async def handle_get_plan_audit_logs(self, request, context=None):
+                return GetPlanAuditLogsResponse(plans=[])
+
+        handler = MinimalGovernanceHandler()
+
+        # Non-governance operations should return not_supported
+        result = await handler.get_products({})
+        assert result.supported is False
+
+        result = await handler.create_media_buy({})
+        assert result.supported is False
+
+        result = await handler.get_signals({})
+        assert result.supported is False
+
+    @pytest.mark.asyncio
+    async def test_governance_operations_validate_and_delegate(self):
+        """Governance operations should validate input and delegate to handle_* methods."""
+        from adcp.server import CampaignGovernanceHandler
+        from adcp.types.campaign_governance import (
+            CheckGovernanceResponse,
+            GetPlanAuditLogsResponse,
+            ReportPlanOutcomeResponse,
+            SyncPlansResponse,
+        )
+
+        class TrackingHandler(CampaignGovernanceHandler):
+            def __init__(self):
+                self.calls = []
+
+            async def handle_sync_plans(self, request, context=None):
+                self.calls.append("sync_plans")
+                return SyncPlansResponse(plans=[])
+
+            async def handle_check_governance(self, request, context=None):
+                self.calls.append("check_governance")
+                return CheckGovernanceResponse(
+                    check_id="chk-1",
+                    status="approved",
+                    binding=request.binding,
+                    plan_id=request.plan_id,
+                    buyer_campaign_ref=request.buyer_campaign_ref,
+                    explanation="OK",
+                    mode="enforce",
+                )
+
+            async def handle_report_plan_outcome(self, request, context=None):
+                self.calls.append("report_plan_outcome")
+                return ReportPlanOutcomeResponse(
+                    outcome_id="out-1", status="recorded"
+                )
+
+            async def handle_get_plan_audit_logs(self, request, context=None):
+                self.calls.append("get_plan_audit_logs")
+                return GetPlanAuditLogsResponse(plans=[])
+
+        handler = TrackingHandler()
+
+        await handler.sync_plans(
+            {
+                "plans": [
+                    {
+                        "plan_id": "p1",
+                        "brand": {"domain": "test.com"},
+                        "objectives": "awareness",
+                        "budget": {
+                            "total": 10000,
+                            "currency": "USD",
+                            "authority_level": "agent_full",
+                        },
+                        "flight": {"start": "2026-04-01", "end": "2026-04-30"},
+                    }
+                ]
+            }
+        )
+        assert "sync_plans" in handler.calls
+
+        await handler.check_governance(
+            {
+                "plan_id": "p1",
+                "buyer_campaign_ref": "c1",
+                "binding": "proposed",
+                "caller": "orchestrator",
+            }
+        )
+        assert "check_governance" in handler.calls
+
+        await handler.report_plan_outcome(
+            {
+                "plan_id": "p1",
+                "buyer_campaign_ref": "c1",
+                "outcome": "completed",
+            }
+        )
+        assert "report_plan_outcome" in handler.calls
+
+        await handler.get_plan_audit_logs({"plan_ids": ["p1"]})
+        assert "get_plan_audit_logs" in handler.calls
+
+    @pytest.mark.asyncio
+    async def test_governance_validation_error_returns_not_implemented(self):
+        """Invalid input should return NotImplementedResponse with validation error."""
+        from adcp.server import CampaignGovernanceHandler
+        from adcp.types.campaign_governance import (
+            CheckGovernanceResponse,
+            GetPlanAuditLogsResponse,
+            ReportPlanOutcomeResponse,
+            SyncPlansResponse,
+        )
+
+        class StubHandler(CampaignGovernanceHandler):
+            async def handle_sync_plans(self, request, context=None):
+                return SyncPlansResponse(plans=[])
+
+            async def handle_check_governance(self, request, context=None):
+                return CheckGovernanceResponse(
+                    check_id="x",
+                    status="approved",
+                    binding="proposed",
+                    plan_id="p",
+                    buyer_campaign_ref="c",
+                    explanation="OK",
+                    mode="enforce",
+                )
+
+            async def handle_report_plan_outcome(self, request, context=None):
+                return ReportPlanOutcomeResponse(
+                    outcome_id="x", status="recorded"
+                )
+
+            async def handle_get_plan_audit_logs(self, request, context=None):
+                return GetPlanAuditLogsResponse(plans=[])
+
+        handler = StubHandler()
+
+        # Missing required 'plans' field
+        result = await handler.sync_plans({})
+        assert result.supported is False
+        assert result.error is not None
+        assert result.error.code == "VALIDATION_ERROR"
+
+        # Missing required fields for check_governance
+        result = await handler.check_governance({"plan_id": "p1"})
+        assert result.supported is False
+
+        # Missing required fields for report_plan_outcome
+        result = await handler.report_plan_outcome({})
+        assert result.supported is False
+        assert result.error is not None
+        assert result.error.code == "VALIDATION_ERROR"
+
+        # Invalid type for get_plan_audit_logs
+        result = await handler.get_plan_audit_logs({"plan_ids": "not_a_list"})
+        assert result.supported is False
+        assert result.error is not None
+
+    @pytest.mark.asyncio
+    async def test_validated_request_passed_to_handler(self):
+        """Verify the Pydantic-validated request object is passed to handle_*."""
+        from adcp.server import CampaignGovernanceHandler
+        from adcp.types.campaign_governance import (
+            CheckGovernanceRequest,
+            CheckGovernanceResponse,
+            GetPlanAuditLogsResponse,
+            ReportPlanOutcomeResponse,
+            SyncPlansRequest,
+            SyncPlansResponse,
+        )
+
+        class CapturingHandler(CampaignGovernanceHandler):
+            def __init__(self):
+                self.captured_request = None
+
+            async def handle_sync_plans(self, request, context=None):
+                self.captured_request = request
+                return SyncPlansResponse(plans=[])
+
+            async def handle_check_governance(self, request, context=None):
+                self.captured_request = request
+                return CheckGovernanceResponse(
+                    check_id="x",
+                    status="approved",
+                    binding=request.binding,
+                    plan_id=request.plan_id,
+                    buyer_campaign_ref=request.buyer_campaign_ref,
+                    explanation="OK",
+                    mode="enforce",
+                )
+
+            async def handle_report_plan_outcome(self, request, context=None):
+                self.captured_request = request
+                return ReportPlanOutcomeResponse(
+                    outcome_id="x", status="recorded"
+                )
+
+            async def handle_get_plan_audit_logs(self, request, context=None):
+                self.captured_request = request
+                return GetPlanAuditLogsResponse(plans=[])
+
+        handler = CapturingHandler()
+
+        await handler.sync_plans(
+            {
+                "plans": [
+                    {
+                        "plan_id": "p1",
+                        "brand": {"domain": "test.com"},
+                        "objectives": "awareness",
+                        "budget": {
+                            "total": 10000,
+                            "currency": "USD",
+                            "authority_level": "agent_full",
+                        },
+                        "flight": {"start": "2026-04-01", "end": "2026-04-30"},
+                    }
+                ]
+            }
+        )
+        assert isinstance(handler.captured_request, SyncPlansRequest)
+        assert handler.captured_request.plans[0].plan_id == "p1"
+        assert handler.captured_request.plans[0].budget.total == 10000
+
+        await handler.check_governance(
+            {
+                "plan_id": "p1",
+                "buyer_campaign_ref": "c1",
+                "binding": "proposed",
+                "caller": "orchestrator",
+                "tool": "create_media_buy",
+            }
+        )
+        assert isinstance(handler.captured_request, CheckGovernanceRequest)
+        assert handler.captured_request.binding == "proposed"
+        assert handler.captured_request.tool == "create_media_buy"
+
+    @pytest.mark.asyncio
+    async def test_campaign_governance_via_mcp_toolset(self):
+        """CampaignGovernanceHandler should work with MCPToolSet."""
+        from adcp.server import CampaignGovernanceHandler, create_mcp_tools
+        from adcp.types.campaign_governance import (
+            CheckGovernanceResponse,
+            GetPlanAuditLogsResponse,
+            ReportPlanOutcomeResponse,
+            SyncPlansResponse,
+        )
+
+        class TestHandler(CampaignGovernanceHandler):
+            async def handle_sync_plans(self, request, context=None):
+                return SyncPlansResponse(plans=[])
+
+            async def handle_check_governance(self, request, context=None):
+                return CheckGovernanceResponse(
+                    check_id="chk-1",
+                    status="approved",
+                    binding=request.binding,
+                    plan_id=request.plan_id,
+                    buyer_campaign_ref=request.buyer_campaign_ref,
+                    explanation="OK",
+                    mode="enforce",
+                )
+
+            async def handle_report_plan_outcome(self, request, context=None):
+                return ReportPlanOutcomeResponse(
+                    outcome_id="out-1", status="recorded"
+                )
+
+            async def handle_get_plan_audit_logs(self, request, context=None):
+                return GetPlanAuditLogsResponse(plans=[])
+
+        handler = TestHandler()
+        tools = create_mcp_tools(handler)
+
+        # sync_plans via MCP tool
+        result = await tools.call_tool(
+            "sync_plans",
+            {
+                "plans": [
+                    {
+                        "plan_id": "p1",
+                        "brand": {"domain": "test.com"},
+                        "objectives": "awareness",
+                        "budget": {
+                            "total": 10000,
+                            "currency": "USD",
+                            "authority_level": "agent_full",
+                        },
+                        "flight": {"start": "2026-04-01", "end": "2026-04-30"},
+                    }
+                ]
+            },
+        )
+        assert result["plans"] == []
+
+        # check_governance via MCP tool
+        result = await tools.call_tool(
+            "check_governance",
+            {
+                "plan_id": "p1",
+                "buyer_campaign_ref": "c1",
+                "binding": "proposed",
+                "caller": "orchestrator",
+            },
+        )
+        assert result["status"] == "approved"
+        assert result["check_id"] == "chk-1"
+
+        # Non-governance tools should return not_supported
+        result = await tools.call_tool("get_products", {})
+        assert result["supported"] is False
+
+
 class TestServerModuleExports:
     """Test that server module exports are correct."""
 
@@ -509,6 +860,7 @@ class TestServerModuleExports:
         """Test all expected exports are available from adcp.server."""
         from adcp.server import (
             ADCPHandler,
+            CampaignGovernanceHandler,
             ContentStandardsHandler,
             NotImplementedResponse,
             ProposalBuilder,
@@ -521,6 +873,7 @@ class TestServerModuleExports:
 
         # Just verify they're importable and are the right types
         assert ADCPHandler is not None
+        assert CampaignGovernanceHandler is not None
         assert ContentStandardsHandler is not None
         assert SponsoredIntelligenceHandler is not None
         assert ProposalBuilder is not None

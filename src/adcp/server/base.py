@@ -413,3 +413,43 @@ class ADCPHandler(ABC):
         Override this in GovernanceHandler subclasses.
         """
         return not_supported("delete_property_list is not implemented by this agent")
+
+    # ========================================================================
+    # Campaign Governance Operations
+    # ========================================================================
+
+    async def sync_plans(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -> Any:
+        """Push campaign plans to governance agent.
+
+        Override this in CampaignGovernanceHandler subclasses.
+        """
+        return not_supported("sync_plans is not implemented by this agent")
+
+    async def check_governance(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -> Any:
+        """Validate a campaign action against governance policies.
+
+        Override this in CampaignGovernanceHandler subclasses.
+        """
+        return not_supported("check_governance is not implemented by this agent")
+
+    async def report_plan_outcome(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -> Any:
+        """Close the governance loop after seller response.
+
+        Override this in CampaignGovernanceHandler subclasses.
+        """
+        return not_supported("report_plan_outcome is not implemented by this agent")
+
+    async def get_plan_audit_logs(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -> Any:
+        """Get audit trail for campaign plans.
+
+        Override this in CampaignGovernanceHandler subclasses.
+        """
+        return not_supported("get_plan_audit_logs is not implemented by this agent")

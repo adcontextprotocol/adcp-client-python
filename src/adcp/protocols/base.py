@@ -319,3 +319,27 @@ class ProtocolAdapter(ABC):
     async def delete_property_list(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Delete a property list."""
         pass
+
+    # ========================================================================
+    # Campaign Governance
+    # ========================================================================
+
+    @abstractmethod
+    async def sync_plans(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Push campaign plans to a governance agent."""
+        pass
+
+    @abstractmethod
+    async def check_governance(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Validate a campaign action against governance policies."""
+        pass
+
+    @abstractmethod
+    async def report_plan_outcome(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Close the governance loop after seller response."""
+        pass
+
+    @abstractmethod
+    async def get_plan_audit_logs(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Get audit trail for campaign plans."""
+        pass

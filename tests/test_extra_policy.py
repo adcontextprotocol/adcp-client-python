@@ -193,6 +193,6 @@ class TestGeneratedCodeMatchesSchemas:
                     spurious.append(f"{py_file.name} <- {schema_name}")
 
         assert not spurious, (
-            f"Generated files have extra='allow' without schema support:\n"
+            "Generated files have extra='allow' without schema support:\n"
             + "\n".join(f"  {s}" for s in spurious)
         )

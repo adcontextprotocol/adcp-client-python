@@ -174,6 +174,11 @@ async def test_all_client_methods():
     assert hasattr(client, "list_property_lists")
     assert hasattr(client, "update_property_list")
     assert hasattr(client, "delete_property_list")
+    # Campaign Governance
+    assert hasattr(client, "sync_plans")
+    assert hasattr(client, "check_governance")
+    assert hasattr(client, "report_plan_outcome")
+    assert hasattr(client, "get_plan_audit_logs")
 
 
 @pytest.mark.parametrize(
@@ -281,6 +286,8 @@ async def test_all_client_methods():
         # are tested separately with full request validation since their schemas are complex
     ],
 )
+# Campaign governance methods are tested separately below since their types
+# are hand-written in adcp.types.campaign_governance, not in _generated.
 @pytest.mark.asyncio
 async def test_method_calls_correct_tool_name(method_name, request_class, request_data):
     """Test that each method calls the correct adapter method.
@@ -782,3 +789,233 @@ async def test_multi_agent_close_handles_adapter_failures():
         # Verify both adapters had close called
         mock_close_success.assert_called_once()
         mock_close_failure.assert_called_once()
+
+
+# ============================================================================
+# Campaign Governance Client Methods
+# ============================================================================
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "method_name,request_cls,request_data",
+    [
+        pytest.param(
+            "sync_plans",
+            "SyncPlansRequest",
+            {
+                "plans": [
+                    {
+                        "plan_id": "plan-1",
+                        "brand": {"domain": "example.com"},
+                        "objectives": "awareness",
+                        "budget": {
+                            "total": 50000,
+                            "currency": "USD",
+                            "authority_level": "agent_full",
+                        },
+                        "flight": {"start": "2026-04-01", "end": "2026-04-30"},
+                    }
+                ]
+            },
+            id="sync_plans",
+        ),
+        pytest.param(
+            "check_governance",
+            "CheckGovernanceRequest",
+            {
+                "plan_id": "plan-1",
+                "buyer_campaign_ref": "camp-1",
+                "binding": "proposed",
+                "caller": "orchestrator",
+                "tool": "create_media_buy",
+                "payload": {"packages": []},
+            },
+            id="check_governance",
+        ),
+        pytest.param(
+            "report_plan_outcome",
+            "ReportPlanOutcomeRequest",
+            {
+                "plan_id": "plan-1",
+                "check_id": "chk-1",
+                "buyer_campaign_ref": "camp-1",
+                "outcome": "completed",
+            },
+            id="report_plan_outcome",
+        ),
+        pytest.param(
+            "get_plan_audit_logs",
+            "GetPlanAuditLogsRequest",
+            {"plan_ids": ["plan-1"]},
+            id="get_plan_audit_logs",
+        ),
+    ],
+)
+async def test_campaign_governance_client_methods(
+    method_name, request_cls, request_data
+):
+    """Test that campaign governance client methods call the correct adapter method."""
+    from unittest.mock import patch
+
+    import adcp.types.campaign_governance as cg_types
+    from adcp.types.core import TaskResult, TaskStatus
+
+    cls = getattr(cg_types, request_cls)
+    request = cls(**request_data)
+
+    config = AgentConfig(
+        id="test_agent",
+        agent_uri="https://test.example.com",
+        protocol=Protocol.A2A,
+    )
+    client = ADCPClient(config)
+
+    mock_result = TaskResult(
+        status=TaskStatus.COMPLETED,
+        data={},
+        success=True,
+    )
+
+    with patch.object(client.adapter, method_name, return_value=mock_result) as mock_method:
+        method = getattr(client, method_name)
+        await method(request)
+        mock_method.assert_called_once()
+        # Verify the serialized request was passed
+        call_args = mock_method.call_args[0][0]
+        assert call_args == request.model_dump(exclude_none=True)
+
+
+@pytest.mark.asyncio
+async def test_sync_plans_parses_response():
+    """Test that sync_plans parses the response into SyncPlansResponse."""
+    from unittest.mock import patch
+
+    from adcp.types.campaign_governance import SyncPlansRequest, SyncPlansResponse
+    from adcp.types.core import TaskResult, TaskStatus
+
+    config = AgentConfig(
+        id="test_agent",
+        agent_uri="https://test.example.com",
+        protocol=Protocol.MCP,
+    )
+    client = ADCPClient(config)
+
+    response_data = {
+        "plans": [
+            {
+                "plan_id": "plan-1",
+                "status": "active",
+                "version": 1,
+                "categories": [{"category_id": "budget", "status": "ok"}],
+                "resolved_policies": [
+                    {
+                        "policy_id": "gdpr_consent",
+                        "source": "registry",
+                        "enforcement": "must",
+                        "reason": "EU targeting",
+                    }
+                ],
+            }
+        ]
+    }
+
+    mock_result = TaskResult(
+        status=TaskStatus.COMPLETED,
+        data=[{"type": "text", "text": str(response_data).replace("'", '"')}],
+        success=True,
+    )
+
+    # Use raw JSON for MCP content format
+    import json
+
+    mock_result = TaskResult(
+        status=TaskStatus.COMPLETED,
+        data=[{"type": "text", "text": json.dumps(response_data)}],
+        success=True,
+    )
+
+    request = SyncPlansRequest(
+        plans=[
+            {
+                "plan_id": "plan-1",
+                "brand": {"domain": "test.com"},
+                "objectives": "awareness",
+                "budget": {
+                    "total": 10000,
+                    "currency": "USD",
+                    "authority_level": "agent_full",
+                },
+                "flight": {"start": "2026-04-01", "end": "2026-04-30"},
+            }
+        ]
+    )
+
+    with patch.object(client.adapter, "sync_plans", return_value=mock_result):
+        result = await client.sync_plans(request)
+
+    assert result.success is True
+    assert isinstance(result.data, SyncPlansResponse)
+    assert result.data.plans[0].plan_id == "plan-1"
+    assert result.data.plans[0].version == 1
+    assert len(result.data.plans[0].resolved_policies) == 1
+
+
+@pytest.mark.asyncio
+async def test_check_governance_parses_response():
+    """Test that check_governance parses the response into CheckGovernanceResponse."""
+    from unittest.mock import patch
+
+    from adcp.types.campaign_governance import (
+        CheckGovernanceRequest,
+        CheckGovernanceResponse,
+    )
+    from adcp.types.core import TaskResult, TaskStatus
+
+    config = AgentConfig(
+        id="test_agent",
+        agent_uri="https://test.example.com",
+        protocol=Protocol.MCP,
+    )
+    client = ADCPClient(config)
+
+    import json
+
+    response_data = {
+        "check_id": "chk-123",
+        "status": "approved",
+        "binding": "proposed",
+        "plan_id": "plan-1",
+        "buyer_campaign_ref": "camp-1",
+        "explanation": "All checks passed",
+        "mode": "enforce",
+        "findings": [
+            {
+                "category_id": "budget",
+                "severity": "info",
+                "explanation": "Within budget",
+            }
+        ],
+    }
+
+    mock_result = TaskResult(
+        status=TaskStatus.COMPLETED,
+        data=[{"type": "text", "text": json.dumps(response_data)}],
+        success=True,
+    )
+
+    request = CheckGovernanceRequest(
+        plan_id="plan-1",
+        buyer_campaign_ref="camp-1",
+        binding="proposed",
+        caller="orchestrator",
+    )
+
+    with patch.object(client.adapter, "check_governance", return_value=mock_result):
+        result = await client.check_governance(request)
+
+    assert result.success is True
+    assert isinstance(result.data, CheckGovernanceResponse)
+    assert result.data.status == "approved"
+    assert result.data.check_id == "chk-123"
+    assert len(result.data.findings) == 1

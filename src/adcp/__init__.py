@@ -339,6 +339,9 @@ from adcp.types.aliases import (
 from adcp.types.core import (
     AgentConfig,
     Member,
+    Policy,
+    PolicyRevision,
+    PolicySummary,
     Protocol,
     ResolvedBrand,
     ResolvedProperty,
@@ -405,6 +408,9 @@ __all__ = [
     # Core types
     "AgentConfig",
     "Member",
+    "Policy",
+    "PolicyRevision",
+    "PolicySummary",
     "Protocol",
     "ResolvedBrand",
     "ResolvedProperty",

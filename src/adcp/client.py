@@ -57,6 +57,16 @@ from adcp.types import (
     UpdateMediaBuyRequest,
     UpdateMediaBuyResponse,
 )
+from adcp.types.campaign_governance import (
+    CheckGovernanceRequest,
+    CheckGovernanceResponse,
+    GetPlanAuditLogsRequest,
+    GetPlanAuditLogsResponse,
+    ReportPlanOutcomeRequest,
+    ReportPlanOutcomeResponse,
+    SyncPlansRequest,
+    SyncPlansResponse,
+)
 from adcp.types.core import (
     Activity,
     ActivityType,
@@ -1852,6 +1862,187 @@ class ADCPClient:
         )
 
         return self.adapter._parse_response(raw_result, DeletePropertyListResponse)
+
+    # ========================================================================
+    # Campaign Governance
+    # ========================================================================
+
+    async def sync_plans(
+        self,
+        request: SyncPlansRequest,
+    ) -> TaskResult[SyncPlansResponse]:
+        """
+        Push campaign plans to a governance agent.
+
+        Sends campaign plans for the governance agent to store and resolve
+        applicable policies from the registry.
+
+        Args:
+            request: Request containing campaign plans
+
+        Returns:
+            TaskResult containing SyncPlansResponse with plan statuses
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="sync_plans",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.sync_plans(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="sync_plans",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, SyncPlansResponse)
+
+    async def check_governance(
+        self,
+        request: CheckGovernanceRequest,
+    ) -> TaskResult[CheckGovernanceResponse]:
+        """
+        Validate a campaign action against governance policies.
+
+        Checks a proposed or committed action against the campaign plan,
+        budget limits, and applicable policies.
+
+        Args:
+            request: Governance check request with plan_id, binding mode,
+                and action details
+
+        Returns:
+            TaskResult containing CheckGovernanceResponse with approval status
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="check_governance",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.check_governance(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="check_governance",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, CheckGovernanceResponse)
+
+    async def report_plan_outcome(
+        self,
+        request: ReportPlanOutcomeRequest,
+    ) -> TaskResult[ReportPlanOutcomeResponse]:
+        """
+        Close the governance loop after seller response.
+
+        Reports the outcome of a governance-checked action back to the
+        governance agent for budget tracking and audit logging.
+
+        Args:
+            request: Outcome report with plan_id, check_id, and outcome details
+
+        Returns:
+            TaskResult containing ReportPlanOutcomeResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="report_plan_outcome",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.report_plan_outcome(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="report_plan_outcome",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, ReportPlanOutcomeResponse)
+
+    async def get_plan_audit_logs(
+        self,
+        request: GetPlanAuditLogsRequest,
+    ) -> TaskResult[GetPlanAuditLogsResponse]:
+        """
+        Get audit trail for campaign plans.
+
+        Retrieves audit data including budget status, check history,
+        and drift metrics for the requested plans.
+
+        Args:
+            request: Request with plan_ids or portfolio_plan_ids to query
+
+        Returns:
+            TaskResult containing GetPlanAuditLogsResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="get_plan_audit_logs",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.get_plan_audit_logs(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="get_plan_audit_logs",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, GetPlanAuditLogsResponse)
 
     async def list_tools(self) -> list[str]:
         """

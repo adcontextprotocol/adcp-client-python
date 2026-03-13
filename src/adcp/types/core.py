@@ -240,3 +240,48 @@ class ResolvedProperty(BaseModel):
     authorized_agents: list[dict[str, Any]]
     properties: list[dict[str, Any]]
     verified: bool
+
+
+class PolicySummary(BaseModel):
+    """Policy summary from the community policy registry."""
+
+    model_config = ConfigDict(extra="allow")
+
+    policy_id: str
+    version: int
+    name: str
+    description: str | None = None
+    category: str
+    enforcement: str
+    jurisdictions: list[str] = Field(default_factory=list)
+    region_aliases: list[str] = Field(default_factory=list)
+    verticals: list[str] = Field(default_factory=list)
+    channels: list[str] = Field(default_factory=list)
+    governance_domains: list[str] = Field(default_factory=list)
+    effective_date: str | None = None
+    sunset_date: str | None = None
+    source_url: str | None = None
+    source_name: str | None = None
+    source_type: str | None = None
+    review_status: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class Policy(PolicySummary):
+    """Full policy with text and exemplars from the community policy registry."""
+
+    policy: str | None = None
+    guidance: str | None = None
+    exemplars: list[dict[str, Any]] = Field(default_factory=list)
+    ext: dict[str, Any] | None = None
+
+
+class PolicyRevision(BaseModel):
+    """Revision history for a policy."""
+
+    model_config = ConfigDict(extra="allow")
+
+    policy_id: str
+    total: int
+    revisions: list[dict[str, Any]] = Field(default_factory=list)

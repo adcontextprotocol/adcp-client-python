@@ -459,12 +459,33 @@ from adcp.types.aliases import (
     ValidateContentDeliverySuccessResponse,
 )
 
+# Campaign governance types (hand-written until schemas land in index)
+from adcp.types.campaign_governance import (
+    CampaignPlan,
+    CheckGovernanceRequest,
+    CheckGovernanceResponse,
+    GetPlanAuditLogsRequest,
+    GetPlanAuditLogsResponse,
+    GovernanceCondition,
+    GovernanceDeliveryMetrics,
+    GovernanceEscalation,
+    GovernanceFinding,
+    PlannedDelivery,
+    ReportPlanOutcomeRequest,
+    ReportPlanOutcomeResponse,
+    SyncPlansRequest,
+    SyncPlansResponse,
+)
+
 # Re-export core types (not in generated, but part of public API)
 # Note: We don't import TaskStatus here to avoid shadowing GeneratedTaskStatus
 # Users should import TaskStatus from adcp.types.core directly if they need the core enum
 from adcp.types.core import (
     AgentConfig,
     Member,
+    Policy,
+    PolicyRevision,
+    PolicySummary,
     Protocol,
     ResolvedBrand,
     ResolvedProperty,
@@ -851,11 +872,29 @@ __all__ = [
     # Core types
     "AgentConfig",
     "Member",
+    "Policy",
+    "PolicyRevision",
+    "PolicySummary",
     "Protocol",
     "ResolvedBrand",
     "ResolvedProperty",
     "TaskResult",
     "WebhookMetadata",
+    # Campaign governance types
+    "CampaignPlan",
+    "CheckGovernanceRequest",
+    "CheckGovernanceResponse",
+    "GetPlanAuditLogsRequest",
+    "GetPlanAuditLogsResponse",
+    "GovernanceCondition",
+    "GovernanceDeliveryMetrics",
+    "GovernanceEscalation",
+    "GovernanceFinding",
+    "PlannedDelivery",
+    "ReportPlanOutcomeRequest",
+    "ReportPlanOutcomeResponse",
+    "SyncPlansRequest",
+    "SyncPlansResponse",
     # Webhook types
     "McpWebhookPayload",
     # Semantic aliases for discriminated unions
