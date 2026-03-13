@@ -58,10 +58,14 @@ el.replaceWith(d);
 <pre><code class="python">class AdCPBaseModel(BaseModel):
     &#34;&#34;&#34;Base model for AdCP types with spec-compliant serialization.
 
-    AdCP JSON schemas use additionalProperties: false and do not allow null
-    for optional fields. Therefore, optional fields must be omitted entirely
-    when not present (not sent as null).
+    Defaults to ``extra=&#39;ignore&#39;`` so that unknown fields from newer spec
+    versions are silently dropped rather than causing validation errors.
+    Generated types whose schemas set ``additionalProperties: true``
+    override this with ``extra=&#39;allow&#39;`` in their own ``model_config``.
+    Consumers who want strict validation can override with ``extra=&#39;forbid&#39;``.
     &#34;&#34;&#34;
+
+    model_config = ConfigDict(extra=&#34;ignore&#34;)
 
     def model_dump(self, **kwargs: Any) -&gt; dict[str, Any]:
         if &#34;exclude_none&#34; not in kwargs:
@@ -88,9 +92,11 @@ el.replaceWith(d);
         return f&#34;{self.__class__.__name__} response&#34;</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>AdCP JSON schemas use additionalProperties: false and do not allow null
-for optional fields. Therefore, optional fields must be omitted entirely
-when not present (not sent as null).</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
 <p>Create a new model by parsing and validating input data from keyword arguments.</p>
 <p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
 validated to form a valid model.</p>
